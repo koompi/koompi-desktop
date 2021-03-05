@@ -6,7 +6,7 @@ use iced_winit::{
     button, Align, Button, Color, Column, Command, Container, Element, Font, HorizontalAlignment,
     Length, Program, Row, Slider, Space, Text,
 };
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct Controls {
     background_color: Color,
     widgets: [button::State; 7],

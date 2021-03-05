@@ -1,10 +1,8 @@
 use super::controls::Controls;
 // use super::scene::Scene;
 use iced_wgpu::{wgpu, Backend, Renderer, Settings, Viewport};
-use iced_winit::{conversion, futures, program, winit, Debug, Size};
+use iced_winit::{conversion, futures, futures::task::SpawnExt, program, winit, Debug, Size};
 
-use futures::task::SpawnExt;
-use winit::monitor::MonitorHandle;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::{Event, ModifiersState, WindowEvent},
@@ -12,13 +10,13 @@ use winit::{
     platform::unix::{WindowBuilderExtUnix, XWindowStrut, XWindowType},
     window::WindowBuilder,
 };
-
 pub fn initlization() {
     env_logger::init();
+    let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
+    let mut modifiers = ModifiersState::default();
 
-    // Initialize winit
     let event_loop = EventLoop::new();
-    let window = winit::window::WindowBuilder::new()
+    let window = WindowBuilder::new()
         .with_x11_window_type(vec![XWindowType::Dock])
         .with_x11_window_strut(vec![
             XWindowStrut::Strut([0, 0, 32, 0]),
@@ -26,7 +24,7 @@ pub fn initlization() {
         ])
         .build(&event_loop)
         .unwrap();
-    match window.current_monitor() {
+    match window.primary_monitor() {
         Some(handler) => {
             let size = handler.size();
             window.set_inner_size(PhysicalSize::new(size.width, 32));
@@ -39,9 +37,6 @@ pub fn initlization() {
         Size::new(physical_size.width, physical_size.height),
         window.scale_factor(),
     );
-    let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
-    let mut modifiers = ModifiersState::default();
-
     // Initialize wgpu
     let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
     let surface = unsafe { instance.create_surface(&window) };
@@ -91,13 +86,11 @@ pub fn initlization() {
     let mut local_pool = futures::executor::LocalPool::new();
 
     // Initialize scene and GUI controls
-    // let scene = Scene::new(&mut device);
-    let controls = Controls::new();
 
     // Initialize iced
     let mut debug = Debug::new();
     let mut renderer = Renderer::new(Backend::new(&mut device, Settings::default()));
-
+    let controls = Controls::new();
     let mut state = program::State::new(
         controls,
         viewport.logical_size(),
@@ -216,12 +209,12 @@ pub fn initlization() {
                     .set_cursor_icon(iced_winit::conversion::mouse_interaction(mouse_interaction));
 
                 // And recall staging buffers
-                // local_pool
-                //     .spawner()
-                //     .spawn(staging_belt.recall())
-                //     .expect("Recall staging buffers");
+                local_pool
+                    .spawner()
+                    .spawn(staging_belt.recall())
+                    .expect("Recall staging buffers");
 
-                // local_pool.run_until_stalled();
+                local_pool.run_until_stalled();
             }
             _ => {}
         }
