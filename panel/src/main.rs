@@ -1,45 +1,46 @@
-use super::controls::Controls;
+mod controls;
+mod panelwin;
+mod strut;
+mod styles;
+use controls::Controls;
+use iced_winit::{conversion, futures, futures::task::SpawnExt, program, winit, Debug, Size};
 // use super::scene::Scene;
 use iced_wgpu::{wgpu, Backend, Renderer, Settings, Viewport};
-use iced_winit::{conversion, futures, futures::task::SpawnExt, program, winit, Debug, Size};
 
 use winit::{
-    dpi::{PhysicalPosition, PhysicalSize},
+    dpi::PhysicalPosition,
     event::{Event, ModifiersState, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     platform::unix::{WindowBuilderExtUnix, XWindowStrut, XWindowType},
     window::WindowBuilder,
 };
-pub fn initlization() {
-    env_logger::init();
+
+fn main() {
     let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
     let mut modifiers = ModifiersState::default();
 
     let event_loop = EventLoop::new();
+    let mut strut_size = strut::StrutArea::new();
+    let mut strut_partial = strut::StrutPartialArea::new();
+    strut_size.set_top(32);
+    strut_partial.set_top(32);
+    strut_partial.set_top_end_x(1920);
     let window = WindowBuilder::new()
         .with_x11_window_type(vec![XWindowType::Dock])
         .with_x11_window_strut(vec![
-            XWindowStrut::Strut([0, 0, 32, 0]),
-            XWindowStrut::StrutPartial([0, 0, 32, 0, 0, 0, 0, 0, 0, 1920, 0, 0]),
+            XWindowStrut::Strut(strut_size.list_props()),
+            XWindowStrut::StrutPartial(strut_partial.list_props()),
         ])
         .build(&event_loop)
         .unwrap();
-    match window.primary_monitor() {
-        Some(handler) => {
-            let size = handler.size();
-            window.set_inner_size(PhysicalSize::new(size.width, 32));
-        }
-        None => {}
-    }
-    window.set_outer_position(PhysicalPosition::new(0, 0));
-    let physical_size = window.inner_size();
-    let mut viewport = Viewport::with_physical_size(
-        Size::new(physical_size.width, physical_size.height),
-        window.scale_factor(),
-    );
+    let mut panel_win = panelwin::WindowPanel::new(window);
+    panel_win.set_deafult_size();
+    panel_win.set_outer_position();
+    let physical_size = panel_win.window.inner_size();
+    let mut viewport = panel_win.get_viewport(physical_size);
     // Initialize wgpu
     let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
-    let surface = unsafe { instance.create_surface(&window) };
+    let surface = unsafe { instance.create_surface(&panel_win.window) };
 
     let (mut device, queue) = futures::executor::block_on(async {
         let adapter = instance
@@ -66,7 +67,7 @@ pub fn initlization() {
     let format = wgpu::TextureFormat::Bgra8UnormSrgb;
 
     let mut swap_chain = {
-        let size = window.inner_size();
+        let size = panel_win.window.inner_size();
 
         device.create_swap_chain(
             &surface,
@@ -115,7 +116,7 @@ pub fn initlization() {
                     WindowEvent::Resized(new_size) => {
                         viewport = Viewport::with_physical_size(
                             Size::new(new_size.width, new_size.height),
-                            window.scale_factor(),
+                            panel_win.window.scale_factor(),
                         );
 
                         resized = true;
@@ -127,9 +128,11 @@ pub fn initlization() {
                 }
 
                 // Map window event to iced event
-                if let Some(event) =
-                    iced_winit::conversion::window_event(&event, window.scale_factor(), modifiers)
-                {
+                if let Some(event) = iced_winit::conversion::window_event(
+                    &event,
+                    panel_win.window.scale_factor(),
+                    modifiers,
+                ) {
                     state.queue_event(event);
                 }
             }
@@ -146,12 +149,12 @@ pub fn initlization() {
                     );
 
                     // and request a redraw
-                    window.request_redraw();
+                    panel_win.window.request_redraw();
                 }
             }
             Event::RedrawRequested(_) => {
                 if resized {
-                    let size = window.inner_size();
+                    let size = panel_win.window.inner_size();
 
                     swap_chain = device.create_swap_chain(
                         &surface,
@@ -205,7 +208,8 @@ pub fn initlization() {
                 queue.submit(Some(encoder.finish()));
 
                 // Update the mouse cursor
-                window
+                panel_win
+                    .window
                     .set_cursor_icon(iced_winit::conversion::mouse_interaction(mouse_interaction));
 
                 // And recall staging buffers

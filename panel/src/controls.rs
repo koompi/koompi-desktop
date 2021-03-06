@@ -162,7 +162,7 @@ fn icon(unicode: char) -> Text<Renderer> {
 }
 const ICONS: Font = Font::External {
     name: "Line Awesome",
-    bytes: include_bytes!("../font/la-solid-900.ttf"),
+    bytes: include_bytes!("./font/la-solid-900.ttf"),
 };
 
 pub struct Widgets {}

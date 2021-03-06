@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use iced_wgpu::{container, Color};
 
 pub const BACKGROUND: Color = Color::from_rgb(238.0 / 255.0, 238.0 / 255.0, 238.0 / 255.0);
