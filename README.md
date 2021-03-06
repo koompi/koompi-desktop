@@ -1,2 +1,2 @@
-# koompi-desktop
-Desktop shell for koompi os.
+# KOOMPI-Desktop
+Desktop shell for KOOMPI OS.

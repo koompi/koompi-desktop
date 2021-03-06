@@ -1,9 +1,9 @@
 [package]
-name = "koompi-desktop"
+name = "desktop"
 version = "0.1.0"
-authors = ["veasnama <maveasnalearntosolve@gmail>"]
+authors = ["leang27 <hangleang127@gmail.com>"]
 edition = "2018"
-description = "Desktop Graphical Shell for KOOMPI OS"
+description = "Desktop GUI for KOOMPI OS"
 license = "MIT"
 repository = "https://github.com/koompi/koompi-desktop"
 readme = "README.md"
@@ -12,14 +12,6 @@ categories = ["gui"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[badges]
-maintenance = { status = "actively-developed" }
-
-[workspace]
-members = [
-   "desktop",
-   "panel"
-]
 [dependencies]
-desktop = { version = "0.0.1", path = "desktop" }
-panel = { version = "0.0.1", path = "panel" }
+iced_winit = { git = "https://github.com/veasnama/iced.git", branch = "iced_intergration" }
+iced_wgpu = { git = "https://github.com/veasnama/iced.git", branch = "iced_intergration" }
