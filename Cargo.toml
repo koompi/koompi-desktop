@@ -17,10 +17,9 @@ maintenance = { status = "actively-developed" }
 
 [workspace]
 members = [
-   "desktop"
+   "desktop",
+   "panel"
 ]
-
-
 [dependencies]
-desktop = { version = "0.1", path = "desktop" }
-# panel = { version = "0.2", path = "panel" }
+desktop = { version = "0.1.0", path = "desktop" }
+panel = { version = "0.1.0", path = "panel" }
