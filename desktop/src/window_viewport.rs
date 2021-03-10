@@ -31,19 +31,18 @@ impl ViewportDesc {
 
     pub fn build<P: 'static + Program>(
         self,
-        _adapter: &wgpu::Adapter,
+        adapter: &wgpu::Adapter,
         device: &wgpu::Device,
         state: program::State<P>,
     ) -> WindowViewport<P> {
         let size = self.window.inner_size();
 
         let sc_desc = wgpu::SwapChainDescriptor {
-            usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT,
+            usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
             format: wgpu::TextureFormat::Bgra8UnormSrgb,
-            // format: adapter.get_swap_chain_preferred_format(&surface)
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::Mailbox,
         };
 
         let swap_chain = device.create_swap_chain(&self.surface, &sc_desc);

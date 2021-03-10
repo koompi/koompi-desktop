@@ -20,6 +20,7 @@ members = [
    "desktop",
    "panel"
 ]
+
 [dependencies]
 desktop = { version = "0.1.0", path = "desktop" }
 panel = { version = "0.1.0", path = "panel" }
