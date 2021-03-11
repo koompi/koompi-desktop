@@ -11,6 +11,7 @@ pub struct Controls {
     background_color: Color,
     widgets: [button::State; 7],
     is_exit: bool,
+    is_shwon: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -29,15 +30,18 @@ pub enum Message {
 impl Controls {
     pub fn new() -> Controls {
         Controls {
-            background_color: Color::BLACK,
+            background_color: Color::from_rgb8(255, 255, 255),
             widgets: Default::default(),
             is_exit: false,
+            is_shwon: false,
         }
     }
     pub fn is_quit(&self) -> bool {
         self.is_exit
     }
-
+    pub fn is_shown(&self) -> bool {
+        self.is_shwon
+    }
     pub fn background_color(&self) -> Color {
         self.background_color
     }
@@ -52,14 +56,15 @@ impl Program for Controls {
             Message::BackgroundColorChanged(color) => {
                 self.background_color = color;
             }
-            Message::ShowAction => {
-                println!("Application show");
-            }
+            Message::ShowAction => {}
             Message::ShowMenu => {
                 println!("Menu show");
                 self.is_exit = !self.is_exit;
             }
-            Message::MonitorShow => {}
+            Message::MonitorShow => {
+                println!("Application show");
+                self.is_shwon = !self.is_shwon;
+            }
             Message::BellShow => {}
             Message::ClipboardShow => {}
             Message::SoundShow => {}
@@ -85,35 +90,26 @@ impl Program for Controls {
             .push(
                 Button::new(b2, monitor_icon())
                     .height(Length::Fill)
-                    .style(btnzero)
                     .on_press(Message::MonitorShow),
             )
             .push(
                 Button::new(b3, bell_icon())
-                    .style(btnzero)
                     .height(Length::Fill)
                     .on_press(Message::BellShow),
             )
-            .push(
-                Button::new(b4, keyboard_icon())
-                    .style(btnzero)
-                    .on_press(Message::KeyboardShow),
-            )
+            .push(Button::new(b4, keyboard_icon()).on_press(Message::KeyboardShow))
             .push(
                 Button::new(b5, clipboard())
-                    .style(btnzero)
                     .height(Length::Fill)
                     .on_press(Message::ClipboardShow),
             )
             .push(
                 Button::new(b6, sound_icon())
-                    .style(btnzero)
                     .height(Length::Fill)
                     .on_press(Message::SoundShow),
             )
             .push(
                 Button::new(b7, wifi_icon())
-                    .style(btnzero)
                     .height(Length::Fill)
                     .on_press(Message::WifiShow),
             );
