@@ -3,14 +3,14 @@ mod panelwin;
 mod strut;
 mod styles;
 mod viewport;
-// use controls::Controls;
-
+use controls::Controls;
 use iced_winit::{conversion, futures, futures::task::SpawnExt, program, winit, Debug, Size};
+use viewport::{ViewportDesc, WindowPanel};
 // use super::scene::Scene;
 use iced_wgpu::{wgpu, Backend, Renderer, Settings, Viewport};
-
+use std::collections::HashMap;
 use winit::{
-    dpi::PhysicalPosition,
+    dpi::{PhysicalPosition, PhysicalSize},
     event::{Event, ModifiersState, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     platform::unix::{WindowBuilderExtUnix, XWindowStrut, XWindowType},
@@ -18,212 +18,168 @@ use winit::{
 };
 
 fn main() {
-    // let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
-    // let mut modifiers = ModifiersState::default();
+    let event_loop = EventLoop::new();
+    let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
+    let mut viewports = HashMap::new();
 
-    // let event_loop = EventLoop::new();
-    // let mut strut_size = strut::StrutArea::new();
-    // let mut strut_partial = strut::StrutPartialArea::new();
-    // strut_size.set_top(32);
-    // strut_partial.set_top(32);
-    // strut_partial.set_top_end_x(1920);
-    // let window = WindowBuilder::new()
-    //     .with_x11_window_type(vec![XWindowType::Dock])
-    //     .with_x11_window_strut(vec![
-    //         XWindowStrut::Strut(strut_size.list_props()),
-    //         XWindowStrut::StrutPartial(strut_partial.list_props()),
-    //     ])
-    //     .build(&event_loop)
-    //     .unwrap();
-    // let mut panel_win = panelwin::WindowPanel::new(window);
-    // panel_win.set_deafult_size();
-    // panel_win.set_outer_position();
-    // let physical_size = panel_win.window.inner_size();
-    // let mut viewport = panel_win.get_viewport(physical_size);
-    // // Initialize wgpu
-    // let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
-    // let surface = unsafe { instance.create_surface(&panel_win.window) };
+    let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
+    let mut modifiers = ModifiersState::default();
 
-    // let (mut device, queue) = futures::executor::block_on(async {
-    //     let adapter = instance
-    //         .request_adapter(&wgpu::RequestAdapterOptions {
-    //             power_preference: wgpu::PowerPreference::Default,
-    //             compatible_surface: Some(&surface),
-    //         })
-    //         .await
-    //         .expect("Request adapter");
+    // Initlize staging belt and local poll
+    let mut staging_belt = wgpu::util::StagingBelt::new(5 * 1024);
+    let mut local_pool = futures::executor::LocalPool::new();
+    let window = WindowBuilder::new()
+        .with_x11_window_type(vec![XWindowType::Dock])
+        .with_x11_window_strut(vec![XWindowStrut::Strut([0, 0, 32, 0])])
+        .build(&event_loop)
+        .unwrap();
+    if let Some(monitor) = window.primary_monitor() {
+        window.set_inner_size(PhysicalSize::new(monitor.size().width, 32));
+        window.set_outer_position(PhysicalPosition::new(0, 0));
+    }
+    let viewport_desc = ViewportDesc::new(&instance, window);
+    let (adapter, (mut device, queue)) = futures::executor::block_on(async {
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: Some(&viewport_desc.surface),
+            })
+            .await
+            .expect("Request Adapter");
 
-    //     adapter
-    //         .request_device(
-    //             &wgpu::DeviceDescriptor {
-    //                 features: wgpu::Features::empty(),
-    //                 limits: wgpu::Limits::default(),
-    //                 shader_validation: false,
-    //             },
-    //             None,
-    //         )
-    //         .await
-    //         .expect("Request device")
-    // });
+        let dev_queue = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    label: None,
+                    features: wgpu::Features::empty(),
+                    limits: wgpu::Limits::default(),
+                },
+                None,
+            )
+            .await
+            .expect("Request device");
+        (adapter, dev_queue)
+    });
 
-    // let format = wgpu::TextureFormat::Bgra8UnormSrgb;
+    let panel = Controls::new();
+    let mut debug = Debug::new();
+    let mut renderer = Renderer::new(Backend::new(&mut device, Settings::default()));
+    let state = program::State::new(
+        panel,
+        viewport_desc.viewport.logical_size(),
+        conversion::cursor_position(cursor_position, viewport_desc.viewport.scale_factor()),
+        &mut renderer,
+        &mut debug,
+    );
+    viewports.insert(
+        viewport_desc.window.id(),
+        viewport_desc.build(&adapter, &device, state),
+    );
+    event_loop.run(move |event, _, control_flow| {
+        let _ = (&instance, &adapter);
 
-    // let mut swap_chain = {
-    //     let size = panel_win.window.inner_size();
+        *control_flow = ControlFlow::Wait;
+        match event {
+            Event::WindowEvent { event, window_id } => {
+                match event {
+                    WindowEvent::CloseRequested => {
+                        viewports.remove(&window_id);
 
-    //     device.create_swap_chain(
-    //         &surface,
-    //         &wgpu::SwapChainDescriptor {
-    //             usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT,
-    //             format: format,
-    //             width: size.width,
-    //             height: size.height,
-    //             present_mode: wgpu::PresentMode::Mailbox,
-    //         },
-    //     )
-    // };
-    // let mut resized = false;
+                        if viewports.is_empty() {
+                            *control_flow = ControlFlow::Exit;
+                        }
+                    }
+                    WindowEvent::CursorMoved { position, .. } => cursor_position = position,
+                    WindowEvent::ModifiersChanged(modi) => modifiers = modi,
+                    _ => {}
+                }
 
-    // // Initialize staging belt and local pool
-    // let mut staging_belt = wgpu::util::StagingBelt::new(5 * 1024);
-    // let mut local_pool = futures::executor::LocalPool::new();
+                if let Some(viewport) = viewports.get_mut(&window_id) {
+                    if let Some(event) = iced_winit::conversion::window_event(
+                        &event,
+                        viewport.desc.viewport.scale_factor(),
+                        modifiers,
+                    ) {
+                        viewport.state.queue_event(event);
+                    }
+                }
+            }
+            Event::MainEventsCleared => {
+                viewports.iter_mut().for_each(|(window_id, viewport)| {
+                    if !viewport.state.is_queue_empty() {
+                        let viewport_wgpu = viewport.desc.viewport.clone();
+                        // We update iced
+                        let _ = viewport.state.update(
+                            viewport_wgpu.logical_size(),
+                            conversion::cursor_position(
+                                cursor_position,
+                                viewport_wgpu.scale_factor(),
+                            ),
+                            None,
+                            &mut renderer,
+                            &mut debug,
+                        );
 
-    // // Initialize scene and GUI controls
+                        viewport.desc.window.request_redraw();
+                    }
+                });
+            }
+            Event::RedrawRequested(window_id) => {
+                if let Some(viewport) = viewports.get_mut(&window_id) {
+                    let frame = viewport.get_current_frame();
+                    let mut encoder = device
+                        .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+                    let program = viewport.state.program();
 
-    // // Initialize iced
-    // let mut debug = Debug::new();
-    // let mut renderer = Renderer::new(Backend::new(&mut device, Settings::default()));
-    // let controls = Controls::new();
-    // let mut state = program::State::new(
-    //     controls,
-    //     viewport.logical_size(),
-    //     conversion::cursor_position(cursor_position, viewport.scale_factor()),
-    //     &mut renderer,
-    //     &mut debug,
-    // );
+                    {
+                        let _rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                            label: None,
+                            color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
+                                attachment: &frame.view,
+                                resolve_target: None,
+                                ops: wgpu::Operations {
+                                    load: wgpu::LoadOp::Clear({
+                                        let [r, g, b, a] = program.background_color().into_linear();
 
-    // // Run event loop
-    // event_loop.run(move |event, _, control_flow| {
-    //     // You should change this if you want to render continuosly
-    //     *control_flow = ControlFlow::Wait;
-    //     match event {
-    //         Event::WindowEvent { event, .. } => {
-    //             match event {
-    //                 WindowEvent::CursorMoved { position, .. } => {
-    //                     cursor_position = position;
-    //                 }
-    //                 WindowEvent::ModifiersChanged(new_modifiers) => {
-    //                     modifiers = new_modifiers;
-    //                 }
-    //                 WindowEvent::Resized(new_size) => {
-    //                     viewport = Viewport::with_physical_size(
-    //                         Size::new(new_size.width, new_size.height),
-    //                         panel_win.window.scale_factor(),
-    //                     );
+                                        wgpu::Color {
+                                            r: r as f64,
+                                            g: g as f64,
+                                            b: b as f64,
+                                            a: a as f64,
+                                        }
+                                    }),
+                                    store: true,
+                                },
+                            }],
+                            depth_stencil_attachment: None,
+                        });
+                    }
 
-    //                     resized = true;
-    //                 }
-    //                 WindowEvent::CloseRequested => {
-    //                     *control_flow = ControlFlow::Exit;
-    //                 }
-    //                 _ => {}
-    //             }
+                    let mouse_interaction = renderer.backend_mut().draw(
+                        &mut device,
+                        &mut staging_belt,
+                        &mut encoder,
+                        &frame.view,
+                        &viewport.desc.viewport,
+                        viewport.state.primitive(),
+                        &debug.overlay(),
+                    );
+                    // Update the mouse cursor
+                    viewport.desc.window.set_cursor_icon(
+                        iced_winit::conversion::mouse_interaction(mouse_interaction),
+                    );
+                    staging_belt.finish();
+                    queue.submit(Some(encoder.finish()));
+                }
 
-    //             // Map window event to iced event
-    //             if let Some(event) = iced_winit::conversion::window_event(
-    //                 &event,
-    //                 panel_win.window.scale_factor(),
-    //                 modifiers,
-    //             ) {
-    //                 state.queue_event(event);
-    //             }
-    //         }
-    //         Event::MainEventsCleared => {
-    //             // If there are events pending
-    //             if !state.is_queue_empty() {
-    //                 // We update iced
-    //                 let _ = state.update(
-    //                     viewport.logical_size(),
-    //                     conversion::cursor_position(cursor_position, viewport.scale_factor()),
-    //                     None,
-    //                     &mut renderer,
-    //                     &mut debug,
-    //                 );
-
-    //                 // and request a redraw
-    //                 panel_win.window.request_redraw();
-    //             }
-    //         }
-    //         Event::RedrawRequested(_) => {
-    //             if resized {
-    //                 let size = panel_win.window.inner_size();
-
-    //                 swap_chain = device.create_swap_chain(
-    //                     &surface,
-    //                     &wgpu::SwapChainDescriptor {
-    //                         usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT,
-    //                         format: format,
-    //                         width: size.width,
-    //                         height: size.height,
-    //                         present_mode: wgpu::PresentMode::Mailbox,
-    //                     },
-    //                 );
-
-    //                 resized = false;
-    //             }
-
-    //             let frame = swap_chain.get_current_frame().expect("Next frame");
-
-    //             let mut encoder =
-    //                 device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
-    //             // let program = state.program();
-
-    //             // {
-    //             //     // We clear the frame
-    //             //     let mut render_pass =
-    //             //         scene.clear(&frame.output.view, &mut encoder, program.background_color());
-
-    //             //     // Draw the scene
-    //             //     scene.draw(&mut render_pass);
-    //             // }
-    //             let program = state.program();
-    //             println!("Program: {:?}", program.is_quit());
-    //             if program.is_quit() {
-    //                 *control_flow = ControlFlow::Exit;
-    //             } else {
-    //                 {}
-    //             }
-    //             // And then iced on top
-    //             let mouse_interaction = renderer.backend_mut().draw(
-    //                 &mut device,
-    //                 &mut staging_belt,
-    //                 &mut encoder,
-    //                 &frame.output.view,
-    //                 &viewport,
-    //                 state.primitive(),
-    //                 &debug.overlay(),
-    //             );
-
-    //             // Then we submit the work
-    //             staging_belt.finish();
-    //             queue.submit(Some(encoder.finish()));
-
-    //             // Update the mouse cursor
-    //             panel_win
-    //                 .window
-    //                 .set_cursor_icon(iced_winit::conversion::mouse_interaction(mouse_interaction));
-
-    //             // And recall staging buffers
-    //             local_pool
-    //                 .spawner()
-    //                 .spawn(staging_belt.recall())
-    //                 .expect("Recall staging buffers");
-
-    //             local_pool.run_until_stalled();
-    //         }
-    //         _ => {}
-    //     }
-    // })
-    viewport::init_ui();
+                // And recall staging buffers
+                local_pool
+                    .spawner()
+                    .spawn(staging_belt.recall())
+                    .expect("Recall staging buffers");
+                local_pool.run_until_stalled();
+            }
+            _ => (),
+        }
+    });
 }

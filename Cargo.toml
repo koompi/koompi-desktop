@@ -21,5 +21,5 @@ members = [
    "panel"
 ]
 [dependencies]
-desktop = { version = "0.0.1", path = "desktop" }
-panel = { version = "0.0.1", path = "panel" }
+desktop = { version = "0.1.0", path = "desktop" }
+panel = { version = "0.1.0", path = "panel" }
