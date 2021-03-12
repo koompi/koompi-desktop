@@ -1,10 +1,12 @@
 use super::controls::Controls;
 use super::panel_viewport::{PanelViewport, ViewportDesc};
+use super::sound::Sound;
+use super::state::{Common, MultiState};
 use super::strut::{StrutArea, StrutPartialArea};
-
+use crate::state::CommonState;
 use futures::task::SpawnExt;
-use iced_wgpu::{wgpu, Backend, Renderer, Settings};
-use iced_winit::{conversion, futures, program, winit, Debug, Size};
+use iced_wgpu::{wgpu, Backend, Renderer, Settings, Viewport};
+use iced_winit::{conversion, futures, program, winit, Debug, Program, Size};
 use std::collections::HashMap;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -26,32 +28,36 @@ pub fn run() {
     let mut strut_partial = StrutPartialArea::new();
     strut_partial.set_top(32);
     let window = winit::window::WindowBuilder::new()
-        .with_inner_size(PhysicalSize::new(1920, 30))
+        // .with_inner_size(PhysicalSize::new(1920, 30))
         // .with_fullscreen(Some(Fullscreen::Borderless(Some(monitor_handle))))
         .with_decorations(false)
         .with_x11_window_type(vec![XWindowType::Dock])
         .with_x11_window_strut(vec![
             XWindowStrut::Strut(strut_area.list_props()),
-            XWindowStrut::StrutPartial([0, 0, 30, 0, 0, 0, 0, 0, 0, 1920, 0, 0]),
+            XWindowStrut::StrutPartial([0, 0, 32, 0, 0, 0, 0, 0, 0, 1920, 0, 0]),
         ])
         .build(&event_loop)
         .unwrap();
+    match window.primary_monitor() {
+        Some(monitor) => window.set_inner_size(PhysicalSize::new(monitor.size().width, 32)),
+        None => {}
+    }
     let menu = winit::window::WindowBuilder::new()
         .with_decorations(false)
-        .with_inner_size(PhysicalSize::new(400, 800))
+        .with_inner_size(PhysicalSize::new(400, 500))
         .with_x11_window_type(vec![XWindowType::Menu])
         .build(&event_loop)
         .unwrap();
     // menu.set_outer_position(PhysicalPosition::new(33, 1000));
-    menu.set_visible(false);
+    // menu.set_visible(true);
     let key = menu.id();
     // let mut hash_win = HashMap::new();
     window.set_outer_position(PhysicalPosition::new(0, 0));
-    // let physical_size = window.inner_size();
-    // let mut viewport = Viewport::with_physical_size(
-    //     Size::new(physical_size.width, physical_size.height),
-    //     window.scale_factor(),
-    // );
+    let physical_size = window.inner_size();
+    let viewport = Viewport::with_physical_size(
+        Size::new(physical_size.width, physical_size.height),
+        window.scale_factor(),
+    );
     let mut viewports = Vec::with_capacity(2);
     viewports.push((
         window,
@@ -77,7 +83,6 @@ pub fn run() {
         .collect();
     let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
     let mut modifiers = ModifiersState::default();
-
     // Initialize wgpucontrols
     // let surface = unsafe { instance.create_surface(&window) };
     let (adapter, (mut device, queue)) = futures::executor::block_on(async {
@@ -106,7 +111,7 @@ pub fn run() {
     // Initialize scene and GUI controls
     // let scene = Scene::new(&mut device);
     let controls = Controls::new();
-
+    let sound = Sound::new();
     let mut debug = Debug::new();
     let mut renderer = Renderer::new(Backend::new(&mut device, Settings::default()));
 
@@ -114,13 +119,31 @@ pub fn run() {
         controls,
         viewports
             .first()
-            .map(|des| &des.viewport)
+            .map(|desc| &desc.viewport)
             .unwrap()
             .logical_size(),
         conversion::cursor_position(
             cursor_position,
             viewports
                 .first()
+                .map(|desc| &desc.viewport)
+                .unwrap()
+                .scale_factor(),
+        ),
+        &mut renderer,
+        &mut debug,
+    );
+    let mut state_sound = program::State::new(
+        sound,
+        viewports
+            .last()
+            .map(|des| &des.viewport)
+            .unwrap()
+            .logical_size(),
+        conversion::cursor_position(
+            cursor_position,
+            viewports
+                .last()
                 .map(|des| &des.viewport)
                 .unwrap()
                 .scale_factor(),
@@ -134,7 +157,7 @@ pub fn run() {
         .map(|desc| (desc.window.id(), desc.build(&adapter, &device)))
         .collect();
     // let mut swap_chain = {
-    //     let size = window.inner_size();
+    //     let size = window.firstinner_size();
 
     //     device.create_swap_chain(
     //         &viewports.surface,
@@ -155,6 +178,7 @@ pub fn run() {
 
     // hash_win.insert(window.id(), window);
     // Run event loop
+    let mut counter: usize = 0;
     event_loop.run(move |event, _loop_event, control_flow| {
         // You should change this if you want to render continuosly
         *control_flow = ControlFlow::Wait;
@@ -169,10 +193,10 @@ pub fn run() {
                     }
                     WindowEvent::Resized(new_size) => {
                         if let Some(view_port) = viewports.get_mut(&window_id) {
-                            // viewport = Viewport::with_physical_size(
-                            //     Size::new(new_size.width, new_size.height),
-                            //     view_port.desc.window.scale_factor(),
-                            // );
+                            view_port.desc.viewport = Viewport::with_physical_size(
+                                Size::new(new_size.width, new_size.height),
+                                view_port.desc.window.scale_factor(),
+                            );
                         }
 
                         resized = true;
@@ -189,13 +213,15 @@ pub fn run() {
                         view_port.desc.window.scale_factor(),
                         modifiers,
                     ) {
-                        state.queue_event(event);
+                        let clone_event = event.clone();
+                        state.queue_event(clone_event);
+                        state_sound.queue_event(event);
                     }
                 }
             }
             Event::MainEventsCleared => {
                 // If there are events pending
-                viewports.iter_mut().for_each(|(window_id, view_port)| {
+                viewports.iter_mut().for_each(|(&window_id, view_port)| {
                     if !state.is_queue_empty() {
                         // We update iced
                         let _ = state.update(
@@ -208,12 +234,29 @@ pub fn run() {
                             &mut renderer,
                             &mut debug,
                         );
+                        // view_port.desc.window.request_redraw();
                         // and request a redraw
                         view_port.desc.window.request_redraw();
                     }
+                    if !state_sound.is_queue_empty() {
+                        let _ = state_sound.update(
+                            view_port.desc.viewport.logical_size(),
+                            conversion::cursor_position(
+                                cursor_position,
+                                view_port.desc.viewport.scale_factor(),
+                            ),
+                            None,
+                            &mut renderer,
+                            &mut debug,
+                        );
+
+                        view_port.desc.window.request_redraw();
+                    }
+                    // if !state_sound.is_queue_empty() {}
                 });
             }
             Event::RedrawRequested(window_id) => {
+                counter += 1;
                 let program = state.program();
                 if let Some(menu_window) = viewports.get_mut(&key) {
                     if program.is_shown() {
@@ -221,7 +264,7 @@ pub fn run() {
                         menu_window
                             .desc
                             .window
-                            .set_outer_position(PhysicalPosition::new(1520, 30));
+                            .set_outer_position(PhysicalPosition::new(1520, 40));
                     } else {
                         menu_window.desc.window.set_visible(false);
                     }
@@ -248,39 +291,42 @@ pub fn run() {
                             depth_stencil_attachment: None,
                         });
                     }
-
-                    let mouse_interaction = renderer.backend_mut().draw(
-                        &mut device,
-                        &mut staging_belt,
-                        &mut encoder,
-                        &frame.view,
-                        &viewport.desc.viewport,
-                        state.primitive(),
-                        &debug.overlay(),
-                    );
-                    // Then we submit the work
-                    staging_belt.finish();
-                    queue.submit(Some(encoder.finish()));
-                    // Update the mouse cursor
-                    viewport.desc.window.set_cursor_icon(
-                        iced_winit::conversion::mouse_interaction(mouse_interaction),
-                    );
+                    if window_id == key {
+                        let mouse_interaction = renderer.backend_mut().draw(
+                            &mut device,
+                            &mut staging_belt,
+                            &mut encoder,
+                            &frame.view,
+                            &viewport.desc.viewport,
+                            state_sound.primitive(),
+                            &debug.overlay(),
+                        );
+                        // Then we submit the work
+                        staging_belt.finish();
+                        queue.submit(Some(encoder.finish()));
+                        // Update the mouse cursor
+                        viewport.desc.window.set_cursor_icon(
+                            iced_winit::conversion::mouse_interaction(mouse_interaction),
+                        );
+                    } else {
+                        let mouse_interaction = renderer.backend_mut().draw(
+                            &mut device,
+                            &mut staging_belt,
+                            &mut encoder,
+                            &frame.view,
+                            &viewport.desc.viewport,
+                            state.primitive(),
+                            &debug.overlay(),
+                        );
+                        // Then we submit the work
+                        staging_belt.finish();
+                        queue.submit(Some(encoder.finish()));
+                        // Update the mouse cursor
+                        viewport.desc.window.set_cursor_icon(
+                            iced_winit::conversion::mouse_interaction(mouse_interaction),
+                        );
+                    }
                 }
-
-                // let program = state.program();
-
-                // {
-                //     // We clear the frame
-                //     let mut render_pass = scene.clear(
-                //         &frame.output.view,
-                //         &mut encoder,
-                //         program.background_color(),
-                //     );
-
-                //     // Draw the scene
-                //     scene.draw(&mut render_pass);
-                // }
-
                 // And recall staging buffers
                 local_pool
                     .spawner()
@@ -291,5 +337,6 @@ pub fn run() {
             }
             _ => {}
         }
+        println!("counter: {}", counter);
     })
 }

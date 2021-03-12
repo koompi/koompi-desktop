@@ -1,12 +1,12 @@
+use super::state::CommonState;
 use crate::styles::buttonstyle::buttons::ButtonStyle::Transparent as btnzero;
 use crate::styles::containers::CustomContainer::ForegroundWhite;
-
 use iced_wgpu::Renderer;
 use iced_winit::{
     button, Align, Button, Color, Column, Command, Container, Element, Font, HorizontalAlignment,
     Length, Program, Row, Slider, Space, Text,
 };
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default)]
 pub struct Controls {
     background_color: Color,
     widgets: [button::State; 7],
@@ -26,7 +26,11 @@ pub enum Message {
     SoundShow,
     WifiShow,
 }
-
+impl CommonState for Controls {
+    fn get_name(&self) -> String {
+        String::from("Panel Control")
+    }
+}
 impl Controls {
     pub fn new() -> Controls {
         Controls {
@@ -90,27 +94,36 @@ impl Program for Controls {
             .push(
                 Button::new(b2, monitor_icon())
                     .height(Length::Fill)
+                    .style(btnzero)
                     .on_press(Message::MonitorShow),
             )
             .push(
                 Button::new(b3, bell_icon())
                     .height(Length::Fill)
+                    .style(btnzero)
                     .on_press(Message::BellShow),
             )
-            .push(Button::new(b4, keyboard_icon()).on_press(Message::KeyboardShow))
+            .push(
+                Button::new(b4, keyboard_icon())
+                    .on_press(Message::KeyboardShow)
+                    .style(btnzero),
+            )
             .push(
                 Button::new(b5, clipboard())
                     .height(Length::Fill)
+                    .style(btnzero)
                     .on_press(Message::ClipboardShow),
             )
             .push(
                 Button::new(b6, sound_icon())
                     .height(Length::Fill)
+                    .style(btnzero)
                     .on_press(Message::SoundShow),
             )
             .push(
                 Button::new(b7, wifi_icon())
                     .height(Length::Fill)
+                    .style(btnzero)
                     .on_press(Message::WifiShow),
             );
         let row = Row::new()
@@ -149,7 +162,7 @@ fn sound_icon() -> Text<Renderer> {
 fn wifi_icon() -> Text<Renderer> {
     icon('\u{f1eb}')
 }
-fn icon(unicode: char) -> Text<Renderer> {
+pub fn icon(unicode: char) -> Text<Renderer> {
     Text::new(&unicode.to_string())
         .font(ICONS)
         .width(Length::Units(20))
