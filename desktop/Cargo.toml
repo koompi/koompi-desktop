@@ -15,3 +15,7 @@ categories = ["gui"]
 [dependencies]
 iced_winit = { git = "https://github.com/veasnama/iced.git", branch = "iced_intergration" }
 iced_wgpu = { git = "https://github.com/veasnama/iced.git", branch = "iced_intergration" }
+version-compare = "0.0.11"
+regex = "1.4.3"
+failure = "0.1.8"
+freedesktop_entry_parser = "1.1.1"
