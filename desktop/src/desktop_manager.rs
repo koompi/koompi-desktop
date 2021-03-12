@@ -15,7 +15,6 @@ impl DesktopManager {
         let dir = local_dir.read_dir()?;
         let desktop_items: Vec<DesktopItem> = dir.filter_map(|entry| DesktopItem::from_file(entry.unwrap().path()).ok()).collect();
 
-        // println!("{:?}", desktop_items.iter().map(|i| i.path()).collect::<Vec<&std::path::PathBuf>>());
         Ok(Self {
             desktop_items,
             conf_path: file.as_ref().to_path_buf(),

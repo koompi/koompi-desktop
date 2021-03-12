@@ -63,9 +63,17 @@ pub struct CustomTooltip;
 impl container::StyleSheet for CustomTooltip {
     fn style(&self) -> container::Style {
         container::Style {
-            text_color: Some(Color::from_rgb8(0xEE, 0xEE, 0xEE)),
-            background: Some(Color::from_rgb(0.11, 0.42, 0.87).into()),
-            border_radius: 12.0,
+            background: Some(Color::WHITE.into()),
+            ..container::Style::default()
+        }
+    }
+}
+
+pub struct ContainerFill(pub Color);
+impl container::StyleSheet for ContainerFill {
+    fn style(&self) -> container::Style {
+        container::Style {
+            background: Some(self.0.into()),
             ..container::Style::default()
         }
     }

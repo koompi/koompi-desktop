@@ -6,6 +6,7 @@ pub struct DesktopItemConf {
     pub arrangement: Arrangement,
     pub sort_descending: bool,
     pub sorting: Sort,
+    pub show_tooltip: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -25,10 +26,11 @@ pub enum Sort {
 impl Default for DesktopItemConf {
     fn default() -> Self {
         Self {
-            icon_size: 55,
+            icon_size: 45,
             arrangement: Arrangement::Rows,
             sort_descending: false,
             sorting: Sort::Manual,
+            show_tooltip: false,
         }
     }
 }

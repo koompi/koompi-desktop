@@ -2,7 +2,7 @@ use super::thumbnail::Thumbnail;
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "type", content = "args")]
+#[serde(tag = "type", content = "value")]
 pub enum WallpaperType {
     Color(String),
     Image(Thumbnail),

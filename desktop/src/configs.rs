@@ -1,5 +1,5 @@
-mod background_conf;
-mod desktop_item_conf;
+pub mod background_conf;
+pub mod desktop_item_conf;
 
 use background_conf::BackgroundConf;
 use desktop_item_conf::DesktopItemConf;
@@ -10,14 +10,20 @@ use super::errors::DesktopError;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct DesktopConf {
+    #[serde(rename = "Background")]
     background_conf: BackgroundConf,
+    #[serde(rename = "Desktop Entry")]
     desktop_item_conf: DesktopItemConf,
 }
 
 impl DesktopConf {
     pub fn new<P: AsRef<Path>>(file: P) -> Result<Self, DesktopError> {
-        if file.as_ref().exists() && file.as_ref().is_file() {
-            Ok(toml::from_str(&fs::read_to_string(file)?)?)
+        if file.as_ref().exists() { 
+            if file.as_ref().is_file() {
+                Ok(toml::from_str(&fs::read_to_string(file)?)?)
+            } else {
+                Err(DesktopError::ConfigNotFound(file.as_ref().display().to_string()))
+            }
         } else {
             let default = DesktopConf::default();
             let toml = toml::to_string_pretty(&default)?;
@@ -26,8 +32,7 @@ impl DesktopConf {
             }
             fs::write(file.as_ref(), toml)?;
             Ok(default)
-            // Err(DesktopError::ConfigNotFound(file.as_ref().display().to_string()))
-        }
+        } 
     }
 
     pub fn background_conf(&self) -> &BackgroundConf {
