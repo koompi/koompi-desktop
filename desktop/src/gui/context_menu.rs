@@ -5,6 +5,7 @@ use iced_winit::{
 };
 use crate::styles::{CustomButton, ContainerFill};
 
+#[derive(Debug)]
 pub struct ContextMenu {
     menu_items: Vec<MenuItemNode>,
 }

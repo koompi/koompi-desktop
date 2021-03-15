@@ -1,4 +1,4 @@
-use iced_wgpu::{wgpu, Viewport, Primitive, Renderer};
+use iced_wgpu::{wgpu, Viewport, Primitive, Renderer, Backend, Settings};
 use iced_winit::{winit, conversion, mouse, Size, Debug};
 use wgpu::util::StagingBelt;
 use winit::{
@@ -7,6 +7,7 @@ use winit::{
     dpi::PhysicalSize,
 };
 
+#[derive(Debug)]
 pub struct WindowState {
     pub window: Window,
     pub surface: wgpu::Surface,
@@ -15,11 +16,12 @@ pub struct WindowState {
     pub sc_desc: wgpu::SwapChainDescriptor,
     pub swap_chain: wgpu::SwapChain,
     pub viewport: Viewport,
+    pub renderer: Renderer
 }
 
 impl WindowState {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: Window) -> Self {
+    pub async fn new(window: Window, settings: Option<&Settings>) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -33,7 +35,7 @@ impl WindowState {
             },
         ).await.unwrap();
 
-        let (device, queue) = adapter.request_device(
+        let (mut device, queue) = adapter.request_device(
             &wgpu::DeviceDescriptor {
                 features: wgpu::Features::empty(),
                 limits: wgpu::Limits::default(),
@@ -51,6 +53,7 @@ impl WindowState {
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
         let viewport = Viewport::with_physical_size(Size::new(size.width, size.height), window.scale_factor());
+        let renderer = Renderer::new(Backend::new(&mut device, settings.map(ToOwned::to_owned).unwrap_or_default()));
 
         Self {
             window,
@@ -59,7 +62,8 @@ impl WindowState {
             queue,
             sc_desc,
             swap_chain,
-            viewport
+            viewport,
+            renderer
         }
     }
 
@@ -78,7 +82,7 @@ impl WindowState {
         
     }
 
-    pub fn render(&mut self, renderer: &mut Renderer, primitive: &(Primitive, mouse::Interaction), staging_belt: &mut StagingBelt, debug: &Debug) -> Result<(), wgpu::SwapChainError> {
+    pub fn render(&mut self, primitive: &(Primitive, mouse::Interaction), staging_belt: &mut StagingBelt, debug: &Debug) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
@@ -99,7 +103,7 @@ impl WindowState {
                 depth_stencil_attachment: None,
             });
         }
-        let mouse_interaction = renderer.backend_mut().draw(
+        let mouse_interaction = self.renderer.backend_mut().draw(
             &mut self.device,
             staging_belt,
             &mut encoder,

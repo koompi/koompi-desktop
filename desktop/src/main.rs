@@ -12,7 +12,7 @@ use gui::{Desktop, ContextMenu};
 use window_state::WindowState;
 
 use std::collections::HashMap;
-use iced_wgpu::{wgpu, Backend, Renderer, Settings};
+use iced_wgpu::{wgpu, Settings};
 use iced_winit::{conversion, futures, program, winit, Debug, Clipboard};
 use futures::task::SpawnExt;
 use winit::{
@@ -33,21 +33,19 @@ fn main() {
     let mut local_pool = futures::executor::LocalPool::new();
 
     let desktop_window = WindowBuilder::new()
-        .with_inner_size(PhysicalSize::new(1920, 1080))
         .with_x11_window_type(vec![XWindowType::Desktop])
         .build(&event_loop)
         .unwrap();
     if let Some(monitor) = desktop_window.primary_monitor() {
-        // !Problem scaled screen
-        // window.set_inner_size(monitor.size());
+        desktop_window.set_inner_size(monitor.size());
         desktop_window.set_outer_position(monitor.position());
     }
     let mut clipboard = Clipboard::connect(&desktop_window);
-    let mut desktop_window_state = futures::executor::block_on(WindowState::new(desktop_window));
-    let mut renderer = Renderer::new(Backend::new(&mut desktop_window_state.device, Settings {
+    let settings = Settings {
         default_text_size: 13,
         ..Settings::default()
-    }));
+    };
+    let mut desktop_window_state = futures::executor::block_on(WindowState::new(desktop_window, Some(&settings)));
 
     match Desktop::new(desktop_window_state.window.inner_size().height) {
         Ok(desktop) => {
@@ -55,7 +53,7 @@ fn main() {
                 desktop,
                 desktop_window_state.viewport.logical_size(),
                 conversion::cursor_position(cursor_position, desktop_window_state.viewport.scale_factor()),
-                &mut renderer,
+                &mut desktop_window_state.renderer,
                 &mut debug,
             );
 
@@ -79,44 +77,52 @@ fn main() {
                             WindowEvent::CursorMoved { position, .. } => cursor_position = position,
                             WindowEvent::ModifiersChanged(modi) => modifiers = modi,
                             WindowEvent::Resized(new_size) => desktop_window_state.resize(new_size, None),
-                            WindowEvent::ScaleFactorChanged { new_inner_size, scale_factor } => {
-                                desktop_window_state.resize(*new_inner_size, Some(scale_factor));
-                            }
+                            // WindowEvent::ScaleFactorChanged { new_inner_size, scale_factor } => {
+                            //     desktop_window_state.resize(*new_inner_size, Some(scale_factor));
+                            // }
                             WindowEvent::MouseInput {
                                 button: MouseButton::Right,
                                 ..
                             } => {
                                 let context_menu_window = WindowBuilder::new()
+                                    .with_inner_size(PhysicalSize::new(300, 500))
                                     .with_decorations(false)
                                     .with_resizable(false)
-                                    .with_inner_size(PhysicalSize::new(300, 500))
-                                    .with_x11_window_type(vec![XWindowType::PopupMenu, XWindowType::Dialog])
+                                    .with_x11_window_type(vec![XWindowType::PopupMenu, XWindowType::Dock])
                                     .build(&event_loop).unwrap();
                                 context_menu_window.set_outer_position(cursor_position);
                                 let context_menu = ContextMenu::new();
 
-                                let context_menu_window_state = futures::executor::block_on(WindowState::new(context_menu_window));
+                                let mut context_menu_window_state = futures::executor::block_on(WindowState::new(context_menu_window, Some(&settings)));
                                 let context_menu_program_state = program::State::new(
                                     context_menu,
                                     context_menu_window_state.viewport.logical_size(),
                                     conversion::cursor_position(cursor_position, context_menu_window_state.viewport.scale_factor()),
-                                    &mut renderer,
+                                    &mut context_menu_window_state.renderer,
                                     &mut debug,
                                 );
 
                                 window_states.insert(context_menu_window_state.window.id(), (context_menu_window_state, context_menu_program_state));
                             }
-                            _ => {
-                                if !window_states.is_empty() {
-                                    if let Some((window_state, program_state)) = window_states.get_mut(&window_id) {
-                                        if let Some(event) = conversion::window_event(
-                                            &event,
-                                            window_state.viewport.scale_factor(),
-                                            modifiers,
-                                        ) {
-                                            program_state.queue_event(event);
-                                        }
-                                    }
+                            _ => {}
+                        }
+
+                        if let Some(event) = conversion::window_event(
+                            &event,
+                            desktop_window_state.viewport.scale_factor(),
+                            modifiers
+                        ) {
+                            desktop_program_state.queue_event(event);
+                        }
+
+                        if !window_states.is_empty() {
+                            if let Some((window_state, program_state)) = window_states.get_mut(&window_id) {
+                                if let Some(event) = conversion::window_event(
+                                    &event,
+                                    window_state.viewport.scale_factor(),
+                                    modifiers,
+                                ) {
+                                    program_state.queue_event(event);
                                 }
                             }
                         }
@@ -127,7 +133,7 @@ fn main() {
                             let _ = desktop_program_state.update(
                                 desktop_window_state.viewport.logical_size(),
                                 conversion::cursor_position(cursor_position, desktop_window_state.viewport.scale_factor()),
-                                &mut renderer,
+                                &mut desktop_window_state.renderer,
                                 &mut clipboard,
                                 &mut debug,
                             );
@@ -142,7 +148,7 @@ fn main() {
                                     let _ = prog_state.update(
                                         win_state.viewport.logical_size(),
                                         conversion::cursor_position(cursor_position, win_state.viewport.scale_factor()),
-                                        &mut renderer,
+                                        &mut win_state.renderer,
                                         &mut clipboard,
                                         &mut debug,
                                     );
@@ -153,31 +159,35 @@ fn main() {
                         }
                     },
                     Event::RedrawRequested(window_id) => {
-                        if let Some((win_state, prog_state)) = window_states.get_mut(&window_id) {
-                            win_state.update();
-                            match win_state.render(&mut renderer, prog_state.primitive(), &mut staging_belt, &debug) {
-                                Ok(()) => {},
-                                Err(wgpu::SwapChainError::Lost) => {
-                                    let size = win_state.viewport.physical_size();
-                                    win_state.resize(PhysicalSize::new(size.width, size.height), None);
-                                },
-                                // The system is out of memory, we should probably quit
-                                Err(wgpu::SwapChainError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                                // All other errors (Outdated, Timeout) should be resolved by the next frame
-                                Err(e) => eprintln!("{:?}", e),
-                            }
-                        } else {
-                            desktop_window_state.update();
-                            match desktop_window_state.render(&mut renderer, desktop_program_state.primitive(), &mut staging_belt, &debug) {
-                                Ok(()) => {},
-                                Err(wgpu::SwapChainError::Lost) => {
-                                    let size = desktop_window_state.viewport.physical_size();
-                                    desktop_window_state.resize(PhysicalSize::new(size.width, size.height), None);
-                                },
-                                // The system is out of memory, we should probably quit
-                                Err(wgpu::SwapChainError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                                // All other errors (Outdated, Timeout) should be resolved by the next frame
-                                Err(e) => eprintln!("{:?}", e),
+                        println!("redrawn: {:?}", window_id);
+
+                        desktop_window_state.update();
+                        match desktop_window_state.render(desktop_program_state.primitive(), &mut staging_belt, &debug) {
+                            Ok(()) => {},
+                            Err(wgpu::SwapChainError::Lost) => {
+                                let size = desktop_window_state.viewport.physical_size();
+                                desktop_window_state.resize(PhysicalSize::new(size.width, size.height), None);
+                            },
+                            // The system is out of memory, we should probably quit
+                            Err(wgpu::SwapChainError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                            // All other errors (Outdated, Timeout) should be resolved by the next frame
+                            Err(e) => eprintln!("{:?}", e),
+                        }
+
+                        if !window_states.is_empty() {
+                            if let Some((win_state, prog_state)) = window_states.get_mut(&window_id) {
+                                win_state.update();
+                                match win_state.render(prog_state.primitive(), &mut staging_belt, &debug) {
+                                    Ok(()) => {},
+                                    Err(wgpu::SwapChainError::Lost) => {
+                                        let size = win_state.viewport.physical_size();
+                                        win_state.resize(PhysicalSize::new(size.width, size.height), None);
+                                    },
+                                    // The system is out of memory, we should probably quit
+                                    Err(wgpu::SwapChainError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                                    // All other errors (Outdated, Timeout) should be resolved by the next frame
+                                    Err(e) => eprintln!("{:?}", e),
+                                }
                             }
                         }
                         
