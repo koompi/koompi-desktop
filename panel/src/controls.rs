@@ -1,3 +1,4 @@
+use super::sound::ControlType;
 use super::state::CommonState;
 use iced_wgpu::Renderer;
 use iced_winit::{
@@ -6,10 +7,11 @@ use iced_winit::{
 };
 #[derive(Debug, Default)]
 pub struct Controls {
-    background_color: Color,
-    widgets: [button::State; 7],
-    is_exit: bool,
-    is_shwon: bool,
+    pub background_color: Color,
+    pub widgets: [button::State; 7],
+    pub is_exit: bool,
+    pub is_shwon: bool,
+    pub kind: ControlType,
 }
 
 #[derive(Debug, Clone)]
@@ -36,9 +38,10 @@ impl Controls {
             widgets: Default::default(),
             is_exit: false,
             is_shwon: false,
+            ..Default::default()
         }
     }
-    pub fn is_quit(&self) -> bool {
+    pub fn is_quit(&mut self) -> bool {
         self.is_exit
     }
     pub fn is_shown(&self) -> bool {
@@ -46,6 +49,9 @@ impl Controls {
     }
     pub fn background_color(&self) -> Color {
         self.background_color
+    }
+    pub fn get_kind(&self) -> ControlType {
+        self.kind
     }
 }
 
@@ -66,12 +72,23 @@ impl Program for Controls {
             Message::MonitorShow => {
                 println!("Application show");
                 self.is_shwon = !self.is_shwon;
+                self.kind = ControlType::Monitor;
             }
-            Message::BellShow => {}
-            Message::ClipboardShow => {}
-            Message::SoundShow => {}
-            Message::WifiShow => {}
-            Message::KeyboardShow => {}
+            Message::BellShow => {
+                self.kind = ControlType::Bell;
+            }
+            Message::ClipboardShow => {
+                self.kind = ControlType::Clipboard;
+            }
+            Message::SoundShow => {
+                self.kind = ControlType::Sound;
+            }
+            Message::WifiShow => {
+                self.kind = ControlType::Wifi;
+            }
+            Message::KeyboardShow => {
+                self.kind = ControlType::Keyboard;
+            }
         }
 
         Command::none()

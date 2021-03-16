@@ -1,8 +1,14 @@
 use iced_wgpu::{wgpu, Backend, Primitive, Renderer, Settings, Viewport};
 use iced_winit::winit;
-use iced_winit::{conversion, mouse, Debug, Size};
+use iced_winit::{conversion, mouse, program, Debug, Program, Size};
 use wgpu::util::StagingBelt;
-use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
+
+use winit::{
+    dpi::PhysicalPosition,
+    event::{ModifiersState, WindowEvent},
+    window::Window,
+};
+#[derive(Debug)]
 pub struct State {
     pub window: Window,
     pub surface: wgpu::Surface,
@@ -105,18 +111,14 @@ impl State {
                     attachment: &frame.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
                         store: true,
                     },
                 }],
                 depth_stencil_attachment: None,
             });
         }
+        // Draw iced on top
         let mouse_interaction = self.render.backend_mut().draw(
             &mut self.device,
             stage,
@@ -134,5 +136,37 @@ impl State {
         self.queue.submit(std::iter::once(encoder.finish()));
 
         Ok(())
+    }
+
+    pub fn map_event<T: Program + 'static>(
+        &mut self,
+        state: &mut program::State<T>,
+        modifier: &ModifiersState,
+        event: &winit::event::WindowEvent,
+    ) {
+        if let Some(event) =
+            conversion::window_event(&event, self.viewport.scale_factor(), *modifier)
+        {
+            state.queue_event(event);
+        }
+    }
+    pub fn update_frame<
+        P: Program<Renderer = iced_graphics::Renderer<iced_wgpu::Backend>> + 'static,
+    >(
+        &mut self,
+        state: &mut program::State<P>,
+        cursor_pos: PhysicalPosition<f64>,
+        debug: &mut Debug,
+    ) {
+        if !state.is_queue_empty() {
+            let _ = state.update(
+                self.viewport.logical_size(),
+                conversion::cursor_position(cursor_pos, self.viewport.scale_factor()),
+                None,
+                &mut self.render,
+                debug,
+            );
+        }
+        self.window.request_redraw();
     }
 }
