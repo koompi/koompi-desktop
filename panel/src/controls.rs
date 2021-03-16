@@ -1,6 +1,4 @@
 use super::state::CommonState;
-use crate::styles::buttonstyle::buttons::ButtonStyle::Transparent as btnzero;
-use crate::styles::containers::CustomContainer::ForegroundWhite;
 use iced_wgpu::Renderer;
 use iced_winit::{
     button, Align, Button, Color, Column, Command, Container, Element, Font, HorizontalAlignment,
@@ -85,7 +83,6 @@ impl Program for Controls {
         let [b1, b2, b3, b4, b5, b6, b7] = &mut self.widgets;
         let background_color = self.background_color;
         let menu = Button::new(b1, menu_icon())
-            .style(btnzero)
             .on_press(Message::ShowMenu)
             .width(Length::Shrink)
             .height(Length::Shrink);
@@ -94,36 +91,27 @@ impl Program for Controls {
             .push(
                 Button::new(b2, monitor_icon())
                     .height(Length::Fill)
-                    .style(btnzero)
                     .on_press(Message::MonitorShow),
             )
             .push(
                 Button::new(b3, bell_icon())
                     .height(Length::Fill)
-                    .style(btnzero)
                     .on_press(Message::BellShow),
             )
-            .push(
-                Button::new(b4, keyboard_icon())
-                    .on_press(Message::KeyboardShow)
-                    .style(btnzero),
-            )
+            .push(Button::new(b4, keyboard_icon()).on_press(Message::KeyboardShow))
             .push(
                 Button::new(b5, clipboard())
                     .height(Length::Fill)
-                    .style(btnzero)
                     .on_press(Message::ClipboardShow),
             )
             .push(
                 Button::new(b6, sound_icon())
                     .height(Length::Fill)
-                    .style(btnzero)
                     .on_press(Message::SoundShow),
             )
             .push(
                 Button::new(b7, wifi_icon())
                     .height(Length::Fill)
-                    .style(btnzero)
                     .on_press(Message::WifiShow),
             );
         let row = Row::new()
@@ -134,7 +122,6 @@ impl Program for Controls {
             .push(Space::with_width(Length::Fill))
             .push(system_tray);
         Container::new(row)
-            .style(ForegroundWhite)
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
