@@ -1,6 +1,5 @@
 use super::controls::icon;
 use super::state::CommonState;
-use crate::styles::buttonstyle::buttons::ButtonStyle::Transparent as btnzero;
 use iced_wgpu::Renderer;
 use iced_winit::{
     button, slider, Align, Button, Color, Column, Command, Container, Element, Font,
@@ -65,7 +64,6 @@ impl Program for Sound {
                 )
                 .push(
                     Button::new(&mut self.mute, Text::new("Mute Sound"))
-                        .style(btnzero)
                         .on_press(SoundMsg::ButtonClicked),
                 ),
         )
