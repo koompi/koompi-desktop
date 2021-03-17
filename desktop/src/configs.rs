@@ -8,7 +8,7 @@ use std::path::Path;
 use std::fs;
 use super::errors::DesktopError;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DesktopConf {
     #[serde(rename = "Background")]
     background_conf: BackgroundConf,

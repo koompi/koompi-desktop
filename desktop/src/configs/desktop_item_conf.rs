@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DesktopItemConf {
     pub icon_size: u16,
     pub arrangement: Arrangement,
@@ -9,13 +9,13 @@ pub struct DesktopItemConf {
     pub show_tooltip: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Arrangement {
     Rows,
     Columns,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Sort {
     Manual,
     Name,

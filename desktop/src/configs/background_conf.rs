@@ -1,7 +1,7 @@
 use crate::background::wallpaper_type::WallpaperType;
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BackgroundConf {
     wallpaper_type: WallpaperType
 }

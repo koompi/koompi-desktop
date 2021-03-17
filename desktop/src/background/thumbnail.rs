@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Thumbnail {
     placement: Placement,
     thumbnail_size: ThumbnailSize,

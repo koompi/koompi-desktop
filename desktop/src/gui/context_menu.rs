@@ -1,9 +1,9 @@
 use iced_wgpu::Renderer;
 use iced_winit::{
     Command, Container, Element, Length, Program, Button, Text, Column, button, 
-    Row, Icon, Icons, Space, Color,
+    Row, Icon, Icons, Space, Rule
 };
-use crate::styles::{CustomButton, ContainerFill};
+use crate::styles::{CustomButton, ContainerFill, HOVERED};
 
 #[derive(Debug)]
 pub struct ContextMenu {
@@ -12,41 +12,48 @@ pub struct ContextMenu {
 
 #[derive(Debug, Clone)]
 pub struct MenuItemNode {
-    pub selected: bool,
-    pub icon: Icons,
-    pub state: button::State,
-    pub title: String,
-    pub submenu: Option<Vec<MenuItemNode>>,
+    state: button::State,
+    title: String,
+    selected: bool,
+    is_showed: bool,
+    has_underline: bool,
+    submenu: Option<Vec<MenuItemNode>>,
+    callback: Option<Message>,
 }
 
 impl MenuItemNode {
-    pub fn new(icon: Icons, title: &str, submenu: Option<Vec<MenuItemNode>>) -> Self {
+    pub fn new(title: &str, has_underline: bool, callback: Option<Message>, submenu: Option<Vec<MenuItemNode>>) -> Self {
         Self {
-            submenu, icon,
+            submenu, callback, has_underline,
             title: title.to_owned(),
             state: button::State::new(),
-            selected: false
+            is_showed: false,
+            selected: false,
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Message {
-    MenuItemSelected(usize),
+    ChangeBG,
+    NewFolder,
+    SortBy,
+    DesktopView,
 }
 
 impl ContextMenu {
     pub fn new() -> Self {
         Self {
             menu_items: vec![
-                MenuItemNode::new(Icons::Desktop, "Configure desktop and wallpaper", None),
-                MenuItemNode::new(Icons::Plus, "Create new", Some(
-                    vec![
-                        MenuItemNode::new(Icons::File, "Text document", None),
-                        MenuItemNode::new(Icons::FileCsv, "CSV Sheet", None),
-                    ]
-                )),
-                MenuItemNode::new(Icons::HandPointingUp, "Paste", None),
+                MenuItemNode::new("New Folder", true, Some(Message::NewFolder), None),
+                MenuItemNode::new("Change Desktop Background", false, Some(Message::ChangeBG), None),
+                MenuItemNode::new("Sort By", true, Some(Message::SortBy), Some(vec![
+                    MenuItemNode::new("Manual", true, None, None),
+                    MenuItemNode::new("Name", false, None, None),
+                    MenuItemNode::new("Type", false, None, None),
+                    MenuItemNode::new("Date", false, None, None),
+                ])),
+                MenuItemNode::new("Desktop View", false, Some(Message::DesktopView), None),
             ]
         }
     }
@@ -58,46 +65,51 @@ impl Program for ContextMenu {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::MenuItemSelected(idx) => if let Some(item) = self.menu_items.get_mut(idx) {
-                item.selected = true;
-            }
+            Message::ChangeBG => println!("change desktop background"),
+            Message::NewFolder => println!("create new folder"),
+            Message::SortBy => println!("change sort by field"),
+            Message::DesktopView => println!("display desktop view configurations window"),
         }
 
         Command::none()
     }
 
     fn view(&mut self) -> Element<Message, Renderer> {
-        let context_menu = self.menu_items.iter_mut().enumerate()
-            .fold(Column::new(), |column, (idx, item)| {
-                let icon = Icon::new(item.icon);
-                let title = Text::new(&item.title);
-                let mut content = Row::new().spacing(7).padding(5)
-                    .push(icon)
-                    .push(title);
+        let context_menu = self.menu_items.iter_mut()
+            .fold(Column::new().padding(4), |mut column, item| {
+                let mut content = Row::new().spacing(7).padding(5);
+                if item.selected {
+                    content = content.push(Icon::new(Icons::Check));
+                }
+                content = content.push(Text::new(&item.title));
                 // let mut submenu = None;
                 if let Some(submenu) = &item.submenu {
                     content = content
                         .push(Space::with_width(Length::Fill))
-                        .push(Icon::new(Icons::ArrowRight));
+                        .push(Icon::new(Icons::AngleRight));
                     // submenu = menu(submenu);
                 }
                 let mut btn = Button::new(&mut item.state, content)
                     .width(Length::Fill)
-                    .on_press(Message::MenuItemSelected(idx));
-                if item.selected {
-                    btn = btn.style(CustomButton::Selected);
-                } else {
-                    btn = btn.style(CustomButton::Transparent);
+                    .style(CustomButton::Transparent);
+                if let Some(callback) = item.callback {
+                    btn = btn.on_press(callback);
                 }
 
-                column.push(btn)
+                column = column.push(btn);
+                if item.has_underline {
+                    column.push(Rule::horizontal(10))
+                } else {
+                    column
+                }
+
             });
         // let context_menu = menu(&mut self.menu_items);
 
         Container::new(context_menu)
             .width(Length::Fill)
             .height(Length::Fill)
-            .style(ContainerFill(Color::WHITE))
+            .style(ContainerFill(HOVERED))
             .into()
     }
 }

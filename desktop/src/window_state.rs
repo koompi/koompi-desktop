@@ -1,13 +1,14 @@
 use iced_wgpu::{wgpu, Viewport, Primitive, Renderer, Backend, Settings};
-use iced_winit::{winit, conversion, mouse, Size, Debug};
+use iced_winit::{winit, conversion, futures, mouse, Size};
 use wgpu::util::StagingBelt;
+use futures::executor::LocalPool;
+use futures::task::SpawnExt;
 use winit::{
     window::Window,
     event::WindowEvent,
     dpi::PhysicalSize,
 };
 
-#[derive(Debug)]
 pub struct WindowState {
     pub window: Window,
     pub surface: wgpu::Surface,
@@ -16,7 +17,9 @@ pub struct WindowState {
     pub sc_desc: wgpu::SwapChainDescriptor,
     pub swap_chain: wgpu::SwapChain,
     pub viewport: Viewport,
-    pub renderer: Renderer
+    pub renderer: Renderer,
+    staging_belt: StagingBelt,
+    local_pool: LocalPool,
 }
 
 impl WindowState {
@@ -54,6 +57,8 @@ impl WindowState {
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
         let viewport = Viewport::with_physical_size(Size::new(size.width, size.height), window.scale_factor());
         let renderer = Renderer::new(Backend::new(&mut device, settings.map(ToOwned::to_owned).unwrap_or_default()));
+        let staging_belt = wgpu::util::StagingBelt::new(10 * 1024);
+        let local_pool = futures::executor::LocalPool::new();
 
         Self {
             window,
@@ -63,7 +68,9 @@ impl WindowState {
             sc_desc,
             swap_chain,
             viewport,
-            renderer
+            renderer,
+            staging_belt,
+            local_pool,
         }
     }
 
@@ -82,14 +89,14 @@ impl WindowState {
         
     }
 
-    pub fn render(&mut self, primitive: &(Primitive, mouse::Interaction), staging_belt: &mut StagingBelt, debug: &Debug) -> Result<(), wgpu::SwapChainError> {
+    pub fn render(&mut self, primitive: &(Primitive, mouse::Interaction), overlay: &[String]) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
+            label: None,
         });
         {
             let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
+                label: None,
                 color_attachments: &[
                     wgpu::RenderPassColorAttachmentDescriptor {
                         attachment: &frame.view,
@@ -103,20 +110,29 @@ impl WindowState {
                 depth_stencil_attachment: None,
             });
         }
+        
         let mouse_interaction = self.renderer.backend_mut().draw(
             &mut self.device,
-            staging_belt,
+            &mut self.staging_belt,
             &mut encoder,
             &frame.view,
             &self.viewport,
             primitive,
-            &debug.overlay(),
+            overlay,
         );
-        staging_belt.finish();
-        self.queue.submit(std::iter::once(encoder.finish()));
+
+        // Then we submit the work
+        self.staging_belt.finish();
+        self.queue.submit(Some(encoder.finish()));
 
         // Update the mouse cursor
         self.window.set_cursor_icon(conversion::mouse_interaction(mouse_interaction));
+
+        // And recall staging buffers
+        self.local_pool.spawner()
+            .spawn(self.staging_belt.recall())
+            .expect("Recall staging buffers");
+        self.local_pool.run_until_stalled();
         Ok(())
     }
 }

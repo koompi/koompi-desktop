@@ -1,39 +1,31 @@
 use iced_wgpu::Renderer;
 use iced_winit::{
-    Color, Command, Container, Element, Length, Program, Grid, Button, Text, Column, button, 
-    Align, HorizontalAlignment, Row, Tooltip, tooltip, Space
+    Color, Command, Container, Element, Length, Program, Grid, Button, Text, Column, button, mouse::{self, click}, touch,
+    Align, HorizontalAlignment, Row, Tooltip, tooltip, Space, Application, Event, Subscription, Point,
 };
 use iced::{Svg, Image};
 use crate::background::wallpaper_type::WallpaperType;
-use crate::configs::desktop_item_conf::Arrangement;
-use crate::desktop_manager::DesktopManager;
-use crate::errors::DesktopError;
+use crate::configs::{
+    DesktopConf,
+    desktop_item_conf::Arrangement,
+};
+use crate::desktop_item::DesktopItem;
 use crate::styles::{CustomButton, CustomTooltip, ContainerFill};
-const DESKTOP_CONF: &str = "desktop/desktop.toml";
 
+#[derive(Debug, Clone, Default)]
 pub struct Desktop {
-    desktop_manager: DesktopManager,
-    desktop_items_state: Vec<button::State>,
+    desktop_conf: DesktopConf,
+    ls_desktop_items: Vec<(button::State, DesktopItem)>,
     selected_desktop_item: Option<usize>,
     height: u32,
+    last_click: Option<mouse::Click>,
+    cursor_position: Point,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     DesktopItemClicked(usize),
-}
-
-impl Desktop {
-    pub fn new(height: u32) -> Result<Desktop, DesktopError> {
-        let desktop_manager = DesktopManager::new(dirs_next::config_dir().unwrap().join(DESKTOP_CONF))?;
-
-        Ok(Desktop {
-            desktop_items_state: vec![button::State::new(); desktop_manager.desktop_items().len()],
-            desktop_manager,
-            selected_desktop_item: None,
-            height
-        })
-    }
+    WinitEvent(Event)
 }
 
 impl Program for Desktop {
@@ -42,7 +34,34 @@ impl Program for Desktop {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx)
+            Message::WinitEvent(event) => match event {
+                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
+                | Event::Touch(touch::Event::FingerPressed { .. }) => {
+                    let click = mouse::Click::new(
+                        self.cursor_position,
+                        self.last_click,
+                    );
+
+                    match click.kind() {
+                        click::Kind::Double => {
+                            if let Some(idx) = self.selected_desktop_item {
+                                if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
+                                    desktop_item.handle_exec();
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+
+                    self.last_click = Some(click);
+                },
+                Event::Mouse(mouse::Event::CursorMoved { position })
+                | Event::Touch(touch::Event::FingerMoved { position, .. }) => {
+                    self.cursor_position = position;
+                },
+                _ => {}
+            }
+            Message::DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
         }
 
         Command::none()
@@ -50,14 +69,12 @@ impl Program for Desktop {
 
     fn view(&mut self) -> Element<Message, Renderer> {
         let Self {
-            desktop_items_state,
-            desktop_manager,
+            desktop_conf,
+            ls_desktop_items,
             selected_desktop_item,
             ..
         } = self;
 
-        let desktop_items = desktop_manager.desktop_items();
-        let desktop_conf = desktop_manager.config();
         let item_conf = desktop_conf.desktop_item_conf();
         let bg_conf = desktop_conf.background_conf();
 
@@ -65,13 +82,13 @@ impl Program for Desktop {
         let item_size_spacing = item_size + 10;
         let mut grid = Grid::new().column_width(item_size_spacing).padding(20);
         if let Arrangement::Columns = item_conf.arrangement {
-            let items_in_height = item_size_spacing as usize*desktop_items.len() + 40;
+            let items_in_height = item_size_spacing as usize*ls_desktop_items.len() + 40;
             grid = grid.columns((items_in_height as f32/self.height as f32).ceil() as usize);
         }
 
-        let desktop_grid = desktop_items_state.iter_mut().zip(desktop_items).enumerate()
+        let desktop_grid = ls_desktop_items.iter_mut().enumerate()
             .fold(grid, |grid, (idx, (state, item))| {
-                let name = item.name().unwrap_or(String::from("Unknown Name"));
+                let name = item.name();
                 let icon_path = item.icon();
                 let comment = item.comment();
 
@@ -90,7 +107,7 @@ impl Program for Desktop {
                 };
                 let con = Column::new().spacing(10).align_items(Align::Center)
                     .push(icon)
-                    .push(Text::new(name).horizontal_alignment(HorizontalAlignment::Center));
+                    .push(Text::new(name.unwrap_or(&"Unknown name".to_string())).horizontal_alignment(HorizontalAlignment::Center));
 
                 let mut btn = Button::new(state, con)
                     .width(Length::Units(item_size))
@@ -132,6 +149,30 @@ impl Program for Desktop {
             content = content.style(ContainerFill(hex_to_color(&color).unwrap()));
         }
         content.into()
+    }
+}
+
+impl Application for Desktop {
+    type Flags = (u32, DesktopConf, Vec<DesktopItem>);
+
+    fn new(flags: Self::Flags) -> (Self, Command<Message>) { 
+        (
+            Self {
+                desktop_conf: flags.1.to_owned(),
+                ls_desktop_items: flags.2.iter().map(|item| (button::State::new(), item.to_owned())).collect(),
+                height: flags.0,
+                ..Self::default()
+            },
+            Command::none()
+        )
+    }
+
+    fn title(&self) -> String { 
+        String::from("Desktop")
+    }
+
+    fn subscription(&self) -> Subscription<Message> {
+        iced_winit::subscription::events().map(Message::WinitEvent)
     }
 }
 
