@@ -1,6 +1,5 @@
 pub mod buttons {
-    use iced_wgpu::{button, Color};
-    use iced_winit::{Background, Vector};
+    use iced::{button, Background, Color, Vector};
     pub enum ButtonStyle {
         Default,
         Circular(u8, u8, u8, f32),
@@ -37,6 +36,14 @@ pub mod buttons {
                     ButtonStyle::Transparent => Color::BLACK,
                     ButtonStyle::CircleRadius(_, _, _, _, _, color) => *color,
                 },
+            }
+        }
+        fn hovered(&self) -> button::Style {
+            let active = self.active();
+            button::Style {
+                shadow_offset: active.shadow_offset + Vector::new(0.0, 1.0),
+                background: Some(Background::Color(Color::WHITE)),
+                ..active
             }
         }
     }

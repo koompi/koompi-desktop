@@ -5,7 +5,11 @@ use wgpu::util::StagingBelt;
 
 use winit::{
     dpi::PhysicalPosition,
-    event::{ModifiersState, WindowEvent},
+    event::{
+        ElementState, Event, KeyboardInput, ModifiersState, MouseButton, VirtualKeyCode,
+        WindowEvent,
+    },
+    event_loop::ControlFlow,
     window::Window,
 };
 #[derive(Debug)]
@@ -84,12 +88,10 @@ impl State {
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
     }
 
-    pub fn input(&mut self, _event: &WindowEvent) -> bool {
-        false
-    }
-
     pub fn update(&mut self) {}
-
+    pub fn input(&mut self) -> bool {
+        true
+    }
     pub fn render(
         &mut self,
         primitive: &(Primitive, mouse::Interaction),
@@ -150,6 +152,7 @@ impl State {
             state.queue_event(event);
         }
     }
+
     pub fn update_frame<
         P: Program<Renderer = iced_graphics::Renderer<iced_wgpu::Backend>> + 'static,
     >(
@@ -170,3 +173,52 @@ impl State {
         self.window.request_redraw();
     }
 }
+
+// pub fn input(
+//     &mut self,
+//     event: &WindowEvent,
+//     control_flow: &mut ControlFlow,
+//     cursor_position: &mut PhysicalPosition<f64>,
+//     modifiers: &mut ModifiersState,
+// ) -> bool {
+//     match event {
+//         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+//         WindowEvent::KeyboardInput { input, .. } => match input {
+//             KeyboardInput {
+//                 state: ElementState::Pressed,
+//                 virtual_keycode: Some(VirtualKeyCode::Escape),
+//                 ..
+//             } => *control_flow = ControlFlow::Exit,
+//             _ => {}
+//         },
+//         WindowEvent::MouseInput {
+//             device_id,
+//             state,
+//             button,
+//             modifiers,
+//         } => match button {
+//             MouseButton::Right => {
+//                 println!("Left click mouse: position: {:?}", cursor_position);
+//                 self.window.set_visible(true);
+//             }
+//             MouseButton::Left => {
+//                 self.window.set_visible(false);
+//             }
+//             _ => {}
+//         },
+//         WindowEvent::Resized(physical_size) => {
+//             self.resize(*physical_size);
+//             // context_state.resize(*physical_size);
+//             // menu_state.resize(*physical_size);
+//         }
+//         WindowEvent::CursorMoved { position, .. } => *cursor_position = *position,
+//         WindowEvent::ModifiersChanged(modi) => *modifiers = *modi,
+//         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+//             // new_inner_size is &&mut so w have to dereference it twice
+//             self.resize(**new_inner_size);
+//             // menu_state.resize(**new_inner_size);
+//         }
+//         _ => {}
+//     }
+//     true
+// }

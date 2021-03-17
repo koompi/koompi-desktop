@@ -10,7 +10,9 @@ edition = "2018"
 iced_wgpu = {git = "https://github.com/koompi/iced.git", branch="winit_strut"}
 iced_winit = {git = "https://github.com/koompi/iced.git", branch="winit_strut"}
 iced_graphics = {git = "https://github.com/koompi/iced.git", branch="winit_strut"}
+iced = {git = "https://github.com/koompi/iced.git", branch="winit_strut", features=["tokio", "svg"]}
 env_logger = "0.8.3"
 pollster = "0.2.1"
 wgpu-subscriber = "0.1.0"
 futures = "*"
+chrono = "0.4"
