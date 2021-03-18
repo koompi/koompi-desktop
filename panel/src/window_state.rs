@@ -1,8 +1,18 @@
 use iced_wgpu::{wgpu, Backend, Primitive, Renderer, Settings, Viewport};
 use iced_winit::winit;
-use iced_winit::{conversion, mouse, Debug, Size};
+use iced_winit::{conversion, mouse, program, Debug, Program, Size};
 use wgpu::util::StagingBelt;
-use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
+
+use winit::{
+    dpi::PhysicalPosition,
+    event::{
+        ElementState, Event, KeyboardInput, ModifiersState, MouseButton, VirtualKeyCode,
+        WindowEvent,
+    },
+    event_loop::ControlFlow,
+    window::Window,
+};
+#[derive(Debug)]
 pub struct State {
     pub window: Window,
     pub surface: wgpu::Surface,
@@ -78,12 +88,10 @@ impl State {
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
     }
 
-    pub fn input(&mut self, _event: &WindowEvent) -> bool {
-        false
-    }
-
     pub fn update(&mut self) {}
-
+    pub fn input(&mut self) -> bool {
+        true
+    }
     pub fn render(
         &mut self,
         primitive: &(Primitive, mouse::Interaction),
@@ -105,18 +113,14 @@ impl State {
                     attachment: &frame.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
                         store: true,
                     },
                 }],
                 depth_stencil_attachment: None,
             });
         }
+        // Draw iced on top
         let mouse_interaction = self.render.backend_mut().draw(
             &mut self.device,
             stage,
@@ -135,4 +139,86 @@ impl State {
 
         Ok(())
     }
+
+    pub fn map_event<T: Program + 'static>(
+        &mut self,
+        state: &mut program::State<T>,
+        modifier: &ModifiersState,
+        event: &winit::event::WindowEvent,
+    ) {
+        if let Some(event) =
+            conversion::window_event(&event, self.viewport.scale_factor(), *modifier)
+        {
+            state.queue_event(event);
+        }
+    }
+
+    pub fn update_frame<
+        P: Program<Renderer = iced_graphics::Renderer<iced_wgpu::Backend>> + 'static,
+    >(
+        &mut self,
+        state: &mut program::State<P>,
+        cursor_pos: PhysicalPosition<f64>,
+        debug: &mut Debug,
+    ) {
+        if !state.is_queue_empty() {
+            let _ = state.update(
+                self.viewport.logical_size(),
+                conversion::cursor_position(cursor_pos, self.viewport.scale_factor()),
+                None,
+                &mut self.render,
+                debug,
+            );
+        }
+        self.window.request_redraw();
+    }
 }
+
+// pub fn input(
+//     &mut self,
+//     event: &WindowEvent,
+//     control_flow: &mut ControlFlow,
+//     cursor_position: &mut PhysicalPosition<f64>,
+//     modifiers: &mut ModifiersState,
+// ) -> bool {
+//     match event {
+//         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+//         WindowEvent::KeyboardInput { input, .. } => match input {
+//             KeyboardInput {
+//                 state: ElementState::Pressed,
+//                 virtual_keycode: Some(VirtualKeyCode::Escape),
+//                 ..
+//             } => *control_flow = ControlFlow::Exit,
+//             _ => {}
+//         },
+//         WindowEvent::MouseInput {
+//             device_id,
+//             state,
+//             button,
+//             modifiers,
+//         } => match button {
+//             MouseButton::Right => {
+//                 println!("Left click mouse: position: {:?}", cursor_position);
+//                 self.window.set_visible(true);
+//             }
+//             MouseButton::Left => {
+//                 self.window.set_visible(false);
+//             }
+//             _ => {}
+//         },
+//         WindowEvent::Resized(physical_size) => {
+//             self.resize(*physical_size);
+//             // context_state.resize(*physical_size);
+//             // menu_state.resize(*physical_size);
+//         }
+//         WindowEvent::CursorMoved { position, .. } => *cursor_position = *position,
+//         WindowEvent::ModifiersChanged(modi) => *modifiers = *modi,
+//         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+//             // new_inner_size is &&mut so w have to dereference it twice
+//             self.resize(**new_inner_size);
+//             // menu_state.resize(**new_inner_size);
+//         }
+//         _ => {}
+//     }
+//     true
+// }

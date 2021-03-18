@@ -1,15 +1,19 @@
-use super::state::CommonState;
+use super::applets::ControlType;
+use crate::styles::buttonstyle::buttons::ButtonStyle;
+use iced::svg::Svg;
 use iced_wgpu::Renderer;
 use iced_winit::{
-    button, Align, Button, Color, Column, Command, Container, Element, Font, HorizontalAlignment,
-    Length, Program, Row, Slider, Space, Text,
+    application::{Application, State},
+    button, subscription, svg, Align, Button, Color, Column, Command, Container, Element, Font,
+    HorizontalAlignment, Length, Program, Row, Space, Subscription, Text,
 };
 #[derive(Debug, Default)]
 pub struct Controls {
-    background_color: Color,
-    widgets: [button::State; 7],
-    is_exit: bool,
-    is_shwon: bool,
+    pub background_color: Color,
+    pub widgets: [button::State; 7],
+    pub is_exit: bool,
+    pub is_shown: bool,
+    pub kind: ControlType,
 }
 
 #[derive(Debug, Clone)]
@@ -24,28 +28,27 @@ pub enum Message {
     SoundShow,
     WifiShow,
 }
-impl CommonState for Controls {
-    fn get_name(&self) -> String {
-        String::from("Panel Control")
-    }
-}
 impl Controls {
     pub fn new() -> Controls {
         Controls {
             background_color: Color::from_rgb8(255, 255, 255),
             widgets: Default::default(),
             is_exit: false,
-            is_shwon: false,
+            is_shown: false,
+            ..Default::default()
         }
     }
-    pub fn is_quit(&self) -> bool {
+    pub fn is_quit(&mut self) -> bool {
         self.is_exit
     }
     pub fn is_shown(&self) -> bool {
-        self.is_shwon
+        self.is_shown
     }
     pub fn background_color(&self) -> Color {
         self.background_color
+    }
+    pub fn get_kind(&self) -> ControlType {
+        self.kind
     }
 }
 
@@ -65,54 +68,78 @@ impl Program for Controls {
             }
             Message::MonitorShow => {
                 println!("Application show");
-                self.is_shwon = !self.is_shwon;
+                self.is_shown = !self.is_shown;
+                self.kind = ControlType::Monitor;
             }
-            Message::BellShow => {}
-            Message::ClipboardShow => {}
-            Message::SoundShow => {}
-            Message::WifiShow => {}
-            Message::KeyboardShow => {}
+            Message::BellShow => {
+                self.kind = ControlType::Bell;
+            }
+            Message::ClipboardShow => {
+                self.kind = ControlType::Clipboard;
+            }
+            Message::SoundShow => {
+                self.kind = ControlType::Sound;
+            }
+            Message::WifiShow => {
+                self.kind = ControlType::Wifi;
+            }
+            Message::KeyboardShow => {
+                self.kind = ControlType::Keyboard;
+            }
         }
-
         Command::none()
     }
 
     fn view(&mut self) -> Element<Message, Renderer> {
-        let background_color = self.background_color;
-
         let [b1, b2, b3, b4, b5, b6, b7] = &mut self.widgets;
-        let background_color = self.background_color;
-        let menu = Button::new(b1, menu_icon())
+        let svg = Svg::from_path(format!(
+            "{}/src/assets/images/koompi-black.svg",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .width(Length::Units(36))
+        .height(Length::Units(36));
+        let menu = Button::new(b1, svg)
             .on_press(Message::ShowMenu)
             .width(Length::Shrink)
-            .height(Length::Shrink);
+            .height(Length::Shrink)
+            .style(ButtonStyle::Transparent);
         let system_tray = Row::new()
             .align_items(Align::Center)
             .push(
                 Button::new(b2, monitor_icon())
                     .height(Length::Fill)
-                    .on_press(Message::MonitorShow),
-            )
-            .push(
-                Button::new(b3, bell_icon())
-                    .height(Length::Fill)
-                    .on_press(Message::BellShow),
-            )
-            .push(Button::new(b4, keyboard_icon()).on_press(Message::KeyboardShow))
-            .push(
-                Button::new(b5, clipboard())
-                    .height(Length::Fill)
-                    .on_press(Message::ClipboardShow),
-            )
-            .push(
-                Button::new(b6, sound_icon())
-                    .height(Length::Fill)
-                    .on_press(Message::SoundShow),
+                    .on_press(Message::MonitorShow)
+                    .style(ButtonStyle::Transparent),
             )
             .push(
                 Button::new(b7, wifi_icon())
                     .height(Length::Fill)
-                    .on_press(Message::WifiShow),
+                    .on_press(Message::WifiShow)
+                    .style(ButtonStyle::Transparent),
+            )
+            .push(
+                Button::new(b3, bell_icon())
+                    .height(Length::Fill)
+                    .on_press(Message::BellShow)
+                    .style(ButtonStyle::Transparent),
+            )
+            .push(
+                Button::new(b4, keyboard_icon())
+                    .on_press(Message::KeyboardShow)
+                    .height(Length::Fill)
+                    .style(ButtonStyle::Transparent),
+            )
+            .push(
+                Button::new(b5, clipboard())
+                    .height(Length::Fill)
+                    .on_press(Message::ClipboardShow)
+                    .style(ButtonStyle::Transparent),
+            )
+            .push(
+                Button::new(b6, sound_icon())
+                    .height(Length::Fill)
+                    .on_press(Message::SoundShow)
+                    .style(ButtonStyle::Transparent),
             );
         let row = Row::new()
             .width(Length::Fill)
@@ -158,5 +185,5 @@ pub fn icon(unicode: char) -> Text<Renderer> {
 }
 const ICONS: Font = Font::External {
     name: "Line Awesome",
-    bytes: include_bytes!("./font/la-solid-900.ttf"),
+    bytes: include_bytes!("../assets/font/la-solid-900.ttf"),
 };
