@@ -1,5 +1,0 @@
-pub enum Encoding {
-    ENCODING_UNKNOWN,
-    ENCODING_UTF8,
-    ENCODING_LEGAY_MIXED,
-}

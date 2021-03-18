@@ -13,9 +13,14 @@ categories = ["gui"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-iced_winit = { git = "https://github.com/veasnama/iced.git", branch = "iced_intergration" }
-iced_wgpu = { git = "https://github.com/veasnama/iced.git", branch = "iced_intergration" }
+iced_winit = { git = "https://github.com/koompi/iced.git", branch = "custom-widgets" }
+iced_wgpu = { git = "https://github.com/koompi/iced.git", branch = "custom-widgets" }
+iced = { git = "https://github.com/koompi/iced.git", branch = "custom-widgets", features = ["svg", "image"] }
+serde = { version = "1.0.124", features = ["derive"] }
+serde_repr = "0.1.6"
+toml = "0.5.8"
 version-compare = "0.0.11"
-regex = "1.4.3"
-failure = "0.1.8"
+thiserror = "1.0.24"
 freedesktop_entry_parser = "1.1.1"
+dirs-next = "2.0.0"
+walkdir = "2.3.1"

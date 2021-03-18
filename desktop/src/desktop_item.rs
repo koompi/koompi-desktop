@@ -1,173 +1,111 @@
 mod desktop_item_status;
 mod desktop_item_type;
-mod desktop_item_load_flags;
-mod desktop_item_launch_flags;
-mod desktop_item_icon_flags;
 mod desktop_item_error;
-mod encoding;
 
-use desktop_item_status::DesktopItemStatus;
-use desktop_item_type::DesktopItemType;
-use desktop_item_load_flags::DesktopItemLoadFlags;
-use desktop_item_launch_flags::DesktopItemLaunchFlags;
-use desktop_item_error::DesktopItemError;
-use std::path::Path;
-use std::collections::HashMap;
+use super::constants::{TYPE, DESKTOP_ENTRY, ICON, NAME, COMMENT, EXEC};
+use std::path::{PathBuf, Path};
 use std::time::Duration;
-use version_compare::Version;
-use regex::Regex;
-use freedesktop_entry_parser::{Entry, parse_entry};
+use std::str::FromStr;
+use std::convert::From;
+use std::process::Command;
+use desktop_item_type::DesktopItemType;
+pub use desktop_item_error::DesktopItemError;
 
-const TYPE: &str = "Type";
-
-// #[derive(Debug, Clone, Copy)]
-// pub struct DesktopItem {
-//     encoding: String,
-//     version: Version,
-//     name: String,
-//     generic_name: Option<String>,
-//     path: Path,
-//     item_type: DesktopItemType,
-//     file_pattern: Regex,
-//     try_exec: Option<String>,
-//     exec: String,
-//     no_display: bool,
-//     comment: String,
-//     actions: String,
-//     icon: String,
-//     mini_icon: Option<String>,
-//     hidden: bool,
-//     read_only: bool,
-//     only_show_in: String,
-//     categories: String,
-//     mime_type: Regex,
-//     terminal: bool,
-// }
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DesktopItem {
-    entry: Entry,
-    path: Path,
+    path: PathBuf,
+    name: Option<String>,
+    comment: Option<String>,
+    exec: Option<String>,
+    icon_path: Option<PathBuf>,
     entry_type: DesktopItemType,
     modified: bool,
-    languages: Vec<String>,
-    launch_time: Duration
+    launch_time: Duration,
 }
 
 impl DesktopItem {
-    pub fn from_file<P: AsRef<Path>>(file: P, flags: DesktopItemLoadFlags) -> Result<Self, DesktopItemError> {
-        let entry = parse_entry(file)?;
-        let entry_type = DesktopItemType::from_str(entry.section("Desktop Entry").attr(TYPE)?)?;
+    pub fn from_file<P: AsRef<Path>>(file: P) -> Result<Self, DesktopItemError> {
+        if file.as_ref().exists() {
+            if file.as_ref().is_file() {
+                if let Some(extension) = file.as_ref().extension() {
+                    if extension.eq("desktop") {
+                        let entry = freedesktop_entry_parser::parse_entry(file.as_ref())?;
+                        let desktop_entry = entry.section(DESKTOP_ENTRY);
+                        let name = desktop_entry.attr(NAME).map(ToString::to_string);
+                        let comment = desktop_entry.attr(COMMENT).map(ToString::to_string);
+                        let exec = desktop_entry.attr(EXEC).map(ToString::to_string);
+                        let entry_type = DesktopItemType::from_str(desktop_entry.attr(TYPE).unwrap_or(""))?;
+                        let icon_path = desktop_entry.attr(ICON).map(|name| {
+                            if Path::new(name).is_absolute() {
+                                PathBuf::from(name)
+                            } else {
+                                let path = PathBuf::from("/usr/share/icons/hicolor/scalable/apps").join(format!("{}.svg", name));
+                                if path.exists() {
+                                    path
+                                } else {
+                                    walkdir::WalkDir::new("/usr/share/icons").follow_links(true).into_iter().filter_map(|e| e.ok())
+                                        .find(|entry| entry.path().file_stem().unwrap().to_str().unwrap() == name.split('.').collect::<Vec<&str>>()[0])
+                                        .map(|entry| entry.into_path())
+                                        .unwrap_or(PathBuf::from("/usr/share/icons/koompi.svg"))
+                                }
+                            }
+                        });
+                        Ok(Self {
+                            path: PathBuf::from(file.as_ref()),
+                            name, comment, entry_type, icon_path, exec,
+                            ..Self::default()
+                        })
+                    } else {
+                        Err(DesktopItemError::InvalidType)
+                    }
+                } else {
+                    Err(DesktopItemError::InvalidType)
+                }
+            } else if file.as_ref().is_dir() {
+                let entry_type = DesktopItemType::DIR;
 
-        Self {
-            entry,
-            path: file,
-            entry_type,
-            modified: false,
-            languages: Vec::new(),
-            launch_time: Duration::zero()
+                Ok(Self {
+                    path: PathBuf::from(file.as_ref()),
+                    name: file.as_ref().file_name().map(|n| n.to_str().map(ToString::to_string).unwrap()),
+                    entry_type,
+                    ..Self::default()
+                })
+            } else {
+                Err(DesktopItemError::InvalidType)
+            }  
+        } else {
+            Err(DesktopItemError::NoFilename {
+                name: file.as_ref().display().to_string()
+            })
         }
+        
     }
 
-    pub fn from_uri<S: Into<String>>(uri: S, flags: DesktopItemLoadFlags) -> Self {
-
+    pub fn path(&self) -> &PathBuf {
+        &self.path
     }
 
-    pub fn from_string<S: Into<String>>(uri: S, s: S, size: usize, flags: DesktopItemLoadFlags) -> Self {
-
+    pub fn name(&self) -> Option<&String> {
+        self.name.as_ref()
     }
 
-    pub fn from_basename<S: Into<String>>(basename: S, flags: DesktopItemLoadFlags) -> Self {
-
+    pub fn comment(&self) -> Option<&String> {
+        self.comment.as_ref()
     }
 
-    pub fn save<S: Into<String>>(&mut self, under: S, force: bool) -> bool {
-
+    pub fn icon(&self) -> Option<&PathBuf> {
+        self.icon_path.as_ref()
     }
 
-    pub fn launch<P: AsRef<Path>>(&self, file_list: Vec<P>, flags: DesktopItemLaunchFlags) -> i16 {
-
-    }
-
-    pub fn launch_with_env<P: AsRef<Path>>(&self, file_list: Vec<P>, flags: DesktopItemLaunchFlags, env: String) -> i16 {
-
-    }
-
-    pub fn launch_on_workspace<P: AsRef<Path>>(&self, file_list: Vec<P>, flags: DesktopItemLaunchFlags, workspace: u8) -> i16 {
-
-    }
-
-    pub fn drop_uri_list<S: Into<String>>(&self, uri_list: Vec<S>, flags: DesktopItemLaunchFlags) -> i16 {
-
-    }
-
-    pub fn drop_uri_list_with_env<S: Into<String>>(&self, uri_list: Vec<S>, flags: DesktopItemLaunchFlags, env: String) -> i16 {
-
-    }
-
-    pub fn exists(&self) -> bool {
-
-    }
-
-    pub fn entry_type(&self) -> DesktopItemType {
-
-    }
-
-    pub fn set_entry_type(&mut self, entry_type: DesktopItemType) {
-
-    }
-
-    pub fn path(&self) -> Path {
-
-    }
-
-    pub fn set_path<P: AsRef<Path>>(&mut self, path: P) {
-
-    }
-
-    pub fn status(&self) -> DesktopItemStatus {
-
-    }
-
-    pub fn icon(&self) -> String {
-
-    }
-
-    pub fn find_icon<S: Into<String>>(icon: S, desired_size: u16, flags: u8) -> String {
-
-    }
-
-    pub fn attr_exists<S: Into<String>>(&self, attr: S) -> bool {
-
-    }
-
-    pub fn set_launch_time(&mut self, timestamp: Duration) {
-
-    } 
-}
-
-impl DesktopItem {
-    fn get_string<S: Into<String>>(&self, attr: S) -> String {
-
-    }
-
-    fn set_string<S: Into<String>>(&mut self, attr: S, val: S) {
-
-    }
-
-    fn get_strings<S: Into<String>>(&self, attr: S) -> Vec<String> {
-
-    }
-
-    fn set_strings<S: Into<String>>(&mut self, attr: S, vals: Vec<S>) {
-
-    }
-
-    fn get_bool<S: Into<String>>(&self, attr: S) -> bool {
-
-    }
-
-    fn set_bool<S: Into<String>>(&mut self, attr: S, val: bool) {
-
+    pub fn handle_exec(&mut self) {
+        match self.entry_type {
+            DesktopItemType::APP => {
+                if let Some(exec) = &self.exec {
+                    println!("{}", exec);
+                    Command::new(exec).spawn().expect("failed to execute application");
+                }
+            },
+            _ => {}
+        }
     }
 }
