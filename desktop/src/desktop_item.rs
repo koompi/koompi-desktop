@@ -9,6 +9,7 @@ use std::str::FromStr;
 use std::convert::From;
 use std::process::Command;
 use desktop_item_type::DesktopItemType;
+use desktop_item_status::DesktopItemStatus;
 pub use desktop_item_error::DesktopItemError;
 
 #[derive(Debug, Clone, Default)]
@@ -19,8 +20,8 @@ pub struct DesktopItem {
     exec: Option<String>,
     icon_path: Option<PathBuf>,
     entry_type: DesktopItemType,
-    modified: bool,
     launch_time: Duration,
+    status: DesktopItemStatus,
 }
 
 impl DesktopItem {

@@ -24,3 +24,5 @@ thiserror = "1.0.24"
 freedesktop_entry_parser = "1.1.1"
 dirs-next = "2.0.0"
 walkdir = "2.3.1"
+nfd2 = "0.2.3"
+# iced_aw = { git = "https://github.com/kaiden42/iced_aw", default-features = false, features = ["color_picker"] }

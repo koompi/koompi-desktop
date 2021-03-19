@@ -1,8 +1,6 @@
 use iced_wgpu::{wgpu, Viewport, Primitive, Renderer, Backend, Settings};
-use iced_winit::{winit, conversion, futures, mouse, Size};
+use iced_winit::{winit, conversion, mouse, Size, Color};
 use wgpu::util::StagingBelt;
-use futures::executor::LocalPool;
-use futures::task::SpawnExt;
 use winit::{
     window::Window,
     event::WindowEvent,
@@ -18,18 +16,15 @@ pub struct WindowState {
     pub swap_chain: wgpu::SwapChain,
     pub viewport: Viewport,
     pub renderer: Renderer,
-    staging_belt: StagingBelt,
-    local_pool: LocalPool,
 }
 
 impl WindowState {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: Window, settings: Option<&Settings>) -> Self {
+    pub async fn new(instance: &wgpu::Instance, window: Window, settings: Option<&Settings>) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
         let surface = unsafe { instance.create_surface(&window) };
         let adapter = instance.request_adapter(
             &wgpu::RequestAdapterOptions {
@@ -52,13 +47,11 @@ impl WindowState {
             format: adapter.get_swap_chain_preferred_format(&surface),
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::Mailbox,
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
         let viewport = Viewport::with_physical_size(Size::new(size.width, size.height), window.scale_factor());
         let renderer = Renderer::new(Backend::new(&mut device, settings.map(ToOwned::to_owned).unwrap_or_default()));
-        let staging_belt = wgpu::util::StagingBelt::new(10 * 1024);
-        let local_pool = futures::executor::LocalPool::new();
 
         Self {
             window,
@@ -69,8 +62,6 @@ impl WindowState {
             swap_chain,
             viewport,
             renderer,
-            staging_belt,
-            local_pool,
         }
     }
 
@@ -81,7 +72,7 @@ impl WindowState {
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
     }
 
-    pub fn input(&mut self, event: &WindowEvent) -> bool {
+    pub fn input(&mut self, _event: &WindowEvent) -> bool {
         false
     }
 
@@ -89,7 +80,7 @@ impl WindowState {
         
     }
 
-    pub fn render(&mut self, primitive: &(Primitive, mouse::Interaction), overlay: &[String]) -> Result<(), wgpu::SwapChainError> {
+    pub fn render(&mut self, output: &(Primitive, mouse::Interaction), staging_belt: &mut StagingBelt, overlay: &[String], bg_color: Color) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: None,
@@ -102,7 +93,16 @@ impl WindowState {
                         attachment: &frame.view,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
+                            load: wgpu::LoadOp::Clear({
+                                let [r, g, b, a] = bg_color.into_linear();
+
+                                wgpu::Color {
+                                    r: r as f64,
+                                    g: g as f64,
+                                    b: b as f64,
+                                    a: a as f64,
+                                }
+                            }),
                             store: true,
                         }
                     }
@@ -113,26 +113,20 @@ impl WindowState {
         
         let mouse_interaction = self.renderer.backend_mut().draw(
             &mut self.device,
-            &mut self.staging_belt,
+            staging_belt,
             &mut encoder,
             &frame.view,
             &self.viewport,
-            primitive,
+            output,
             overlay,
         );
 
         // Then we submit the work
-        self.staging_belt.finish();
+        staging_belt.finish();
         self.queue.submit(Some(encoder.finish()));
 
         // Update the mouse cursor
         self.window.set_cursor_icon(conversion::mouse_interaction(mouse_interaction));
-
-        // And recall staging buffers
-        self.local_pool.spawner()
-            .spawn(self.staging_belt.recall())
-            .expect("Recall staging buffers");
-        self.local_pool.run_until_stalled();
         Ok(())
     }
 }

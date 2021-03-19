@@ -1,5 +1,6 @@
 pub mod background_conf;
 pub mod desktop_item_conf;
+pub mod wallpaper_conf;
 
 use background_conf::BackgroundConf;
 use desktop_item_conf::DesktopItemConf;

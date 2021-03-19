@@ -1,9 +1,9 @@
 use iced_wgpu::Renderer;
 use iced_winit::{
     Command, Container, Element, Length, Program, Button, Text, Column, button, 
-    Row, Icon, Icons, Space, Rule
+    Row, Icon, Icons, Space, Rule, Application, Color,
 };
-use crate::styles::{CustomButton, ContainerFill, HOVERED};
+use super::styles::{CustomButton, HOVERED};
 
 #[derive(Debug)]
 pub struct ContextMenu {
@@ -41,21 +41,34 @@ pub enum Message {
     DesktopView,
 }
 
-impl ContextMenu {
-    pub fn new() -> Self {
-        Self {
-            menu_items: vec![
-                MenuItemNode::new("New Folder", true, Some(Message::NewFolder), None),
-                MenuItemNode::new("Change Desktop Background", false, Some(Message::ChangeBG), None),
-                MenuItemNode::new("Sort By", true, Some(Message::SortBy), Some(vec![
-                    MenuItemNode::new("Manual", true, None, None),
-                    MenuItemNode::new("Name", false, None, None),
-                    MenuItemNode::new("Type", false, None, None),
-                    MenuItemNode::new("Date", false, None, None),
-                ])),
-                MenuItemNode::new("Desktop View", false, Some(Message::DesktopView), None),
-            ]
-        }
+impl Application for ContextMenu {
+    type Flags = ();
+
+    fn new(_flags: Self::Flags) -> (Self, Command<Message>) {
+        (
+            Self {
+                menu_items: vec![
+                    MenuItemNode::new("New Folder", true, Some(Message::NewFolder), None),
+                    MenuItemNode::new("Change Desktop Background", false, Some(Message::ChangeBG), None),
+                    MenuItemNode::new("Sort By", true, Some(Message::SortBy), Some(vec![
+                        MenuItemNode::new("Manual", true, None, None),
+                        MenuItemNode::new("Name", false, None, None),
+                        MenuItemNode::new("Type", false, None, None),
+                        MenuItemNode::new("Date", false, None, None),
+                    ])),
+                    MenuItemNode::new("Desktop View", false, Some(Message::DesktopView), None),
+                ],
+            },
+            Command::none()
+        )
+    }
+
+    fn title(&self) -> String { 
+        String::from("Context Menu")
+    }
+
+    fn background_color(&self) -> Color {
+        HOVERED
     }
 }
 
@@ -65,7 +78,9 @@ impl Program for ContextMenu {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::ChangeBG => println!("change desktop background"),
+            Message::ChangeBG => if let nfd2::Response::Okay(file_path) = nfd2::open_file_dialog(Some("png,jpg,jpeg,gif"), None).expect("oh no") {
+                println!("{}", file_path.display())
+            },
             Message::NewFolder => println!("create new folder"),
             Message::SortBy => println!("change sort by field"),
             Message::DesktopView => println!("display desktop view configurations window"),
@@ -109,7 +124,6 @@ impl Program for ContextMenu {
         Container::new(context_menu)
             .width(Length::Fill)
             .height(Length::Fill)
-            .style(ContainerFill(HOVERED))
             .into()
     }
 }

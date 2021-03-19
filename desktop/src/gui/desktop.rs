@@ -4,13 +4,13 @@ use iced_winit::{
     Align, HorizontalAlignment, Row, Tooltip, tooltip, Space, Application, Event, Subscription, Point,
 };
 use iced::{Svg, Image};
-use crate::background::wallpaper_type::WallpaperType;
 use crate::configs::{
     DesktopConf,
+    background_conf::BackgroundType,
     desktop_item_conf::Arrangement,
 };
 use crate::desktop_item::DesktopItem;
-use crate::styles::{CustomButton, CustomTooltip, ContainerFill};
+use super::styles::{CustomButton, CustomTooltip};
 
 #[derive(Debug, Clone, Default)]
 pub struct Desktop {
@@ -28,12 +28,45 @@ pub enum Message {
     WinitEvent(Event)
 }
 
+impl Application for Desktop {
+    type Flags = (u32, DesktopConf, Vec<DesktopItem>);
+
+    fn new(flags: Self::Flags) -> (Self, Command<Message>) { 
+        (
+            Self {
+                desktop_conf: flags.1.to_owned(),
+                ls_desktop_items: flags.2.iter().map(|item| (button::State::new(), item.to_owned())).collect(),
+                height: flags.0,
+                ..Self::default()
+            },
+            Command::none()
+        )
+    }
+
+    fn title(&self) -> String { 
+        String::from("Desktop")
+    }
+
+    fn subscription(&self) -> Subscription<Message> {
+        iced_winit::subscription::events().map(Message::WinitEvent)
+    }
+
+    fn background_color(&self) -> Color {
+        let bg_conf = self.desktop_conf.background_conf();
+        match bg_conf.kind {
+            BackgroundType::Color => hex_to_color(&bg_conf.color_background).unwrap(),
+            BackgroundType::Wallpaper => Color::TRANSPARENT
+        }
+    }
+}
+
 impl Program for Desktop {
     type Renderer = Renderer;
     type Message = Message;
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
+            Message::DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
             Message::WinitEvent(event) => match event {
                 Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
                 | Event::Touch(touch::Event::FingerPressed { .. }) => {
@@ -44,6 +77,7 @@ impl Program for Desktop {
 
                     match click.kind() {
                         click::Kind::Double => {
+                            println!("handled double clicked");
                             if let Some(idx) = self.selected_desktop_item {
                                 if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
                                     desktop_item.handle_exec();
@@ -61,7 +95,6 @@ impl Program for Desktop {
                 },
                 _ => {}
             }
-            Message::DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
         }
 
         Command::none()
@@ -76,11 +109,10 @@ impl Program for Desktop {
         } = self;
 
         let item_conf = desktop_conf.desktop_item_conf();
-        let bg_conf = desktop_conf.background_conf();
-
+        let grid_spacing = item_conf.grid_spacing;
         let item_size = item_conf.icon_size + 35;
-        let item_size_spacing = item_size + 10;
-        let mut grid = Grid::new().column_width(item_size_spacing).padding(20);
+        let item_size_spacing = item_size + grid_spacing;
+        let mut grid = Grid::new().column_width(item_size_spacing).padding(20).spacing(grid_spacing);
         if let Arrangement::Columns = item_conf.arrangement {
             let items_in_height = item_size_spacing as usize*ls_desktop_items.len() + 40;
             grid = grid.columns((items_in_height as f32/self.height as f32).ceil() as usize);
@@ -138,41 +170,13 @@ impl Program for Desktop {
                 )
             });
 
-        let mut content = Container::new(
+        Container::new(
             Column::new()
             .push(Space::with_height(Length::Units(30)))
             .push(desktop_grid)
         )
         .width(Length::Fill)
-        .height(Length::Fill);
-        if let WallpaperType::Color(color) = bg_conf.wallpaper_type() {
-            content = content.style(ContainerFill(hex_to_color(&color).unwrap()));
-        }
-        content.into()
-    }
-}
-
-impl Application for Desktop {
-    type Flags = (u32, DesktopConf, Vec<DesktopItem>);
-
-    fn new(flags: Self::Flags) -> (Self, Command<Message>) { 
-        (
-            Self {
-                desktop_conf: flags.1.to_owned(),
-                ls_desktop_items: flags.2.iter().map(|item| (button::State::new(), item.to_owned())).collect(),
-                height: flags.0,
-                ..Self::default()
-            },
-            Command::none()
-        )
-    }
-
-    fn title(&self) -> String { 
-        String::from("Desktop")
-    }
-
-    fn subscription(&self) -> Subscription<Message> {
-        iced_winit::subscription::events().map(Message::WinitEvent)
+        .height(Length::Fill).into()
     }
 }
 
