@@ -1,8 +1,8 @@
-use super::thumbnail_size::ThumbnailSize;
 use super::placement::Placement;
-use std::path::PathBuf;
+use super::thumbnail_size::ThumbnailSize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Thumbnail {

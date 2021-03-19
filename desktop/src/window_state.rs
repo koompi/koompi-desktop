@@ -1,13 +1,9 @@
-use iced_wgpu::{wgpu, Viewport, Primitive, Renderer, Backend, Settings};
-use iced_winit::{winit, conversion, futures, mouse, Size};
-use wgpu::util::StagingBelt;
 use futures::executor::LocalPool;
 use futures::task::SpawnExt;
-use winit::{
-    window::Window,
-    event::WindowEvent,
-    dpi::PhysicalSize,
-};
+use iced_wgpu::{wgpu, Backend, Primitive, Renderer, Settings, Viewport};
+use iced_winit::{conversion, futures, mouse, winit, Size};
+use wgpu::util::StagingBelt;
+use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
 pub struct WindowState {
     pub window: Window,
@@ -31,21 +27,25 @@ impl WindowState {
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
         let surface = unsafe { instance.create_surface(&window) };
-        let adapter = instance.request_adapter(
-            &wgpu::RequestAdapterOptions {
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
                 compatible_surface: Some(&surface),
-            },
-        ).await.unwrap();
+            })
+            .await
+            .unwrap();
 
-        let (mut device, queue) = adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                features: wgpu::Features::empty(),
-                limits: wgpu::Limits::default(),
-                label: None,
-            },
-            None, // Trace path
-        ).await.unwrap();
+        let (mut device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    features: wgpu::Features::empty(),
+                    limits: wgpu::Limits::default(),
+                    label: None,
+                },
+                None, // Trace path
+            )
+            .await
+            .unwrap();
 
         let sc_desc = wgpu::SwapChainDescriptor {
             usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
@@ -55,8 +55,12 @@ impl WindowState {
             present_mode: wgpu::PresentMode::Fifo,
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
-        let viewport = Viewport::with_physical_size(Size::new(size.width, size.height), window.scale_factor());
-        let renderer = Renderer::new(Backend::new(&mut device, settings.map(ToOwned::to_owned).unwrap_or_default()));
+        let viewport =
+            Viewport::with_physical_size(Size::new(size.width, size.height), window.scale_factor());
+        let renderer = Renderer::new(Backend::new(
+            &mut device,
+            settings.map(ToOwned::to_owned).unwrap_or_default(),
+        ));
         let staging_belt = wgpu::util::StagingBelt::new(10 * 1024);
         let local_pool = futures::executor::LocalPool::new();
 
@@ -75,7 +79,10 @@ impl WindowState {
     }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>, scale_factor: Option<f64>) {
-        self.viewport = Viewport::with_physical_size(Size::new(new_size.width, new_size.height), scale_factor.unwrap_or(self.viewport.scale_factor()));
+        self.viewport = Viewport::with_physical_size(
+            Size::new(new_size.width, new_size.height),
+            scale_factor.unwrap_or(self.viewport.scale_factor()),
+        );
         self.sc_desc.height = new_size.height;
         self.sc_desc.width = new_size.width;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
@@ -85,32 +92,32 @@ impl WindowState {
         false
     }
 
-    pub fn update(&mut self) {
-        
-    }
+    pub fn update(&mut self) {}
 
-    pub fn render(&mut self, primitive: &(Primitive, mouse::Interaction), overlay: &[String]) -> Result<(), wgpu::SwapChainError> {
+    pub fn render(
+        &mut self,
+        primitive: &(Primitive, mouse::Interaction),
+        overlay: &[String],
+    ) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: None,
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         {
             let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
-                color_attachments: &[
-                    wgpu::RenderPassColorAttachmentDescriptor {
-                        attachment: &frame.view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
-                            store: true,
-                        }
-                    }
-                ],
+                color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
+                    attachment: &frame.view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
+                        store: true,
+                    },
+                }],
                 depth_stencil_attachment: None,
             });
         }
-        
+
         let mouse_interaction = self.renderer.backend_mut().draw(
             &mut self.device,
             &mut self.staging_belt,
@@ -126,10 +133,12 @@ impl WindowState {
         self.queue.submit(Some(encoder.finish()));
 
         // Update the mouse cursor
-        self.window.set_cursor_icon(conversion::mouse_interaction(mouse_interaction));
+        self.window
+            .set_cursor_icon(conversion::mouse_interaction(mouse_interaction));
 
         // And recall staging buffers
-        self.local_pool.spawner()
+        self.local_pool
+            .spawner()
             .spawn(self.staging_belt.recall())
             .expect("Recall staging buffers");
         self.local_pool.run_until_stalled();

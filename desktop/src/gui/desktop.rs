@@ -1,16 +1,15 @@
+use crate::background::wallpaper_type::WallpaperType;
+use crate::configs::{desktop_item_conf::Arrangement, DesktopConf};
+use crate::desktop_item::DesktopItem;
+use crate::styles::{ContainerFill, CustomButton, CustomTooltip};
+use iced::{Image, Svg};
 use iced_wgpu::Renderer;
 use iced_winit::{
-    Color, Command, Container, Element, Length, Program, Grid, Button, Text, Column, button, mouse::{self, click}, touch,
-    Align, HorizontalAlignment, Row, Tooltip, tooltip, Space, Application, Event, Subscription, Point,
+    button,
+    mouse::{self, click},
+    tooltip, touch, Align, Application, Button, Color, Column, Command, Container, Element, Event,
+    Grid, HorizontalAlignment, Length, Point, Program, Row, Space, Subscription, Text, Tooltip,
 };
-use iced::{Svg, Image};
-use crate::background::wallpaper_type::WallpaperType;
-use crate::configs::{
-    DesktopConf,
-    desktop_item_conf::Arrangement,
-};
-use crate::desktop_item::DesktopItem;
-use crate::styles::{CustomButton, CustomTooltip, ContainerFill};
 
 #[derive(Debug, Clone, Default)]
 pub struct Desktop {
@@ -25,7 +24,7 @@ pub struct Desktop {
 #[derive(Debug, Clone)]
 pub enum Message {
     DesktopItemClicked(usize),
-    WinitEvent(Event)
+    WinitEvent(Event),
 }
 
 impl Program for Desktop {
@@ -37,15 +36,13 @@ impl Program for Desktop {
             Message::WinitEvent(event) => match event {
                 Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
                 | Event::Touch(touch::Event::FingerPressed { .. }) => {
-                    let click = mouse::Click::new(
-                        self.cursor_position,
-                        self.last_click,
-                    );
+                    let click = mouse::Click::new(self.cursor_position, self.last_click);
 
                     match click.kind() {
                         click::Kind::Double => {
                             if let Some(idx) = self.selected_desktop_item {
-                                if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
+                                if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx)
+                                {
                                     desktop_item.handle_exec();
                                 }
                             }
@@ -54,13 +51,13 @@ impl Program for Desktop {
                     }
 
                     self.last_click = Some(click);
-                },
+                }
                 Event::Mouse(mouse::Event::CursorMoved { position })
                 | Event::Touch(touch::Event::FingerMoved { position, .. }) => {
                     self.cursor_position = position;
-                },
+                }
                 _ => {}
-            }
+            },
             Message::DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
         }
 
@@ -82,66 +79,83 @@ impl Program for Desktop {
         let item_size_spacing = item_size + 10;
         let mut grid = Grid::new().column_width(item_size_spacing).padding(20);
         if let Arrangement::Columns = item_conf.arrangement {
-            let items_in_height = item_size_spacing as usize*ls_desktop_items.len() + 40;
-            grid = grid.columns((items_in_height as f32/self.height as f32).ceil() as usize);
+            let items_in_height = item_size_spacing as usize * ls_desktop_items.len() + 40;
+            grid = grid.columns((items_in_height as f32 / self.height as f32).ceil() as usize);
         }
 
-        let desktop_grid = ls_desktop_items.iter_mut().enumerate()
-            .fold(grid, |grid, (idx, (state, item))| {
-                let name = item.name();
-                let icon_path = item.icon();
-                let comment = item.comment();
+        let desktop_grid =
+            ls_desktop_items
+                .iter_mut()
+                .enumerate()
+                .fold(grid, |grid, (idx, (state, item))| {
+                    let name = item.name();
+                    let icon_path = item.icon();
+                    let comment = item.comment();
 
-                let icon: Element<Message, Renderer> = if let Some(icon_path) = icon_path {
-                    if let Some(extension) = icon_path.extension() {
-                        if extension == "svg" {
-                            Svg::from_path(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
+                    let icon: Element<Message, Renderer> = if let Some(icon_path) = icon_path {
+                        if let Some(extension) = icon_path.extension() {
+                            if extension == "svg" {
+                                Svg::from_path(icon_path)
+                                    .width(Length::Units(item_conf.icon_size))
+                                    .height(Length::Units(item_conf.icon_size))
+                                    .into()
+                            } else {
+                                Image::new(icon_path)
+                                    .width(Length::Units(item_conf.icon_size))
+                                    .height(Length::Units(item_conf.icon_size))
+                                    .into()
+                            }
                         } else {
-                            Image::new(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
+                            Row::new().into()
                         }
                     } else {
                         Row::new().into()
-                    }
-                } else {
-                    Row::new().into()
-                };
-                let con = Column::new().spacing(10).align_items(Align::Center)
-                    .push(icon)
-                    .push(Text::new(name.unwrap_or(&"Unknown name".to_string())).horizontal_alignment(HorizontalAlignment::Center));
+                    };
+                    let con = Column::new()
+                        .spacing(10)
+                        .align_items(Align::Center)
+                        .push(icon)
+                        .push(
+                            Text::new(name.unwrap_or(&"Unknown name".to_string()))
+                                .horizontal_alignment(HorizontalAlignment::Center),
+                        );
 
-                let mut btn = Button::new(state, con)
-                    .width(Length::Units(item_size))
-                    .padding(7)
-                    .on_press(Message::DesktopItemClicked(idx));
-                if let Some(curr_idx) = *selected_desktop_item {
-                    if curr_idx == idx {
-                        btn = btn.style(CustomButton::Selected);
+                    let mut btn = Button::new(state, con)
+                        .width(Length::Units(item_size))
+                        .padding(7)
+                        .on_press(Message::DesktopItemClicked(idx));
+                    if let Some(curr_idx) = *selected_desktop_item {
+                        if curr_idx == idx {
+                            btn = btn.style(CustomButton::Selected);
+                        } else {
+                            btn = btn.style(CustomButton::Transparent);
+                        }
                     } else {
                         btn = btn.style(CustomButton::Transparent);
                     }
-                } else {
-                    btn = btn.style(CustomButton::Transparent);
-                }
 
-                let tooltip_btn: Element<Message, Renderer> = if item_conf.show_tooltip {
-                    if let Some(cmt) = comment {
-                        Tooltip::new(btn, cmt, tooltip::Position::FollowCursor).size(12).gap(5).padding(5).style(CustomTooltip).into()
+                    let tooltip_btn: Element<Message, Renderer> = if item_conf.show_tooltip {
+                        if let Some(cmt) = comment {
+                            Tooltip::new(btn, cmt, tooltip::Position::FollowCursor)
+                                .size(12)
+                                .gap(5)
+                                .padding(5)
+                                .style(CustomTooltip)
+                                .into()
+                        } else {
+                            btn.into()
+                        }
                     } else {
                         btn.into()
-                    }
-                } else {
-                    btn.into()
-                };
+                    };
 
-                grid.push(
-                    Container::new(tooltip_btn).center_x().center_y()
-                )
-            });
+                    grid.push(Container::new(tooltip_btn).center_x().center_y())
+                });
 
         let mut content = Container::new(
             Column::new()
-            .push(Space::with_height(Length::Units(30)))
-            .push(desktop_grid)
+                .push(Space::with_height(Length::Units(30)))
+                .push(desktop_grid),
         )
         .width(Length::Fill)
         .height(Length::Fill);
@@ -155,19 +169,23 @@ impl Program for Desktop {
 impl Application for Desktop {
     type Flags = (u32, DesktopConf, Vec<DesktopItem>);
 
-    fn new(flags: Self::Flags) -> (Self, Command<Message>) { 
+    fn new(flags: Self::Flags) -> (Self, Command<Message>) {
         (
             Self {
                 desktop_conf: flags.1.to_owned(),
-                ls_desktop_items: flags.2.iter().map(|item| (button::State::new(), item.to_owned())).collect(),
+                ls_desktop_items: flags
+                    .2
+                    .iter()
+                    .map(|item| (button::State::new(), item.to_owned()))
+                    .collect(),
                 height: flags.0,
                 ..Self::default()
             },
-            Command::none()
+            Command::none(),
         )
     }
 
-    fn title(&self) -> String { 
+    fn title(&self) -> String {
         String::from("Desktop")
     }
 
@@ -175,7 +193,6 @@ impl Application for Desktop {
         iced_winit::subscription::events().map(Message::WinitEvent)
     }
 }
-
 
 fn hex_to_color(hex: &str) -> Option<Color> {
     if hex.len() == 7 {

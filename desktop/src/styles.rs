@@ -28,20 +28,26 @@ impl button::StyleSheet for CustomButton {
                 CustomButton::Transparent | CustomButton::Selected => Color::WHITE,
                 _ => Color::BLACK,
             },
-            background: Some(match self {
-                CustomButton::Default => Color::WHITE,
-                CustomButton::Selected => Color { a: 0.5, ..PRIMARY },
-                CustomButton::Primary => Color { a: 0.3, ..PRIMARY },
-                CustomButton::Secondary => Color { a: 0.3, ..SECONDARY },
-                CustomButton::Hovered => Color { a: 0.3, ..HOVERED },
-                _ => Color::TRANSPARENT,
-            }.into()),
+            background: Some(
+                match self {
+                    CustomButton::Default => Color::WHITE,
+                    CustomButton::Selected => Color { a: 0.5, ..PRIMARY },
+                    CustomButton::Primary => Color { a: 0.3, ..PRIMARY },
+                    CustomButton::Secondary => Color {
+                        a: 0.3,
+                        ..SECONDARY
+                    },
+                    CustomButton::Hovered => Color { a: 0.3, ..HOVERED },
+                    _ => Color::TRANSPARENT,
+                }
+                .into(),
+            ),
             border_radius: 7.0,
             border_color: Color::TRANSPARENT,
             border_width: 1.0,
             shadow_offset: match self {
                 CustomButton::Default => Vector::new(0.5, 1.0),
-                _ => Vector::new(0.0, 0.0)
+                _ => Vector::new(0.0, 0.0),
             },
         }
     }
@@ -51,9 +57,9 @@ impl button::StyleSheet for CustomButton {
 
         button::Style {
             background: match self {
-                CustomButton::Transparent => Some(Color { a: 0.3, ..PRIMARY}.into()),
+                CustomButton::Transparent => Some(Color { a: 0.3, ..PRIMARY }.into()),
                 CustomButton::Text => Some(Color { a: 0.3, ..HOVERED }.into()),
-                _ => active.background
+                _ => active.background,
             },
             ..active
         }

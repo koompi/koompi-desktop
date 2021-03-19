@@ -1,12 +1,12 @@
 pub mod background_conf;
 pub mod desktop_item_conf;
 
+use super::errors::DesktopError;
 use background_conf::BackgroundConf;
 use desktop_item_conf::DesktopItemConf;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use std::fs;
-use super::errors::DesktopError;
+use std::path::Path;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DesktopConf {
@@ -18,11 +18,13 @@ pub struct DesktopConf {
 
 impl DesktopConf {
     pub fn new<P: AsRef<Path>>(file: P) -> Result<Self, DesktopError> {
-        if file.as_ref().exists() { 
+        if file.as_ref().exists() {
             if file.as_ref().is_file() {
                 Ok(toml::from_str(&fs::read_to_string(file)?)?)
             } else {
-                Err(DesktopError::ConfigNotFound(file.as_ref().display().to_string()))
+                Err(DesktopError::ConfigNotFound(
+                    file.as_ref().display().to_string(),
+                ))
             }
         } else {
             let default = DesktopConf::default();
@@ -32,7 +34,7 @@ impl DesktopConf {
             }
             fs::write(file.as_ref(), toml)?;
             Ok(default)
-        } 
+        }
     }
 
     pub fn background_conf(&self) -> &BackgroundConf {

@@ -1,8 +1,9 @@
+use futures::executor::LocalPool;
+use futures::task::SpawnExt;
 use iced_wgpu::{wgpu, Backend, Primitive, Renderer, Settings, Viewport};
 use iced_winit::winit;
 use iced_winit::{conversion, mouse, program, Debug, Program, Size};
 use wgpu::util::StagingBelt;
-
 use winit::{
     dpi::PhysicalPosition,
     event::{
@@ -12,7 +13,6 @@ use winit::{
     event_loop::ControlFlow,
     window::Window,
 };
-#[derive(Debug)]
 pub struct State {
     pub window: Window,
     pub surface: wgpu::Surface,
@@ -23,6 +23,8 @@ pub struct State {
     pub size: winit::dpi::PhysicalSize<u32>,
     pub render: Renderer,
     pub viewport: iced_wgpu::Viewport,
+    local_pool: LocalPool,
+    staging_belt: wgpu::util::StagingBelt,
 }
 
 impl State {
@@ -63,11 +65,12 @@ impl State {
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
         let viewport =
             Viewport::with_physical_size(Size::new(size.width, size.height), window.scale_factor());
-
+        let local_pool = LocalPool::new();
         let render = Renderer::new(Backend::new(
             &mut device,
             settings.map(ToOwned::to_owned).unwrap_or_default(),
         ));
+        let staging_belt = wgpu::util::StagingBelt::new(4 * 1024);
         Self {
             window,
             surface,
@@ -78,6 +81,8 @@ impl State {
             size,
             viewport,
             render,
+            local_pool,
+            staging_belt,
         }
     }
 
@@ -95,7 +100,7 @@ impl State {
     pub fn render(
         &mut self,
         primitive: &(Primitive, mouse::Interaction),
-        stage: &mut StagingBelt,
+        _stage: &mut StagingBelt,
         debug: &Debug,
     ) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
@@ -123,7 +128,7 @@ impl State {
         // Draw iced on top
         let mouse_interaction = self.render.backend_mut().draw(
             &mut self.device,
-            stage,
+            &mut self.staging_belt,
             &mut encoder,
             &frame.view,
             &self.viewport,
@@ -131,12 +136,17 @@ impl State {
             &debug.overlay(),
         );
         // // Then we submit the work
-        stage.finish();
+        self.staging_belt.finish();
         // Update the mouse cursor
         self.window
             .set_cursor_icon(conversion::mouse_interaction(mouse_interaction));
         self.queue.submit(std::iter::once(encoder.finish()));
+        self.local_pool
+            .spawner()
+            .spawn(self.staging_belt.recall())
+            .expect("Recall staging buffers");
 
+        self.local_pool.run_until_stalled();
         Ok(())
     }
 
@@ -170,7 +180,7 @@ impl State {
                 debug,
             );
         }
-        self.window.request_redraw();
+        self.window.request_redraw();   
     }
 }
 

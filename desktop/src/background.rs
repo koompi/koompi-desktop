@@ -4,9 +4,9 @@ mod thumbnail_size;
 pub mod wallpaper_type;
 
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
-use std::io::{Error, ErrorKind};
 use std::fs;
+use std::io::{Error, ErrorKind};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Background {
@@ -20,7 +20,7 @@ impl Background {
     pub fn from_config<P: AsRef<Path>>(file: P) -> Result<Self, Error> {
         match toml::from_str(&fs::read_to_string(file)?) {
             Ok(background) => Ok(background),
-            Err(err) => Err(Error::new(ErrorKind::Other, err))
+            Err(err) => Err(Error::new(ErrorKind::Other, err)),
         }
     }
 
@@ -32,7 +32,5 @@ impl Background {
         &self.wallpaper_path
     }
 
-    pub fn draw(&self) {
-
-    }
+    pub fn draw(&self) {}
 }

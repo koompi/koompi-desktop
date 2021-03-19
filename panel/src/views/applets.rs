@@ -1,5 +1,6 @@
-use super::controls::icon;
+use super::common::icon;
 use super::monitor::{Monitor, MonitorMsg};
+use super::sound::{Audio, AudioMsg};
 use crate::styles::containers::CustomContainer;
 use iced_wgpu::Renderer;
 use iced_winit::{
@@ -14,6 +15,7 @@ pub struct Applets {
     pub mute: button::State,
     pub kind: RefCell<ControlType>,
     monitor: Monitor,
+    audio: Audio,
     pub is_shown: bool,
 }
 #[derive(Debug, Clone)]
@@ -21,6 +23,7 @@ pub enum AppletsMsg {
     SoundChanged(f32),
     ButtonClicked,
     MonitorMsg(MonitorMsg),
+    AudioMsg(AudioMsg),
 }
 #[derive(Debug, Copy, Clone)]
 pub enum ControlType {
@@ -58,13 +61,16 @@ impl Program for Applets {
             AppletsMsg::MonitorMsg(msg) => {
                 self.monitor.update(msg);
             }
+            AppletsMsg::AudioMsg(msg) => {
+                self.audio.update(msg);
+            }
         }
         Command::none()
     }
     fn view(&mut self) -> Element<AppletsMsg, Renderer> {
         match self.kind.get_mut() {
             ControlType::Monitor => self.monitor.view().map(|msg| AppletsMsg::MonitorMsg(msg)),
-            ControlType::Sound => Text::new("Sound").into(),
+            ControlType::Sound => self.audio.view().map(|msg| AppletsMsg::AudioMsg(msg)),
             ControlType::Clipboard => Text::new("Clipboard").into(),
             ControlType::Keyboard => Text::new("Keyboard").into(),
             ControlType::Wifi => Text::new("Wifi").into(),

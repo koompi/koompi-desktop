@@ -1,15 +1,15 @@
+mod desktop_item_error;
 mod desktop_item_status;
 mod desktop_item_type;
-mod desktop_item_error;
 
-use super::constants::{TYPE, DESKTOP_ENTRY, ICON, NAME, COMMENT, EXEC};
-use std::path::{PathBuf, Path};
-use std::time::Duration;
-use std::str::FromStr;
-use std::convert::From;
-use std::process::Command;
-use desktop_item_type::DesktopItemType;
+use super::constants::{COMMENT, DESKTOP_ENTRY, EXEC, ICON, NAME, TYPE};
 pub use desktop_item_error::DesktopItemError;
+use desktop_item_type::DesktopItemType;
+use std::convert::From;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::str::FromStr;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Default)]
 pub struct DesktopItem {
@@ -34,17 +34,25 @@ impl DesktopItem {
                         let name = desktop_entry.attr(NAME).map(ToString::to_string);
                         let comment = desktop_entry.attr(COMMENT).map(ToString::to_string);
                         let exec = desktop_entry.attr(EXEC).map(ToString::to_string);
-                        let entry_type = DesktopItemType::from_str(desktop_entry.attr(TYPE).unwrap_or(""))?;
+                        let entry_type =
+                            DesktopItemType::from_str(desktop_entry.attr(TYPE).unwrap_or(""))?;
                         let icon_path = desktop_entry.attr(ICON).map(|name| {
                             if Path::new(name).is_absolute() {
                                 PathBuf::from(name)
                             } else {
-                                let path = PathBuf::from("/usr/share/icons/hicolor/scalable/apps").join(format!("{}.svg", name));
+                                let path = PathBuf::from("/usr/share/icons/hicolor/scalable/apps")
+                                    .join(format!("{}.svg", name));
                                 if path.exists() {
                                     path
                                 } else {
-                                    walkdir::WalkDir::new("/usr/share/icons").follow_links(true).into_iter().filter_map(|e| e.ok())
-                                        .find(|entry| entry.path().file_stem().unwrap().to_str().unwrap() == name.split('.').collect::<Vec<&str>>()[0])
+                                    walkdir::WalkDir::new("/usr/share/icons")
+                                        .follow_links(true)
+                                        .into_iter()
+                                        .filter_map(|e| e.ok())
+                                        .find(|entry| {
+                                            entry.path().file_stem().unwrap().to_str().unwrap()
+                                                == name.split('.').collect::<Vec<&str>>()[0]
+                                        })
                                         .map(|entry| entry.into_path())
                                         .unwrap_or(PathBuf::from("/usr/share/icons/koompi.svg"))
                                 }
@@ -52,7 +60,11 @@ impl DesktopItem {
                         });
                         Ok(Self {
                             path: PathBuf::from(file.as_ref()),
-                            name, comment, entry_type, icon_path, exec,
+                            name,
+                            comment,
+                            entry_type,
+                            icon_path,
+                            exec,
                             ..Self::default()
                         })
                     } else {
@@ -66,19 +78,21 @@ impl DesktopItem {
 
                 Ok(Self {
                     path: PathBuf::from(file.as_ref()),
-                    name: file.as_ref().file_name().map(|n| n.to_str().map(ToString::to_string).unwrap()),
+                    name: file
+                        .as_ref()
+                        .file_name()
+                        .map(|n| n.to_str().map(ToString::to_string).unwrap()),
                     entry_type,
                     ..Self::default()
                 })
             } else {
                 Err(DesktopItemError::InvalidType)
-            }  
+            }
         } else {
             Err(DesktopItemError::NoFilename {
-                name: file.as_ref().display().to_string()
+                name: file.as_ref().display().to_string(),
             })
         }
-        
     }
 
     pub fn path(&self) -> &PathBuf {
@@ -102,9 +116,11 @@ impl DesktopItem {
             DesktopItemType::APP => {
                 if let Some(exec) = &self.exec {
                     println!("{}", exec);
-                    Command::new(exec).spawn().expect("failed to execute application");
+                    Command::new(exec)
+                        .spawn()
+                        .expect("failed to execute application");
                 }
-            },
+            }
             _ => {}
         }
     }

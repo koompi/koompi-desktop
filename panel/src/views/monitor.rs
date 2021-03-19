@@ -1,3 +1,4 @@
+use super::common::icon;
 use crate::styles::containers::CustomContainer;
 use iced::svg::Svg;
 use iced_wgpu::Renderer;
@@ -8,7 +9,7 @@ use iced_winit::{
 #[derive(Debug, Default)]
 pub struct Monitor {
     is_present_mode: bool,
-    monitor: [button::State; 5],
+    monitor: [button::State; 6],
     test: button::State,
 }
 #[derive(Debug, Clone)]
@@ -20,6 +21,7 @@ pub enum MonitorMsg {
     Unify,
     ExtendLeft,
     ExtendRight,
+    OnAdvance,
 }
 
 impl Monitor {
@@ -44,11 +46,12 @@ impl Program for Monitor {
             MonitorMsg::ExtendLeft => {}
             MonitorMsg::ExtendRight => {}
             MonitorMsg::Unify => {}
+            MonitorMsg::OnAdvance => {}
         }
         Command::none()
     }
     fn view(&mut self) -> Element<self::MonitorMsg, self::Renderer> {
-        let [b1, b2, b3, b4, b5] = &mut self.monitor;
+        let [b1, b2, b3, b4, b5, b6] = &mut self.monitor;
         let svg = Svg::from_path(format!(
             "{}/src/assets/images/monitor.svg",
             env!("CARGO_MANIFEST_DIR")
@@ -65,7 +68,6 @@ impl Program for Monitor {
                     Row::new()
                         .align_items(Align::Center)
                         .spacing(10)
-                        .padding(10)
                         .push(
                             Button::new(b1, svg)
                                 .padding(10)
@@ -99,7 +101,18 @@ impl Program for Monitor {
                 ))
                 .push(Text::new(
                     "This settings will prevent your computer from turning off automatically",
-                )),
+                ))
+                .push(
+                    Button::new(
+                        b6,
+                        Row::new()
+                            .spacing(4)
+                            .align_items(Align::Center)
+                            .push(icon('\u{f108}'))
+                            .push(Text::new("Advance Display Settings")),
+                    )
+                    .on_press(MonitorMsg::OnAdvance),
+                ),
         )
         .width(Length::Fill)
         .height(Length::Fill)

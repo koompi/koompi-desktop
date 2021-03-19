@@ -1,5 +1,5 @@
-use thiserror::Error;
 use super::desktop_item::DesktopItemError;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum DesktopError {
@@ -13,4 +13,4 @@ pub enum DesktopError {
     DesktopItemError(#[from] DesktopItemError),
     #[error(transparent)]
     IOError(#[from] std::io::Error),
-}   
+}

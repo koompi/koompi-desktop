@@ -1,14 +1,12 @@
-use thiserror::Error;
 use freedesktop_entry_parser::errors::ParseError;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum DesktopItemError {
     #[error(transparent)]
     ParseError(#[from] ParseError),
     #[error("invalid filename: {name}")]
-    NoFilename {
-        name: String
-    },
+    NoFilename { name: String },
     #[error("cannot open file")]
     CannotOpen,
     #[error("cannot launch due to no execute string")]
@@ -17,7 +15,7 @@ pub enum DesktopItemError {
     BadExecString,
     #[error("not a launchable type")]
     NotLaunchable,
-    #[error("invalid type of application", )]
+    #[error("invalid type of application")]
     InvalidType,
     #[error(transparent)]
     IOError(#[from] std::io::Error),
