@@ -13,7 +13,7 @@ use super::errors::DesktopError;
 pub struct DesktopConf {
     #[serde(rename = "Background")]
     background_conf: BackgroundConf,
-    #[serde(rename = "Desktop Entry")]
+    #[serde(rename = "Desktop_Entry")]
     desktop_item_conf: DesktopItemConf,
 }
 

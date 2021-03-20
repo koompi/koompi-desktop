@@ -28,7 +28,7 @@ impl DesktopManager {
             wallpaper_items.extend(local_wallpaper_items);
         }
         wallpaper_items.sort();
-        println!("{:#?}", wallpaper_items);
+        // println!("{:#?}", wallpaper_items);
 
         Ok(Self {
             desktop_items, wallpaper_items,

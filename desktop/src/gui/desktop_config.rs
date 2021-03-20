@@ -51,7 +51,7 @@ impl Application for DesktopConfigUI {
     }
 
     fn title(&self) -> String {
-        String::from("Desktop Configuration")
+        String::from("Desktop")
     }
 }
 
@@ -93,7 +93,7 @@ impl Program for DesktopConfigUI {
         let lb_arragement = Text::new("Arrangement:");
         let pl_arragement = PickList::new(arrangement_state, &Arrangement::ALL[..], *arrangement, ArrangementChanged);
         let lb_icon_size = Text::new(format!("Icon size: {}x{}", icon_size, icon_size));
-        let sl_icon_size = Slider::new(icon_size_state, DesktopItemConf::MIN_ICON_SIZE..=DesktopItemConf::MAX_ICON_SIZE, *icon_size, IconSizeChanged);
+        let sl_icon_size = Slider::new(icon_size_state, DesktopItemConf::MIN_ICON_SIZE..=DesktopItemConf::MAX_ICON_SIZE, *icon_size, IconSizeChanged).step(2);
         let lb_grid_spacing = Text::new("Grid Spacing:");
         let sl_grid_spacing = Slider::new(grid_spacing_state, DesktopItemConf::MIN_GRID_SPACING..=DesktopItemConf::MAX_GRID_SPACING, *grid_spacing, GridSpacingChanged);
         let chb_sort_desc = Checkbox::new(*sort_desc, "Sort descending", SortDescToggled);

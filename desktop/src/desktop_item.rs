@@ -14,11 +14,11 @@ pub use desktop_item_error::DesktopItemError;
 
 #[derive(Debug, Clone, Default)]
 pub struct DesktopItem {
-    path: PathBuf,
-    name: Option<String>,
-    comment: Option<String>,
+    pub path: PathBuf,
+    pub name: Option<String>,
+    pub comment: Option<String>,
     exec: Option<String>,
-    icon_path: Option<PathBuf>,
+    pub icon_path: Option<PathBuf>,
     entry_type: DesktopItemType,
     launch_time: Duration,
     status: DesktopItemStatus,
@@ -82,21 +82,21 @@ impl DesktopItem {
         
     }
 
-    pub fn path(&self) -> &PathBuf {
-        &self.path
-    }
+    // pub fn path(&self) -> &PathBuf {
+    //     &self.path
+    // }
 
-    pub fn name(&self) -> Option<&String> {
-        self.name.as_ref()
-    }
+    // pub fn name(&self) -> Option<&String> {
+    //     self.name.as_ref()
+    // }
 
-    pub fn comment(&self) -> Option<&String> {
-        self.comment.as_ref()
-    }
+    // pub fn comment(&self) -> Option<&String> {
+    //     self.comment.as_ref()
+    // }
 
-    pub fn icon(&self) -> Option<&PathBuf> {
-        self.icon_path.as_ref()
-    }
+    // pub fn icon(&self) -> Option<&PathBuf> {
+    //     self.icon_path.as_ref()
+    // }
 
     pub fn handle_exec(&mut self) {
         match self.entry_type {

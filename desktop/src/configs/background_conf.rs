@@ -6,6 +6,7 @@ use super::wallpaper_conf::WallpaperConf;
 pub struct BackgroundConf {
     pub kind: BackgroundType,
     pub color_background: String,
+    #[serde(rename = "Wallpaper_Config")]
     pub wallpaper_conf: WallpaperConf,
 }
 
