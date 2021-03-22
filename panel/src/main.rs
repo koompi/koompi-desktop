@@ -39,17 +39,20 @@ fn main() {
         .with_x11_window_type(vec![XWindowType::Dock])
         .build(&event_loop)
         .unwrap();
+    let panel_key = window.id();
     let popup_menu = WindowBuilder::new()
         .with_x11_window_type(vec![XWindowType::Dock])
         .with_inner_size(PhysicalSize::new(400, 400))
         .build(&event_loop)
         .unwrap();
+    let menu_key = popup_menu.id();
     popup_menu.set_visible(false);
     let context_menu = WindowBuilder::new()
         .with_x11_window_type(vec![XWindowType::Dock])
         .with_inner_size(PhysicalSize::new(400, 200))
         .build(&event_loop)
         .unwrap();
+    let context_key = context_menu.id();
     context_menu.set_visible(false);
     let (mut cursor_position, mut debug, mut staging_belt, mut modifiers) = graphics_props();
     let mut context_state = block_on(State::new(context_menu, Some(&setttings(20))));
@@ -95,7 +98,10 @@ fn main() {
                 *control_flow = ControlFlow::WaitUntil(Instant::now() + timer_length);
             }
             Event::UserEvent(event) => println!("user event: {:?}", event),
-            Event::WindowEvent { ref event, .. } => {
+            Event::WindowEvent {
+                window_id,
+                ref event,
+            } => {
                 // UPDATED!
                 match event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
@@ -127,7 +133,20 @@ fn main() {
                         // context_state.resize(*physical_size);
                         // menu_state.resize(*physical_size);
                     }
-                    WindowEvent::CursorMoved { position, .. } => cursor_position = *position,
+                    WindowEvent::CursorMoved { position, .. } => {
+                        if window_id == state.win_id {
+                            state.cursor_position = *position;
+                            println!("Panel State");
+                        } else if window_id == menu_state.win_id {
+                            menu_state.cursor_position = *position;
+                            println!("Menu state");
+                        } else if window_id == context_state.win_id {
+                            context_state.cursor_position = *position;
+                            println!("Context state");
+                        } else {
+                            {}
+                        }
+                    }
                     WindowEvent::ModifiersChanged(modi) => modifiers = *modi,
                     WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                         // new_inner_size is &&mut so w have to dereference it twice
@@ -136,6 +155,9 @@ fn main() {
                     }
                     _ => {}
                 }
+                // state.input(&event);
+                // menu_state.input(&event);
+                // context_state.input(&event);
                 state.map_event(&mut panel_state, &modifiers, &event);
                 menu_state.map_event(&mut sound_state, &modifiers, &event);
                 context_state.map_event(&mut context_state_app, &modifiers, &event);
@@ -143,21 +165,26 @@ fn main() {
             Event::MainEventsCleared => {
                 // RedrawRequested will only trigger once, unless we manually
                 // request it.
-                state.update_frame(&mut panel_state, cursor_position, &mut debug);
-                menu_state.update_frame(&mut sound_state, cursor_position, &mut debug);
-                context_state.update_frame(&mut context_state_app, cursor_position, &mut debug);
+                state.update_frame(&mut panel_state, state.cursor_position, &mut debug);
+                menu_state.update_frame(&mut sound_state, menu_state.cursor_position, &mut debug);
+                context_state.update_frame(
+                    &mut context_state_app,
+                    context_state.cursor_position,
+                    &mut debug,
+                );
             }
             Event::RedrawRequested(_) => {
                 let views::applets::Applets { kind, .. } = sound_state.program();
                 let program = panel_state.program();
-                context_state.window.set_outer_position(cursor_position);
+                context_state
+                    .window
+                    .set_outer_position(context_state.cursor_position);
                 if program.is_exit {
                     *control_flow = ControlFlow::Exit;
                 } else {
                 }
+                kind.replace(program.get_kind());
                 if program.is_shown {
-                    program.subscription();
-                    kind.replace(program.get_kind());
                     // kind = RefCell::new(ControlType::Sound);
                     menu_state.window.set_visible(true);
                     menu_state
@@ -166,7 +193,7 @@ fn main() {
                 } else {
                     menu_state.window.set_visible(false);
                 }
-                state.update();
+                // state.update();
                 match state.render(panel_state.primitive(), &mut staging_belt, &debug) {
                     Ok(_) => {}
                     // Recreate the swap_chain if lost
@@ -232,7 +259,7 @@ pub fn create_state<T: Program<Renderer = iced_graphics::Renderer<iced_wgpu::Bac
     program::State::new(
         program,
         state.viewport.logical_size(),
-        conversion::cursor_position(cursor_pos, state.viewport.scale_factor()),
+        conversion::cursor_position(state.cursor_position, state.viewport.scale_factor()),
         &mut state.render,
         debug,
     )

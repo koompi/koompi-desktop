@@ -11,9 +11,10 @@ use winit::{
         WindowEvent,
     },
     event_loop::ControlFlow,
-    window::Window,
+    window::{Window, WindowId},
 };
 pub struct State {
+    pub win_id: WindowId,
     pub window: Window,
     pub surface: wgpu::Surface,
     pub device: wgpu::Device,
@@ -25,8 +26,15 @@ pub struct State {
     pub viewport: iced_wgpu::Viewport,
     local_pool: LocalPool,
     staging_belt: wgpu::util::StagingBelt,
+    pub cursor_position: PhysicalPosition<f64>,
+    pub modifiers: ModifiersState,
 }
 
+pub enum CustomWindow {
+    Panel,
+    ContextMenu,
+    Popup,
+}
 impl State {
     pub async fn new(window: Window, settings: Option<&Settings>) -> Self {
         let size = window.inner_size();
@@ -71,7 +79,11 @@ impl State {
             settings.map(ToOwned::to_owned).unwrap_or_default(),
         ));
         let staging_belt = wgpu::util::StagingBelt::new(4 * 1024);
+        let cursor_position = PhysicalPosition::new(-1.0, -1.0);
+        let modifiers = ModifiersState::default();
+        let win_id = window.id();
         Self {
+            win_id,
             window,
             surface,
             device,
@@ -83,6 +95,8 @@ impl State {
             render,
             local_pool,
             staging_belt,
+            cursor_position,
+            modifiers,
         }
     }
 
@@ -94,7 +108,40 @@ impl State {
     }
 
     pub fn update(&mut self) {}
-    pub fn input(&mut self) -> bool {
+
+    pub fn input(&mut self, event: &WindowEvent) -> bool {
+        match event {
+            // WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+            // WindowEvent::KeyboardInput { input, .. } => match input {
+            //     KeyboardInput {
+            //         state: ElementState::Pressed,
+            //         virtual_keycode: Some(VirtualKeyCode::Escape),
+            //         ..
+            //     } => *control_flow = ControlFlow::Exit,
+            //     _ => {}
+            // },
+            WindowEvent::MouseInput {
+                device_id,
+                state,
+                button,
+                modifiers,
+            } => match button {
+                _ => {}
+            },
+            WindowEvent::Resized(physical_size) => {
+                self.resize(*physical_size);
+                // context_state.resize(*physical_size);
+                // menu_state.resize(*physical_size);
+            }
+            WindowEvent::CursorMoved { position, .. } => self.cursor_position = *position,
+            WindowEvent::ModifiersChanged(modi) => self.modifiers = *modi,
+            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                // new_inner_size is &&mut so w have to dereference it twice
+                self.resize(**new_inner_size);
+                // menu_state.resize(**new_inner_size);
+            }
+            _ => {}
+        }
         true
     }
     pub fn render(
@@ -180,55 +227,6 @@ impl State {
                 debug,
             );
         }
-        self.window.request_redraw();   
+        self.window.request_redraw();
     }
 }
-
-// pub fn input(
-//     &mut self,
-//     event: &WindowEvent,
-//     control_flow: &mut ControlFlow,
-//     cursor_position: &mut PhysicalPosition<f64>,
-//     modifiers: &mut ModifiersState,
-// ) -> bool {
-//     match event {
-//         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-//         WindowEvent::KeyboardInput { input, .. } => match input {
-//             KeyboardInput {
-//                 state: ElementState::Pressed,
-//                 virtual_keycode: Some(VirtualKeyCode::Escape),
-//                 ..
-//             } => *control_flow = ControlFlow::Exit,
-//             _ => {}
-//         },
-//         WindowEvent::MouseInput {
-//             device_id,
-//             state,
-//             button,
-//             modifiers,
-//         } => match button {
-//             MouseButton::Right => {
-//                 println!("Left click mouse: position: {:?}", cursor_position);
-//                 self.window.set_visible(true);
-//             }
-//             MouseButton::Left => {
-//                 self.window.set_visible(false);
-//             }
-//             _ => {}
-//         },
-//         WindowEvent::Resized(physical_size) => {
-//             self.resize(*physical_size);
-//             // context_state.resize(*physical_size);
-//             // menu_state.resize(*physical_size);
-//         }
-//         WindowEvent::CursorMoved { position, .. } => *cursor_position = *position,
-//         WindowEvent::ModifiersChanged(modi) => *modifiers = *modi,
-//         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-//             // new_inner_size is &&mut so w have to dereference it twice
-//             self.resize(**new_inner_size);
-//             // menu_state.resize(**new_inner_size);
-//         }
-//         _ => {}
-//     }
-//     true
-// }
