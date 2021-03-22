@@ -6,8 +6,8 @@ use super::color_config::{ColorConfigUI, ColorConfigMsg};
 use super::wallpaper_config::{WallpaperConfigUI, WallpaperConfigMsg};
 use super::styles::CustomButton;
 use iced_winit::{
-    pick_list, button, PickList, Application, Program, Command, Element,
-    Text, scrollable, Scrollable, Row, Button, Space, Length, Align,
+    pick_list, button, scrollable, PickList, Program, Command, Element, Row,
+    Text, Scrollable, Button, Space, Length, Align, Column, Application, 
 };
 use iced_wgpu::{Renderer};
 
@@ -113,11 +113,14 @@ impl Program for BackgroundConfigUI {
         };
         let btn_apply = Button::new(btn_apply_state, Text::new("  Apply  ")).on_press(ApplyClicked).style(CustomButton::Primary);
 
-        Scrollable::new(scroll).scroller_width(4).scrollbar_width(4).spacing(15).padding(15)
+        Column::new().spacing(15).padding(15)
             .push(
-                Row::new().spacing(10).align_items(Align::Center).push(lb_bg).push(pl_bg)
+                Scrollable::new(scroll).scroller_width(4).scrollbar_width(4).spacing(15)
+                .push(
+                    Row::new().spacing(10).align_items(Align::Center).push(lb_bg).push(pl_bg)
+                )
+                .push(content)
             )
-            .push(content)
             .push(Space::with_height(Length::Fill))
             .push(Row::new().push(Space::with_width(Length::Fill)).push(btn_apply))
             .into()

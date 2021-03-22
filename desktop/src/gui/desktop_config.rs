@@ -102,7 +102,7 @@ impl Program for DesktopConfigUI {
         let pl_sec_lb = Column::new().spacing(15)
             .push(lb_sort_by)
             .push(lb_arragement);
-        let pl_sec = Column::new().spacing(5)
+        let pl_sec = Column::new().spacing(7)
             .push(pl_sort_by)
             .push(pl_arragement);
 

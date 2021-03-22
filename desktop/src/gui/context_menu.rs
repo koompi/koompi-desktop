@@ -1,13 +1,15 @@
 use iced_wgpu::Renderer;
 use iced_winit::{
     Command, Container, Element, Length, Program, Button, Text, Column, button, 
-    Row, Icon, Icons, Space, Rule, Application, Color,
+    Row, Icon, Icons, Space, Rule, Application, Color, winit,
 };
+use winit::event_loop::EventLoopProxy;
 use super::styles::{CustomButton, HOVERED};
 
 #[derive(Debug)]
 pub struct ContextMenu {
     menu_items: Vec<MenuItemNode>,
+    proxy: EventLoopProxy<ContextMsg>,
 }
 
 #[derive(Debug, Clone)]
@@ -18,11 +20,11 @@ pub struct MenuItemNode {
     is_showed: bool,
     has_underline: bool,
     submenu: Option<Vec<MenuItemNode>>,
-    callback: Option<Message>,
+    callback: Option<ContextMsg>,
 }
 
 impl MenuItemNode {
-    pub fn new(title: &str, has_underline: bool, callback: Option<Message>, submenu: Option<Vec<MenuItemNode>>) -> Self {
+    pub fn new(title: &str, has_underline: bool, callback: Option<ContextMsg>, submenu: Option<Vec<MenuItemNode>>) -> Self {
         Self {
             submenu, callback, has_underline,
             title: title.to_owned(),
@@ -34,7 +36,7 @@ impl MenuItemNode {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Message {
+pub enum ContextMsg {
     ChangeBG,
     NewFolder,
     SortBy,
@@ -42,22 +44,24 @@ pub enum Message {
 }
 
 impl Application for ContextMenu {
-    type Flags = ();
+    type Flags = EventLoopProxy<ContextMsg>;
 
-    fn new(_flags: Self::Flags) -> (Self, Command<Message>) {
+    fn new(flags: Self::Flags) -> (Self, Command<ContextMsg>) {
+        use ContextMsg::*;
         (
             Self {
                 menu_items: vec![
-                    MenuItemNode::new("New Folder", true, Some(Message::NewFolder), None),
-                    MenuItemNode::new("Change Desktop Background", false, Some(Message::ChangeBG), None),
-                    MenuItemNode::new("Sort By", true, Some(Message::SortBy), Some(vec![
+                    MenuItemNode::new("New Folder", true, Some(NewFolder), None),
+                    MenuItemNode::new("Change Desktop Background", false, Some(ChangeBG), None),
+                    MenuItemNode::new("Sort By", true, Some(SortBy), Some(vec![
                         MenuItemNode::new("Manual", true, None, None),
                         MenuItemNode::new("Name", false, None, None),
                         MenuItemNode::new("Type", false, None, None),
                         MenuItemNode::new("Date", false, None, None),
                     ])),
-                    MenuItemNode::new("Desktop View", false, Some(Message::DesktopView), None),
+                    MenuItemNode::new("Desktop View", false, Some(DesktopView), None),
                 ],
+                proxy: flags
             },
             Command::none()
         )
@@ -74,22 +78,24 @@ impl Application for ContextMenu {
 
 impl Program for ContextMenu {
     type Renderer = Renderer;
-    type Message = Message;
+    type Message = ContextMsg;
 
-    fn update(&mut self, message: Message) -> Command<Message> {
+    fn update(&mut self, message: ContextMsg) -> Command<ContextMsg> {
+        use ContextMsg::*;
         match message {
-            Message::ChangeBG => if let nfd2::Response::Okay(file_path) = nfd2::open_file_dialog(Some("png,jpg,jpeg,gif"), None).expect("oh no") {
-                println!("{}", file_path.display())
-            },
-            Message::NewFolder => println!("create new folder"),
-            Message::SortBy => println!("change sort by field"),
-            Message::DesktopView => println!("display desktop view configurations window"),
+            ChangeBG => self.proxy.send_event(ChangeBG).unwrap(),
+            // if let nfd2::Response::Okay(file_path) = nfd2::open_file_dialog(Some("png,jpg,jpeg,gif"), None).expect("oh no") {
+            //     println!("{}", file_path.display())
+            // },
+            NewFolder => println!("create new folder"),
+            SortBy => println!("change sort by field"),
+            DesktopView => self.proxy.send_event(DesktopView).unwrap(),
         }
 
         Command::none()
     }
 
-    fn view(&mut self) -> Element<Message, Renderer> {
+    fn view(&mut self) -> Element<ContextMsg, Renderer> {
         let context_menu = self.menu_items.iter_mut()
             .fold(Column::new().padding(4), |mut column, item| {
                 let mut content = Row::new().spacing(7).padding(5);
@@ -117,7 +123,6 @@ impl Program for ContextMenu {
                 } else {
                     column
                 }
-
             });
         // let context_menu = menu(&mut self.menu_items);
 

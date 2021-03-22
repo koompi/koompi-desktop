@@ -21,7 +21,7 @@ pub struct WindowState<P: 'static + Program + Application> {
 
 impl<P: 'static + Program<Renderer = Renderer> + Application> WindowState<P> {
     // Creating some of the wgpu types requires async code
-    pub async fn new(instance: &wgpu::Instance, window: Window, program: P, cursor_position: PhysicalPosition<f64>, debug: &mut Debug, settings: Option<&Settings>) -> Self {
+    pub async fn new(instance: &wgpu::Instance, window: Window, visible: bool, program: P, cursor_position: PhysicalPosition<f64>, debug: &mut Debug, settings: Option<&Settings>) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -60,7 +60,9 @@ impl<P: 'static + Program<Renderer = Renderer> + Application> WindowState<P> {
             &mut renderer,
             debug,
         );
-        window.set_visible(true);
+        if visible {
+            window.set_visible(visible);
+        }
 
         Self {
             window,

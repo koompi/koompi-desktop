@@ -7,6 +7,6 @@ mod wallpaper_config;
 mod styles;
 
 pub use desktop::Desktop;
-pub use context_menu::ContextMenu;
+pub use context_menu::{ContextMenu, ContextMsg};
 pub use desktop_config::DesktopConfigUI;
 pub use background_config::BackgroundConfigUI;
