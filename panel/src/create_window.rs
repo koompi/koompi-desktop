@@ -1,15 +1,15 @@
-use futures::executor::block_on;
-use iced_wgpu::wgpu;
-use iced_wgpu::Settings;
+use crate::views::controls::Message;
 use iced_winit::winit;
-use iced_winit::{conversion, futures, Clipboard, Debug};
 use winit::event_loop::EventLoop;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
-    event::ModifiersState,
     platform::unix::{WindowBuilderExtUnix, XWindowStrut, XWindowType},
     window::{Window, WindowBuilder},
 };
+#[derive(Debug, Clone, Copy)]
+pub enum CustomEvent {
+    Timer,
+}
 #[derive(Debug)]
 pub enum WinType {
     Panel(([u64; 4], Option<(u32, u32)>)),
@@ -25,11 +25,11 @@ pub struct NewWindow {
     is_visible: bool,
     kind: WinType,
 }
-impl<'sttaic> NewWindow {
+impl NewWindow {
     pub fn instance(self) -> Window {
         self.window
     }
-    pub fn new<T: 'sttaic>(event_loop: &EventLoop<T>, kind: WinType) -> Self {
+    pub fn new(event_loop: &EventLoop<Message>, kind: WinType) -> Self {
         let window = match kind {
             WinType::Panel((reserve_size, pos)) => {
                 let win = WindowBuilder::new()
@@ -49,6 +49,7 @@ impl<'sttaic> NewWindow {
             WinType::Dock(size) => {
                 let win = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Dock])
+                    .with_visible(false)
                     .build(&event_loop)
                     .unwrap();
                 match size {
@@ -62,6 +63,7 @@ impl<'sttaic> NewWindow {
             WinType::Menu(size) => {
                 let win = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Menu])
+                    .with_visible(false)
                     .build(&event_loop)
                     .unwrap();
                 match size {

@@ -6,10 +6,11 @@ use iced::time;
 use iced::{svg::Svg, Text};
 use iced_wgpu::Renderer;
 use iced_winit::{
-    application::{Application, State},
-    button, subscription, svg, Align, Button, Color, Column, Command, Container, Element, Font,
-    HorizontalAlignment, Length, Program, Row, Space, Subscription,
+    application::Application, button, Align, Button, Color, Command, Container, Element, Length,
+    Program, Row, Space, Subscription,
 };
+use std::cell::RefCell;
+use std::time::Instant;
 #[derive(Debug)]
 pub struct Controls {
     pub background_color: Color,
@@ -17,7 +18,7 @@ pub struct Controls {
     pub is_exit: bool,
     pub is_shown: bool,
     pub kind: ControlType,
-    now: chrono::DateTime<chrono::Local>,
+    pub now: chrono::DateTime<chrono::Local>,
 }
 
 impl Application for Controls {
@@ -56,19 +57,11 @@ pub enum Message {
     SoundShow,
     WifiShow,
     Tick(chrono::DateTime<chrono::Local>),
+    Timer,
 }
 impl Controls {
-    pub fn is_quit(&mut self) -> bool {
-        self.is_exit
-    }
-    pub fn is_shown(&self) -> bool {
-        self.is_shown
-    }
-    pub fn background_color(&self) -> Color {
-        self.background_color
-    }
-    pub fn get_kind(&self) -> ControlType {
-        self.kind
+    pub fn update_state(&mut self) {
+        println!("Call every 1 second");
     }
 }
 
@@ -102,7 +95,10 @@ impl Program for Controls {
             }
             Message::WifiShow => {
                 self.kind = ControlType::Wifi;
+            }
+            Message::Timer => {
                 self.now = chrono::Local::now();
+                println!("timer out running...");
             }
             Message::KeyboardShow => {
                 self.kind = ControlType::Keyboard;
@@ -120,7 +116,7 @@ impl Program for Controls {
 
     fn view(&mut self) -> Element<Message, Renderer> {
         let [b1, b2, b3, b4, b5, b6, b7] = &mut self.widgets;
-        let current_time = self.now.time();
+        let current_time = self.now;
         let svg = Svg::from_path(format!(
             "{}/src/assets/images/koompi-black.svg",
             env!("CARGO_MANIFEST_DIR")
@@ -190,9 +186,9 @@ impl Program for Controls {
     }
 }
 
-fn menu_icon() -> Text {
-    icon('\u{f0c9}')
-}
+// fn menu_icon() -> Text {
+//     icon('\u{f0c9}')
+// }
 fn monitor_icon() -> Text {
     icon('\u{f108}')
 }

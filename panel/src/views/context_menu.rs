@@ -1,9 +1,8 @@
-use chrono::Timelike;
 use iced::time;
 use iced_wgpu::Renderer;
 use iced_winit::{
-    application::Application, button, program, Button, Column, Command, Container, Element,
-    Program, Subscription, Text,
+    application::Application, button, Button, Column, Command, Container, Element, Program,
+    Subscription, Text,
 };
 #[derive(Debug)]
 pub struct ContexMenu {
@@ -21,7 +20,7 @@ pub enum ContextMenuMsg {
 impl Application for ContexMenu {
     type Flags = ();
 
-    fn new(flags: ()) -> (Self, Command<ContextMenuMsg>) {
+    fn new(_flags: ()) -> (Self, Command<ContextMenuMsg>) {
         println!("applicaiton launcher");
         (
             Self {

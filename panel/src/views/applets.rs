@@ -3,10 +3,7 @@ use super::monitor::{Monitor, MonitorMsg};
 use super::sound::{Audio, AudioMsg};
 use crate::styles::containers::CustomContainer;
 use iced_wgpu::Renderer;
-use iced_winit::{
-    button, slider, Align, Button, Column, Command, Container, Element, Length, Program, Row,
-    Slider, Space, Text,
-};
+use iced_winit::{button, slider, Command, Element, Program, Text};
 use std::cell::RefCell;
 #[derive(Debug, Default)]
 pub struct Applets {

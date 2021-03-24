@@ -1,20 +1,15 @@
 use futures::executor::LocalPool;
 use futures::task::SpawnExt;
-use iced_wgpu::{wgpu, Backend, Primitive, Renderer, Settings, Viewport};
+use iced_wgpu::{wgpu, Backend, Renderer, Settings, Viewport};
 use iced_winit::winit;
-use iced_winit::{conversion, mouse, program, Debug, Program, Size};
+use iced_winit::{conversion, program, Debug, Program, Size};
 use wgpu::util::StagingBelt;
 use winit::{
     dpi::PhysicalPosition,
-    event::{
-        ElementState, Event, KeyboardInput, ModifiersState, MouseButton, VirtualKeyCode,
-        WindowEvent,
-    },
-    event_loop::ControlFlow,
-    window::{Window, WindowId},
+    event::{ModifiersState, WindowEvent},
+    window::Window,
 };
-pub struct State {
-    pub win_id: WindowId,
+pub struct State<T: 'static + Program> {
     pub window: Window,
     pub surface: wgpu::Surface,
     pub device: wgpu::Device,
@@ -26,17 +21,20 @@ pub struct State {
     pub viewport: iced_wgpu::Viewport,
     local_pool: LocalPool,
     staging_belt: wgpu::util::StagingBelt,
-    pub cursor_position: PhysicalPosition<f64>,
     pub modifiers: ModifiersState,
+    pub win_state: program::State<T>,
 }
-
-pub enum CustomWindow {
-    Panel,
-    ContextMenu,
-    Popup,
-}
-impl State {
-    pub async fn new(window: Window, settings: Option<&Settings>) -> Self {
+impl<T> State<T>
+where
+    T: 'static + Program<Renderer = Renderer>,
+{
+    pub async fn new(
+        window: Window,
+        program: T,
+        settings: Option<&Settings>,
+        cursor_pos: PhysicalPosition<f64>,
+        debug: &mut Debug,
+    ) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -74,16 +72,20 @@ impl State {
         let viewport =
             Viewport::with_physical_size(Size::new(size.width, size.height), window.scale_factor());
         let local_pool = LocalPool::new();
-        let render = Renderer::new(Backend::new(
+        let mut render = Renderer::new(Backend::new(
             &mut device,
             settings.map(ToOwned::to_owned).unwrap_or_default(),
         ));
         let staging_belt = wgpu::util::StagingBelt::new(4 * 1024);
-        let cursor_position = PhysicalPosition::new(-1.0, -1.0);
         let modifiers = ModifiersState::default();
-        let win_id = window.id();
+        let win_state = program::State::new(
+            program,
+            viewport.logical_size(),
+            conversion::cursor_position(cursor_pos, viewport.scale_factor()),
+            &mut render,
+            debug,
+        );
         Self {
-            win_id,
             window,
             surface,
             device,
@@ -95,8 +97,8 @@ impl State {
             render,
             local_pool,
             staging_belt,
-            cursor_position,
             modifiers,
+            win_state,
         }
     }
 
@@ -110,46 +112,9 @@ impl State {
     pub fn update(&mut self) {}
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
-        match event {
-            // WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-            // WindowEvent::KeyboardInput { input, .. } => match input {
-            //     KeyboardInput {
-            //         state: ElementState::Pressed,
-            //         virtual_keycode: Some(VirtualKeyCode::Escape),
-            //         ..
-            //     } => *control_flow = ControlFlow::Exit,
-            //     _ => {}
-            // },
-            WindowEvent::MouseInput {
-                device_id,
-                state,
-                button,
-                modifiers,
-            } => match button {
-                _ => {}
-            },
-            WindowEvent::Resized(physical_size) => {
-                self.resize(*physical_size);
-                // context_state.resize(*physical_size);
-                // menu_state.resize(*physical_size);
-            }
-            WindowEvent::CursorMoved { position, .. } => self.cursor_position = *position,
-            WindowEvent::ModifiersChanged(modi) => self.modifiers = *modi,
-            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                // new_inner_size is &&mut so w have to dereference it twice
-                self.resize(**new_inner_size);
-                // menu_state.resize(**new_inner_size);
-            }
-            _ => {}
-        }
         true
     }
-    pub fn render(
-        &mut self,
-        primitive: &(Primitive, mouse::Interaction),
-        _stage: &mut StagingBelt,
-        debug: &Debug,
-    ) -> Result<(), wgpu::SwapChainError> {
+    pub fn render(&mut self, debug: &Debug) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
 
         let mut encoder = self
@@ -179,7 +144,7 @@ impl State {
             &mut encoder,
             &frame.view,
             &self.viewport,
-            primitive,
+            self.win_state.primitive(),
             &debug.overlay(),
         );
         // // Then we submit the work
@@ -197,29 +162,27 @@ impl State {
         Ok(())
     }
 
-    pub fn map_event<T: Program + 'static>(
-        &mut self,
-        state: &mut program::State<T>,
-        modifier: &ModifiersState,
-        event: &winit::event::WindowEvent,
-    ) {
+    pub fn map_event(&mut self, modifier: &ModifiersState, event: &winit::event::WindowEvent) {
         if let Some(event) =
             conversion::window_event(&event, self.viewport.scale_factor(), *modifier)
         {
-            state.queue_event(event);
+            self.win_state.queue_event(event);
         }
     }
-
-    pub fn update_frame<
-        P: Program<Renderer = iced_graphics::Renderer<iced_wgpu::Backend>> + 'static,
-    >(
-        &mut self,
-        state: &mut program::State<P>,
-        cursor_pos: PhysicalPosition<f64>,
-        debug: &mut Debug,
-    ) {
-        if !state.is_queue_empty() {
-            let _ = state.update(
+    pub fn redraw(&mut self, debug: &Debug) {
+        match self.render(&debug) {
+            Ok(_) => {}
+            // Recreate the swap_chain if lost
+            Err(wgpu::SwapChainError::Lost) => self.resize(self.size),
+            // The system is out of memory, we should probably quit
+            Err(wgpu::SwapChainError::OutOfMemory) => {}
+            // All other errors (Outdated, Timeout) should be resolved by the next frame
+            Err(e) => eprintln!("{:?}", e),
+        }
+    }
+    pub fn update_frame(&mut self, cursor_pos: PhysicalPosition<f64>, debug: &mut Debug) {
+        if !self.win_state.is_queue_empty() {
+            let _ = self.win_state.update(
                 self.viewport.logical_size(),
                 conversion::cursor_position(cursor_pos, self.viewport.scale_factor()),
                 None,
