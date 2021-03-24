@@ -1,5 +1,9 @@
-use iced_wgpu::{wgpu, Viewport, Renderer, Backend, Settings};
-use iced_winit::{winit, conversion, program, Size, Program, Clipboard, Debug, Application};
+use iced_wgpu::{
+    wgpu, Viewport, Renderer, Backend, Settings
+};
+use iced_winit::{
+    winit, conversion, program, Size, Clipboard, Debug, Application, Command, Subscription
+};
 use wgpu::util::StagingBelt;
 use winit::{
     window::Window,
@@ -7,21 +11,30 @@ use winit::{
     dpi::{PhysicalSize, PhysicalPosition},
 };
 
-pub struct WindowState<P: 'static + Program + Application> {
+pub struct WindowState<A: 'static + Application> {
     pub window: Window,
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
     sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
-    viewport: Viewport,
+    pub viewport: Viewport,
     renderer: Renderer,
-    prog_state: program::State<P>,
+    clipboard: Clipboard,
+    state: program::State<A>
 }
 
-impl<P: 'static + Program<Renderer = Renderer> + Application> WindowState<P> {
+impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
     // Creating some of the wgpu types requires async code
-    pub async fn new(instance: &wgpu::Instance, window: Window, visible: bool, program: P, cursor_position: PhysicalPosition<f64>, debug: &mut Debug, settings: Option<&Settings>) -> Self {
+    pub async fn new(
+        instance: &wgpu::Instance, 
+        window: Window, 
+        visible: bool, 
+        application: A, 
+        cursor_position: PhysicalPosition<f64>, 
+        debug: &mut Debug, 
+        settings: Option<&Settings>
+    ) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -53,18 +66,19 @@ impl<P: 'static + Program<Renderer = Renderer> + Application> WindowState<P> {
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
         let viewport = Viewport::with_physical_size(Size::new(size.width, size.height), window.scale_factor());
         let mut renderer = Renderer::new(Backend::new(&mut device, settings.map(ToOwned::to_owned).unwrap_or_default()));
-        let prog_state = program::State::new(
-            program,
+        let clipboard = Clipboard::connect(&window);
+        let state = program::State::new(
+            application,
             viewport.logical_size(),
             conversion::cursor_position(cursor_position, viewport.scale_factor()),
             &mut renderer,
-            debug,
+            debug
         );
         if visible {
             window.set_visible(visible);
         }
 
-        Self {
+        WindowState {
             window,
             surface,
             device,
@@ -73,7 +87,8 @@ impl<P: 'static + Program<Renderer = Renderer> + Application> WindowState<P> {
             swap_chain,
             viewport,
             renderer,
-            prog_state,
+            clipboard,
+            state,
         }
     }
 
@@ -82,14 +97,6 @@ impl<P: 'static + Program<Renderer = Renderer> + Application> WindowState<P> {
         self.sc_desc.height = new_size.height;
         self.sc_desc.width = new_size.width;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
-    }
-
-    // pub fn input(&mut self, _event: &WindowEvent) -> bool {
-    //     false
-    // }
-
-    pub fn update(&mut self) {
-        
     }
 
     pub fn render(&mut self, staging_belt: &mut StagingBelt, overlay: &[String]) -> Result<(), wgpu::SwapChainError> {
@@ -106,7 +113,7 @@ impl<P: 'static + Program<Renderer = Renderer> + Application> WindowState<P> {
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear({
-                                let [r, g, b, a] = self.prog_state.program().background_color().into_linear();
+                                let [r, g, b, a] = self.state.program().background_color().into_linear();
 
                                 wgpu::Color {
                                     r: r as f64,
@@ -129,7 +136,7 @@ impl<P: 'static + Program<Renderer = Renderer> + Application> WindowState<P> {
             &mut encoder,
             &frame.view,
             &self.viewport,
-            self.prog_state.primitive(),
+            self.state.primitive(),
             overlay,
         );
 
@@ -146,25 +153,37 @@ impl<P: 'static + Program<Renderer = Renderer> + Application> WindowState<P> {
         if let Some(event) =
             conversion::window_event(&event, self.viewport.scale_factor(), modifier)
         {
-            self.prog_state.queue_event(event);
+            self.state.queue_event(event.clone());
         }
     }
 
-    pub fn update_frame(&mut self, cursor_pos: PhysicalPosition<f64>, clipboard: &mut Clipboard, debug: &mut Debug) {
-        if !self.prog_state.is_queue_empty() {
-            let _ = self.prog_state.update(
+    pub fn map_message(&mut self, message: A::Message) {
+        self.state.queue_message(message)
+    }
+
+    pub fn subscription(&self) -> Subscription<A::Message> {
+        self.state.program().subscription()
+    }
+
+    pub fn update_frame(&mut self, cursor_pos: PhysicalPosition<f64>, debug: &mut Debug) -> Option<Command<A::Message>> {
+        if !self.state.is_queue_empty() {
+            let command = self.state.update(
                 self.viewport.logical_size(),
                 conversion::cursor_position(cursor_pos, self.viewport.scale_factor()),
                 &mut self.renderer,
-                clipboard,
+                &mut self.clipboard,
                 debug,
             );
             self.window.request_redraw();
+
+            command
+        } else {
+            None
         }
+
     }
 
     pub fn redraw(&mut self, staging_belt: &mut StagingBelt, overlay: &[String]) -> bool {
-        self.update();
         match self.render(staging_belt, overlay) {
             Ok(()) => true,
             Err(wgpu::SwapChainError::Lost) => {

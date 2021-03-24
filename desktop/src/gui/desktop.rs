@@ -23,7 +23,7 @@ pub struct Desktop {
 }
 
 #[derive(Debug, Clone)]
-pub enum Message {
+pub enum DesktopMsg {
     DesktopItemClicked(usize),
     WinitEvent(Event)
 }
@@ -31,7 +31,7 @@ pub enum Message {
 impl Application for Desktop {
     type Flags = (u32, DesktopConf, Vec<DesktopItem>);
 
-    fn new(flags: Self::Flags) -> (Self, Command<Message>) { 
+    fn new(flags: Self::Flags) -> (Self, Command<DesktopMsg>) { 
         (
             Self {
                 desktop_conf: flags.1.to_owned(),
@@ -47,8 +47,8 @@ impl Application for Desktop {
         String::from("Desktop")
     }
 
-    fn subscription(&self) -> Subscription<Message> {
-        iced_winit::subscription::events().map(Message::WinitEvent)
+    fn subscription(&self) -> Subscription<DesktopMsg> {
+        iced_winit::subscription::events().map(DesktopMsg::WinitEvent)
     }
 
     fn background_color(&self) -> Color {
@@ -62,45 +62,53 @@ impl Application for Desktop {
 
 impl Program for Desktop {
     type Renderer = Renderer;
-    type Message = Message;
+    type Message = DesktopMsg;
 
-    fn update(&mut self, message: Message) -> Command<Message> {
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+        use DesktopMsg::*;
         match message {
-            Message::DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
-            Message::WinitEvent(event) => match event {
-                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
-                | Event::Touch(touch::Event::FingerPressed { .. }) => {
-                    let click = mouse::Click::new(
-                        self.cursor_position,
-                        self.last_click,
-                    );
+            WinitEvent(event) => {
+                println!("{:?}", event);
+                match event {
+                    Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
+                    | Event::Touch(touch::Event::FingerPressed { .. }) => {
+                        let click = mouse::Click::new(
+                            self.cursor_position,
+                            self.last_click,
+                        );
 
-                    match click.kind() {
-                        click::Kind::Double => {
-                            println!("handled double clicked");
-                            if let Some(idx) = self.selected_desktop_item {
-                                if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
-                                    desktop_item.handle_exec();
+                        match click.kind() {
+                            click::Kind::Double => {
+                                println!("handled double clicked");
+                                if let Some(idx) = self.selected_desktop_item {
+                                    if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
+                                        match desktop_item.handle_exec() {
+                                            Ok(()) => {},
+                                            Err(err) => eprintln!("{}", err)
+                                        }
+                                    }
                                 }
                             }
+                            _ => {}
                         }
-                        _ => {}
-                    }
 
-                    self.last_click = Some(click);
-                },
-                Event::Mouse(mouse::Event::CursorMoved { position })
-                | Event::Touch(touch::Event::FingerMoved { position, .. }) => {
-                    self.cursor_position = position;
-                },
-                _ => {}
+                        self.last_click = Some(click);
+                    },
+                    Event::Mouse(mouse::Event::CursorMoved { position })
+                    | Event::Touch(touch::Event::FingerMoved { position, .. }) => {
+                        self.cursor_position = position;
+                    },
+                    _ => {}
+                }
             }
+            DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
         }
 
         Command::none()
     }
 
-    fn view(&mut self) -> Element<Message, Renderer> {
+    fn view(&mut self) -> Element<Self::Message, Renderer> {
+        use DesktopMsg::*;
         let Self {
             desktop_conf,
             ls_desktop_items,
@@ -120,7 +128,7 @@ impl Program for Desktop {
 
         let desktop_grid = ls_desktop_items.iter_mut().enumerate()
             .fold(grid, |grid, (idx, (state, item))| {
-                let icon: Element<Message, Renderer> = if let Some(icon_path) = &item.icon_path {
+                let icon: Element<Self::Message, Renderer> = if let Some(icon_path) = &item.icon_path {
                     if let Some(extension) = icon_path.extension() {
                         if extension == "svg" {
                             Svg::from_path(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
@@ -140,7 +148,7 @@ impl Program for Desktop {
                 let mut btn = Button::new(state, con)
                     .width(Length::Units(item_size))
                     .padding(7)
-                    .on_press(Message::DesktopItemClicked(idx));
+                    .on_press(DesktopItemClicked(idx));
                 if let Some(curr_idx) = *selected_desktop_item {
                     if curr_idx == idx {
                         btn = btn.style(CustomButton::Selected);
@@ -151,7 +159,7 @@ impl Program for Desktop {
                     btn = btn.style(CustomButton::Transparent);
                 }
 
-                let tooltip_btn: Element<Message, Renderer> = if item_conf.show_tooltip {
+                let tooltip_btn: Element<Self::Message, Renderer> = if item_conf.show_tooltip {
                     if let Some(cmt) = &item.comment {
                         Tooltip::new(btn, cmt, tooltip::Position::FollowCursor).size(12).gap(5).padding(5).style(CustomTooltip).into()
                     } else {

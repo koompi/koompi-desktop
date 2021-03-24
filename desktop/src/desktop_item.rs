@@ -4,7 +4,6 @@ mod desktop_item_error;
 
 use super::constants::{TYPE, DESKTOP_ENTRY, ICON, NAME, COMMENT, EXEC};
 use std::path::{PathBuf, Path};
-use std::time::Duration;
 use std::str::FromStr;
 use std::convert::From;
 use std::process::Command;
@@ -17,10 +16,9 @@ pub struct DesktopItem {
     pub path: PathBuf,
     pub name: Option<String>,
     pub comment: Option<String>,
-    exec: Option<String>,
     pub icon_path: Option<PathBuf>,
+    exec: Option<String>,
     entry_type: DesktopItemType,
-    launch_time: Duration,
     status: DesktopItemStatus,
 }
 
@@ -82,31 +80,18 @@ impl DesktopItem {
         
     }
 
-    // pub fn path(&self) -> &PathBuf {
-    //     &self.path
-    // }
-
-    // pub fn name(&self) -> Option<&String> {
-    //     self.name.as_ref()
-    // }
-
-    // pub fn comment(&self) -> Option<&String> {
-    //     self.comment.as_ref()
-    // }
-
-    // pub fn icon(&self) -> Option<&PathBuf> {
-    //     self.icon_path.as_ref()
-    // }
-
-    pub fn handle_exec(&mut self) {
+    pub fn handle_exec(&mut self) -> Result<(), DesktopItemError> {
         match self.entry_type {
             DesktopItemType::APP => {
                 if let Some(exec) = &self.exec {
                     println!("{}", exec);
-                    Command::new(exec).spawn().expect("failed to execute application");
+                    Command::new(exec).spawn()?;
+                    Ok(())
+                } else {
+                    Err(DesktopItemError::NoExecString)
                 }
             },
-            _ => {}
+            _ => Err(DesktopItemError::InvalidType)
         }
     }
 }

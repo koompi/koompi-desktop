@@ -5,11 +5,12 @@ use iced_winit::{
 };
 use winit::event_loop::EventLoopProxy;
 use super::styles::{CustomButton, HOVERED};
+use crate::proxy_message::ProxyMessage;
 
 #[derive(Debug)]
 pub struct ContextMenu {
     menu_items: Vec<MenuItemNode>,
-    proxy: EventLoopProxy<ContextMsg>,
+    proxy: EventLoopProxy<ProxyMessage>,
 }
 
 #[derive(Debug, Clone)]
@@ -44,7 +45,7 @@ pub enum ContextMsg {
 }
 
 impl Application for ContextMenu {
-    type Flags = EventLoopProxy<ContextMsg>;
+    type Flags = EventLoopProxy<ProxyMessage>;
 
     fn new(flags: Self::Flags) -> (Self, Command<ContextMsg>) {
         use ContextMsg::*;
@@ -83,13 +84,13 @@ impl Program for ContextMenu {
     fn update(&mut self, message: ContextMsg) -> Command<ContextMsg> {
         use ContextMsg::*;
         match message {
-            ChangeBG => self.proxy.send_event(ChangeBG).unwrap(),
+            ChangeBG => self.proxy.send_event(ProxyMessage::ContextMenu(ChangeBG)).unwrap(),
             // if let nfd2::Response::Okay(file_path) = nfd2::open_file_dialog(Some("png,jpg,jpeg,gif"), None).expect("oh no") {
             //     println!("{}", file_path.display())
             // },
             NewFolder => println!("create new folder"),
             SortBy => println!("change sort by field"),
-            DesktopView => self.proxy.send_event(DesktopView).unwrap(),
+            DesktopView => self.proxy.send_event(ProxyMessage::ContextMenu(DesktopView)).unwrap(),
         }
 
         Command::none()
