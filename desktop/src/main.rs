@@ -18,7 +18,7 @@ use desktop_manager::DesktopManager;
 use std::collections::HashMap;
 use iced_wgpu::{wgpu, Settings};
 use iced_winit::{
-    futures, winit, event, conversion, Debug, Application, Runtime, Proxy, Command,
+    futures, winit, event, conversion, Debug, Application, Runtime, Proxy, 
 };
 use iced::executor::{self, Executor};
 use futures::{
@@ -58,7 +58,7 @@ fn main() {
             let (monitor_size, monitor_position) = event_loop.primary_monitor().map(|m| (m.size(), m.position())).unwrap_or((PhysicalSize::new(1920, 1080), PhysicalPosition::new(0, 0)));
             let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
             let mut modifiers = ModifiersState::default();
-            let mut staging_belt = wgpu::util::StagingBelt::new(10 * 1024);
+            // let mut staging_belt = wgpu::util::StagingBelt::new(10 * 1024);
             let mut debug = Debug::new();
 
             // Desktop Init Section
@@ -92,8 +92,7 @@ fn main() {
 
             let mut run = Box::pin(
                 run_instance::<executor::Default>(
-                    desktop_state, context_menu_state, runtime, modifiers, cursor_position, 
-                    receiver, context_menu_size, monitor_size,
+                    desktop_state, context_menu_state, runtime, receiver, context_menu_size, monitor_size,
                 )
             );
             let mut context = task::Context::from_waker(task::noop_waker_ref());
@@ -132,6 +131,7 @@ fn main() {
                             _ => {}
                         },
                         Event::WindowEvent { ref event, window_id } => {
+                            use DynWinState::*;
                             match event {
                                 WindowEvent::CloseRequested => {
                                     windows.remove(&window_id);
@@ -139,14 +139,12 @@ fn main() {
                                 WindowEvent::CursorMoved { position, .. } => cursor_position = *position,
                                 WindowEvent::ModifiersChanged(state) => modifiers = *state,
                                 WindowEvent::Resized(new_size) => if let Some(window) = windows.get_mut(&window_id) {
-                                    use DynWinState::*;
                                     match window {
                                         DesktopConfig(state) => state.resize(*new_size, None),
                                         BgConfig(state) => state.resize(*new_size, None),
                                     }
                                 }
                                 WindowEvent::ScaleFactorChanged { new_inner_size, scale_factor} => if let Some(window) = windows.get_mut(&window_id) {
-                                    use DynWinState::*;
                                     match window {
                                         DesktopConfig(state) => state.resize(**new_inner_size, Some(*scale_factor)),
                                         BgConfig(state) => state.resize(**new_inner_size, Some(*scale_factor)),
@@ -157,24 +155,30 @@ fn main() {
 
                             if let Some(state) = windows.get_mut(&window_id) {
                                 match state {
-                                    DynWinState::DesktopConfig(prog_state) => prog_state.map_event(event, modifiers),
-                                    DynWinState::BgConfig(prog_state) => prog_state.map_event(event, modifiers),
+                                    DesktopConfig(prog_state) => prog_state.map_event(event, modifiers),
+                                    BgConfig(prog_state) => prog_state.map_event(event, modifiers),
                                 }
                             }
                         },
                         Event::MainEventsCleared => {
                             windows.iter_mut().for_each(|(_, state)| {
                                 match state {
-                                    DynWinState::DesktopConfig(prog_state) => {prog_state.update_frame(cursor_position, &mut debug);},
-                                    DynWinState::BgConfig(prog_state) => {prog_state.update_frame(cursor_position, &mut debug);},
+                                    DynWinState::DesktopConfig(prog_state) => {
+                                        prog_state.update_frame(cursor_position, &mut debug);
+                                        prog_state.window.request_redraw();
+                                    },
+                                    DynWinState::BgConfig(prog_state) => {
+                                        prog_state.update_frame(cursor_position, &mut debug);
+                                        prog_state.window.request_redraw();
+                                    },
                                 }
                             });
                         },
                         Event::RedrawRequested(window_id) => {
                             let is_success = if let Some(state) = windows.get_mut(&window_id) {
                                 Some(match state {
-                                    DynWinState::DesktopConfig(prog_state) => prog_state.redraw(&mut staging_belt, &debug.overlay()),
-                                    DynWinState::BgConfig(prog_state) => prog_state.redraw(&mut staging_belt, &debug.overlay()),
+                                    DynWinState::DesktopConfig(prog_state) => prog_state.redraw(&debug.overlay()),
+                                    DynWinState::BgConfig(prog_state) => prog_state.redraw(&debug.overlay()),
                                 })
                             } else {
                                 None
@@ -209,8 +213,6 @@ async fn run_instance<E>(
     mut desktop_state: WindowState<Desktop>,
     mut context_menu_state: WindowState<ContextMenu>,
     mut runtime: Runtime<E, Proxy<ProxyMessage>, ProxyMessage>,
-    modifiers: ModifiersState,
-    cursor_position: PhysicalPosition<f64>,
     mut receiver: mpsc::UnboundedReceiver<winit::event::Event<'_, ProxyMessage>>,
     context_menu_size: PhysicalSize<f64>,
     monitor_size: PhysicalSize<u32>,
@@ -220,14 +222,18 @@ async fn run_instance<E>(
     use futures::stream::StreamExt;
 
     // Other
-    let mut staging_belt = wgpu::util::StagingBelt::new(5 * 1024);
     let mut debug = Debug::new();
+    let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
+    let mut modifiers = ModifiersState::default();
     let mut is_context_shown = false;
     let mut events = Vec::new();
 
     while let Some(event) = receiver.next().await {
         match event {
-            Event::UserEvent(ProxyMessage::Desktop(msg)) => desktop_state.map_message(msg),
+            Event::UserEvent(custom_event) => match custom_event {
+                ProxyMessage::Desktop(msg) => desktop_state.map_message(msg),
+                ProxyMessage::ContextMenu(msg) => context_menu_state.map_message(msg),
+            },
             Event::WindowEvent { ref event, window_id } => {
                 match event {
                     WindowEvent::CloseRequested => {
@@ -243,6 +249,8 @@ async fn run_instance<E>(
                         } => is_context_shown = false,
                         _ => {}
                     },
+                    WindowEvent::CursorMoved { position, .. } => cursor_position = *position,
+                    WindowEvent::ModifiersChanged(state) => modifiers = *state,
                     WindowEvent::Resized(new_size) => if desktop_state.window.id() == window_id {
                         desktop_state.resize(*new_size, None);
                     },
@@ -278,33 +286,28 @@ async fn run_instance<E>(
                 }
             },
             Event::MainEventsCleared => {
-                if events.is_empty() {
-                    continue;
-                }
-
                 for event in events.drain(..) {
                     runtime.broadcast((event, event::Status::Captured));
                 } 
-                let mut commands: Vec<Command<ProxyMessage>> = Vec::new();
-                if let Some(cmd) = desktop_state.update_frame(cursor_position, &mut debug).map(|cmd| cmd.map(Into::into)) {
-                    commands.push(cmd);
-                }
-                if let Some(cmd) = context_menu_state.update_frame(cursor_position, &mut debug).map(|cmd| cmd.map(Into::into)) {
-                    commands.push(cmd);
-                }
 
-                commands.into_iter().for_each(|cmd| {
+                if let Some(cmd) = desktop_state.update_frame(cursor_position, &mut debug).map(|cmd| cmd.map(Into::into)) {
                     runtime.spawn(cmd);
-                });
+                }
                 runtime.track(desktop_state.subscription().map(Into::into));
-                runtime.track(context_menu_state.subscription().map(Into::into))
+                desktop_state.window.request_redraw();
+
+                if is_context_shown {
+                    context_menu_state.update_frame(cursor_position, &mut debug);
+                    context_menu_state.window.request_redraw();
+                }
             },
             Event::RedrawRequested(window_id) => {
                 context_menu_state.window.set_visible(is_context_shown);
+
                 let is_success = if context_menu_state.window.id() == window_id {
-                    context_menu_state.redraw(&mut staging_belt, &debug.overlay())
+                    context_menu_state.redraw(&debug.overlay())
                 } else {
-                    desktop_state.redraw(&mut staging_belt, &debug.overlay())
+                    desktop_state.redraw(&debug.overlay())
                 };
 
                 if !is_success {

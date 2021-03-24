@@ -21,7 +21,8 @@ pub struct WindowState<A: 'static + Application> {
     pub viewport: Viewport,
     renderer: Renderer,
     clipboard: Clipboard,
-    state: program::State<A>
+    state: program::State<A>,
+    staging_belt: StagingBelt,
 }
 
 impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
@@ -67,6 +68,7 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
         let viewport = Viewport::with_physical_size(Size::new(size.width, size.height), window.scale_factor());
         let mut renderer = Renderer::new(Backend::new(&mut device, settings.map(ToOwned::to_owned).unwrap_or_default()));
         let clipboard = Clipboard::connect(&window);
+        let staging_belt = StagingBelt::new(2 * 1024);
         let state = program::State::new(
             application,
             viewport.logical_size(),
@@ -89,6 +91,7 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
             renderer,
             clipboard,
             state,
+            staging_belt,
         }
     }
 
@@ -99,7 +102,7 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
     }
 
-    pub fn render(&mut self, staging_belt: &mut StagingBelt, overlay: &[String]) -> Result<(), wgpu::SwapChainError> {
+    pub fn render(&mut self, overlay: &[String]) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: None,
@@ -132,7 +135,7 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
         
         let mouse_interaction = self.renderer.backend_mut().draw(
             &mut self.device,
-            staging_belt,
+            &mut self.staging_belt,
             &mut encoder,
             &frame.view,
             &self.viewport,
@@ -141,7 +144,7 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
         );
 
         // Then we submit the work
-        staging_belt.finish();
+        self.staging_belt.finish();
         self.queue.submit(Some(encoder.finish()));
 
         // Update the mouse cursor
@@ -167,24 +170,20 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
 
     pub fn update_frame(&mut self, cursor_pos: PhysicalPosition<f64>, debug: &mut Debug) -> Option<Command<A::Message>> {
         if !self.state.is_queue_empty() {
-            let command = self.state.update(
+            self.state.update(
                 self.viewport.logical_size(),
                 conversion::cursor_position(cursor_pos, self.viewport.scale_factor()),
                 &mut self.renderer,
                 &mut self.clipboard,
                 debug,
-            );
-            self.window.request_redraw();
-
-            command
+            )
         } else {
             None
         }
-
     }
 
-    pub fn redraw(&mut self, staging_belt: &mut StagingBelt, overlay: &[String]) -> bool {
-        match self.render(staging_belt, overlay) {
+    pub fn redraw(&mut self, overlay: &[String]) -> bool {
+        match self.render(overlay) {
             Ok(()) => true,
             Err(wgpu::SwapChainError::Lost) => {
                 let size = self.viewport.physical_size();
