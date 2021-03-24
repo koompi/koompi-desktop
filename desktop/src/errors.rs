@@ -4,8 +4,6 @@ use super::background::WallpaperError;
 
 #[derive(Error, Debug)]
 pub enum DesktopError {
-    #[error("Desktop Directory not found")]
-    DesktopNotFound,
     #[error("Config file not found: {0}")]
     ConfigNotFound(String),
     #[error(transparent)]

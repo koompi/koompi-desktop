@@ -230,10 +230,7 @@ async fn run_instance<E>(
 
     while let Some(event) = receiver.next().await {
         match event {
-            Event::UserEvent(custom_event) => match custom_event {
-                ProxyMessage::Desktop(msg) => desktop_state.map_message(msg),
-                ProxyMessage::ContextMenu(msg) => context_menu_state.map_message(msg),
-            },
+            Event::UserEvent(ProxyMessage::Desktop(msg) ) => desktop_state.map_message(msg),
             Event::WindowEvent { ref event, window_id } => {
                 match event {
                     WindowEvent::CloseRequested => {
