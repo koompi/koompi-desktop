@@ -93,6 +93,9 @@ fn main() {
                     println!("timer event: {:?}", event);
                     state.win_state.queue_message(Message::Timer);
                 }
+                Message::ShowMenu => {
+                    *control_flow = ControlFlow::Exit;
+                }
                 Message::MonitorShow(is_visible) => {
                     handle_visible_pos(&mut menu_state, ControlType::Monitor, is_visible, popup_x);
                 }
