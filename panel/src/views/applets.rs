@@ -10,7 +10,7 @@ pub struct Applets {
     pub slider: slider::State,
     pub value: f32,
     pub mute: button::State,
-    pub kind: RefCell<ControlType>,
+    pub kind: ControlType,
     monitor: Monitor,
     audio: Audio,
     pub is_shown: bool,
@@ -21,15 +21,14 @@ pub enum AppletsMsg {
     ButtonClicked,
     MonitorMsg(MonitorMsg),
     AudioMsg(AudioMsg),
+    SwitchView(ControlType),
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ControlType {
     Monitor,
-    Bell,
     Sound,
-    Clipboard,
+    Battery,
     Wifi,
-    Keyboard,
 }
 impl Default for ControlType {
     fn default() -> Self {
@@ -61,17 +60,18 @@ impl Program for Applets {
             AppletsMsg::AudioMsg(msg) => {
                 self.audio.update(msg);
             }
+            AppletsMsg::SwitchView(kind) => {
+                self.kind = kind;
+            }
         }
         Command::none()
     }
     fn view(&mut self) -> Element<AppletsMsg, Renderer> {
-        match self.kind.get_mut() {
+        match self.kind {
             ControlType::Monitor => self.monitor.view().map(|msg| AppletsMsg::MonitorMsg(msg)),
             ControlType::Sound => self.audio.view().map(|msg| AppletsMsg::AudioMsg(msg)),
-            ControlType::Clipboard => Text::new("Clipboard").into(),
-            ControlType::Keyboard => Text::new("Keyboard").into(),
             ControlType::Wifi => Text::new("Wifi").into(),
-            ControlType::Bell => Text::new("Bell").into(),
+            ControlType::Battery => Text::new("Battery").into(),
         }
     }
 }

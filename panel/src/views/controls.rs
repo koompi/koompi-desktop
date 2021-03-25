@@ -6,32 +6,43 @@ use iced::time;
 use iced::{svg::Svg, Text};
 use iced_wgpu::Renderer;
 use iced_winit::{
-    application::Application, button, Align, Button, Color, Command, Container, Element, Length,
-    Program, Row, Space, Subscription,
+    application::Application, button, winit, Align, Button, Color, Command, Container, Element,
+    Length, Program, Row, Space, Subscription,
 };
-use std::cell::RefCell;
-use std::time::Instant;
+use winit::event_loop::EventLoopProxy;
 #[derive(Debug)]
 pub struct Controls {
     pub background_color: Color,
     pub widgets: [button::State; 7],
     pub is_exit: bool,
     pub is_shown: bool,
+    pub pre_kind: ControlType,
     pub kind: ControlType,
     pub now: chrono::DateTime<chrono::Local>,
+    proxy: EventLoopProxy<Message>,
+    monitor_visible: bool,
+    sound_visible: bool,
+    battery_visible: bool,
+    wifi_visible: bool,
 }
 
 impl Application for Controls {
-    type Flags = ();
-    fn new(flags: ()) -> (Self, Command<Message>) {
+    type Flags = EventLoopProxy<Message>;
+    fn new(flags: Self::Flags) -> (Self, Command<Message>) {
         (
             Controls {
                 background_color: Color::from_rgb8(255, 255, 255),
                 widgets: Default::default(),
                 is_exit: false,
                 is_shown: false,
+                pre_kind: ControlType::Monitor,
                 kind: ControlType::Monitor,
                 now: chrono::Local::now(),
+                proxy: flags,
+                monitor_visible: false,
+                sound_visible: false,
+                battery_visible: false,
+                wifi_visible: false,
             },
             Command::none(),
         )
@@ -50,19 +61,12 @@ pub enum Message {
     BackgroundColorChanged(Color),
     ShowAction,
     ShowMenu,
-    MonitorShow,
-    BellShow,
-    KeyboardShow,
-    ClipboardShow,
-    SoundShow,
-    WifiShow,
+    MonitorShow(bool),
+    Battery(bool),
+    SoundShow(bool),
+    WifiShow(bool),
     Tick(chrono::DateTime<chrono::Local>),
     Timer,
-}
-impl Controls {
-    pub fn update_state(&mut self) {
-        println!("Call every 1 second");
-    }
 }
 
 impl Program for Controls {
@@ -77,31 +81,47 @@ impl Program for Controls {
             Message::ShowAction => {}
             Message::ShowMenu => {
                 println!("Menu show");
-                self.is_exit = !self.is_exit;
+                self.proxy.send_event(Message::ShowMenu).ok();
             }
-            Message::MonitorShow => {
-                println!("Application show");
-                self.is_shown = !self.is_shown;
-                self.kind = ControlType::Monitor;
+            Message::WifiShow(_) => {
+                self.wifi_visible = !self.wifi_visible;
+                self.battery_visible = false;
+                self.monitor_visible = false;
+                self.sound_visible = false;
+                self.proxy
+                    .send_event(Message::WifiShow(self.wifi_visible))
+                    .ok();
             }
-            Message::BellShow => {
-                self.kind = ControlType::Bell;
+            Message::Battery(_) => {
+                self.battery_visible = !self.battery_visible;
+                self.wifi_visible = false;
+                self.sound_visible = false;
+                self.monitor_visible = false;
+                self.proxy
+                    .send_event(Message::Battery(self.battery_visible))
+                    .ok();
             }
-            Message::ClipboardShow => {
-                self.kind = ControlType::Clipboard;
+            Message::MonitorShow(_) => {
+                self.monitor_visible = !self.monitor_visible;
+                self.sound_visible = false;
+                self.battery_visible = false;
+                self.wifi_visible = false;
+                self.proxy
+                    .send_event(Message::MonitorShow(self.monitor_visible))
+                    .ok();
             }
-            Message::SoundShow => {
-                self.kind = ControlType::Sound;
-            }
-            Message::WifiShow => {
-                self.kind = ControlType::Wifi;
+            Message::SoundShow(_) => {
+                self.sound_visible = !self.sound_visible;
+                self.monitor_visible = false;
+                self.battery_visible = false;
+                self.wifi_visible = false;
+                self.proxy
+                    .send_event(Message::SoundShow(self.sound_visible))
+                    .ok();
             }
             Message::Timer => {
                 self.now = chrono::Local::now();
                 println!("timer out running...");
-            }
-            Message::KeyboardShow => {
-                self.kind = ControlType::Keyboard;
             }
             Message::Tick(local_time) => {
                 let now = local_time;
@@ -133,37 +153,25 @@ impl Program for Controls {
             .push(
                 Button::new(b2, monitor_icon())
                     .height(Length::Fill)
-                    .on_press(Message::MonitorShow)
+                    .on_press(Message::MonitorShow(true))
                     .style(ButtonStyle::Transparent),
             )
             .push(
                 Button::new(b7, wifi_icon())
                     .height(Length::Fill)
-                    .on_press(Message::WifiShow)
+                    .on_press(Message::WifiShow(true))
                     .style(ButtonStyle::Transparent),
             )
             .push(
-                Button::new(b3, bell_icon())
+                Button::new(b3, battery_icon())
                     .height(Length::Fill)
-                    .on_press(Message::BellShow)
-                    .style(ButtonStyle::Transparent),
-            )
-            .push(
-                Button::new(b4, keyboard_icon())
-                    .on_press(Message::KeyboardShow)
-                    .height(Length::Fill)
-                    .style(ButtonStyle::Transparent),
-            )
-            .push(
-                Button::new(b5, clipboard())
-                    .height(Length::Fill)
-                    .on_press(Message::ClipboardShow)
+                    .on_press(Message::Battery(true))
                     .style(ButtonStyle::Transparent),
             )
             .push(
                 Button::new(b6, sound_icon())
                     .height(Length::Fill)
-                    .on_press(Message::SoundShow)
+                    .on_press(Message::SoundShow(true))
                     .style(ButtonStyle::Transparent),
             )
             .push(Text::new(format!(
@@ -192,15 +200,15 @@ impl Program for Controls {
 fn monitor_icon() -> Text {
     icon('\u{f108}')
 }
-fn bell_icon() -> Text {
-    icon('\u{f0f3}')
+fn battery_icon() -> Text {
+    icon('\u{f240}')
 }
-fn clipboard() -> Text {
-    icon('\u{f328}')
-}
-fn keyboard_icon() -> Text {
-    icon('\u{f11c}')
-}
+// fn clipboard() -> Text {
+//     icon('\u{f328}')
+// }
+// fn keyboard_icon() -> Text {
+//     icon('\u{f11c}')
+// }
 fn sound_icon() -> Text {
     icon('\u{f028}')
 }
