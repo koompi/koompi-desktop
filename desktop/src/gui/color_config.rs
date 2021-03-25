@@ -2,7 +2,7 @@ use iced_wgpu::{
     Renderer
 };
 use iced_winit::{
-    text_input, Element, Text, TextInput, Row, Align, Length,
+    text_input, Element, Text, TextInput, Row, Align,
 };
 
 #[derive(Debug, Clone, Default)]

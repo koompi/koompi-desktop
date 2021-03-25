@@ -1,7 +1,7 @@
 use iced_wgpu::Renderer;
 use iced_winit::{
     Color, Command, Container, Element, Length, Program, Grid, Button, Text, Column, button, mouse::{self, click}, touch,
-    Align, HorizontalAlignment, Row, Tooltip, tooltip, Space, Application, Event, Subscription, Point,
+    Align, HorizontalAlignment, Row, Tooltip, tooltip, Space, Application, Event, Subscription, Point, keyboard, 
 };
 use iced::{Svg, Image};
 use crate::configs::{
@@ -68,7 +68,6 @@ impl Program for Desktop {
         use DesktopMsg::*;
         match message {
             WinitEvent(event) => {
-                println!("{:?}", event);
                 match event {
                     Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
                     | Event::Touch(touch::Event::FingerPressed { .. }) => {
@@ -78,14 +77,11 @@ impl Program for Desktop {
                         );
 
                         match click.kind() {
-                            click::Kind::Double => {
-                                println!("handled double clicked");
-                                if let Some(idx) = self.selected_desktop_item {
-                                    if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
-                                        match desktop_item.handle_exec() {
-                                            Ok(()) => {},
-                                            Err(err) => eprintln!("{}", err)
-                                        }
+                            click::Kind::Double => if let Some(idx) = self.selected_desktop_item {
+                                if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
+                                    match desktop_item.handle_exec() {
+                                        Ok(()) => {},
+                                        Err(err) => eprintln!("{}", err)
                                     }
                                 }
                             }
@@ -98,6 +94,34 @@ impl Program for Desktop {
                     | Event::Touch(touch::Event::FingerMoved { position, .. }) => {
                         self.cursor_position = position;
                     },
+                    Event::Keyboard(key_event) => match key_event {
+                        keyboard::Event::CharacterReceived('\r') => if let Some(idx) = self.selected_desktop_item {
+                            if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
+                                match desktop_item.handle_exec() {
+                                    Ok(()) => {},
+                                    Err(err) => eprintln!("{}", err)
+                                }
+                            }
+                        },
+                        keyboard::Event::KeyPressed { key_code, .. } => match key_code {
+                            keyboard::KeyCode::Right => if let Some(idx) = &mut self.selected_desktop_item {
+                                if *idx<=self.ls_desktop_items.len() {
+                                    *idx+=1;
+                                }
+                            } else {
+                                self.selected_desktop_item = Some(0);
+                            },
+                            keyboard::KeyCode::Left => if let Some(idx) = &mut self.selected_desktop_item {
+                                if *idx>0 {
+                                    *idx-=1;
+                                }
+                            } else {
+                                self.selected_desktop_item = Some(0);
+                            },
+                            _ => {}
+                        },
+                        _ => {}
+                    } 
                     _ => {}
                 }
             }

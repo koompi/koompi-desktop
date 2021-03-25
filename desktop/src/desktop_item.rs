@@ -1,23 +1,23 @@
 mod desktop_item_status;
 mod desktop_item_type;
 mod desktop_item_error;
+mod desktop_entry;
 
-use super::constants::{TYPE, DESKTOP_ENTRY, ICON, NAME, COMMENT, EXEC};
+use super::constants::{TYPE, DESKTOP_ENTRY, ICON, NAME, COMMENT};
 use std::path::{PathBuf, Path};
 use std::str::FromStr;
 use std::convert::From;
-use std::process::Command;
 use desktop_item_type::DesktopItemType;
 use desktop_item_status::DesktopItemStatus;
+use desktop_entry::DesktopEntry;
 pub use desktop_item_error::DesktopItemError;
 
 #[derive(Debug, Clone, Default)]
 pub struct DesktopItem {
     pub path: PathBuf,
     pub name: Option<String>,
-    pub comment: Option<String>,
     pub icon_path: Option<PathBuf>,
-    exec: Option<String>,
+    pub comment: Option<String>,
     entry_type: DesktopItemType,
     status: DesktopItemStatus,
 }
@@ -32,8 +32,10 @@ impl DesktopItem {
                         let desktop_entry = entry.section(DESKTOP_ENTRY);
                         let name = desktop_entry.attr(NAME).map(ToString::to_string);
                         let comment = desktop_entry.attr(COMMENT).map(ToString::to_string);
-                        let exec = desktop_entry.attr(EXEC).map(ToString::to_string);
-                        let entry_type = DesktopItemType::from_str(desktop_entry.attr(TYPE).unwrap_or(""))?;
+                        let mut entry_type = DesktopItemType::from_str(desktop_entry.attr(TYPE).unwrap_or(""))?;
+                        if let DesktopItemType::APP(entry) = &mut entry_type {
+                            *entry = DesktopEntry::new(&desktop_entry);
+                        }
                         let icon_path = desktop_entry.attr(ICON).map(|name| {
                             if Path::new(name).is_absolute() {
                                 PathBuf::from(name)
@@ -49,9 +51,10 @@ impl DesktopItem {
                                 }
                             }
                         });
+
                         Ok(Self {
                             path: PathBuf::from(file.as_ref()),
-                            name, comment, entry_type, icon_path, exec,
+                            entry_type, name, icon_path, comment, 
                             ..Self::default()
                         })
                     } else {
@@ -81,16 +84,8 @@ impl DesktopItem {
     }
 
     pub fn handle_exec(&mut self) -> Result<(), DesktopItemError> {
-        match self.entry_type {
-            DesktopItemType::APP => {
-                if let Some(exec) = &self.exec {
-                    println!("{}", exec);
-                    Command::new(exec).spawn()?;
-                    Ok(())
-                } else {
-                    Err(DesktopItemError::NoExecString)
-                }
-            },
+        match &self.entry_type {
+            DesktopItemType::APP(entry) => entry.handle_exec(),
             _ => Err(DesktopItemError::InvalidType)
         }
     }

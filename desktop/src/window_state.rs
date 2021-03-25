@@ -1,28 +1,33 @@
 use iced_wgpu::{
-    wgpu, Viewport, Renderer, Backend, Settings
+    wgpu, Renderer, Backend, Settings
 };
 use iced_winit::{
-    winit, conversion, program, Size, Clipboard, Debug, Application, Command, Subscription
+    winit, conversion, application, Size, Clipboard, Debug, Application, Program, Cache, UserInterface, Event, Executor, Runtime, Proxy, Command, Subscription,
 };
 use wgpu::util::StagingBelt;
 use winit::{
     window::Window,
     event::{WindowEvent, ModifiersState},
-    dpi::{PhysicalSize, PhysicalPosition},
+    dpi::PhysicalPosition,
 };
+use std::mem::ManuallyDrop;
+use super::proxy_message::ProxyMessage;
 
-pub struct WindowState<A: 'static + Application> {
+pub struct WindowState<A: 'static + Application<Renderer = Renderer>> {
     pub window: Window,
+    application: A,
+    state: application::State<A>,
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
     sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
-    pub viewport: Viewport,
     renderer: Renderer,
     clipboard: Clipboard,
-    state: program::State<A>,
     staging_belt: StagingBelt,
+    events: Vec<Event>,
+    messages: Vec<A::Message>,
+    viewport_version: usize,
 }
 
 impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
@@ -30,11 +35,9 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
     pub async fn new(
         instance: &wgpu::Instance, 
         window: Window, 
-        visible: bool, 
         application: A, 
-        cursor_position: PhysicalPosition<f64>, 
-        debug: &mut Debug, 
-        settings: Option<&Settings>
+        visible: bool, 
+        settings: Option<&Settings>,
     ) -> Self {
         let size = window.inner_size();
 
@@ -65,44 +68,76 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
             present_mode: wgpu::PresentMode::Mailbox,
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
-        let viewport = Viewport::with_physical_size(Size::new(size.width, size.height), window.scale_factor());
-        let mut renderer = Renderer::new(Backend::new(&mut device, settings.map(ToOwned::to_owned).unwrap_or_default()));
-        let clipboard = Clipboard::connect(&window);
-        let staging_belt = StagingBelt::new(2 * 1024);
-        let state = program::State::new(
-            application,
-            viewport.logical_size(),
-            conversion::cursor_position(cursor_position, viewport.scale_factor()),
-            &mut renderer,
-            debug
-        );
+        let renderer = Renderer::new(Backend::new(&mut device, settings.map(ToOwned::to_owned).unwrap_or_default()));
+        let state = application::State::new(&application, &window);
         if visible {
             window.set_visible(visible);
         }
+        let clipboard = Clipboard::connect(&window);
+        let viewport_version = state.viewport_version();
+        let staging_belt = StagingBelt::new(2 * 1024);
 
         WindowState {
             window,
+            application,
+            state,
             surface,
             device,
             queue,
             sc_desc,
             swap_chain,
-            viewport,
             renderer,
             clipboard,
-            state,
             staging_belt,
+            events: Vec::new(),
+            messages: Vec::new(),
+            viewport_version,
         }
     }
 
-    pub fn resize(&mut self, new_size: PhysicalSize<u32>, scale_factor: Option<f64>) {
-        self.viewport = Viewport::with_physical_size(Size::new(new_size.width, new_size.height), scale_factor.unwrap_or(self.viewport.scale_factor()));
-        self.sc_desc.height = new_size.height;
-        self.sc_desc.width = new_size.width;
+    pub fn resize(&mut self) {
+        self.sc_desc.height = self.state.physical_size().height;
+        self.sc_desc.width = self.state.physical_size().width;
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
     }
 
-    pub fn render(&mut self, overlay: &[String]) -> Result<(), wgpu::SwapChainError> {
+    pub fn update(&mut self, event: &WindowEvent<'_>, debug: &mut Debug) -> bool {
+        let is_close = requests_exit(&event, self.state.modifiers());
+        self.state.update(&self.window, &event, debug);
+        if self.viewport_version != self.state.viewport_version() {
+            self.resize();
+        }
+        if let Some(event) =
+            conversion::window_event(&event, self.state.scale_factor(), self.state.modifiers())
+        {
+            self.events.push(event);
+        }
+        is_close
+    }
+
+    pub fn render(&mut self, debug: &mut Debug) -> Result<(), wgpu::SwapChainError> {
+        debug.render_started();
+        let mut user_interface = build_user_interface(
+            &mut self.application,
+            Cache::default(),
+            &mut self.renderer,
+            self.state.logical_size(),
+            debug,
+        );
+
+        if self.viewport_version != self.state.viewport_version() {
+            debug.layout_started();
+            user_interface = user_interface.relayout(self.state.logical_size(), &mut self.renderer);
+            debug.layout_finished();
+
+            self.viewport_version = self.state.viewport_version();
+        }
+
+        debug.draw_started();
+        let primitive = user_interface
+            .draw(&mut self.renderer, self.state.cursor_position());
+        debug.draw_finished();
+
         let frame = self.swap_chain.get_current_frame()?.output;
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: None,
@@ -116,7 +151,7 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear({
-                                let [r, g, b, a] = self.state.program().background_color().into_linear();
+                                let [r, g, b, a] = self.state.background_color().into_linear();
 
                                 wgpu::Color {
                                     r: r as f64,
@@ -138,10 +173,11 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
             &mut self.staging_belt,
             &mut encoder,
             &frame.view,
-            &self.viewport,
-            self.state.primitive(),
-            overlay,
+            &self.state.viewport(),
+            &primitive,
+            &debug.overlay(),
         );
+        debug.render_finished();
 
         // Then we submit the work
         self.staging_belt.finish();
@@ -152,42 +188,99 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
         Ok(())
     }
 
-    pub fn map_event(&mut self, event: &WindowEvent, modifier: ModifiersState) {
-        if let Some(event) =
-            conversion::window_event(&event, self.viewport.scale_factor(), modifier)
-        {
-            self.state.queue_event(event.clone());
-        }
-    }
-
     pub fn map_message(&mut self, message: A::Message) {
-        self.state.queue_message(message)
+        self.messages.push(message);
     }
 
     pub fn subscription(&self) -> Subscription<A::Message> {
-        self.state.program().subscription()
+        self.application.subscription()
     }
 
-    pub fn update_frame(&mut self, cursor_pos: PhysicalPosition<f64>, debug: &mut Debug) -> Option<Command<A::Message>> {
-        if !self.state.is_queue_empty() {
-            self.state.update(
-                self.viewport.logical_size(),
-                conversion::cursor_position(cursor_pos, self.viewport.scale_factor()),
-                &mut self.renderer,
-                &mut self.clipboard,
+    pub fn update_frame<E>(&mut self, runtime: Option<&mut Runtime<E, Proxy<ProxyMessage>, ProxyMessage>>, debug: &mut Debug) -> Option<Command<A::Message>>
+    where 
+        E: Executor + 'static,
+    {
+        let Self {
+            application,
+            renderer,
+            clipboard,
+            ..
+        } = self;
+
+        let mut commands = None;
+
+        if !(self.events.is_empty() && self.messages.is_empty()) {
+            // self.state.update(
+            //     self.viewport.logical_size(),
+            //     conversion::cursor_position(cursor_pos, self.viewport.scale_factor()),
+            //     &mut self.renderer,
+            //     &mut self.clipboard,
+            //     debug,
+            // )
+
+            let mut user_interface = ManuallyDrop::new(build_user_interface(
+                application,
+                Cache::default(),
+                renderer,
+                self.state.logical_size(),
                 debug,
-            )
-        } else {
-            None
+            ));
+    
+            debug.event_processing_started();
+    
+            let mut messages = Vec::new();
+            let statuses = user_interface.update(
+                &self.events,
+                self.state.cursor_position(),
+                renderer,
+                clipboard,
+                &mut messages,
+            );
+            messages.extend(self.messages.drain(..));
+
+            commands = if let Some(runtime) = runtime {
+                for event in self.events.drain(..).zip(statuses.into_iter()) {
+                    runtime.broadcast(event);
+                }
+
+                if !messages.is_empty() {
+                    Some(Command::batch(messages.into_iter().map(|message| {
+                        debug.log_message(&message);
+                
+                        debug.update_started();
+                        let command = runtime.enter(|| self.application.update(message));
+                        debug.update_finished();
+                        command
+                    })))
+                } else {
+                    None
+                }
+            } else {
+                self.events.clear();
+
+                if !messages.is_empty() {
+                    Some(Command::batch(messages.into_iter().map(|message| {
+                        debug.log_message(&message);
+                
+                        debug.update_started();
+                        let command = self.application.update(message);
+                        debug.update_finished();
+                        command
+                    })))
+                } else {
+                    None
+                }
+            };
         }
+
+        commands
     }
 
-    pub fn redraw(&mut self, overlay: &[String]) -> bool {
-        match self.render(overlay) {
+    pub fn redraw(&mut self, debug: &mut Debug) -> bool {
+        match self.render(debug) {
             Ok(()) => true,
             Err(wgpu::SwapChainError::Lost) => {
-                let size = self.viewport.physical_size();
-                self.resize(PhysicalSize::new(size.width, size.height), None);
+                self.resize();
                 true
             },
             // The system is out of memory, we should probably quit
@@ -198,5 +291,48 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
                 true
             },
         }
+    }
+
+    pub fn cursor_position(&self) -> PhysicalPosition<f64> {
+        let point = self.state.cursor_position();
+        PhysicalPosition::new(point.x.into(), point.y.into())
+    }
+}
+
+fn build_user_interface<'a, P: Program>(
+    program: &'a mut P,
+    cache: Cache,
+    renderer: &mut P::Renderer,
+    size: Size,
+    debug: &mut Debug,
+) -> UserInterface<'a, P::Message, P::Renderer> {
+    debug.view_started();
+    let view = program.view();
+    debug.view_finished();
+
+    debug.layout_started();
+    let user_interface = UserInterface::build(view, size, cache, renderer);
+    debug.layout_finished();
+
+    user_interface
+}
+
+pub fn requests_exit(
+    event: &WindowEvent<'_>,
+    _modifiers: ModifiersState,
+) -> bool {
+    match event {
+        WindowEvent::CloseRequested => true,
+        #[cfg(target_os = "macos")]
+        WindowEvent::KeyboardInput {
+            input:
+                KeyboardInput {
+                    virtual_keycode: Some(winit::event::VirtualKeyCode::Q),
+                    state: ElementState::Pressed,
+                    ..
+                },
+            ..
+        } if _modifiers.logo() => true,
+        _ => false,
     }
 }

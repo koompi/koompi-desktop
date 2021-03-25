@@ -11,8 +11,6 @@ pub enum WallpaperError {
     NotFound {
         name: String
     },
-    #[error("cannot open file")]
-    CannotOpen,
     #[error("invalid type of wallpaper", )]
     InvalidType,
 }

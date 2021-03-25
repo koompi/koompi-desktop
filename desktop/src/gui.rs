@@ -8,5 +8,5 @@ mod styles;
 
 pub use desktop::{Desktop, DesktopMsg};
 pub use context_menu::{ContextMenu, ContextMsg};
-pub use desktop_config::DesktopConfigUI;
-pub use background_config::BackgroundConfigUI;
+pub use desktop_config::{DesktopConfigUI, DesktopConfigMsg};
+pub use background_config::{BackgroundConfigUI, BackgroundConfMsg};

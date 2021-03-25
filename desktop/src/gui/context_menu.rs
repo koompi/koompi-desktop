@@ -105,7 +105,7 @@ impl Program for ContextMenu {
                 }
                 content = content.push(Text::new(&item.title));
                 // let mut submenu = None;
-                if let Some(submenu) = &item.submenu {
+                if let Some(_submenu) = &item.submenu {
                     content = content
                         .push(Space::with_width(Length::Fill))
                         .push(Icon::new(Icons::AngleRight));
