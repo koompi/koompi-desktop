@@ -22,19 +22,26 @@ impl DesktopEntry {
     }
 
     pub fn handle_exec(&self) -> Result<(), DesktopItemError> {
-        let command = if let Some(exec) = &self.try_exec {
-            Some(Exec::cmd(exec))
+        let exec_str = if let Some(exec) = &self.try_exec {
+            Some(exec)
         } else if let Some(exec) = &self.exec {
-            Some(Exec::cmd(exec))
+            Some(exec)
         } else {
             None
         };
 
-        if let Some(mut cmd) = command {
-            if !self.term {
+        if let Some(exec_str) = exec_str {
+            let re = regex::Regex::new("%.").unwrap();
+            let formatted_exec_str = re.replace_all(exec_str, "").to_string();
+            let mut splitted_exec_str = formatted_exec_str.trim().split_whitespace();
+            let mut cmd = Exec::cmd(splitted_exec_str.next().unwrap());
+            while let Some(arg) = splitted_exec_str.next() {
+                cmd = cmd.arg(arg);
+            }
+            if self.term {
                 cmd = cmd.arg("&");
             }
-            let _ = cmd.detached().communicate()?;
+            let _ = cmd.detached().join()?;
             Ok(())
         } else {
             Err(DesktopItemError::NoExecString)

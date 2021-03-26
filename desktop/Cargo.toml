@@ -26,4 +26,5 @@ dirs-next = "2.0.0"
 walkdir = "2.3.1"
 nfd2 = "0.2.3"
 subprocess = "0.2.6"
+regex = "1.4.5"
 # iced_aw = { git = "https://github.com/kaiden42/iced_aw", default-features = false, features = ["color_picker"] }
