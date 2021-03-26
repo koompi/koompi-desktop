@@ -96,6 +96,9 @@ fn main() {
                 Message::ShowMenu => {
                     *control_flow = ControlFlow::Exit;
                 }
+                Message::ShowMenu => {
+                    *control_flow = ControlFlow::Exit;
+                }
                 Message::MonitorShow(is_visible) => {
                     handle_visible_pos(&mut menu_state, ControlType::Monitor, is_visible, popup_x);
                 }
