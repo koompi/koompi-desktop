@@ -1,7 +1,7 @@
-use std::process::Command;
-use super::desktop_item_error::DesktopItemError;
-use freedesktop_entry_parser::AttrSelector;
 use crate::constants::{EXEC, TRY_EXEC, TERMINAL};
+use super::desktop_item_error::DesktopItemError;
+use subprocess::Exec;
+use freedesktop_entry_parser::AttrSelector;
 
 #[derive(Debug, Clone, Default)]
 pub struct DesktopEntry {
@@ -22,19 +22,19 @@ impl DesktopEntry {
     }
 
     pub fn handle_exec(&self) -> Result<(), DesktopItemError> {
-        let mut command = if let Some(exec) = &self.try_exec {
-            Some(Command::new(exec))
+        let command = if let Some(exec) = &self.try_exec {
+            Some(Exec::cmd(exec))
         } else if let Some(exec) = &self.exec {
-            Some(Command::new(exec))
+            Some(Exec::cmd(exec))
         } else {
             None
         };
 
-        if let Some(cmd) = &mut command {
+        if let Some(mut cmd) = command {
             if !self.term {
-                cmd.arg("&");
+                cmd = cmd.arg("&");
             }
-            cmd.spawn().or(Err(DesktopItemError::BadExecString))?;
+            let _ = cmd.detached().communicate()?;
             Ok(())
         } else {
             Err(DesktopItemError::NoExecString)

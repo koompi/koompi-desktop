@@ -66,7 +66,7 @@ impl Program for Desktop {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         use DesktopMsg::*;
-        match message {
+        match message.clone() {
             WinitEvent(event) => {
                 match event {
                     Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
@@ -91,22 +91,22 @@ impl Program for Desktop {
                         self.last_click = Some(click);
                     },
                     Event::Mouse(mouse::Event::CursorMoved { position })
-                    | Event::Touch(touch::Event::FingerMoved { position, .. }) => {
-                        self.cursor_position = position;
-                    },
+                    | Event::Touch(touch::Event::FingerMoved { position, .. }) => self.cursor_position = position,
                     Event::Keyboard(key_event) => match key_event {
                         keyboard::Event::CharacterReceived('\r') => if let Some(idx) = self.selected_desktop_item {
                             if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
                                 match desktop_item.handle_exec() {
                                     Ok(()) => {},
-                                    Err(err) => eprintln!("{}", err)
+                                    Err(err) => eprintln!("{}", err),
                                 }
                             }
                         },
                         keyboard::Event::KeyPressed { key_code, .. } => match key_code {
                             keyboard::KeyCode::Right => if let Some(idx) = &mut self.selected_desktop_item {
-                                if *idx<=self.ls_desktop_items.len() {
+                                if *idx<self.ls_desktop_items.len()-1 {
                                     *idx+=1;
+                                } else {
+                                    *idx = 0;
                                 }
                             } else {
                                 self.selected_desktop_item = Some(0);
@@ -114,6 +114,8 @@ impl Program for Desktop {
                             keyboard::KeyCode::Left => if let Some(idx) = &mut self.selected_desktop_item {
                                 if *idx>0 {
                                     *idx-=1;
+                                } else {
+                                    *idx = self.ls_desktop_items.len()-1;
                                 }
                             } else {
                                 self.selected_desktop_item = Some(0);
@@ -125,7 +127,12 @@ impl Program for Desktop {
                     _ => {}
                 }
             }
+            _ => {}
+        }
+
+        match message {
             DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
+            _ => {}
         }
 
         Command::none()
