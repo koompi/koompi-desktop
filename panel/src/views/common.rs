@@ -1,10 +1,11 @@
-use iced::{Font, HorizontalAlignment, Length, Text};
+use iced::{Font, HorizontalAlignment, Length, VerticalAlignment Text};
 pub fn icon(unicode: char) -> Text {
     Text::new(&unicode.to_string())
         .font(ICONS)
-        .width(Length::Units(20))
+        .width(Length::Units(14))
+        .vertical_alignment(VerticalAlignment::Center)
         .horizontal_alignment(HorizontalAlignment::Center)
-        .size(20)
+        .size(12)
 }
 const ICONS: Font = Font::External {
     name: "Line Awesome",
