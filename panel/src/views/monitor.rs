@@ -3,8 +3,8 @@ use crate::styles::containers::CustomContainer;
 use iced::svg::Svg;
 use iced_wgpu::Renderer;
 use iced_winit::{
-    button, checkbox, program, Align, Button, Checkbox, Column, Command, Container, Element,
-    Length, Program, Row, Text,
+    button, Align, Button, Checkbox, Column, Command, Container, Element, Length, Program, Row,
+    Text,
 };
 #[derive(Debug, Default)]
 pub struct Monitor {

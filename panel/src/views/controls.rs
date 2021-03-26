@@ -80,7 +80,6 @@ impl Program for Controls {
             }
             Message::ShowAction => {}
             Message::ShowMenu => {
-                println!("Menu show");
                 self.proxy.send_event(Message::ShowMenu).ok();
             }
             Message::WifiShow(_) => {
@@ -121,7 +120,6 @@ impl Program for Controls {
             }
             Message::Timer => {
                 self.now = chrono::Local::now();
-                println!("timer out running...");
             }
             Message::Tick(local_time) => {
                 let now = local_time;
@@ -175,10 +173,9 @@ impl Program for Controls {
                     .style(ButtonStyle::Transparent),
             )
             .push(Text::new(format!(
-                "{}:{}:{}",
+                "{}:{}",
                 current_time.hour().to_string(),
-                current_time.minute().to_string(),
-                current_time.second().to_string()
+                current_time.minute().to_string()
             )));
         let row = Row::new()
             .width(Length::Fill)

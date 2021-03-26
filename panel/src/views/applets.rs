@@ -1,11 +1,11 @@
+use super::battery::{BatteryView, BatteryViewMsg};
 use super::common::icon;
 use super::monitor::{Monitor, MonitorMsg};
 use super::sound::{Audio, AudioMsg};
 use crate::styles::containers::CustomContainer;
 use iced_wgpu::Renderer;
-use iced_winit::{button, slider, Command, Element, Program, Text};
-use std::cell::RefCell;
-#[derive(Debug, Default)]
+use iced_winit::{button, slider, Application, Command, Element, Program, Text};
+#[derive(Debug)]
 pub struct Applets {
     pub slider: slider::State,
     pub value: f32,
@@ -13,7 +13,7 @@ pub struct Applets {
     pub kind: ControlType,
     monitor: Monitor,
     audio: Audio,
-    pub is_shown: bool,
+    battery: BatteryView,
 }
 #[derive(Debug, Clone)]
 pub enum AppletsMsg {
@@ -21,7 +21,9 @@ pub enum AppletsMsg {
     ButtonClicked,
     MonitorMsg(MonitorMsg),
     AudioMsg(AudioMsg),
+    BatteryViewMsg(BatteryViewMsg),
     SwitchView(ControlType),
+    BatteryTimer,
 }
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ControlType {
@@ -38,7 +40,15 @@ impl Default for ControlType {
 
 impl Applets {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            battery: BatteryView::new(()).0,
+            audio: Audio::new(),
+            monitor: Monitor::new(),
+            kind: ControlType::Monitor,
+            mute: button::State::new(),
+            value: 0.0,
+            slider: slider::State::new(),
+        }
     }
 }
 
@@ -51,11 +61,17 @@ impl Program for Applets {
             AppletsMsg::SoundChanged(val) => {
                 self.value = val;
             }
+            AppletsMsg::BatteryViewMsg(msg) => {
+                self.battery.update(msg);
+            }
             AppletsMsg::ButtonClicked => {
                 println!("Hello World");
             }
             AppletsMsg::MonitorMsg(msg) => {
                 self.monitor.update(msg);
+            }
+            AppletsMsg::BatteryTimer => {
+                self.battery.update(BatteryViewMsg::BatteryRefresh);
             }
             AppletsMsg::AudioMsg(msg) => {
                 self.audio.update(msg);
@@ -71,7 +87,10 @@ impl Program for Applets {
             ControlType::Monitor => self.monitor.view().map(|msg| AppletsMsg::MonitorMsg(msg)),
             ControlType::Sound => self.audio.view().map(|msg| AppletsMsg::AudioMsg(msg)),
             ControlType::Wifi => Text::new("Wifi").into(),
-            ControlType::Battery => Text::new("Battery").into(),
+            ControlType::Battery => self
+                .battery
+                .view()
+                .map(|msg| AppletsMsg::BatteryViewMsg(msg)),
         }
     }
 }

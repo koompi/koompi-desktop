@@ -90,8 +90,11 @@ fn main() {
             }
             Event::UserEvent(event) => match event {
                 Message::Timer => {
-                    println!("timer event: {:?}", event);
                     state.win_state.queue_message(Message::Timer);
+                    menu_state.win_state.queue_message(AppletsMsg::BatteryTimer);
+                }
+                Message::ShowMenu => {
+                    *control_flow = ControlFlow::Exit;
                 }
                 Message::MonitorShow(is_visible) => {
                     handle_visible_pos(&mut menu_state, ControlType::Monitor, is_visible, popup_x);
@@ -129,7 +132,6 @@ fn main() {
                         modifiers: _,
                     } => match button {
                         MouseButton::Right => {
-                            println!("Left click mouse: position: {:?}", cursor_position);
                             context_state.window.set_visible(true);
                         }
                         MouseButton::Left => {
@@ -163,13 +165,10 @@ fn main() {
                 }
                 if window_id == state.window.id() {
                     state.map_event(&modifiers, &event);
-                    println!("Panel State");
                 } else if window_id == menu_state.window.id() {
                     menu_state.map_event(&modifiers, &event);
-                    println!("Menu state");
                 } else if window_id == context_state.window.id() {
                     context_state.map_event(&modifiers, &event);
-                    println!("Context state");
                 } else {
                     {}
                 }

@@ -52,7 +52,7 @@ impl container::StyleSheet for CustomContainer {
             ),
             border_radius: match self {
                 Segment => 10.0,
-                ForegroundGray | Hovered => 7.0,
+                ForegroundGray | Hovered => 0.0,
                 FadedBrightForeground => 4.0,
                 Success | Warning | Primary => 5.0,
                 _ => 0.0,
