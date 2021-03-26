@@ -61,15 +61,17 @@ fn main() {
 
             // Desktop Init Section
             let desktop_state = {
+                let (desktop, init_cmd) = {
+                    runtime.enter(|| Desktop::new((monitor_size.height, desktop_conf.to_owned(), desktop_items.to_owned())))
+                };
                 let desktop_window = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Desktop])
+                    .with_title(desktop.title())
                     .with_inner_size(monitor_size)
                     .with_visible(false)
                     .build(&event_loop).unwrap();
                 desktop_window.set_outer_position(monitor_position);
-                let (desktop, init_cmd) = {
-                    runtime.enter(|| Desktop::new((monitor_size.height, desktop_conf.to_owned(), desktop_items.to_owned())))
-                };
+                
                 let subscription = desktop.subscription();
                 runtime.spawn(init_cmd.map(Into::into));
                 runtime.track(subscription.map(Into::into));
@@ -78,13 +80,14 @@ fn main() {
 
             // Context Menu Init Section
             let context_menu_size = PhysicalSize::new(300.0, 210.0);
+            let (context_menu, _) = ContextMenu::new(event_loop.create_proxy());
             let context_menu_state = {
                 let context_menu_window = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Desktop, XWindowType::PopupMenu])
+                    .with_title(context_menu.title())
                     .with_inner_size(context_menu_size)
                     .with_visible(false)
                     .build(&event_loop).unwrap();
-                let (context_menu, _) = ContextMenu::new(event_loop.create_proxy());
                 futures::executor::block_on(WindowState::new(&instance, context_menu_window, context_menu, false, Some(&settings)))
             };
 
