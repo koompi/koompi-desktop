@@ -79,7 +79,7 @@ impl Program for BackgroundConfigUI {
 
                 bg_conf.kind = val;
                 self.dyn_config_ui = match val {
-                    BackgroundType::Color => ColorConfig(ColorConfigUI::new(bg_conf.color_background.to_owned())),
+                    BackgroundType::Color => ColorConfig(ColorConfigUI::new(bg_conf.color_background)),
                     BackgroundType::Wallpaper => WallpaperConfig(WallpaperConfigUI::new(bg_conf.wallpaper_conf.to_owned(), wallpaper_items.to_owned()))
                 };
             },

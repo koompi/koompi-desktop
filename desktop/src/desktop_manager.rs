@@ -1,21 +1,21 @@
+use crate::configs::PersistentData;
 use super::desktop_item::DesktopItem;
 use super::background::WallpaperItem;
 use super::configs::DesktopConf;
 use super::errors::DesktopError;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 const WALLPAPERS_DIR: &str = "wallpapers";
 
 pub struct DesktopManager {
     desktop_items: Vec<DesktopItem>,
     wallpaper_items: Vec<WallpaperItem>,
     conf: DesktopConf,
-    conf_path: PathBuf,
 }
 
 impl DesktopManager {
-    pub fn new<P: AsRef<Path>>(file: P) -> Result<Self, DesktopError> {
+    pub fn new() -> Result<Self, DesktopError> {
         let desktop_dir = dirs_next::desktop_dir().unwrap_or(dirs_next::home_dir().unwrap().join("Desktop"));
-        let sys_wallpapers_dir = Path::new("/usr/share").join(WALLPAPERS_DIR);
+        let sys_wallpapers_dir = PathBuf::from("/usr/share").join(WALLPAPERS_DIR);
         let local_wallpapers_dir = dirs_next::data_local_dir().unwrap().join(WALLPAPERS_DIR);
         let desktop_items: Vec<DesktopItem> = desktop_dir.read_dir()?.filter_map(|entry| DesktopItem::from_file(entry.unwrap().path()).ok()).collect();
         let mut wallpaper_items: Vec<WallpaperItem> = Vec::new();
@@ -31,8 +31,7 @@ impl DesktopManager {
 
         Ok(Self {
             desktop_items, wallpaper_items,
-            conf_path: file.as_ref().to_path_buf(),
-            conf: DesktopConf::new(file)?,
+            conf: DesktopConf::load()?,
         })
     }
 
@@ -46,12 +45,5 @@ impl DesktopManager {
 
     pub fn wallpaper_items(&self) -> &[WallpaperItem] {
         self.wallpaper_items.as_slice()
-    }
-
-    pub fn save(&mut self, conf: DesktopConf) -> Result<(), DesktopError> {
-        let toml = toml::to_string_pretty(&conf)?;
-        std::fs::write(self.conf_path.to_path_buf(), toml)?;
-        self.conf = conf;
-        Ok(())
     }
 }

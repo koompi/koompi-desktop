@@ -7,7 +7,7 @@ use iced_winit::{
 use wgpu::util::StagingBelt;
 use winit::{
     window::Window,
-    event::{WindowEvent, ModifiersState},
+    event::{WindowEvent, ModifiersState, ElementState, KeyboardInput},
     dpi::PhysicalPosition,
 };
 use std::mem::ManuallyDrop;

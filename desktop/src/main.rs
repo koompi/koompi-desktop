@@ -31,10 +31,9 @@ use winit::{
     platform::unix::{WindowBuilderExtUnix, XWindowType},
     window::WindowBuilder, 
 };
-const DESKTOP_CONF: &str = "desktop/desktop.toml";
 
 fn main() {
-    match DesktopManager::new(dirs_next::config_dir().unwrap().join(DESKTOP_CONF)) {
+    match DesktopManager::new() {
         Ok(desktop_manager) => {
             let desktop_conf = desktop_manager.config().to_owned();
             let desktop_items = desktop_manager.desktop_items();
@@ -71,7 +70,7 @@ fn main() {
                     .with_visible(false)
                     .build(&event_loop).unwrap();
                 desktop_window.set_outer_position(monitor_position);
-                
+
                 let subscription = desktop.subscription();
                 runtime.spawn(init_cmd.map(Into::into));
                 runtime.track(subscription.map(Into::into));
