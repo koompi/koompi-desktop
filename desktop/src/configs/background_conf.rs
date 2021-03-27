@@ -54,13 +54,10 @@ mod ser {
     where
         S: Serializer,
     {
-        let [ r, g, b, .. ] = color.into_linear();
-
-        let red = format!("{:x}", (r * 255.0) as u8);
-        let green = format!("{:x}", (g * 255.0) as u8);
-        let blue = format!("{:x}", (b * 255.0) as u8);
-        let hex_code = format!("#{}{}{}", red, green, blue);
-        s.serialize_str(&hex_code)
+        let red = format!("{:02x}", (color.r * 255.0) as u8);
+        let green = format!("{:02x}", (color.g * 255.0) as u8);
+        let blue = format!("{:02x}", (color.b * 255.0) as u8);
+        s.serialize_str(&format!("#{}{}{}", red, green, blue))
     }
 }
 
