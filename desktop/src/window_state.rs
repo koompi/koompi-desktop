@@ -7,7 +7,7 @@ use iced_winit::{
 use wgpu::util::StagingBelt;
 use winit::{
     window::Window,
-    event::{WindowEvent, ModifiersState, ElementState, KeyboardInput},
+    event::{WindowEvent, ModifiersState},
     dpi::PhysicalPosition,
 };
 use std::mem::ManuallyDrop;
@@ -101,7 +101,7 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
     }
 
-    pub fn update(&mut self, event: &WindowEvent<'_>, debug: &mut Debug) -> bool {
+    pub fn window_event_request_exit(&mut self, event: &WindowEvent<'_>, debug: &mut Debug) -> bool {
         let is_close = requests_exit(&event, self.state.modifiers());
         self.state.update(&self.window, &event, debug);
         if self.viewport_version != self.state.viewport_version() {

@@ -1,20 +1,24 @@
+use std::cell::RefCell;
 use crate::configs::{
-    DesktopConf,
+    DesktopConf, PersistentData,
     desktop_item_conf::{Arrangement, Sorting, DesktopItemConf}
 };
+use super::styles::CustomButton;
 use iced_winit::{
-    pick_list, PickList, slider, Slider, Application, Program, Command, Element,
-    Text, Checkbox, scrollable, Scrollable, Column, Row, Length,
-};
-use iced_wgpu::{Renderer};
+    pick_list, button, PickList, slider, Slider, Application, Program, Command, Element,
+    Text, Checkbox, scrollable, Scrollable, Column, Row, Length, Button, Space,
+}; 
+use iced_wgpu::Renderer;
 
 #[derive(Debug, Clone, Default)]
 pub struct DesktopConfigUI {
-    desktop_conf: DesktopConf,
+    desktop_conf: RefCell<DesktopConf>,
     arrangement_state: pick_list::State<Arrangement>,
     sort_by_state: pick_list::State<Sorting>,
     icon_size_state: slider::State,
     grid_spacing_state: slider::State,
+    btn_apply_state: button::State,
+    is_changed: bool,
     scroll: scrollable::State,
 }
 
@@ -26,10 +30,11 @@ pub enum DesktopConfigMsg {
     GridSpacingChanged(u16),
     SortDescToggled(bool),
     ShowTooltipToggled(bool),
+    ApplyClicked,
 }
 
 impl Application for DesktopConfigUI {
-    type Flags = DesktopConf;
+    type Flags = RefCell<DesktopConf>;
 
     fn new(flags: Self::Flags) -> (Self, Command<DesktopConfigMsg>) {
         (
@@ -52,15 +57,24 @@ impl Program for DesktopConfigUI {
 
     fn update(&mut self, msg: Self::Message) -> Command<Self::Message> { 
         use DesktopConfigMsg::*;
-        let desktop_item_conf = &mut self.desktop_conf.desktop_item_conf;
+        let mut had_changed = false;
+        let desktop_conf = self.desktop_conf.get_mut();
+        let desktop_item_conf = &mut desktop_conf.desktop_item_conf;
+
         match msg {
             ArrangementChanged(val) => desktop_item_conf.arrangement = val,
             SortingChanged(val) => desktop_item_conf.sorting = val,
             IconSizeChanged(val) => desktop_item_conf.icon_size = val,
             GridSpacingChanged(val) => desktop_item_conf.grid_spacing = val,
             SortDescToggled(is_checked) => desktop_item_conf.sort_descending = is_checked,
-            ShowTooltipToggled(is_checked) => desktop_item_conf.show_tooltip = is_checked
+            ShowTooltipToggled(is_checked) => desktop_item_conf.show_tooltip = is_checked,
+            ApplyClicked => {
+                let _ = desktop_conf.save();
+                had_changed = true;
+            }
         }
+        self.is_changed = !had_changed;
+
         Command::none()
     }
 
@@ -72,9 +86,12 @@ impl Program for DesktopConfigUI {
             sort_by_state,
             icon_size_state,
             grid_spacing_state,
+            btn_apply_state,
             scroll,
+            ..
         } = self;
 
+        let desktop_conf = desktop_conf.borrow();
         let desktop_item_conf = &desktop_conf.desktop_item_conf;
 
         let lb_sort_by = Text::new("Sort by:");
@@ -94,17 +111,26 @@ impl Program for DesktopConfigUI {
         let pl_sec = Column::new().spacing(7)
             .push(pl_sort_by)
             .push(pl_arragement);
+        let mut btn_apply = Button::new(btn_apply_state, Text::new("  Apply  ")).style(CustomButton::Primary);
+        if self.is_changed {
+            btn_apply = btn_apply.on_press(ApplyClicked)
+        }
 
-        Scrollable::new(scroll).scroller_width(4).scrollbar_width(4).spacing(10).padding(15).width(Length::Fill).height(Length::Fill)
+        Column::new().spacing(15).padding(15)
             .push(
-                Row::new().spacing(10).push(pl_sec_lb).push(pl_sec)
+                Scrollable::new(scroll).scroller_width(4).scrollbar_width(4).spacing(10)
+                .push(
+                    Row::new().spacing(10).push(pl_sec_lb).push(pl_sec)
+                )
+                .push(lb_icon_size)
+                .push(sl_icon_size)
+                .push(lb_grid_spacing)
+                .push(sl_grid_spacing)
+                .push(chb_sort_desc)
+                .push(chb_show_tooltip)
             )
-            .push(lb_icon_size)
-            .push(sl_icon_size)
-            .push(lb_grid_spacing)
-            .push(sl_grid_spacing)
-            .push(chb_sort_desc)
-            .push(chb_show_tooltip)
+            .push(Space::with_height(Length::Fill))
+            .push(Row::new().push(Space::with_width(Length::Fill)).push(btn_apply))
             .into()
 
     }

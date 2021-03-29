@@ -15,6 +15,7 @@ use gui::{
     Desktop, ContextMenu, DesktopConfigUI, BackgroundConfigUI, ContextMsg, 
 };
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use iced::executor;
 use iced_wgpu::{wgpu, Settings};
@@ -63,7 +64,7 @@ fn main() {
             // Desktop Init Section
             let desktop_state = {
                 let (desktop, init_cmd) = {
-                    runtime.enter(|| Desktop::new((monitor_size.height, desktop_conf.to_owned(), desktop_items.to_owned())))
+                    runtime.enter(|| Desktop::new((monitor_size.height, RefCell::new(desktop_conf.to_owned()), desktop_items.to_owned())))
                 };
                 let desktop_window = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Desktop])
@@ -109,7 +110,7 @@ fn main() {
                         Event::UserEvent(ProxyMessage::ContextMenu(msg)) => match msg {
                             ContextMsg::ChangeBG => {
                                 // Background Config Init Section
-                                let (bg_config, _) = BackgroundConfigUI::new((desktop_conf.to_owned(), wallpaper_items.to_owned()));
+                                let (bg_config, _) = BackgroundConfigUI::new((RefCell::new(desktop_conf.to_owned()), wallpaper_items.to_owned()));
                                 let bg_config_window = WindowBuilder::new()
                                     .with_x11_window_type(vec![XWindowType::Utility])
                                     .with_title(bg_config.title())
@@ -119,7 +120,7 @@ fn main() {
                             },
                             ContextMsg::DesktopView => {
                                 // Desktop Config Init Section
-                                let (desktop_config, _) = DesktopConfigUI::new(desktop_conf.to_owned());
+                                let (desktop_config, _) = DesktopConfigUI::new(RefCell::new(desktop_conf.to_owned()));
                                 let desktop_config_window = WindowBuilder::new()
                                     .with_x11_window_type(vec![XWindowType::Utility])
                                     .with_inner_size(PhysicalSize::new(250, 350))
@@ -142,12 +143,12 @@ fn main() {
                             if let Some(window) = windows.get_mut(&window_id) {
                                 match window {
                                     DesktopConfig(state) => {
-                                        if state.update(&event, &mut debug) {
+                                        if state.window_event_request_exit(&event, &mut debug) {
                                             windows.remove(&window_id);
                                         }
                                     },
                                     BgConfig(state) => {
-                                        if state.update(&event, &mut debug) {
+                                        if state.window_event_request_exit(&event, &mut debug) {
                                             windows.remove(&window_id);
                                         }
                                     },
@@ -249,9 +250,11 @@ async fn run_instance<E>(
                 }
 
                 if desktop_state.window.id() == window_id {
-                    desktop_state.update(&event, &mut debug);
+                    if desktop_state.window_event_request_exit(&event, &mut debug) {
+                        break;
+                    }
                 } else if context_menu_state.window.id() == window_id {
-                    if context_menu_state.update(&event, &mut debug) {
+                    if context_menu_state.window_event_request_exit(&event, &mut debug) {
                         context_menu_state.window.set_visible(false);
                     }
                 }

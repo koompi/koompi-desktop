@@ -1,57 +1,56 @@
+use std::cell::RefCell;
 use crate::configs::{
-    DesktopConf,
+    DesktopConf, PersistentData,
     background_conf::BackgroundType,
+    wallpaper_conf::Placement
 };
 use crate::background::WallpaperItem;
-use super::color_config::{ColorConfigUI, ColorConfigMsg};
-use super::wallpaper_config::{WallpaperConfigUI, WallpaperConfigMsg};
 use super::styles::CustomButton;
 use iced_winit::{
-    pick_list, button, scrollable, PickList, Program, Command, Element, Row,
-    Text, Scrollable, Button, Space, Length, Align, Column, Application, 
+    pick_list, button, scrollable, text_input, PickList, Program, Command, Element, Row, Container,
+    Text, Scrollable, Button, Space, Length, Align, Column, Application, TextInput, Image, Grid, 
 };
 use iced_wgpu::{Renderer};
 
 #[derive(Debug, Clone)]
 pub struct BackgroundConfigUI {
     bg_type_state: pick_list::State<BackgroundType>,
-    desktop_conf: DesktopConf,
-    dyn_config_ui: DynConfigUI,
-    wallpaper_items: Vec<WallpaperItem>,
+    desktop_conf: RefCell<DesktopConf>,
+    color_state: text_input::State,
+    text: String,
+    placement_state: pick_list::State<Placement>,
+    wallpaper_items: Vec<(button::State, WallpaperItem)>,
+    selected_wallpaper: Option<usize>,
     btn_apply_state: button::State,
     scroll: scrollable::State,
+    is_changed: bool,
 }
 
-#[derive(Debug, Clone)]
-pub enum DynConfigUI {
-    ColorConfig(ColorConfigUI),
-    WallpaperConfig(WallpaperConfigUI),
-
-}
 #[derive(Debug, Clone)]
 pub enum BackgroundConfMsg {
     BackgroundTypeChanged(BackgroundType),
-    ColorMsg(ColorConfigMsg),
-    WallpaperMsg(WallpaperConfigMsg),
+    ColorChanged(String),
+    PlacementChanged(Placement),
+    WallpaperChanged(usize),
     ApplyClicked,
 }
 
 impl Application for BackgroundConfigUI {
-    type Flags = (DesktopConf, Vec<WallpaperItem>);
+    type Flags = (RefCell<DesktopConf>, Vec<WallpaperItem>);
 
     fn new(flags: Self::Flags) -> (Self, Command<BackgroundConfMsg>) {
-        use DynConfigUI::*;
         (
             Self {
-                dyn_config_ui: match flags.0.background_conf.kind {
-                    BackgroundType::Color => ColorConfig(ColorConfigUI::new(flags.0.to_owned())),
-                    BackgroundType::Wallpaper => WallpaperConfig(WallpaperConfigUI::new(flags.0.to_owned(), flags.1.to_owned()))
-                },
                 desktop_conf: flags.0,
-                wallpaper_items: flags.1,
+                wallpaper_items: flags.1.into_iter().map(|item| (button::State::new(), item)).collect(),
+                selected_wallpaper: None,
+                text: String::from("sample test"),
+                color_state: text_input::State::new(),
+                placement_state: pick_list::State::default(),
                 scroll: scrollable::State::new(),
                 btn_apply_state: button::State::new(),
-                bg_type_state: pick_list::State::default()
+                bg_type_state: pick_list::State::default(),
+                is_changed: false,
             },
             Command::none()
         )
@@ -67,31 +66,23 @@ impl Program for BackgroundConfigUI {
     type Renderer = Renderer;
 
     fn update(&mut self, msg: Self::Message) -> Command<Self::Message> {
-        let Self {
-            dyn_config_ui,
-            desktop_conf,
-            wallpaper_items,
-            ..
-        } = self;
         use BackgroundConfMsg::*;
-        match msg {
-            BackgroundTypeChanged(val) => {
-                use DynConfigUI::*;
+        let mut had_changed = false;
+        let desktop_conf = self.desktop_conf.get_mut();
+        let bg_conf = &mut desktop_conf.background_conf;
 
-                desktop_conf.background_conf.kind = val;
-                self.dyn_config_ui = match val {
-                    BackgroundType::Color => ColorConfig(ColorConfigUI::new(desktop_conf.to_owned())),
-                    BackgroundType::Wallpaper => WallpaperConfig(WallpaperConfigUI::new(desktop_conf.to_owned(), wallpaper_items.to_owned()))
-                };
-            },
-            ColorMsg(color_msg) => if let DynConfigUI::ColorConfig(color_ui) = dyn_config_ui {
-                color_ui.update(color_msg)
-            },
-            WallpaperMsg(wallpaper_msg) => if let DynConfigUI::WallpaperConfig(wallpaper_ui) = dyn_config_ui {
-                wallpaper_ui.update(wallpaper_msg)
-            },
-            ApplyClicked => println!("apply clicked")
+        match msg {
+            BackgroundTypeChanged(val) => bg_conf.kind = val,
+            ColorChanged(val) => self.text = val,
+            PlacementChanged(val) => bg_conf.wallpaper_conf.placement = val,
+            WallpaperChanged(idx) => self.selected_wallpaper = Some(idx),
+            ApplyClicked => {
+                let _ = desktop_conf.save();
+                had_changed = true;
+            }
         }
+        self.is_changed = !had_changed;
+
         Command::none()
     }
 
@@ -100,19 +91,65 @@ impl Program for BackgroundConfigUI {
         let Self {
             desktop_conf,
             bg_type_state,
-            dyn_config_ui,
+            placement_state,
+            wallpaper_items, 
+            selected_wallpaper,
             btn_apply_state,
             scroll,
             ..
         } = self;
 
+        let desktop_conf = desktop_conf.borrow();
         let lb_bg = Text::new("Background:");
         let pl_bg = PickList::new(bg_type_state, &BackgroundType::ALL[..], Some(desktop_conf.background_conf.kind), BackgroundTypeChanged);
-        let content = match dyn_config_ui {
-            DynConfigUI::ColorConfig(color_ui) => color_ui.view().map(|msg| ColorMsg(msg)),
-            DynConfigUI::WallpaperConfig(wallpaper_ui) => wallpaper_ui.view().map(|msg| WallpaperMsg(msg))
+        let content: Element<_, _> = match desktop_conf.background_conf.kind {
+            BackgroundType::Color => {
+                let lb_color = Text::new("Color: ");
+                let txt_color = TextInput::new(&mut self.color_state, "", &self.text, ColorChanged).padding(7);
+                Row::new().spacing(15).align_items(Align::Center)
+                    .push(lb_color)
+                    .push(txt_color)
+                    .into()
+            },
+            BackgroundType::Wallpaper => {
+                let lb_placement = Text::new("Placement: ");
+                let pl_placement = PickList::new(placement_state, &Placement::ALL[..], Some(desktop_conf.background_conf.wallpaper_conf.placement), PlacementChanged);
+                let wallpaper_grid = wallpaper_items.iter_mut().enumerate().fold(Grid::new().column_width(140).padding(15).spacing(15), |grid, (idx, (state, item))| {
+                    let name = Text::new(item.name.as_ref().map(|name| name.as_str()).unwrap_or("Unknown name"));
+                    let image = Image::new(item.path.to_path_buf()).width(Length::Units(100)).height(Length::Units(60));
+                    let mut btn = Button::new(state, Column::new().spacing(10)
+                        .push(image)
+                        .push(name)
+                    ).padding(7).width(Length::Units(120)).on_press(WallpaperChanged(idx));
+                    btn = if let Some(selected) = *selected_wallpaper {
+                        if idx == selected {
+                            btn.style(CustomButton::Selected)
+                        } else {
+                            btn.style(CustomButton::Text)
+                        }
+                    } else {
+                        btn.style(CustomButton::Text)
+                    };
+        
+                    grid.push(
+                        Container::new(btn).center_x().center_y()
+                    )
+                });
+        
+                Column::new().spacing(15)
+                    .push(
+                        Row::new().spacing(15).align_items(Align::Center)
+                        .push(lb_placement)
+                        .push(pl_placement)
+                    )
+                    .push(wallpaper_grid)
+                    .into()
+            }
         };
-        let btn_apply = Button::new(btn_apply_state, Text::new("  Apply  ")).on_press(ApplyClicked).style(CustomButton::Primary);
+        let mut btn_apply = Button::new(btn_apply_state, Text::new("  Apply  ")).style(CustomButton::Primary);
+        if self.is_changed {
+            btn_apply = btn_apply.on_press(ApplyClicked)
+        }
 
         Column::new().spacing(15).padding(15)
             .push(

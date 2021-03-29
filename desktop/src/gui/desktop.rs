@@ -4,6 +4,7 @@ use iced_winit::{
     Align, HorizontalAlignment, Row, Tooltip, tooltip, Space, Application, Event, Subscription, Point, keyboard, 
 };
 use iced::{Svg, Image};
+use std::cell::RefCell;
 use crate::configs::{
     DesktopConf,
     background_conf::BackgroundType,
@@ -14,7 +15,7 @@ use super::styles::{CustomButton, CustomTooltip};
 
 #[derive(Debug)]
 pub struct Desktop {
-    desktop_conf: DesktopConf,
+    desktop_conf: RefCell<DesktopConf>,
     ls_desktop_items: Vec<(button::State, DesktopItem)>,
     selected_desktop_item: Option<usize>,
     height: u32,
@@ -29,7 +30,7 @@ pub enum DesktopMsg {
 }
 
 impl Application for Desktop {
-    type Flags = (u32, DesktopConf, Vec<DesktopItem>);
+    type Flags = (u32, RefCell<DesktopConf>, Vec<DesktopItem>);
 
     fn new(flags: Self::Flags) -> (Self, Command<DesktopMsg>) { 
         (
@@ -54,7 +55,9 @@ impl Application for Desktop {
     }
 
     fn background_color(&self) -> Color {
-        let bg_conf = &self.desktop_conf.background_conf;
+        let desktop_conf = self.desktop_conf.borrow();
+        let bg_conf = &desktop_conf.background_conf;
+
         match bg_conf.kind {
             BackgroundType::Color => bg_conf.color_background,
             BackgroundType::Wallpaper => Color::TRANSPARENT
@@ -148,7 +151,7 @@ impl Program for Desktop {
             selected_desktop_item,
             ..
         } = self;
-
+        let desktop_conf = desktop_conf.borrow();
         let item_conf = &desktop_conf.desktop_item_conf;
         let grid_spacing = item_conf.grid_spacing;
         let item_size = item_conf.icon_size + 35;
@@ -207,11 +210,12 @@ impl Program for Desktop {
                 )
             });
 
-        Container::new(
-            Column::new()
-            .push(Space::with_height(Length::Units(30)))
-            .push(desktop_grid)
-        )
+        // Container::new(
+        //     Column::new()
+        //     .push(Space::with_height(Length::Units(30)))
+        //     .push()
+        // )
+        desktop_grid
         .width(Length::Fill)
         .height(Length::Fill).into()
     }
