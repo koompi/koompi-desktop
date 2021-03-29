@@ -12,7 +12,7 @@ use crate::configs::{
 use crate::desktop_item::DesktopItem;
 use super::styles::{CustomButton, CustomTooltip};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug)]
 pub struct Desktop {
     desktop_conf: DesktopConf,
     ls_desktop_items: Vec<(button::State, DesktopItem)>,
@@ -34,10 +34,12 @@ impl Application for Desktop {
     fn new(flags: Self::Flags) -> (Self, Command<DesktopMsg>) { 
         (
             Self {
-                desktop_conf: flags.1.to_owned(),
+                desktop_conf: flags.1,
                 ls_desktop_items: flags.2.iter().map(|item| (button::State::new(), item.to_owned())).collect(),
                 height: flags.0,
-                ..Self::default()
+                selected_desktop_item: None,
+                last_click: None,
+                cursor_position: Point::new(-1.0, -1.0)
             },
             Command::none()
         )
@@ -52,7 +54,7 @@ impl Application for Desktop {
     }
 
     fn background_color(&self) -> Color {
-        let bg_conf = self.desktop_conf.background_conf();
+        let bg_conf = &self.desktop_conf.background_conf;
         match bg_conf.kind {
             BackgroundType::Color => bg_conf.color_background,
             BackgroundType::Wallpaper => Color::TRANSPARENT
@@ -147,7 +149,7 @@ impl Program for Desktop {
             ..
         } = self;
 
-        let item_conf = desktop_conf.desktop_item_conf();
+        let item_conf = &desktop_conf.desktop_item_conf;
         let grid_spacing = item_conf.grid_spacing;
         let item_size = item_conf.icon_size + 35;
         let item_size_spacing = item_size + grid_spacing;

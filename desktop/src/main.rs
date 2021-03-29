@@ -8,12 +8,12 @@ mod errors;
 mod gui;
 mod proxy_message;
 
-use gui::{
-    Desktop, ContextMenu, DesktopConfigUI, BackgroundConfigUI, ContextMsg, 
-};
 use proxy_message::ProxyMessage;
 use window_state::WindowState;
 use desktop_manager::DesktopManager;
+use gui::{
+    Desktop, ContextMenu, DesktopConfigUI, BackgroundConfigUI, ContextMsg, 
+};
 
 use std::collections::HashMap;
 use iced::executor;
@@ -36,7 +36,8 @@ fn main() {
     match DesktopManager::new() {
         Ok(desktop_manager) => {
             let desktop_conf = desktop_manager.config().to_owned();
-            let desktop_items = desktop_manager.desktop_items();
+            let desktop_items = desktop_manager.desktop_items().to_owned();
+            let wallpaper_items = desktop_manager.wallpaper_items().to_owned();
 
             // Instance
             let mut windows = HashMap::new();
@@ -56,6 +57,7 @@ fn main() {
             };
             let (monitor_size, monitor_position) = event_loop.primary_monitor().map(|m| (m.size(), m.position())).unwrap_or((PhysicalSize::new(1920, 1080), PhysicalPosition::new(0, 0)));
             // let mut staging_belt = wgpu::util::StagingBelt::new(10 * 1024);
+            let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
             let mut debug = Debug::new();
 
             // Desktop Init Section
@@ -107,7 +109,7 @@ fn main() {
                         Event::UserEvent(ProxyMessage::ContextMenu(msg)) => match msg {
                             ContextMsg::ChangeBG => {
                                 // Background Config Init Section
-                                let (bg_config, _) = BackgroundConfigUI::new((desktop_conf.background_conf().to_owned(), desktop_manager.wallpaper_items().to_owned()));
+                                let (bg_config, _) = BackgroundConfigUI::new((desktop_conf.to_owned(), wallpaper_items.to_owned()));
                                 let bg_config_window = WindowBuilder::new()
                                     .with_x11_window_type(vec![XWindowType::Utility])
                                     .with_title(bg_config.title())
@@ -117,7 +119,7 @@ fn main() {
                             },
                             ContextMsg::DesktopView => {
                                 // Desktop Config Init Section
-                                let (desktop_config, _) = DesktopConfigUI::new(desktop_conf.desktop_item_conf().to_owned());
+                                let (desktop_config, _) = DesktopConfigUI::new(desktop_conf.to_owned());
                                 let desktop_config_window = WindowBuilder::new()
                                     .with_x11_window_type(vec![XWindowType::Utility])
                                     .with_inner_size(PhysicalSize::new(250, 350))
@@ -133,6 +135,9 @@ fn main() {
                         Event::WindowEvent { ref event, window_id } => {
                             use DynWinState::*;
 
+                            if let WindowEvent::CursorMoved { position, .. } = event {
+                                cursor_position = *position;
+                            } 
 
                             if let Some(window) = windows.get_mut(&window_id) {
                                 match window {
@@ -153,11 +158,11 @@ fn main() {
                             windows.iter_mut().for_each(|(_, state)| {
                                 match state {
                                     DynWinState::DesktopConfig(state) => {
-                                        state.update_frame::<executor::Default>(None, &mut debug);
+                                        state.update_frame::<executor::Default>(None, cursor_position, &mut debug);
                                         state.window.request_redraw();
                                     },
                                     DynWinState::BgConfig(state) => {
-                                        state.update_frame::<executor::Default>(None, &mut debug);
+                                        state.update_frame::<executor::Default>(None, cursor_position, &mut debug);
                                         state.window.request_redraw();
                                     },
                                 }
@@ -166,8 +171,8 @@ fn main() {
                         Event::RedrawRequested(window_id) => {
                             let is_success = if let Some(state) = windows.get_mut(&window_id) {
                                 Some(match state {
-                                    DynWinState::DesktopConfig(prog_state) => prog_state.redraw(&mut debug),
-                                    DynWinState::BgConfig(prog_state) => prog_state.redraw(&mut debug),
+                                    DynWinState::DesktopConfig(prog_state) => prog_state.redraw(cursor_position, &mut debug),
+                                    DynWinState::BgConfig(prog_state) => prog_state.redraw(cursor_position, &mut debug),
                                 })
                             } else {
                                 None
@@ -212,29 +217,31 @@ async fn run_instance<E>(
 
     // Other
     let mut debug = Debug::new();
-    let mut is_context_shown = false;
+    let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
 
     while let Some(event) = receiver.next().await {
         match event {
             Event::UserEvent(ProxyMessage::Desktop(msg) ) => desktop_state.map_message(msg),
             Event::WindowEvent { ref event, window_id } => {
                 match event {
+                    WindowEvent::CursorMoved { position, .. } => cursor_position = *position,
                     WindowEvent::KeyboardInput { input, .. } => match input {
                         KeyboardInput {
                             state: ElementState::Pressed,
                             virtual_keycode: Some(VirtualKeyCode::Escape),
                             ..
-                        } => is_context_shown = false,
+                        } => context_menu_state.window.set_visible(false),
                         _ => {}
                     },
                     WindowEvent::MouseInput { state: ElementState::Pressed, button, .. } => {
                         match button {
                             MouseButton::Right => {
-                                context_menu_state.window.set_outer_position(get_prefered_position(context_menu_state.cursor_position(), context_menu_size, monitor_size));
-                                is_context_shown = !is_context_shown;
+                                context_menu_state.window.set_outer_position(get_prefered_position(cursor_position, context_menu_size, monitor_size));
+                                // is_context_shown = !is_context_shown;
+                                context_menu_state.window.set_visible(true);
                             },
                             _ => if desktop_state.window.id() == window_id {
-                                is_context_shown = false;
+                                context_menu_state.window.set_visible(false);
                             },
                         }
                     }
@@ -245,29 +252,26 @@ async fn run_instance<E>(
                     desktop_state.update(&event, &mut debug);
                 } else if context_menu_state.window.id() == window_id {
                     if context_menu_state.update(&event, &mut debug) {
-                        is_context_shown = false;
+                        context_menu_state.window.set_visible(false);
                     }
                 }
             },
             Event::MainEventsCleared => {
-                if let Some(cmd) = desktop_state.update_frame(Some(&mut runtime), &mut debug){
+                if let Some(cmd) = desktop_state.update_frame(Some(&mut runtime), cursor_position, &mut debug){
                     runtime.spawn(cmd.map(Into::into));
                     runtime.track(desktop_state.subscription().map(Into::into));
                     desktop_state.window.request_redraw();
                 }
 
-                if is_context_shown {
-                    context_menu_state.update_frame::<executor::Default>(None, &mut debug);
-                    context_menu_state.window.request_redraw();
-                }
+                context_menu_state.update_frame::<executor::Default>(None, cursor_position, &mut debug);
+                context_menu_state.window.request_redraw();
             },
             Event::RedrawRequested(window_id) => {
-                context_menu_state.window.set_visible(is_context_shown);
 
                 let is_success = if context_menu_state.window.id() == window_id {
-                    context_menu_state.redraw(&mut debug)
+                    context_menu_state.redraw(cursor_position, &mut debug)
                 } else {
-                    desktop_state.redraw(&mut debug)
+                    desktop_state.redraw(cursor_position, &mut debug)
                 };
 
                 if !is_success {

@@ -1,13 +1,14 @@
 use iced_wgpu::Renderer;
 use iced_winit::{
-    text_input, Element, Text, TextInput, Row, Align, Color
+    text_input, Element, Text, TextInput, Row, Align
 };
+use crate::configs::DesktopConf;
 
 #[derive(Debug, Clone)]
 pub struct ColorConfigUI {
     color_state: text_input::State,
     text: String,
-    color: Color,
+    desktop_conf: DesktopConf
 }
 
 #[derive(Debug, Clone)]
@@ -16,9 +17,9 @@ pub enum ColorConfigMsg {
 }
 
 impl ColorConfigUI {
-    pub fn new(color: Color) -> Self {
+    pub fn new(desktop_conf: DesktopConf) -> Self {
         Self {
-            color, 
+            desktop_conf, 
             text: String::from("sample test"),
             color_state: text_input::State::new()
         }

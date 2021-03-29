@@ -14,23 +14,13 @@ const DESKTOP_CONF: &str = "desktop.toml";
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DesktopConf {
     #[serde(rename = "Background")]
-    background_conf: BackgroundConf,
+    pub background_conf: BackgroundConf,
     #[serde(rename = "Desktop_Entry")]
-    desktop_item_conf: DesktopItemConf,
+    pub desktop_item_conf: DesktopItemConf,
 }
 
 impl PersistentData for DesktopConf {
     fn relative_path() -> PathBuf {
         PathBuf::from("desktop").join(DESKTOP_CONF)
-    }
-}
-
-impl DesktopConf {
-    pub fn background_conf(&self) -> &BackgroundConf {
-        &self.background_conf
-    }
-
-    pub fn desktop_item_conf(&self) -> &DesktopItemConf {
-        &self.desktop_item_conf
     }
 }

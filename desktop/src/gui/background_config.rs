@@ -1,5 +1,6 @@
 use crate::configs::{
-    background_conf::{BackgroundConf, BackgroundType},
+    DesktopConf,
+    background_conf::BackgroundType,
 };
 use crate::background::WallpaperItem;
 use super::color_config::{ColorConfigUI, ColorConfigMsg};
@@ -14,7 +15,7 @@ use iced_wgpu::{Renderer};
 #[derive(Debug, Clone)]
 pub struct BackgroundConfigUI {
     bg_type_state: pick_list::State<BackgroundType>,
-    bg_conf: BackgroundConf,
+    desktop_conf: DesktopConf,
     dyn_config_ui: DynConfigUI,
     wallpaper_items: Vec<WallpaperItem>,
     btn_apply_state: button::State,
@@ -36,17 +37,17 @@ pub enum BackgroundConfMsg {
 }
 
 impl Application for BackgroundConfigUI {
-    type Flags = (BackgroundConf, Vec<WallpaperItem>);
+    type Flags = (DesktopConf, Vec<WallpaperItem>);
 
     fn new(flags: Self::Flags) -> (Self, Command<BackgroundConfMsg>) {
         use DynConfigUI::*;
         (
             Self {
-                dyn_config_ui: match flags.0.kind {
-                    BackgroundType::Color => ColorConfig(ColorConfigUI::new(flags.0.color_background.to_owned())),
-                    BackgroundType::Wallpaper => WallpaperConfig(WallpaperConfigUI::new(flags.0.wallpaper_conf.to_owned(), flags.1.to_owned()))
+                dyn_config_ui: match flags.0.background_conf.kind {
+                    BackgroundType::Color => ColorConfig(ColorConfigUI::new(flags.0.to_owned())),
+                    BackgroundType::Wallpaper => WallpaperConfig(WallpaperConfigUI::new(flags.0.to_owned(), flags.1.to_owned()))
                 },
-                bg_conf: flags.0,
+                desktop_conf: flags.0,
                 wallpaper_items: flags.1,
                 scroll: scrollable::State::new(),
                 btn_apply_state: button::State::new(),
@@ -68,7 +69,7 @@ impl Program for BackgroundConfigUI {
     fn update(&mut self, msg: Self::Message) -> Command<Self::Message> {
         let Self {
             dyn_config_ui,
-            bg_conf,
+            desktop_conf,
             wallpaper_items,
             ..
         } = self;
@@ -77,10 +78,10 @@ impl Program for BackgroundConfigUI {
             BackgroundTypeChanged(val) => {
                 use DynConfigUI::*;
 
-                bg_conf.kind = val;
+                desktop_conf.background_conf.kind = val;
                 self.dyn_config_ui = match val {
-                    BackgroundType::Color => ColorConfig(ColorConfigUI::new(bg_conf.color_background)),
-                    BackgroundType::Wallpaper => WallpaperConfig(WallpaperConfigUI::new(bg_conf.wallpaper_conf.to_owned(), wallpaper_items.to_owned()))
+                    BackgroundType::Color => ColorConfig(ColorConfigUI::new(desktop_conf.to_owned())),
+                    BackgroundType::Wallpaper => WallpaperConfig(WallpaperConfigUI::new(desktop_conf.to_owned(), wallpaper_items.to_owned()))
                 };
             },
             ColorMsg(color_msg) => if let DynConfigUI::ColorConfig(color_ui) = dyn_config_ui {
@@ -97,7 +98,7 @@ impl Program for BackgroundConfigUI {
     fn view(&mut self) -> Element<Self::Message, Renderer> {
         use BackgroundConfMsg::*;
         let Self {
-            bg_conf,
+            desktop_conf,
             bg_type_state,
             dyn_config_ui,
             btn_apply_state,
@@ -106,7 +107,7 @@ impl Program for BackgroundConfigUI {
         } = self;
 
         let lb_bg = Text::new("Background:");
-        let pl_bg = PickList::new(bg_type_state, &BackgroundType::ALL[..], Some(bg_conf.kind), BackgroundTypeChanged);
+        let pl_bg = PickList::new(bg_type_state, &BackgroundType::ALL[..], Some(desktop_conf.background_conf.kind), BackgroundTypeChanged);
         let content = match dyn_config_ui {
             DynConfigUI::ColorConfig(color_ui) => color_ui.view().map(|msg| ColorMsg(msg)),
             DynConfigUI::WallpaperConfig(wallpaper_ui) => wallpaper_ui.view().map(|msg| WallpaperMsg(msg))

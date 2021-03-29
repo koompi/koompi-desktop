@@ -13,7 +13,7 @@ use winit::{
 use std::mem::ManuallyDrop;
 use super::proxy_message::ProxyMessage;
 
-pub struct WindowState<A: 'static + Application<Renderer = Renderer>> {
+pub struct WindowState<A: Application<Renderer = Renderer>> {
     pub window: Window,
     application: A,
     state: application::State<A>,
@@ -30,7 +30,7 @@ pub struct WindowState<A: 'static + Application<Renderer = Renderer>> {
     viewport_version: usize,
 }
 
-impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
+impl<A: Application<Renderer=Renderer>> WindowState<A> {
     // Creating some of the wgpu types requires async code
     pub async fn new(
         instance: &wgpu::Instance, 
@@ -115,7 +115,7 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
         is_close
     }
 
-    pub fn render(&mut self, debug: &mut Debug) -> Result<(), wgpu::SwapChainError> {
+    pub fn render(&mut self, cursor_position: PhysicalPosition<f64>, debug: &mut Debug) -> Result<(), wgpu::SwapChainError> {
         debug.render_started();
         let mut user_interface = build_user_interface(
             &mut self.application,
@@ -135,7 +135,7 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
 
         debug.draw_started();
         let primitive = user_interface
-            .draw(&mut self.renderer, self.state.cursor_position());
+            .draw(&mut self.renderer, conversion::cursor_position(cursor_position, self.state.scale_factor()),);
         debug.draw_finished();
 
         let frame = self.swap_chain.get_current_frame()?.output;
@@ -196,7 +196,7 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
         self.application.subscription()
     }
 
-    pub fn update_frame<E>(&mut self, runtime: Option<&mut Runtime<E, Proxy<ProxyMessage>, ProxyMessage>>, debug: &mut Debug) -> Option<Command<A::Message>>
+    pub fn update_frame<E>(&mut self, runtime: Option<&mut Runtime<E, Proxy<ProxyMessage>, ProxyMessage>>, cursor_position: PhysicalPosition<f64>, debug: &mut Debug) -> Option<Command<A::Message>>
     where 
         E: Executor + 'static,
     {
@@ -231,7 +231,7 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
             let mut messages = Vec::new();
             let statuses = user_interface.update(
                 &self.events,
-                self.state.cursor_position(),
+                conversion::cursor_position(cursor_position, self.state.scale_factor()),
                 renderer,
                 clipboard,
                 &mut messages,
@@ -276,8 +276,8 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
         commands
     }
 
-    pub fn redraw(&mut self, debug: &mut Debug) -> bool {
-        match self.render(debug) {
+    pub fn redraw(&mut self, cursor_position: PhysicalPosition<f64>, debug: &mut Debug) -> bool {
+        match self.render(cursor_position, debug) {
             Ok(()) => true,
             Err(wgpu::SwapChainError::Lost) => {
                 self.resize();
@@ -291,11 +291,6 @@ impl<A: 'static + Application<Renderer=Renderer>> WindowState<A> {
                 true
             },
         }
-    }
-
-    pub fn cursor_position(&self) -> PhysicalPosition<f64> {
-        let point = self.state.cursor_position();
-        PhysicalPosition::new(point.x.into(), point.y.into())
     }
 }
 
