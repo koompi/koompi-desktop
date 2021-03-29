@@ -210,12 +210,11 @@ impl Program for Desktop {
                 )
             });
 
-        // Container::new(
-        //     Column::new()
-        //     .push(Space::with_height(Length::Units(30)))
-        //     .push()
-        // )
-        desktop_grid
+        Container::new(
+            Column::new()
+            .push(Space::with_height(Length::Units(30)))
+            .push(desktop_grid)
+        )
         .width(Length::Fill)
         .height(Length::Fill).into()
     }

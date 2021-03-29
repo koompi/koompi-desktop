@@ -34,8 +34,9 @@ use winit::{
 };
 
 fn main() {
+    std::env::set_var("WINIT_X11_SCALE_FACTOR", "1.25");
     match DesktopManager::new() {
-        Ok(desktop_manager) => {
+        Ok(mut desktop_manager) => {
             let desktop_conf = desktop_manager.config().to_owned();
             let desktop_items = desktop_manager.desktop_items().to_owned();
             let wallpaper_items = desktop_manager.wallpaper_items().to_owned();
@@ -57,7 +58,6 @@ fn main() {
                 ..Settings::default()
             };
             let (monitor_size, monitor_position) = event_loop.primary_monitor().map(|m| (m.size(), m.position())).unwrap_or((PhysicalSize::new(1920, 1080), PhysicalPosition::new(0, 0)));
-            // let mut staging_belt = wgpu::util::StagingBelt::new(10 * 1024);
             let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
             let mut debug = Debug::new();
 
@@ -105,6 +105,8 @@ fn main() {
 
                 if let Some(event) = event.to_static() {
                     use futures::Future;
+                    sender.start_send(event.clone()).expect("Send event");
+                    let poll = run.as_mut().poll(&mut context);
 
                     match event {
                         Event::UserEvent(ProxyMessage::ContextMenu(msg)) => match msg {
@@ -112,23 +114,25 @@ fn main() {
                                 // Background Config Init Section
                                 let (bg_config, _) = BackgroundConfigUI::new((RefCell::new(desktop_conf.to_owned()), wallpaper_items.to_owned()));
                                 let bg_config_window = WindowBuilder::new()
-                                    .with_x11_window_type(vec![XWindowType::Utility])
+                                    .with_x11_window_type(vec![XWindowType::Utility, XWindowType::Tooltip])
                                     .with_title(bg_config.title())
                                     .with_visible(false)
                                     .build(&event_loop).unwrap();
+                                bg_config_window.set_visible(true);
                                 windows.insert(bg_config_window.id(), DynWinState::BgConfig(futures::executor::block_on(WindowState::new(&instance, bg_config_window, bg_config, true, Some(&settings)))));
                             },
                             ContextMsg::DesktopView => {
                                 // Desktop Config Init Section
                                 let (desktop_config, _) = DesktopConfigUI::new(RefCell::new(desktop_conf.to_owned()));
                                 let desktop_config_window = WindowBuilder::new()
-                                    .with_x11_window_type(vec![XWindowType::Utility])
+                                    .with_x11_window_type(vec![XWindowType::Combo])
                                     .with_inner_size(PhysicalSize::new(250, 350))
                                     .with_title(desktop_config.title())
                                     .with_resizable(false)
                                     .with_maximized(false)
                                     .with_visible(false)
                                     .build(&event_loop).unwrap();
+                                desktop_config_window.set_visible(true);
                                 windows.insert(desktop_config_window.id(), DynWinState::DesktopConfig(futures::executor::block_on(WindowState::new(&instance, desktop_config_window, desktop_config, true, Some(&settings)))));
                             },
                             _ => {}
@@ -153,6 +157,7 @@ fn main() {
                                         }
                                     },
                                 }
+                                let _ = desktop_manager.load_config();
                             }
                         },
                         Event::MainEventsCleared => {
@@ -188,10 +193,6 @@ fn main() {
                         _ => {}
                     }
 
-                    sender.start_send(event.into()).expect("Send event");
-
-                    let poll = run.as_mut().poll(&mut context);
-
                     *control_flow = match poll {
                         task::Poll::Pending => ControlFlow::Wait,
                         task::Poll::Ready(_) => ControlFlow::Exit,
@@ -219,6 +220,7 @@ async fn run_instance<E>(
     // Other
     let mut debug = Debug::new();
     let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
+    let mut is_context_shown = false;
 
     while let Some(event) = receiver.next().await {
         match event {
@@ -231,33 +233,34 @@ async fn run_instance<E>(
                             state: ElementState::Pressed,
                             virtual_keycode: Some(VirtualKeyCode::Escape),
                             ..
-                        } => context_menu_state.window.set_visible(false),
+                        } => is_context_shown = false,
                         _ => {}
                     },
                     WindowEvent::MouseInput { state: ElementState::Pressed, button, .. } => {
                         match button {
-                            MouseButton::Right => {
+                            MouseButton::Right => if desktop_state.window.id() == window_id {
                                 context_menu_state.window.set_outer_position(get_prefered_position(cursor_position, context_menu_size, monitor_size));
-                                // is_context_shown = !is_context_shown;
-                                context_menu_state.window.set_visible(true);
+                                is_context_shown = !is_context_shown;
                             },
                             _ => if desktop_state.window.id() == window_id {
-                                context_menu_state.window.set_visible(false);
+                                is_context_shown = false;
                             },
                         }
                     }
                     _ => {}
                 }
 
-                if desktop_state.window.id() == window_id {
+                if context_menu_state.window.id() == window_id {
+                    if context_menu_state.window_event_request_exit(&event, &mut debug) {
+                        is_context_shown = false;
+                    }
+                } else  if desktop_state.window.id() == window_id {
                     if desktop_state.window_event_request_exit(&event, &mut debug) {
                         break;
                     }
-                } else if context_menu_state.window.id() == window_id {
-                    if context_menu_state.window_event_request_exit(&event, &mut debug) {
-                        context_menu_state.window.set_visible(false);
-                    }
                 }
+
+                context_menu_state.window.set_visible(is_context_shown);
             },
             Event::MainEventsCleared => {
                 if let Some(cmd) = desktop_state.update_frame(Some(&mut runtime), cursor_position, &mut debug){

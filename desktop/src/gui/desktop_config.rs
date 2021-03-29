@@ -99,7 +99,7 @@ impl Program for DesktopConfigUI {
         let lb_arragement = Text::new("Arrangement:");
         let pl_arragement = PickList::new(arrangement_state, &Arrangement::ALL[..], Some(desktop_item_conf.arrangement), ArrangementChanged);
         let lb_icon_size = Text::new(format!("Icon size: {}x{}", desktop_item_conf.icon_size, desktop_item_conf.icon_size));
-        let sl_icon_size = Slider::new(icon_size_state, DesktopItemConf::MIN_ICON_SIZE..=DesktopItemConf::MAX_ICON_SIZE, desktop_item_conf.icon_size, IconSizeChanged).step(2);
+        let sl_icon_size = Slider::new(icon_size_state, DesktopItemConf::MIN_ICON_SIZE..=DesktopItemConf::MAX_ICON_SIZE, desktop_item_conf.icon_size, IconSizeChanged);
         let lb_grid_spacing = Text::new("Grid Spacing:");
         let sl_grid_spacing = Slider::new(grid_spacing_state, DesktopItemConf::MIN_GRID_SPACING..=DesktopItemConf::MAX_GRID_SPACING, desktop_item_conf.grid_spacing, GridSpacingChanged);
         let chb_sort_desc = Checkbox::new(desktop_item_conf.sort_descending, "Sort descending", SortDescToggled);
@@ -116,7 +116,7 @@ impl Program for DesktopConfigUI {
             btn_apply = btn_apply.on_press(ApplyClicked)
         }
 
-        Column::new().spacing(15).padding(15)
+        Column::new().padding(15).width(Length::Fill)
             .push(
                 Scrollable::new(scroll).scroller_width(4).scrollbar_width(4).spacing(10)
                 .push(

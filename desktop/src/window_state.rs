@@ -75,7 +75,7 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         }
         let clipboard = Clipboard::connect(&window);
         let viewport_version = state.viewport_version();
-        let staging_belt = StagingBelt::new(2 * 1024);
+        let staging_belt = StagingBelt::new(3 * 1024);
 
         WindowState {
             window,
