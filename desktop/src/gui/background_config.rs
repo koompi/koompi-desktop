@@ -6,6 +6,7 @@ use crate::configs::{
 };
 use crate::background::WallpaperItem;
 use super::styles::CustomButton;
+use super::has_changed::HasChanged;
 use iced::Image;
 use iced_wgpu::Renderer;
 use iced_winit::{
@@ -166,5 +167,11 @@ impl Program for BackgroundConfigUI {
             .push(Row::new().push(Space::with_width(Length::Fill)).push(btn_apply))
             .into()
 
+    }
+}
+
+impl HasChanged for BackgroundConfigUI {
+    fn has_changed(&self) -> bool {
+        self.is_changed
     }
 }

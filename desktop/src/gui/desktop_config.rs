@@ -4,6 +4,7 @@ use crate::configs::{
     desktop_item_conf::{Arrangement, Sorting, DesktopItemConf}
 };
 use super::styles::CustomButton;
+use super::has_changed::HasChanged;
 use iced_winit::{
     pick_list, button, PickList, slider, Slider, Application, Program, Command, Element,
     Text, Checkbox, scrollable, Scrollable, Column, Row, Length, Button, Space, Clipboard,
@@ -134,5 +135,11 @@ impl Program for DesktopConfigUI {
             .push(Row::new().push(Space::with_width(Length::Fill)).push(btn_apply))
             .into()
 
+    }
+}
+
+impl HasChanged for DesktopConfigUI {
+    fn has_changed(&self) -> bool {
+        self.is_changed
     }
 }

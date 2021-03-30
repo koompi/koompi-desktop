@@ -1,7 +1,7 @@
 use iced_wgpu::Renderer;
 use iced_winit::{
     Color, Command, Container, Element, Length, Program, Grid, Button, Text, Column, button, keyboard, Row, 
-    Align, HorizontalAlignment, Tooltip, tooltip, Space, Application, Event, Subscription, Clipboard,
+    Align, HorizontalAlignment, Tooltip, tooltip, Application, Event, Subscription, Clipboard,
 };
 use iced::{Svg, Image};
 use std::{cell::RefCell, rc::Rc};
@@ -135,10 +135,12 @@ impl Program for Desktop {
         let grid_spacing = item_conf.grid_spacing;
         let item_size = item_conf.icon_size + 35;
         let item_size_spacing = item_size + grid_spacing;
-        let mut grid = Grid::new().column_width(item_size_spacing).padding(20).spacing(grid_spacing);
+        let mut grid = Grid::new().padding(20);
         if let Arrangement::Columns = item_conf.arrangement {
-            let items_in_height = item_size_spacing as usize*ls_desktop_items.len() + 35;
-            grid = grid.columns((items_in_height as f32/self.height as f32).ceil() as usize);
+            let items_in_height = usize::from(item_size_spacing + grid_spacing)*ls_desktop_items.len();
+            grid = grid.column_width(item_size).spacing(grid_spacing).columns((items_in_height as f32/self.height as f32).ceil() as usize);
+        } else {
+            grid = grid.column_width(item_size_spacing)
         }
 
         let desktop_grid = ls_desktop_items.iter_mut().enumerate()
@@ -190,13 +192,6 @@ impl Program for Desktop {
                 )
             });
 
-        // Container::new(
-        //     Column::new()
-        //     .push(Space::with_height(Length::Units(30)))
-        //     .push()
-        // )
-        desktop_grid
-        .width(Length::Fill)
-        .height(Length::Fill).into()
+        Container::new(desktop_grid).width(Length::Fill).height(Length::Fill).into()
     }
 }

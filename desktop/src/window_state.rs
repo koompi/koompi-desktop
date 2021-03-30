@@ -1,3 +1,4 @@
+use std::mem::ManuallyDrop;
 use iced_wgpu::{
     wgpu, Renderer, Backend, Settings
 };
@@ -10,8 +11,8 @@ use winit::{
     event::{WindowEvent, ModifiersState},
     dpi::PhysicalPosition,
 };
-use std::mem::ManuallyDrop;
 use super::proxy_message::ProxyMessage;
+use super::gui::HasChanged;
 
 pub struct WindowState<A: Application<Renderer = Renderer>> {
     pub window: Window,
@@ -284,6 +285,11 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
                 true
             },
         }
+    }
+
+    pub fn has_changed(&self) -> bool 
+    where A: HasChanged {
+        self.application.has_changed()
     }
 }
 

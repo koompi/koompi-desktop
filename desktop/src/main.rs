@@ -39,6 +39,7 @@ fn main() {
     std::env::set_var("WINIT_X11_SCALE_FACTOR", "1.25");
     match DesktopManager::new() {
         Ok(desktop_manager) => {
+            let mut old_desktop_conf = desktop_manager.config().to_owned();
             let desktop_conf = Rc::new(RefCell::new(desktop_manager.config().to_owned()));
             let desktop_items = desktop_manager.desktop_items().to_owned();
             let wallpaper_items = desktop_manager.wallpaper_items().to_owned();
@@ -143,35 +144,49 @@ fn main() {
                                 cursor_position = *position;
                             } 
 
+                            let mut handle_exit = |has_changed: bool| -> bool {
+                                let mut is_close = true;
+
+                                if has_changed {
+                                    match DialogBuilder::new().title("Configuration")
+                                        .message("Do you want to save the configuration?")
+                                        .buttons(DialogButtons::YesNo)
+                                        .style(DialogStyle::Question)
+                                        .build().show() {
+                                        DialogSelection::Yes => {
+                                            let desktop_conf = desktop_conf.borrow();
+                                            let _ = desktop_conf.save();
+                                            old_desktop_conf = desktop_conf.to_owned();
+                                        },
+                                        DialogSelection::No => {
+                                            let mut desktop_conf = desktop_conf.borrow_mut();
+                                            *desktop_conf = old_desktop_conf.to_owned();
+                                        },
+                                        _ => is_close = false
+                                    }
+                                } else {
+                                    let desktop_conf = desktop_conf.borrow();
+                                    old_desktop_conf = desktop_conf.to_owned();
+                                }
+
+                                is_close
+                            };
+
                             if let Some(window) = windows.get_mut(&window_id) {
                                 match window {
                                     DesktopConfig(state) => {
                                         if state.window_event_request_exit(&event, &mut debug) {
-                                            windows.remove(&window_id);
-                                            if let DialogSelection::Yes = DialogBuilder::new()
-                                                .title("Configuration")
-                                                .message("Do you want to save the configuration?")
-                                                .buttons(DialogButtons::YesNo)
-                                                .style(DialogStyle::Question)
-                                                .build().show() {
-                                                let desktop_conf = desktop_conf.borrow();
-                                                let _ = desktop_conf.save();
+                                            if handle_exit(state.has_changed()) {
+                                                windows.remove(&window_id);
                                             }
                                         }
                                     },
                                     BgConfig(state) => {
                                         if state.window_event_request_exit(&event, &mut debug) {
-                                            windows.remove(&window_id);
-                                            if let DialogSelection::Yes = DialogBuilder::new()
-                                                .title("Configuration")
-                                                .message("Do you want to save the configuration?")
-                                                .buttons(DialogButtons::YesNo)
-                                                .style(DialogStyle::Question)
-                                                .build().show() {
-                                                let desktop_conf = desktop_conf.borrow();
-                                                let _ = desktop_conf.save();
+                                            if handle_exit(state.has_changed()) {
+                                                windows.remove(&window_id);
                                             }
-                                        }
+                                        } 
                                     },
                                 }
                             }
