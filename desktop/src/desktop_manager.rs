@@ -35,10 +35,10 @@ impl DesktopManager {
         })
     }
 
-    pub fn load_config(&mut self) -> Result<(), DesktopError> {
-        self.conf = DesktopConf::load()?;
-        Ok(())
-    }
+    // pub fn load_config(&mut self) -> Result<(), DesktopError> {
+    //     self.conf = DesktopConf::load()?;
+    //     Ok(())
+    // }
 
     pub fn config(&self) -> &DesktopConf {
         &self.conf

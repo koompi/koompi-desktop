@@ -8,6 +8,7 @@ mod errors;
 mod gui;
 mod proxy_message;
 
+use configs::PersistentData;
 use proxy_message::ProxyMessage;
 use window_state::WindowState;
 use desktop_manager::DesktopManager;
@@ -15,7 +16,7 @@ use gui::{
     Desktop, ContextMenu, DesktopConfigUI, BackgroundConfigUI, ContextMsg, 
 };
 
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 use std::collections::HashMap;
 use iced::executor;
 use iced_wgpu::{wgpu, Settings};
@@ -32,12 +33,13 @@ use winit::{
     platform::unix::{WindowBuilderExtUnix, XWindowType},
     window::WindowBuilder, 
 };
+use tauri_dialog::{DialogBuilder, DialogButtons, DialogStyle, DialogSelection};
 
 fn main() {
     std::env::set_var("WINIT_X11_SCALE_FACTOR", "1.25");
     match DesktopManager::new() {
-        Ok(mut desktop_manager) => {
-            let desktop_conf = desktop_manager.config().to_owned();
+        Ok(desktop_manager) => {
+            let desktop_conf = Rc::new(RefCell::new(desktop_manager.config().to_owned()));
             let desktop_items = desktop_manager.desktop_items().to_owned();
             let wallpaper_items = desktop_manager.wallpaper_items().to_owned();
 
@@ -64,7 +66,7 @@ fn main() {
             // Desktop Init Section
             let desktop_state = {
                 let (desktop, init_cmd) = {
-                    runtime.enter(|| Desktop::new((monitor_size.height, RefCell::new(desktop_conf.to_owned()), desktop_items.to_owned())))
+                    runtime.enter(|| Desktop::new((monitor_size.height, Rc::clone(&desktop_conf), desktop_items.to_owned())))
                 };
                 let desktop_window = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Desktop])
@@ -85,15 +87,18 @@ fn main() {
             let (context_menu, _) = ContextMenu::new(event_loop.create_proxy());
             let context_menu_state = {
                 let context_menu_window = WindowBuilder::new()
-                    .with_x11_window_type(vec![XWindowType::Desktop, XWindowType::PopupMenu])
+                    .with_x11_window_type(vec![XWindowType::PopupMenu])
                     .with_title(context_menu.title())
                     .with_inner_size(context_menu_size)
+                    .with_decorations(false)
+                    .with_resizable(false)
+                    .with_maximized(false)
                     .with_visible(false)
                     .build(&event_loop).unwrap();
                 futures::executor::block_on(WindowState::new(&instance, context_menu_window, context_menu, false, Some(&settings)))
             };
 
-            let mut run = Box::pin(
+            let mut run_instance = Box::pin(
                 run_instance::<executor::Default>(
                     desktop_state, context_menu_state, runtime, receiver, context_menu_size, monitor_size,
                 )
@@ -104,15 +109,11 @@ fn main() {
                 *control_flow = ControlFlow::Wait;
 
                 if let Some(event) = event.to_static() {
-                    use futures::Future;
-                    sender.start_send(event.clone()).expect("Send event");
-                    let poll = run.as_mut().poll(&mut context);
-
-                    match event {
+                    match event.clone() {
                         Event::UserEvent(ProxyMessage::ContextMenu(msg)) => match msg {
                             ContextMsg::ChangeBG => {
                                 // Background Config Init Section
-                                let (bg_config, _) = BackgroundConfigUI::new((RefCell::new(desktop_conf.to_owned()), wallpaper_items.to_owned()));
+                                let (bg_config, _) = BackgroundConfigUI::new((Rc::clone(&desktop_conf), wallpaper_items.to_owned()));
                                 let bg_config_window = WindowBuilder::new()
                                     .with_x11_window_type(vec![XWindowType::Normal])
                                     .with_title(bg_config.title())
@@ -122,7 +123,7 @@ fn main() {
                             },
                             ContextMsg::DesktopView => {
                                 // Desktop Config Init Section
-                                let (desktop_config, _) = DesktopConfigUI::new(RefCell::new(desktop_conf.to_owned()));
+                                let (desktop_config, _) = DesktopConfigUI::new(Rc::clone(&desktop_conf));
                                 let desktop_config_window = WindowBuilder::new()
                                     .with_x11_window_type(vec![XWindowType::Utility])
                                     .with_inner_size(PhysicalSize::new(250, 350))
@@ -147,13 +148,29 @@ fn main() {
                                     DesktopConfig(state) => {
                                         if state.window_event_request_exit(&event, &mut debug) {
                                             windows.remove(&window_id);
-                                            let _ = desktop_manager.load_config();
+                                            if let DialogSelection::Yes = DialogBuilder::new()
+                                                .title("Configuration")
+                                                .message("Do you want to save the configuration?")
+                                                .buttons(DialogButtons::YesNo)
+                                                .style(DialogStyle::Question)
+                                                .build().show() {
+                                                let desktop_conf = desktop_conf.borrow();
+                                                let _ = desktop_conf.save();
+                                            }
                                         }
                                     },
                                     BgConfig(state) => {
                                         if state.window_event_request_exit(&event, &mut debug) {
                                             windows.remove(&window_id);
-                                            let _ = desktop_manager.load_config();
+                                            if let DialogSelection::Yes = DialogBuilder::new()
+                                                .title("Configuration")
+                                                .message("Do you want to save the configuration?")
+                                                .buttons(DialogButtons::YesNo)
+                                                .style(DialogStyle::Question)
+                                                .build().show() {
+                                                let desktop_conf = desktop_conf.borrow();
+                                                let _ = desktop_conf.save();
+                                            }
                                         }
                                     },
                                 }
@@ -191,6 +208,10 @@ fn main() {
                         },
                         _ => {}
                     }
+
+                    use futures::Future;
+                    sender.start_send(event.into()).expect("Send event");
+                    let poll = run_instance.as_mut().poll(&mut context);
 
                     *control_flow = match poll {
                         task::Poll::Pending => ControlFlow::Wait,
@@ -235,15 +256,13 @@ async fn run_instance<E>(
                         } => is_context_shown = false,
                         _ => {}
                     },
-                    WindowEvent::MouseInput { state: ElementState::Pressed, button, .. } => {
+                    WindowEvent::MouseInput { state: ElementState::Pressed, button, .. } => if desktop_state.window.id() == window_id {
                         match button {
-                            MouseButton::Right => if desktop_state.window.id() == window_id {
+                            MouseButton::Right => {
                                 context_menu_state.window.set_outer_position(get_prefered_position(cursor_position, context_menu_size, monitor_size));
-                                is_context_shown = !is_context_shown;
+                                is_context_shown = true;
                             },
-                            _ => if desktop_state.window.id() == window_id {
-                                is_context_shown = false;
-                            },
+                            _ => is_context_shown = false,
                         }
                     }
                     _ => {}
@@ -258,7 +277,6 @@ async fn run_instance<E>(
                         break;
                     }
                 }
-
                 context_menu_state.window.set_visible(is_context_shown);
             },
             Event::MainEventsCleared => {
@@ -272,7 +290,6 @@ async fn run_instance<E>(
                 context_menu_state.window.request_redraw();
             },
             Event::RedrawRequested(window_id) => {
-
                 let is_success = if context_menu_state.window.id() == window_id {
                     context_menu_state.redraw(cursor_position, &mut debug)
                 } else {

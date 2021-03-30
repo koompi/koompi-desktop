@@ -75,7 +75,7 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         }
         let clipboard = Clipboard::connect(&window);
         let viewport_version = state.viewport_version();
-        let staging_belt = StagingBelt::new(3 * 1024);
+        let staging_belt = StagingBelt::new(10 * 1024);
 
         WindowState {
             window,
@@ -233,39 +233,37 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
             );
             messages.extend(self.messages.drain(..));
 
-            commands = if let Some(runtime) = runtime {
+            if let Some(runtime) = runtime {
                 for event in self.events.drain(..).zip(statuses.into_iter()) {
                     runtime.broadcast(event);
                 }
 
                 if !messages.is_empty() {
-                    Some(Command::batch(messages.into_iter().map(|message| {
+                    commands = Some(Command::batch(messages.into_iter().map(|message| {
                         debug.log_message(&message);
                 
                         debug.update_started();
-                        let command = runtime.enter(|| self.application.update(message));
+                        let command = runtime.enter(|| self.application.update(message, &mut self.clipboard));
                         debug.update_finished();
                         command
                     })))
-                } else {
-                    None
                 }
             } else {
                 self.events.clear();
 
                 if !messages.is_empty() {
-                    Some(Command::batch(messages.into_iter().map(|message| {
+                    commands = Some(Command::batch(messages.into_iter().map(|message| {
                         debug.log_message(&message);
                 
                         debug.update_started();
-                        let command = self.application.update(message);
+                        let command = self.application.update(message, &mut self.clipboard);
                         debug.update_finished();
                         command
                     })))
-                } else {
-                    None
                 }
-            };
+            }
+
+            self.state.synchronize(&self.application, &self.window);
         }
 
         commands

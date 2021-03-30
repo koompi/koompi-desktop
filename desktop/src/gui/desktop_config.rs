@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 use crate::configs::{
     DesktopConf, PersistentData,
     desktop_item_conf::{Arrangement, Sorting, DesktopItemConf}
@@ -6,13 +6,13 @@ use crate::configs::{
 use super::styles::CustomButton;
 use iced_winit::{
     pick_list, button, PickList, slider, Slider, Application, Program, Command, Element,
-    Text, Checkbox, scrollable, Scrollable, Column, Row, Length, Button, Space,
+    Text, Checkbox, scrollable, Scrollable, Column, Row, Length, Button, Space, Clipboard,
 }; 
 use iced_wgpu::Renderer;
 
 #[derive(Debug, Clone, Default)]
 pub struct DesktopConfigUI {
-    desktop_conf: RefCell<DesktopConf>,
+    desktop_conf: Rc<RefCell<DesktopConf>>,
     arrangement_state: pick_list::State<Arrangement>,
     sort_by_state: pick_list::State<Sorting>,
     icon_size_state: slider::State,
@@ -34,7 +34,7 @@ pub enum DesktopConfigMsg {
 }
 
 impl Application for DesktopConfigUI {
-    type Flags = RefCell<DesktopConf>;
+    type Flags = Rc<RefCell<DesktopConf>>;
 
     fn new(flags: Self::Flags) -> (Self, Command<DesktopConfigMsg>) {
         (
@@ -54,11 +54,12 @@ impl Application for DesktopConfigUI {
 impl Program for DesktopConfigUI {
     type Message = DesktopConfigMsg;
     type Renderer = Renderer;
+    type Clipboard = Clipboard;
 
-    fn update(&mut self, msg: Self::Message) -> Command<Self::Message> { 
+    fn update(&mut self, msg: Self::Message, _clipboard: &mut Clipboard) -> Command<Self::Message> { 
         use DesktopConfigMsg::*;
         let mut had_changed = false;
-        let desktop_conf = self.desktop_conf.get_mut();
+        let mut desktop_conf = self.desktop_conf.borrow_mut();
         let desktop_item_conf = &mut desktop_conf.desktop_item_conf;
 
         match msg {
@@ -100,7 +101,7 @@ impl Program for DesktopConfigUI {
         let pl_arragement = PickList::new(arrangement_state, &Arrangement::ALL[..], Some(desktop_item_conf.arrangement), ArrangementChanged);
         let lb_icon_size = Text::new(format!("Icon size: {}x{}", desktop_item_conf.icon_size, desktop_item_conf.icon_size));
         let sl_icon_size = Slider::new(icon_size_state, DesktopItemConf::MIN_ICON_SIZE..=DesktopItemConf::MAX_ICON_SIZE, desktop_item_conf.icon_size, IconSizeChanged);
-        let lb_grid_spacing = Text::new("Grid Spacing:");
+        let lb_grid_spacing = Text::new(format!("Grid Spacing: {}", desktop_item_conf.grid_spacing));
         let sl_grid_spacing = Slider::new(grid_spacing_state, DesktopItemConf::MIN_GRID_SPACING..=DesktopItemConf::MAX_GRID_SPACING, desktop_item_conf.grid_spacing, GridSpacingChanged);
         let chb_sort_desc = Checkbox::new(desktop_item_conf.sort_descending, "Sort descending", SortDescToggled);
         let chb_show_tooltip = Checkbox::new(desktop_item_conf.show_tooltip, "Show Tooltip", ShowTooltipToggled);

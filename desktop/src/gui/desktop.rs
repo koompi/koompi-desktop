@@ -1,10 +1,10 @@
 use iced_wgpu::Renderer;
 use iced_winit::{
-    Color, Command, Container, Element, Length, Program, Grid, Button, Text, Column, button, mouse::{self, click}, touch,
-    Align, HorizontalAlignment, Row, Tooltip, tooltip, Space, Application, Event, Subscription, Point, keyboard, 
+    Color, Command, Container, Element, Length, Program, Grid, Button, Text, Column, button, keyboard, Row, 
+    Align, HorizontalAlignment, Tooltip, tooltip, Space, Application, Event, Subscription, Clipboard,
 };
 use iced::{Svg, Image};
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 use crate::configs::{
     DesktopConf,
     background_conf::BackgroundType,
@@ -15,22 +15,32 @@ use super::styles::{CustomButton, CustomTooltip};
 
 #[derive(Debug)]
 pub struct Desktop {
-    desktop_conf: RefCell<DesktopConf>,
+    desktop_conf: Rc<RefCell<DesktopConf>>,
     ls_desktop_items: Vec<(button::State, DesktopItem)>,
     selected_desktop_item: Option<usize>,
     height: u32,
-    last_click: Option<mouse::Click>,
-    cursor_position: Point,
 }
 
 #[derive(Debug, Clone)]
 pub enum DesktopMsg {
     DesktopItemClicked(usize),
+    LaunchDesktopItem(usize),
     WinitEvent(Event)
 }
 
+impl Desktop {
+    fn handle_exec(&mut self, idx: usize) {
+        if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
+            match desktop_item.handle_exec() {
+                Ok(()) => {},
+                Err(err) => eprintln!("{}", err)
+            }
+        }
+    }
+}
+
 impl Application for Desktop {
-    type Flags = (u32, RefCell<DesktopConf>, Vec<DesktopItem>);
+    type Flags = (u32, Rc<RefCell<DesktopConf>>, Vec<DesktopItem>);
 
     fn new(flags: Self::Flags) -> (Self, Command<DesktopMsg>) { 
         (
@@ -39,8 +49,6 @@ impl Application for Desktop {
                 ls_desktop_items: flags.2.iter().map(|item| (button::State::new(), item.to_owned())).collect(),
                 height: flags.0,
                 selected_desktop_item: None,
-                last_click: None,
-                cursor_position: Point::new(-1.0, -1.0)
             },
             Command::none()
         )
@@ -68,43 +76,19 @@ impl Application for Desktop {
 impl Program for Desktop {
     type Renderer = Renderer;
     type Message = DesktopMsg;
+    type Clipboard = Clipboard;
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, message: Self::Message, _clipboard: &mut Clipboard) -> Command<Self::Message> {
         use DesktopMsg::*;
-        match message.clone() {
+
+        match message {
+            DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
+            LaunchDesktopItem(idx) => self.handle_exec(idx),
             WinitEvent(event) => {
                 match event {
-                    Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
-                    | Event::Touch(touch::Event::FingerPressed { .. }) => {
-                        let click = mouse::Click::new(
-                            self.cursor_position,
-                            self.last_click,
-                        );
-
-                        match click.kind() {
-                            click::Kind::Double => if let Some(idx) = self.selected_desktop_item {
-                                if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
-                                    match desktop_item.handle_exec() {
-                                        Ok(()) => {},
-                                        Err(err) => eprintln!("{}", err)
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-
-                        self.last_click = Some(click);
-                    },
-                    Event::Mouse(mouse::Event::CursorMoved { position })
-                    | Event::Touch(touch::Event::FingerMoved { position, .. }) => self.cursor_position = position,
                     Event::Keyboard(key_event) => match key_event {
                         keyboard::Event::CharacterReceived('\r') => if let Some(idx) = self.selected_desktop_item {
-                            if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
-                                match desktop_item.handle_exec() {
-                                    Ok(()) => {},
-                                    Err(err) => eprintln!("{}", err),
-                                }
-                            }
+                            self.handle_exec(idx);
                         },
                         keyboard::Event::KeyPressed { key_code, .. } => match key_code {
                             keyboard::KeyCode::Right => if let Some(idx) = &mut self.selected_desktop_item {
@@ -132,12 +116,6 @@ impl Program for Desktop {
                     _ => {}
                 }
             }
-            _ => {}
-        }
-
-        match message {
-            DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
-            _ => {}
         }
 
         Command::none()
@@ -185,7 +163,8 @@ impl Program for Desktop {
                 let mut btn = Button::new(state, con)
                     .width(Length::Units(item_size))
                     .padding(7)
-                    .on_press(DesktopItemClicked(idx));
+                    .on_press(DesktopItemClicked(idx))
+                    .on_double_click(LaunchDesktopItem(idx));
                 if let Some(curr_idx) = *selected_desktop_item {
                     if curr_idx == idx {
                         btn = btn.style(CustomButton::Selected);

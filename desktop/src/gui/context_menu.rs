@@ -1,7 +1,7 @@
 use iced_wgpu::Renderer;
 use iced_winit::{
     Command, Container, Element, Length, Program, Button, Text, Column, button, 
-    Row, Icon, Icons, Space, Rule, Application, Color, winit,
+    Row, Icon, Icons, Space, Rule, Application, Color, winit, Clipboard,
 };
 use winit::event_loop::EventLoopProxy;
 use super::styles::{CustomButton, HOVERED};
@@ -80,8 +80,9 @@ impl Application for ContextMenu {
 impl Program for ContextMenu {
     type Renderer = Renderer;
     type Message = ContextMsg;
+    type Clipboard = Clipboard;
 
-    fn update(&mut self, message: ContextMsg) -> Command<ContextMsg> {
+    fn update(&mut self, message: ContextMsg, _clipboard: &mut Clipboard) -> Command<ContextMsg> {
         use ContextMsg::*;
         match message {
             ChangeBG => self.proxy.send_event(ProxyMessage::ContextMenu(ChangeBG)).unwrap(),

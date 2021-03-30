@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 use crate::configs::{
     DesktopConf, PersistentData,
     background_conf::BackgroundType,
@@ -10,13 +10,13 @@ use iced::Image;
 use iced_wgpu::Renderer;
 use iced_winit::{
     pick_list, button, scrollable, text_input, PickList, Program, Command, Element, Row, Container,
-    Text, Scrollable, Button, Space, Length, Align, Column, Application, TextInput, Grid, 
+    Text, Scrollable, Button, Space, Length, Align, Column, Application, TextInput, Grid, Clipboard,
 };
 
 #[derive(Debug, Clone)]
 pub struct BackgroundConfigUI {
     bg_type_state: pick_list::State<BackgroundType>,
-    desktop_conf: RefCell<DesktopConf>,
+    desktop_conf: Rc<RefCell<DesktopConf>>,
     color_state: text_input::State,
     text: String,
     placement_state: pick_list::State<Placement>,
@@ -37,7 +37,7 @@ pub enum BackgroundConfMsg {
 }
 
 impl Application for BackgroundConfigUI {
-    type Flags = (RefCell<DesktopConf>, Vec<WallpaperItem>);
+    type Flags = (Rc<RefCell<DesktopConf>>, Vec<WallpaperItem>);
 
     fn new(flags: Self::Flags) -> (Self, Command<BackgroundConfMsg>) {
         (
@@ -65,11 +65,12 @@ impl Application for BackgroundConfigUI {
 impl Program for BackgroundConfigUI {
     type Message = BackgroundConfMsg;
     type Renderer = Renderer;
+    type Clipboard = Clipboard;
 
-    fn update(&mut self, msg: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, msg: Self::Message, _clipboard: &mut Clipboard) -> Command<Self::Message> {
         use BackgroundConfMsg::*;
         let mut had_changed = false;
-        let desktop_conf = self.desktop_conf.get_mut();
+        let mut desktop_conf = self.desktop_conf.borrow_mut();
         let bg_conf = &mut desktop_conf.background_conf;
 
         match msg {
