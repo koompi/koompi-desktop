@@ -53,7 +53,7 @@ impl DesktopItem {
                         });
 
                         Ok(Self {
-                            path: PathBuf::from(file.as_ref()),
+                            path: file.as_ref().to_path_buf(),
                             entry_type, name, icon_path, comment, 
                             ..Self::default()
                         })
@@ -76,11 +76,8 @@ impl DesktopItem {
                 Err(DesktopItemError::InvalidType)
             }  
         } else {
-            Err(DesktopItemError::NoFilename {
-                name: file.as_ref().display().to_string()
-            })
+            Err(DesktopItemError::NoFilename (file.as_ref().display().to_string()))
         }
-        
     }
 
     pub fn handle_exec(&mut self) -> Result<(), DesktopItemError> {

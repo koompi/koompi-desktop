@@ -137,7 +137,7 @@ impl Program for Desktop {
         let item_size_spacing = item_size + grid_spacing;
         let mut grid = Grid::new().column_width(item_size_spacing).padding(20).spacing(grid_spacing);
         if let Arrangement::Columns = item_conf.arrangement {
-            let items_in_height = item_size_spacing as usize*ls_desktop_items.len() + 40;
+            let items_in_height = item_size_spacing as usize*ls_desktop_items.len() + 35;
             grid = grid.columns((items_in_height as f32/self.height as f32).ceil() as usize);
         }
 
@@ -190,11 +190,12 @@ impl Program for Desktop {
                 )
             });
 
-        Container::new(
-            Column::new()
-            .push(Space::with_height(Length::Units(30)))
-            .push(desktop_grid)
-        )
+        // Container::new(
+        //     Column::new()
+        //     .push(Space::with_height(Length::Units(30)))
+        //     .push()
+        // )
+        desktop_grid
         .width(Length::Fill)
         .height(Length::Fill).into()
     }
