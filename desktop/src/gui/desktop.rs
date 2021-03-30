@@ -151,6 +151,7 @@ impl Program for Desktop {
             selected_desktop_item,
             ..
         } = self;
+        
         let desktop_conf = desktop_conf.borrow();
         let item_conf = &desktop_conf.desktop_item_conf;
         let grid_spacing = item_conf.grid_spacing;

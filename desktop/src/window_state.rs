@@ -95,18 +95,9 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         }
     }
 
-    pub fn resize(&mut self) {
-        self.sc_desc.height = self.state.physical_size().height;
-        self.sc_desc.width = self.state.physical_size().width;
-        self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
-    }
-
     pub fn window_event_request_exit(&mut self, event: &WindowEvent<'_>, debug: &mut Debug) -> bool {
         let is_close = requests_exit(&event, self.state.modifiers());
         self.state.update(&self.window, &event, debug);
-        if self.viewport_version != self.state.viewport_version() {
-            self.resize();
-        }
         if let Some(event) =
             conversion::window_event(&event, self.state.scale_factor(), self.state.modifiers())
         {
@@ -129,6 +120,10 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
             debug.layout_started();
             user_interface = user_interface.relayout(self.state.logical_size(), &mut self.renderer);
             debug.layout_finished();
+
+            self.sc_desc.height = self.state.physical_size().height;
+            self.sc_desc.width = self.state.physical_size().width;
+            self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
 
             self.viewport_version = self.state.viewport_version();
         }
@@ -280,7 +275,7 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         match self.render(cursor_position, debug) {
             Ok(()) => true,
             Err(wgpu::SwapChainError::Lost) => {
-                self.resize();
+                self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
                 true
             },
             // The system is out of memory, we should probably quit

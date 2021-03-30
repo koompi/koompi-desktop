@@ -114,25 +114,23 @@ fn main() {
                                 // Background Config Init Section
                                 let (bg_config, _) = BackgroundConfigUI::new((RefCell::new(desktop_conf.to_owned()), wallpaper_items.to_owned()));
                                 let bg_config_window = WindowBuilder::new()
-                                    .with_x11_window_type(vec![XWindowType::Utility, XWindowType::Tooltip])
+                                    .with_x11_window_type(vec![XWindowType::Normal])
                                     .with_title(bg_config.title())
                                     .with_visible(false)
                                     .build(&event_loop).unwrap();
-                                bg_config_window.set_visible(true);
                                 windows.insert(bg_config_window.id(), DynWinState::BgConfig(futures::executor::block_on(WindowState::new(&instance, bg_config_window, bg_config, true, Some(&settings)))));
                             },
                             ContextMsg::DesktopView => {
                                 // Desktop Config Init Section
                                 let (desktop_config, _) = DesktopConfigUI::new(RefCell::new(desktop_conf.to_owned()));
                                 let desktop_config_window = WindowBuilder::new()
-                                    .with_x11_window_type(vec![XWindowType::Combo])
+                                    .with_x11_window_type(vec![XWindowType::Utility])
                                     .with_inner_size(PhysicalSize::new(250, 350))
                                     .with_title(desktop_config.title())
                                     .with_resizable(false)
                                     .with_maximized(false)
                                     .with_visible(false)
                                     .build(&event_loop).unwrap();
-                                desktop_config_window.set_visible(true);
                                 windows.insert(desktop_config_window.id(), DynWinState::DesktopConfig(futures::executor::block_on(WindowState::new(&instance, desktop_config_window, desktop_config, true, Some(&settings)))));
                             },
                             _ => {}
@@ -149,15 +147,16 @@ fn main() {
                                     DesktopConfig(state) => {
                                         if state.window_event_request_exit(&event, &mut debug) {
                                             windows.remove(&window_id);
+                                            let _ = desktop_manager.load_config();
                                         }
                                     },
                                     BgConfig(state) => {
                                         if state.window_event_request_exit(&event, &mut debug) {
                                             windows.remove(&window_id);
+                                            let _ = desktop_manager.load_config();
                                         }
                                     },
                                 }
-                                let _ = desktop_manager.load_config();
                             }
                         },
                         Event::MainEventsCleared => {

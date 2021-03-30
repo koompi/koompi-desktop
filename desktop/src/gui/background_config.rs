@@ -6,11 +6,12 @@ use crate::configs::{
 };
 use crate::background::WallpaperItem;
 use super::styles::CustomButton;
+use iced::Image;
+use iced_wgpu::Renderer;
 use iced_winit::{
     pick_list, button, scrollable, text_input, PickList, Program, Command, Element, Row, Container,
-    Text, Scrollable, Button, Space, Length, Align, Column, Application, TextInput, Image, Grid, 
+    Text, Scrollable, Button, Space, Length, Align, Column, Application, TextInput, Grid, 
 };
-use iced_wgpu::{Renderer};
 
 #[derive(Debug, Clone)]
 pub struct BackgroundConfigUI {
@@ -100,9 +101,10 @@ impl Program for BackgroundConfigUI {
         } = self;
 
         let desktop_conf = desktop_conf.borrow();
+        let bg_conf = &desktop_conf.background_conf;
         let lb_bg = Text::new("Background:");
-        let pl_bg = PickList::new(bg_type_state, &BackgroundType::ALL[..], Some(desktop_conf.background_conf.kind), BackgroundTypeChanged);
-        let content: Element<_, _> = match desktop_conf.background_conf.kind {
+        let pl_bg = PickList::new(bg_type_state, &BackgroundType::ALL[..], Some(bg_conf.kind), BackgroundTypeChanged);
+        let content: Element<_, _> = match bg_conf.kind {
             BackgroundType::Color => {
                 let lb_color = Text::new("Color: ");
                 let txt_color = TextInput::new(&mut self.color_state, "", &self.text, ColorChanged).padding(7);
@@ -113,7 +115,7 @@ impl Program for BackgroundConfigUI {
             },
             BackgroundType::Wallpaper => {
                 let lb_placement = Text::new("Placement: ");
-                let pl_placement = PickList::new(placement_state, &Placement::ALL[..], Some(desktop_conf.background_conf.wallpaper_conf.placement), PlacementChanged);
+                let pl_placement = PickList::new(placement_state, &Placement::ALL[..], Some(bg_conf.wallpaper_conf.placement), PlacementChanged);
                 let wallpaper_grid = wallpaper_items.iter_mut().enumerate().fold(Grid::new().column_width(140).padding(15).spacing(15), |grid, (idx, (state, item))| {
                     let name = Text::new(item.name.as_ref().map(|name| name.as_str()).unwrap_or("Unknown name"));
                     let image = Image::new(item.path.to_path_buf()).width(Length::Units(100)).height(Length::Units(60));
