@@ -119,13 +119,13 @@ impl Program for BackgroundConfigUI {
             BackgroundType::Wallpaper => {
                 let lb_placement = Text::new("Placement: ");
                 let pl_placement = PickList::new(placement_state, &Placement::ALL[..], Some(bg_conf.wallpaper_conf.placement), PlacementChanged);
-                let wallpaper_grid = wallpaper_items.iter_mut().enumerate().fold(Grid::new().width(Length::Fill).column_width(140).padding(15).spacing(15), |grid, (idx, (state, item))| {
+                let wallpaper_grid = wallpaper_items.iter_mut().enumerate().fold(Grid::new().width(Length::Fill).column_width(175).spacing(15), |grid, (idx, (state, item))| {
                     let name = Text::new(item.name.as_ref().map(|name| name.as_str()).unwrap_or("Unknown name")).horizontal_alignment(HorizontalAlignment::Center);
-                    let image = Image::new(item.path.to_path_buf()).width(Length::Units(227));
-                    let mut btn = Button::new(state, Column::new().spacing(10)
+                    let image = Image::new(item.path.to_path_buf()).width(Length::Fill);
+                    let content = Column::new().spacing(10).width(Length::Fill)
                         .push(image)
-                        .push(name)
-                    ).padding(7).width(Length::Units(120)).on_press(WallpaperChanged(idx));
+                        .push(name);
+                    let mut btn = Button::new(state, content).padding(7).width(Length::Units(150)).on_press(WallpaperChanged(idx));
                     btn = if let Some(selected) = *selected_wallpaper {
                         if idx == selected {
                             btn.style(CustomButton::Selected)

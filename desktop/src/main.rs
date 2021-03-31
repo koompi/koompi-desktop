@@ -89,9 +89,9 @@ fn main() {
             let context_menu_state = {
                 let context_menu_window = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Desktop, XWindowType::PopupMenu])
+                    .with_position(cursor_position)
                     .with_title(context_menu.title())
                     .with_inner_size(context_menu_size)
-                    .with_decorations(false)
                     .with_resizable(false)
                     .with_maximized(false)
                     .with_visible(false)
@@ -116,7 +116,7 @@ fn main() {
                                 // Background Config Init Section
                                 let (bg_config, _) = BackgroundConfigUI::new((Rc::clone(&desktop_conf), wallpaper_items.to_owned()));
                                 let bg_config_window = WindowBuilder::new()
-                                    .with_x11_window_type(vec![XWindowType::Desktop, XWindowType::Utility])
+                                    .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
                                     .with_title(bg_config.title())
                                     .with_visible(false)
                                     .build(&event_loop).unwrap();
@@ -126,7 +126,7 @@ fn main() {
                                 // Desktop Config Init Section
                                 let (desktop_config, _) = DesktopConfigUI::new(Rc::clone(&desktop_conf));
                                 let desktop_config_window = WindowBuilder::new()
-                                    .with_x11_window_type(vec![XWindowType::Desktop, XWindowType::Utility])
+                                    .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
                                     .with_inner_size(PhysicalSize::new(250, 350))
                                     .with_title(desktop_config.title())
                                     .with_resizable(false)
@@ -288,9 +288,7 @@ async fn run_instance<E>(
                         is_context_shown = false;
                     }
                 } else  if desktop_state.window.id() == window_id {
-                    if desktop_state.window_event_request_exit(&event, &mut debug) {
-                        break;
-                    }
+                    desktop_state.window_event_request_exit(&event, &mut debug);
                 }
                 context_menu_state.window.set_visible(is_context_shown);
             },
