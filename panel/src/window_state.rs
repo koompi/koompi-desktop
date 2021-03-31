@@ -3,7 +3,6 @@ use futures::task::SpawnExt;
 use iced_wgpu::{wgpu, Backend, Renderer, Settings, Viewport};
 use iced_winit::winit;
 use iced_winit::{conversion, program, Debug, Program, Size};
-use wgpu::util::StagingBelt;
 use winit::{
     dpi::PhysicalPosition,
     event::{ModifiersState, WindowEvent},
@@ -23,6 +22,8 @@ pub struct State<T: 'static + Program> {
     staging_belt: wgpu::util::StagingBelt,
     pub modifiers: ModifiersState,
     pub win_state: program::State<T>,
+    pub is_cursor_left: Option<bool>,
+    pub is_visible: bool,
 }
 impl<T> State<T>
 where
@@ -34,12 +35,13 @@ where
         settings: Option<&Settings>,
         cursor_pos: PhysicalPosition<f64>,
         debug: &mut Debug,
+        instance: &wgpu::Instance,
     ) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
+        // let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
         let surface = unsafe { instance.create_surface(&window) };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -99,6 +101,8 @@ where
             staging_belt,
             modifiers,
             win_state,
+            is_cursor_left: Some(false),
+            is_visible: false,
         }
     }
 
@@ -177,7 +181,7 @@ where
             // The system is out of memory, we should probably quit
             Err(wgpu::SwapChainError::OutOfMemory) => {}
             // All other errors (Outdated, Timeout) should be resolved by the next frame
-            Err(e) => eprintln!("{:?}", e),
+            Err(e) => {}
         }
     }
     pub fn update_frame(&mut self, cursor_pos: PhysicalPosition<f64>, debug: &mut Debug) {

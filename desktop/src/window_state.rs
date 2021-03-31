@@ -1,31 +1,47 @@
-use futures::executor::LocalPool;
-use futures::task::SpawnExt;
-use iced_wgpu::{wgpu, Backend, Primitive, Renderer, Settings, Viewport};
-use iced_winit::{conversion, futures, mouse, winit, Size};
+use super::proxy_message::ProxyMessage;
+use iced_wgpu::{wgpu, Backend, Renderer, Settings};
+use iced_winit::{
+    application, conversion, winit, Application, Cache, Clipboard, Command, Debug, Event, Executor,
+    Program, Proxy, Runtime, Size, Subscription, UserInterface,
+};
+use std::mem::ManuallyDrop;
 use wgpu::util::StagingBelt;
-use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
+use winit::{
+    dpi::PhysicalPosition,
+    event::{ModifiersState, WindowEvent},
+    window::Window,
+};
 
-pub struct WindowState {
+pub struct WindowState<A: Application<Renderer = Renderer>> {
     pub window: Window,
-    pub surface: wgpu::Surface,
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
-    pub sc_desc: wgpu::SwapChainDescriptor,
-    pub swap_chain: wgpu::SwapChain,
-    pub viewport: Viewport,
-    pub renderer: Renderer,
+    application: A,
+    state: application::State<A>,
+    surface: wgpu::Surface,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    sc_desc: wgpu::SwapChainDescriptor,
+    swap_chain: wgpu::SwapChain,
+    renderer: Renderer,
+    clipboard: Clipboard,
     staging_belt: StagingBelt,
-    local_pool: LocalPool,
+    events: Vec<Event>,
+    messages: Vec<A::Message>,
+    viewport_version: usize,
 }
 
-impl WindowState {
+impl<A: Application<Renderer = Renderer>> WindowState<A> {
     // Creating some of the wgpu types requires async code
-    pub async fn new(window: Window, settings: Option<&Settings>) -> Self {
+    pub async fn new(
+        instance: &wgpu::Instance,
+        window: Window,
+        application: A,
+        visible: bool,
+        settings: Option<&Settings>,
+    ) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
         let surface = unsafe { instance.create_surface(&window) };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -52,53 +68,87 @@ impl WindowState {
             format: adapter.get_swap_chain_preferred_format(&surface),
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::Mailbox,
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
-        let viewport =
-            Viewport::with_physical_size(Size::new(size.width, size.height), window.scale_factor());
         let renderer = Renderer::new(Backend::new(
             &mut device,
             settings.map(ToOwned::to_owned).unwrap_or_default(),
         ));
-        let staging_belt = wgpu::util::StagingBelt::new(10 * 1024);
-        let local_pool = futures::executor::LocalPool::new();
+        let state = application::State::new(&application, &window);
+        if visible {
+            window.set_visible(visible);
+        }
+        let clipboard = Clipboard::connect(&window);
+        let viewport_version = state.viewport_version();
+        let staging_belt = StagingBelt::new(10 * 1024);
 
-        Self {
+        WindowState {
             window,
+            application,
+            state,
             surface,
             device,
             queue,
             sc_desc,
             swap_chain,
-            viewport,
             renderer,
+            clipboard,
             staging_belt,
-            local_pool,
+            events: Vec::new(),
+            messages: Vec::new(),
+            viewport_version,
         }
     }
 
-    pub fn resize(&mut self, new_size: PhysicalSize<u32>, scale_factor: Option<f64>) {
-        self.viewport = Viewport::with_physical_size(
-            Size::new(new_size.width, new_size.height),
-            scale_factor.unwrap_or(self.viewport.scale_factor()),
-        );
-        self.sc_desc.height = new_size.height;
-        self.sc_desc.width = new_size.width;
-        self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
+    pub fn window_event_request_exit(
+        &mut self,
+        event: &WindowEvent<'_>,
+        debug: &mut Debug,
+    ) -> bool {
+        let is_close = requests_exit(&event, self.state.modifiers());
+        self.state.update(&self.window, &event, debug);
+        if let Some(event) =
+            conversion::window_event(&event, self.state.scale_factor(), self.state.modifiers())
+        {
+            self.events.push(event);
+        }
+        is_close
     }
-
-    pub fn input(&mut self, event: &WindowEvent) -> bool {
-        false
-    }
-
-    pub fn update(&mut self) {}
 
     pub fn render(
         &mut self,
-        primitive: &(Primitive, mouse::Interaction),
-        overlay: &[String],
+        cursor_position: PhysicalPosition<f64>,
+        debug: &mut Debug,
     ) -> Result<(), wgpu::SwapChainError> {
+        debug.render_started();
+        let mut user_interface = build_user_interface(
+            &mut self.application,
+            Cache::default(),
+            &mut self.renderer,
+            self.state.logical_size(),
+            debug,
+        );
+
+        if self.viewport_version != self.state.viewport_version() {
+            debug.layout_started();
+            user_interface = user_interface.relayout(self.state.logical_size(), &mut self.renderer);
+            debug.layout_finished();
+
+            self.sc_desc.height = self.state.physical_size().height;
+            self.sc_desc.width = self.state.physical_size().width;
+            self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
+
+            self.viewport_version = self.state.viewport_version();
+        }
+
+        debug.draw_started();
+        let primitive = user_interface.draw(
+            &mut self.renderer,
+            conversion::cursor_position(cursor_position, self.state.scale_factor()),
+        );
+        debug.draw_finished();
+
         let frame = self.swap_chain.get_current_frame()?.output;
         let mut encoder = self
             .device
@@ -110,7 +160,16 @@ impl WindowState {
                     attachment: &frame.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
+                        load: wgpu::LoadOp::Clear({
+                            let [r, g, b, a] = self.state.background_color().into_linear();
+
+                            wgpu::Color {
+                                r: r as f64,
+                                g: g as f64,
+                                b: b as f64,
+                                a: a as f64,
+                            }
+                        }),
                         store: true,
                     },
                 }],
@@ -123,10 +182,11 @@ impl WindowState {
             &mut self.staging_belt,
             &mut encoder,
             &frame.view,
-            &self.viewport,
-            primitive,
-            overlay,
+            &self.state.viewport(),
+            &primitive,
+            &debug.overlay(),
         );
+        debug.render_finished();
 
         // Then we submit the work
         self.staging_belt.finish();
@@ -135,13 +195,146 @@ impl WindowState {
         // Update the mouse cursor
         self.window
             .set_cursor_icon(conversion::mouse_interaction(mouse_interaction));
-
-        // And recall staging buffers
-        self.local_pool
-            .spawner()
-            .spawn(self.staging_belt.recall())
-            .expect("Recall staging buffers");
-        self.local_pool.run_until_stalled();
         Ok(())
+    }
+
+    pub fn map_message(&mut self, message: A::Message) {
+        self.messages.push(message);
+    }
+
+    pub fn subscription(&self) -> Subscription<A::Message> {
+        self.application.subscription()
+    }
+
+    pub fn update_frame<E>(
+        &mut self,
+        runtime: Option<&mut Runtime<E, Proxy<ProxyMessage>, ProxyMessage>>,
+        cursor_position: PhysicalPosition<f64>,
+        debug: &mut Debug,
+    ) -> Option<Command<A::Message>>
+    where
+        E: Executor + 'static,
+    {
+        let Self {
+            application,
+            renderer,
+            clipboard,
+            ..
+        } = self;
+
+        let mut commands = None;
+
+        if !(self.events.is_empty() && self.messages.is_empty()) {
+            // self.state.update(
+            //     self.viewport.logical_size(),
+            //     conversion::cursor_position(cursor_pos, self.viewport.scale_factor()),
+            //     &mut self.renderer,
+            //     &mut self.clipboard,
+            //     debug,
+            // )
+
+            let mut user_interface = ManuallyDrop::new(build_user_interface(
+                application,
+                Cache::default(),
+                renderer,
+                self.state.logical_size(),
+                debug,
+            ));
+            debug.event_processing_started();
+            let mut messages = Vec::new();
+            let statuses = user_interface.update(
+                &self.events,
+                conversion::cursor_position(cursor_position, self.state.scale_factor()),
+                renderer,
+                clipboard,
+                &mut messages,
+            );
+            messages.extend(self.messages.drain(..));
+
+            if let Some(runtime) = runtime {
+                for event in self.events.drain(..).zip(statuses.into_iter()) {
+                    runtime.broadcast(event);
+                }
+
+                if !messages.is_empty() {
+                    commands = Some(Command::batch(messages.into_iter().map(|message| {
+                        debug.log_message(&message);
+                        debug.update_started();
+                        let command =
+                            runtime.enter(|| self.application.update(message, &mut self.clipboard));
+                        debug.update_finished();
+                        command
+                    })))
+                }
+            } else {
+                self.events.clear();
+
+                if !messages.is_empty() {
+                    commands = Some(Command::batch(messages.into_iter().map(|message| {
+                        debug.log_message(&message);
+                        debug.update_started();
+                        let command = self.application.update(message, &mut self.clipboard);
+                        debug.update_finished();
+                        command
+                    })))
+                }
+            }
+
+            self.state.synchronize(&self.application, &self.window);
+        }
+
+        commands
+    }
+
+    pub fn redraw(&mut self, cursor_position: PhysicalPosition<f64>, debug: &mut Debug) -> bool {
+        match self.render(cursor_position, debug) {
+            Ok(()) => true,
+            Err(wgpu::SwapChainError::Lost) => {
+                self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
+                true
+            }
+            // The system is out of memory, we should probably quit
+            Err(wgpu::SwapChainError::OutOfMemory) => false,
+            // All other errors (Outdated, Timeout) should be resolved by the next frame
+            Err(e) => {
+                eprintln!("{:?}", e);
+                true
+            }
+        }
+    }
+}
+
+fn build_user_interface<'a, P: Program>(
+    program: &'a mut P,
+    cache: Cache,
+    renderer: &mut P::Renderer,
+    size: Size,
+    debug: &mut Debug,
+) -> UserInterface<'a, P::Message, P::Renderer> {
+    debug.view_started();
+    let view = program.view();
+    debug.view_finished();
+
+    debug.layout_started();
+    let user_interface = UserInterface::build(view, size, cache, renderer);
+    debug.layout_finished();
+
+    user_interface
+}
+
+pub fn requests_exit(event: &WindowEvent<'_>, _modifiers: ModifiersState) -> bool {
+    match event {
+        WindowEvent::CloseRequested => true,
+        #[cfg(target_os = "macos")]
+        WindowEvent::KeyboardInput {
+            input:
+                KeyboardInput {
+                    virtual_keycode: Some(winit::event::VirtualKeyCode::Q),
+                    state: ElementState::Pressed,
+                    ..
+                },
+            ..
+        } if _modifiers.logo() => true,
+        _ => false,
     }
 }

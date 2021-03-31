@@ -1,14 +1,12 @@
-use super::desktop_item_error::DesktopItemError;
-use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
+use std::fmt::{self, Display, Formatter};
+use crate::constants::{APP, DIR, LINK};
+use super::desktop_item_error::DesktopItemError;
+use super::desktop_entry::DesktopEntry;
 
-const APP: &str = "Application";
-const LINK: &str = "Link";
-const DIR: &str = "Directory";
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum DesktopItemType {
-    APP,
+    APP(DesktopEntry),
     LINK,
     DIR,
     NULL,
@@ -28,7 +26,7 @@ impl FromStr for DesktopItemType {
             Ok(DesktopItemType::NULL)
         } else {
             match s {
-                APP => Ok(DesktopItemType::APP),
+                APP => Ok(DesktopItemType::APP(DesktopEntry::default())),
                 LINK => Ok(DesktopItemType::LINK),
                 DIR => Ok(DesktopItemType::DIR),
                 _ => Err(DesktopItemError::InvalidType),
@@ -39,15 +37,11 @@ impl FromStr for DesktopItemType {
 
 impl Display for DesktopItemType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                DesktopItemType::APP => APP,
-                DesktopItemType::LINK => LINK,
-                DesktopItemType::DIR => DIR,
-                _ => "",
-            }
-        )
+        write!(f, "{}", match self {
+            DesktopItemType::APP(_) => APP,
+            DesktopItemType::LINK => LINK,
+            DesktopItemType::DIR => DIR,
+            _ => ""
+        })
     }
 }

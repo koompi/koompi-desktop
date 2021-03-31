@@ -9,6 +9,7 @@ use iced_winit::{
     application::Application, button, winit, Align, Button, Color, Command, Container, Element,
     Length, Program, Row, Space, Subscription,
 };
+// use std::{cell::RefCell, rc::Rc};
 use winit::event_loop::EventLoopProxy;
 #[derive(Debug)]
 pub struct Controls {
@@ -122,6 +123,7 @@ impl Program for Controls {
                 self.now = chrono::Local::now();
             }
             Message::Tick(local_time) => {
+                println!("Tick ");
                 let now = local_time;
 
                 if now != self.now {

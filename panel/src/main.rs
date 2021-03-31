@@ -1,10 +1,9 @@
 const STRUT_HEIGHT: u64 = 32;
 const WINDOW_HEIGHT: u32 = 32;
 const MENU_POS: u32 = 32;
-mod views;
-// mod strut;
 mod create_window;
 mod styles;
+mod views;
 use views::{
     applets::{Applets, AppletsMsg, ControlType},
     context_menu::ContexMenu,
@@ -12,30 +11,31 @@ use views::{
 };
 
 mod window_state;
-use window_state::State;
-// mod viewport;
 use create_window::{CustomEvent, NewWindow, WinType};
 use futures::executor::block_on;
 use iced_wgpu::wgpu;
 use iced_wgpu::Settings;
 use iced_winit::{futures, Debug};
 use iced_winit::{winit, Application, Program};
+use window_state::State;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::{
-        ElementState, Event, KeyboardInput, ModifiersState, MouseButton, StartCause,
+        DeviceEvent, ElementState, Event, KeyboardInput, ModifiersState, MouseButton, StartCause,
         VirtualKeyCode, WindowEvent,
     },
     event_loop::{ControlFlow, EventLoop},
     window::Window,
 };
 fn main() {
+    std::env::set_var("WINIT_X11_SCALE_FACTOR", "1.25");
     env_logger::init();
     let event_loop = EventLoop::<Message>::with_user_event();
     let winodw_new = NewWindow::new(
         &event_loop,
         WinType::Panel(([0, 0, STRUT_HEIGHT, 0], Some((0, 0)))),
     );
+    let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
     let window = winodw_new.instance();
     let popup_new = NewWindow::new(&event_loop, WinType::Dock(Some((400, 400))));
     let popup_menu = popup_new.instance();
@@ -54,6 +54,7 @@ fn main() {
         Some(&setttings(20)),
         cursor_position,
         &mut debug,
+        &instance,
     ));
     handle_window(&window, &mut popup_x);
     // Since main can't be async, we're going to need to block
@@ -64,15 +65,17 @@ fn main() {
         Some(&setttings(16)),
         cursor_position,
         &mut debug,
+        &instance,
     ));
     let event_send_proxy = event_loop.create_proxy();
     let (panel, _) = Controls::new(event_send_proxy);
-    let mut state = block_on(State::new(
+    let mut control_state = block_on(State::new(
         window,
         panel,
         Some(&setttings(16)),
         cursor_position,
         &mut debug,
+        &instance,
     ));
     let event_loop_proxy = event_loop.create_proxy();
 
@@ -88,28 +91,66 @@ fn main() {
                 event_loop_proxy.send_event(Message::Timer).ok();
                 *control_flow = ControlFlow::WaitUntil(Instant::now() + timer_length);
             }
+            Event::DeviceEvent { device_id, event } => match event {
+                DeviceEvent::Button { button, state } => {
+                    let kind = menu_state.win_state.program().kind;
+                    if menu_state.is_cursor_left.unwrap() && menu_state.is_visible {
+                        match kind {
+                            ControlType::Battery => {
+                                println!("Battery");
+                                control_state
+                                    .win_state
+                                    .queue_message(Message::Battery(false));
+                            }
+                            ControlType::Monitor => {
+                                control_state
+                                    .win_state
+                                    .queue_message(Message::MonitorShow(false));
+                                println!("Monitor");
+                            }
+                            ControlType::Sound => {
+                                control_state
+                                    .win_state
+                                    .queue_message(Message::SoundShow(false));
+                                println!("Sound");
+                            }
+                            ControlType::Wifi => {
+                                control_state
+                                    .win_state
+                                    .queue_message(Message::WifiShow(false));
+                                println!("Wifi");
+                            }
+                            _ => {}
+                        }
+                    } else {
+                        {}
+                    }
+                }
+                _ => {}
+            },
             Event::UserEvent(event) => match event {
                 Message::Timer => {
-                    state.win_state.queue_message(Message::Timer);
+                    control_state.win_state.queue_message(Message::Timer);
                     menu_state.win_state.queue_message(AppletsMsg::BatteryTimer);
-                }
-                Message::ShowMenu => {
-                    *control_flow = ControlFlow::Exit;
                 }
                 Message::ShowMenu => {
                     *control_flow = ControlFlow::Exit;
                 }
                 Message::MonitorShow(is_visible) => {
                     handle_visible_pos(&mut menu_state, ControlType::Monitor, is_visible, popup_x);
+                    menu_state.is_visible = is_visible;
                 }
                 Message::SoundShow(is_visible) => {
                     handle_visible_pos(&mut menu_state, ControlType::Sound, is_visible, popup_x);
+                    menu_state.is_visible = is_visible;
                 }
                 Message::WifiShow(is_visible) => {
                     handle_visible_pos(&mut menu_state, ControlType::Wifi, is_visible, popup_x);
+                    menu_state.is_visible = is_visible;
                 }
                 Message::Battery(is_visible) => {
                     handle_visible_pos(&mut menu_state, ControlType::Battery, is_visible, popup_x);
+                    menu_state.is_visible = is_visible;
                 }
                 _ => {}
             },
@@ -128,6 +169,17 @@ fn main() {
                         } => *control_flow = ControlFlow::Exit,
                         _ => {}
                     },
+                    WindowEvent::Focused(is_focus) => {
+                        println!("Is focus: {:?}", is_focus);
+                    }
+                    WindowEvent::CursorLeft { device_id } => {
+                        println!("Cursor left: {:?}", device_id);
+                        menu_state.is_cursor_left = Some(true);
+                    }
+                    WindowEvent::CursorEntered { device_id } => {
+                        println!("Cursor Enter: {:?}", device_id);
+                        menu_state.is_cursor_left = Some(false);
+                    }
                     WindowEvent::MouseInput {
                         device_id: _,
                         state: _,
@@ -143,9 +195,13 @@ fn main() {
                         _ => {}
                     },
                     WindowEvent::Resized(physical_size) => {
-                        state.resize(*physical_size);
-                        // context_state.resize(*physical_size);
-                        // menu_state.resize(*physical_size);
+                        if control_state.window.id() == window_id {
+                            control_state.resize(*physical_size);
+                        } else if menu_state.window.id() == window_id {
+                            menu_state.resize(*physical_size);
+                        } else {
+                            context_state.resize(*physical_size);
+                        }
                     }
                     WindowEvent::CursorMoved { position, .. } => {
                         cursor_position = *position;
@@ -155,8 +211,8 @@ fn main() {
                         scale_factor: _,
                         new_inner_size,
                     } => {
-                        if state.window.id() == window_id {
-                            state.resize(**new_inner_size);
+                        if control_state.window.id() == window_id {
+                            control_state.resize(**new_inner_size);
                         } else if menu_state.window.id() == window_id {
                             menu_state.resize(**new_inner_size);
                         } else if context_state.window.id() == window_id {
@@ -166,8 +222,8 @@ fn main() {
                     }
                     _ => {}
                 }
-                if window_id == state.window.id() {
-                    state.map_event(&modifiers, &event);
+                if window_id == control_state.window.id() {
+                    control_state.map_event(&modifiers, &event);
                 } else if window_id == menu_state.window.id() {
                     menu_state.map_event(&modifiers, &event);
                 } else if window_id == context_state.window.id() {
@@ -177,13 +233,13 @@ fn main() {
                 }
             }
             Event::MainEventsCleared => {
-                state.update_frame(cursor_position, &mut debug);
+                control_state.update_frame(cursor_position, &mut debug);
                 menu_state.update_frame(cursor_position, &mut debug);
                 context_state.update_frame(cursor_position, &mut debug);
             }
             Event::RedrawRequested(window_id) => {
-                if state.window.id() == window_id {
-                    state.redraw(&debug);
+                if control_state.window.id() == window_id {
+                    control_state.redraw(&debug);
                 } else if menu_state.window.id() == window_id {
                     menu_state.redraw(&debug);
                 } else if context_state.window.id() == window_id {
@@ -216,6 +272,8 @@ pub fn handle_visible_pos(win: &mut State<Applets>, kind: ControlType, is_visibl
         win.window.set_visible(true);
     } else {
         win.window.set_visible(false);
+        win.win_state
+            .queue_message(AppletsMsg::SwitchView(ControlType::Default));
     }
     win.window
         .set_outer_position(PhysicalPosition::new(pos, 32));

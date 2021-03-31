@@ -4,7 +4,7 @@ use super::monitor::{Monitor, MonitorMsg};
 use super::sound::{Audio, AudioMsg};
 use crate::styles::containers::CustomContainer;
 use iced_wgpu::Renderer;
-use iced_winit::{button, slider, Application, Command, Element, Program, Text};
+use iced_winit::{button, slider, Application, Command, Container, Element, Length, Program, Text};
 #[derive(Debug)]
 pub struct Applets {
     pub slider: slider::State,
@@ -31,6 +31,7 @@ pub enum ControlType {
     Sound,
     Battery,
     Wifi,
+    Default,
 }
 impl Default for ControlType {
     fn default() -> Self {
@@ -91,6 +92,10 @@ impl Program for Applets {
                 .battery
                 .view()
                 .map(|msg| AppletsMsg::BatteryViewMsg(msg)),
+            ControlType::Default => Container::new(Text::new("Default"))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into(),
         }
     }
 }
