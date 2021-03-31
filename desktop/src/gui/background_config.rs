@@ -10,11 +10,11 @@ use super::has_changed::HasChanged;
 use iced::Image;
 use iced_wgpu::Renderer;
 use iced_winit::{
-    pick_list, button, scrollable, text_input, PickList, Program, Command, Element, Row, Container,
-    Text, Scrollable, Button, Space, Length, Align, Column, Application, TextInput, Grid, Clipboard,
+    pick_list, button, scrollable, text_input, PickList, Program, Command, Element, Row, Container, Grid, Clipboard,
+    Text, Scrollable, Button, Space, Length, Align, Column, Application, TextInput, HorizontalAlignment,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct BackgroundConfigUI {
     bg_type_state: pick_list::State<BackgroundType>,
     desktop_conf: Rc<RefCell<DesktopConf>>,
@@ -47,12 +47,7 @@ impl Application for BackgroundConfigUI {
                 wallpaper_items: flags.1.into_iter().map(|item| (button::State::new(), item)).collect(),
                 selected_wallpaper: None,
                 text: String::from("sample test"),
-                color_state: text_input::State::new(),
-                placement_state: pick_list::State::default(),
-                scroll: scrollable::State::new(),
-                btn_apply_state: button::State::new(),
-                bg_type_state: pick_list::State::default(),
-                is_changed: false,
+                ..Self::default()
             },
             Command::none()
         )
@@ -73,12 +68,18 @@ impl Program for BackgroundConfigUI {
         let mut had_changed = false;
         let mut desktop_conf = self.desktop_conf.borrow_mut();
         let bg_conf = &mut desktop_conf.background_conf;
+        let wallpaper_conf = &mut bg_conf.wallpaper_conf;
 
         match msg {
             BackgroundTypeChanged(val) => bg_conf.kind = val,
             ColorChanged(val) => self.text = val,
-            PlacementChanged(val) => bg_conf.wallpaper_conf.placement = val,
-            WallpaperChanged(idx) => self.selected_wallpaper = Some(idx),
+            PlacementChanged(val) => wallpaper_conf.placement = val,
+            WallpaperChanged(idx) => {
+                self.selected_wallpaper = Some(idx);
+                if let Some((_, item)) = self.wallpaper_items.get(idx) {
+                    wallpaper_conf.wallpaper_path = item.path.to_path_buf();
+                }
+            },
             ApplyClicked => {
                 let _ = desktop_conf.save();
                 had_changed = true;
@@ -118,9 +119,9 @@ impl Program for BackgroundConfigUI {
             BackgroundType::Wallpaper => {
                 let lb_placement = Text::new("Placement: ");
                 let pl_placement = PickList::new(placement_state, &Placement::ALL[..], Some(bg_conf.wallpaper_conf.placement), PlacementChanged);
-                let wallpaper_grid = wallpaper_items.iter_mut().enumerate().fold(Grid::new().column_width(140).padding(15).spacing(15), |grid, (idx, (state, item))| {
-                    let name = Text::new(item.name.as_ref().map(|name| name.as_str()).unwrap_or("Unknown name"));
-                    let image = Image::new(item.path.to_path_buf()).width(Length::Units(100)).height(Length::Units(60));
+                let wallpaper_grid = wallpaper_items.iter_mut().enumerate().fold(Grid::new().width(Length::Fill).column_width(140).padding(15).spacing(15), |grid, (idx, (state, item))| {
+                    let name = Text::new(item.name.as_ref().map(|name| name.as_str()).unwrap_or("Unknown name")).horizontal_alignment(HorizontalAlignment::Center);
+                    let image = Image::new(item.path.to_path_buf()).width(Length::Units(227));
                     let mut btn = Button::new(state, Column::new().spacing(10)
                         .push(image)
                         .push(name)
@@ -156,14 +157,11 @@ impl Program for BackgroundConfigUI {
         }
 
         Column::new().spacing(15).padding(15)
+            .push(Row::new().spacing(10).align_items(Align::Center).push(lb_bg).push(pl_bg))
             .push(
-                Scrollable::new(scroll).scroller_width(4).scrollbar_width(4).spacing(15)
-                .push(
-                    Row::new().spacing(10).align_items(Align::Center).push(lb_bg).push(pl_bg)
-                )
+                Scrollable::new(scroll).width(Length::Fill).height(Length::Fill).scroller_width(4).scrollbar_width(4).spacing(15)
                 .push(content)
             )
-            .push(Space::with_height(Length::Fill))
             .push(Row::new().push(Space::with_width(Length::Fill)).push(btn_apply))
             .into()
 

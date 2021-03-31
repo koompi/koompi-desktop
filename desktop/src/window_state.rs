@@ -1,20 +1,24 @@
 use std::mem::ManuallyDrop;
+use super::proxy_message::ProxyMessage;
+use super::gui::HasChanged;
+use iced::{
+    Size, Clipboard, Executor, Command, Subscription,
+};
 use iced_wgpu::{
     wgpu, Renderer, Backend, Settings
 };
 use iced_winit::{
-    winit, conversion, application, Size, Clipboard, Debug, Application, Program, Cache, UserInterface, Event, Executor, Runtime, Proxy, Command, Subscription,
+    winit, conversion, application, futures, Debug, Program, Cache, UserInterface, Event, Runtime, Proxy, Application,
 };
+use futures::{executor::LocalPool, task::SpawnExt};
 use wgpu::util::StagingBelt;
 use winit::{
     window::Window,
     event::{WindowEvent, ModifiersState},
     dpi::PhysicalPosition,
 };
-use super::proxy_message::ProxyMessage;
-use super::gui::HasChanged;
 
-pub struct WindowState<A: Application<Renderer = Renderer>> {
+pub struct WindowState<A: Application<Renderer=Renderer>> {
     pub window: Window,
     application: A,
     state: application::State<A>,
@@ -26,6 +30,7 @@ pub struct WindowState<A: Application<Renderer = Renderer>> {
     renderer: Renderer,
     clipboard: Clipboard,
     staging_belt: StagingBelt,
+    local_pool: LocalPool,
     events: Vec<Event>,
     messages: Vec<A::Message>,
     viewport_version: usize,
@@ -77,6 +82,7 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         let clipboard = Clipboard::connect(&window);
         let viewport_version = state.viewport_version();
         let staging_belt = StagingBelt::new(10 * 1024);
+        let local_pool = futures::executor::LocalPool::new();
 
         WindowState {
             window,
@@ -90,6 +96,7 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
             renderer,
             clipboard,
             staging_belt,
+            local_pool,
             events: Vec::new(),
             messages: Vec::new(),
             viewport_version,
@@ -181,6 +188,15 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
 
         // Update the mouse cursor
         self.window.set_cursor_icon(conversion::mouse_interaction(mouse_interaction));
+
+        // Recall staging buffers
+        self.local_pool
+            .spawner()
+            .spawn(self.staging_belt.recall())
+            .expect("Recall staging belt");
+
+        self.local_pool.run_until_stalled();
+
         Ok(())
     }
 

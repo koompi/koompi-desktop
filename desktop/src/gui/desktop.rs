@@ -1,9 +1,3 @@
-use iced_wgpu::Renderer;
-use iced_winit::{
-    Color, Command, Container, Element, Length, Program, Grid, Button, Text, Column, button, keyboard, Row, 
-    Align, HorizontalAlignment, Tooltip, tooltip, Application, Event, Subscription, Clipboard,
-};
-use iced::{Svg, Image};
 use std::{cell::RefCell, rc::Rc};
 use crate::configs::{
     DesktopConf,
@@ -12,6 +6,13 @@ use crate::configs::{
 };
 use crate::desktop_item::DesktopItem;
 use super::styles::{CustomButton, CustomTooltip};
+use iced::{Svg, Image};
+use iced_wgpu::Renderer;
+use iced_winit::{
+    Color, Command, Container, Element, Length, Program, Grid, Button, Text, Column, button, keyboard, Row, 
+    Align, HorizontalAlignment, Tooltip, tooltip, Application, Event, Subscription, Clipboard, Stack,
+};
+use tauri_dialog::{DialogBuilder, DialogStyle};
 
 #[derive(Debug)]
 pub struct Desktop {
@@ -33,7 +34,12 @@ impl Desktop {
         if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
             match desktop_item.handle_exec() {
                 Ok(()) => {},
-                Err(err) => eprintln!("{}", err)
+                Err(err) => {
+                    let _ = DialogBuilder::new().title("Error")
+                    .message(&format!("{}", err))
+                    .style(DialogStyle::Error)
+                    .build().show();
+                }
             }
         }
     }
@@ -131,16 +137,15 @@ impl Program for Desktop {
         } = self;
         
         let desktop_conf = desktop_conf.borrow();
+        let bg_conf = &desktop_conf.background_conf;
         let item_conf = &desktop_conf.desktop_item_conf;
         let grid_spacing = item_conf.grid_spacing;
         let item_size = item_conf.icon_size + 35;
-        let item_size_spacing = item_size + grid_spacing;
-        let mut grid = Grid::new().padding(20);
+        let item_size_spacing = item_size + (grid_spacing*2);
+        let mut grid = Grid::new().column_width(item_size_spacing).padding(20).spacing(grid_spacing);
         if let Arrangement::Columns = item_conf.arrangement {
             let items_in_height = usize::from(item_size_spacing + grid_spacing)*ls_desktop_items.len();
-            grid = grid.column_width(item_size).spacing(grid_spacing).columns((items_in_height as f32/self.height as f32).ceil() as usize);
-        } else {
-            grid = grid.column_width(item_size_spacing)
+            grid = grid.columns((items_in_height as f32/self.height as f32).ceil() as usize);
         }
 
         let desktop_grid = ls_desktop_items.iter_mut().enumerate()
@@ -192,6 +197,20 @@ impl Program for Desktop {
                 )
             });
 
-        Container::new(desktop_grid).width(Length::Fill).height(Length::Fill).into()
+        let desktop_sec: Element<_, _> = match bg_conf.kind {
+            BackgroundType::Color => desktop_grid.into(),
+            BackgroundType::Wallpaper => {
+                let wallpaper_path = bg_conf.wallpaper_conf.wallpaper_path.to_path_buf();
+                if wallpaper_path.exists() && wallpaper_path.is_file() && wallpaper_path.is_absolute() {
+                    Stack::new().width(Length::Fill).height(Length::Fill)
+                    .push(Image::new(wallpaper_path).width(Length::Fill).height(Length::Fill), None)
+                    .push(desktop_grid, None)
+                    .into()
+                } else {
+                    desktop_grid.into()
+                }
+            }
+        };
+        Container::new(desktop_sec).width(Length::Fill).height(Length::Fill).into()
     }
 }

@@ -1,7 +1,7 @@
 use iced_wgpu::Renderer;
 use iced_winit::{
     Command, Container, Element, Length, Program, Button, Text, Column, button, 
-    Row, Icon, Icons, Space, Rule, Application, Color, winit, Clipboard,
+    Row, Icon, icon::Icons, Space, Rule, Application, Color, winit, Clipboard,
 };
 use winit::event_loop::EventLoopProxy;
 use super::styles::{CustomButton, HOVERED};
@@ -13,7 +13,7 @@ pub struct ContextMenu {
     proxy: EventLoopProxy<ProxyMessage>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MenuItemNode {
     state: button::State,
     title: String,
@@ -29,9 +29,7 @@ impl MenuItemNode {
         Self {
             submenu, callback, has_underline,
             title: title.to_owned(),
-            state: button::State::new(),
-            is_showed: false,
-            selected: false,
+            ..Self::default()
         }
     }
 }

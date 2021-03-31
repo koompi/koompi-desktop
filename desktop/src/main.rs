@@ -71,11 +71,11 @@ fn main() {
                 };
                 let desktop_window = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Desktop])
+                    .with_position(monitor_position)
                     .with_title(desktop.title())
                     .with_inner_size(monitor_size)
                     .with_visible(false)
                     .build(&event_loop).unwrap();
-                desktop_window.set_outer_position(monitor_position);
 
                 let subscription = desktop.subscription();
                 runtime.spawn(init_cmd.map(Into::into));
@@ -88,7 +88,7 @@ fn main() {
             let (context_menu, _) = ContextMenu::new(event_loop.create_proxy());
             let context_menu_state = {
                 let context_menu_window = WindowBuilder::new()
-                    .with_x11_window_type(vec![XWindowType::PopupMenu])
+                    .with_x11_window_type(vec![XWindowType::Desktop, XWindowType::PopupMenu])
                     .with_title(context_menu.title())
                     .with_inner_size(context_menu_size)
                     .with_decorations(false)
@@ -116,7 +116,7 @@ fn main() {
                                 // Background Config Init Section
                                 let (bg_config, _) = BackgroundConfigUI::new((Rc::clone(&desktop_conf), wallpaper_items.to_owned()));
                                 let bg_config_window = WindowBuilder::new()
-                                    .with_x11_window_type(vec![XWindowType::Normal])
+                                    .with_x11_window_type(vec![XWindowType::Desktop, XWindowType::Utility])
                                     .with_title(bg_config.title())
                                     .with_visible(false)
                                     .build(&event_loop).unwrap();
@@ -126,7 +126,7 @@ fn main() {
                                 // Desktop Config Init Section
                                 let (desktop_config, _) = DesktopConfigUI::new(Rc::clone(&desktop_conf));
                                 let desktop_config_window = WindowBuilder::new()
-                                    .with_x11_window_type(vec![XWindowType::Utility])
+                                    .with_x11_window_type(vec![XWindowType::Desktop, XWindowType::Utility])
                                     .with_inner_size(PhysicalSize::new(250, 350))
                                     .with_title(desktop_config.title())
                                     .with_resizable(false)
