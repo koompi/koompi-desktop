@@ -1,9 +1,4 @@
-use iced_wgpu::Renderer;
-use iced_winit::{
-    Color, Command, Container, Element, Length, Program, Grid, Button, Text, Column, button, mouse::{self, click}, touch,
-    Align, HorizontalAlignment, Row, Tooltip, tooltip, Space, Application, Event, Subscription, Point, keyboard, 
-};
-use iced::{Svg, Image};
+use std::{cell::RefCell, rc::Rc};
 use crate::configs::{
     DesktopConf,
     background_conf::BackgroundType,
@@ -11,33 +6,55 @@ use crate::configs::{
 };
 use crate::desktop_item::DesktopItem;
 use super::styles::{CustomButton, CustomTooltip};
+use iced::{Svg, Image};
+use iced_wgpu::Renderer;
+use iced_winit::{
+    Color, Command, Container, Element, Length, Program, Grid, Button, Text, Column, button, keyboard, Row, 
+    Align, HorizontalAlignment, Tooltip, tooltip, Application, Event, Subscription, Clipboard, Stack,
+};
+use tauri_dialog::{DialogBuilder, DialogStyle};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug)]
 pub struct Desktop {
-    desktop_conf: DesktopConf,
+    desktop_conf: Rc<RefCell<DesktopConf>>,
     ls_desktop_items: Vec<(button::State, DesktopItem)>,
     selected_desktop_item: Option<usize>,
     height: u32,
-    last_click: Option<mouse::Click>,
-    cursor_position: Point,
 }
 
 #[derive(Debug, Clone)]
 pub enum DesktopMsg {
     DesktopItemClicked(usize),
+    LaunchDesktopItem(usize),
     WinitEvent(Event)
 }
 
+impl Desktop {
+    fn handle_exec(&mut self, idx: usize) {
+        if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
+            match desktop_item.handle_exec() {
+                Ok(()) => {},
+                Err(err) => {
+                    let _ = DialogBuilder::new().title("Error")
+                    .message(&format!("{}", err))
+                    .style(DialogStyle::Error)
+                    .build().show();
+                }
+            }
+        }
+    }
+}
+
 impl Application for Desktop {
-    type Flags = (u32, DesktopConf, Vec<DesktopItem>);
+    type Flags = (u32, Rc<RefCell<DesktopConf>>, Vec<DesktopItem>);
 
     fn new(flags: Self::Flags) -> (Self, Command<DesktopMsg>) { 
         (
             Self {
-                desktop_conf: flags.1.to_owned(),
+                desktop_conf: flags.1,
                 ls_desktop_items: flags.2.iter().map(|item| (button::State::new(), item.to_owned())).collect(),
                 height: flags.0,
-                ..Self::default()
+                selected_desktop_item: None,
             },
             Command::none()
         )
@@ -52,7 +69,9 @@ impl Application for Desktop {
     }
 
     fn background_color(&self) -> Color {
-        let bg_conf = self.desktop_conf.background_conf();
+        let desktop_conf = self.desktop_conf.borrow();
+        let bg_conf = &desktop_conf.background_conf;
+
         match bg_conf.kind {
             BackgroundType::Color => bg_conf.color_background,
             BackgroundType::Wallpaper => Color::TRANSPARENT
@@ -63,43 +82,19 @@ impl Application for Desktop {
 impl Program for Desktop {
     type Renderer = Renderer;
     type Message = DesktopMsg;
+    type Clipboard = Clipboard;
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, message: Self::Message, _clipboard: &mut Clipboard) -> Command<Self::Message> {
         use DesktopMsg::*;
-        match message.clone() {
+
+        match message {
+            DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
+            LaunchDesktopItem(idx) => self.handle_exec(idx),
             WinitEvent(event) => {
                 match event {
-                    Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
-                    | Event::Touch(touch::Event::FingerPressed { .. }) => {
-                        let click = mouse::Click::new(
-                            self.cursor_position,
-                            self.last_click,
-                        );
-
-                        match click.kind() {
-                            click::Kind::Double => if let Some(idx) = self.selected_desktop_item {
-                                if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
-                                    match desktop_item.handle_exec() {
-                                        Ok(()) => {},
-                                        Err(err) => eprintln!("{}", err)
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-
-                        self.last_click = Some(click);
-                    },
-                    Event::Mouse(mouse::Event::CursorMoved { position })
-                    | Event::Touch(touch::Event::FingerMoved { position, .. }) => self.cursor_position = position,
                     Event::Keyboard(key_event) => match key_event {
                         keyboard::Event::CharacterReceived('\r') => if let Some(idx) = self.selected_desktop_item {
-                            if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
-                                match desktop_item.handle_exec() {
-                                    Ok(()) => {},
-                                    Err(err) => eprintln!("{}", err),
-                                }
-                            }
+                            self.handle_exec(idx);
                         },
                         keyboard::Event::KeyPressed { key_code, .. } => match key_code {
                             keyboard::KeyCode::Right => if let Some(idx) = &mut self.selected_desktop_item {
@@ -127,12 +122,6 @@ impl Program for Desktop {
                     _ => {}
                 }
             }
-            _ => {}
-        }
-
-        match message {
-            DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
-            _ => {}
         }
 
         Command::none()
@@ -146,14 +135,16 @@ impl Program for Desktop {
             selected_desktop_item,
             ..
         } = self;
-
-        let item_conf = desktop_conf.desktop_item_conf();
+        
+        let desktop_conf = desktop_conf.borrow();
+        let bg_conf = &desktop_conf.background_conf;
+        let item_conf = &desktop_conf.desktop_item_conf;
         let grid_spacing = item_conf.grid_spacing;
         let item_size = item_conf.icon_size + 35;
-        let item_size_spacing = item_size + grid_spacing;
+        let item_size_spacing = item_size + (grid_spacing*2);
         let mut grid = Grid::new().column_width(item_size_spacing).padding(20).spacing(grid_spacing);
         if let Arrangement::Columns = item_conf.arrangement {
-            let items_in_height = item_size_spacing as usize*ls_desktop_items.len() + 40;
+            let items_in_height = usize::from(item_size_spacing + grid_spacing)*ls_desktop_items.len();
             grid = grid.columns((items_in_height as f32/self.height as f32).ceil() as usize);
         }
 
@@ -179,7 +170,8 @@ impl Program for Desktop {
                 let mut btn = Button::new(state, con)
                     .width(Length::Units(item_size))
                     .padding(7)
-                    .on_press(DesktopItemClicked(idx));
+                    .on_press(DesktopItemClicked(idx))
+                    .on_double_click(LaunchDesktopItem(idx));
                 if let Some(curr_idx) = *selected_desktop_item {
                     if curr_idx == idx {
                         btn = btn.style(CustomButton::Selected);
@@ -205,12 +197,20 @@ impl Program for Desktop {
                 )
             });
 
-        Container::new(
-            Column::new()
-            .push(Space::with_height(Length::Units(30)))
-            .push(desktop_grid)
-        )
-        .width(Length::Fill)
-        .height(Length::Fill).into()
+        let desktop_sec: Element<_, _> = match bg_conf.kind {
+            BackgroundType::Color => desktop_grid.into(),
+            BackgroundType::Wallpaper => {
+                let wallpaper_path = bg_conf.wallpaper_conf.wallpaper_path.to_path_buf();
+                if wallpaper_path.exists() && wallpaper_path.is_file() && wallpaper_path.is_absolute() {
+                    Stack::new().width(Length::Fill).height(Length::Fill)
+                    .push(Image::new(wallpaper_path).width(Length::Fill).height(Length::Fill), None)
+                    .push(desktop_grid, None)
+                    .into()
+                } else {
+                    desktop_grid.into()
+                }
+            }
+        };
+        Container::new(desktop_sec).width(Length::Fill).height(Length::Fill).into()
     }
 }

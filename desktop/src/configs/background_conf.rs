@@ -23,7 +23,6 @@ impl Default for BackgroundConf {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BackgroundType {
     Color,

@@ -8,10 +8,8 @@ pub enum DesktopItemError {
     ParseError(#[from] ParseError),
     #[error(transparent)]
     PopenError(#[from] PopenError),
-    #[error("invalid filename: {name}")]
-    NoFilename {
-        name: String
-    },
+    #[error("invalid filename: {0}")]
+    NoFilename(String),
     #[error("cannot launch due to no execute string")]
     NoExecString,
     // #[error("cannot launch due to bad execute string")]
