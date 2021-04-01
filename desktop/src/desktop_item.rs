@@ -23,7 +23,7 @@ pub struct DesktopItem {
 }
 
 impl DesktopItem {
-    pub fn from_file<P: AsRef<Path>>(file: P) -> Result<Self, DesktopItemError> {
+    pub fn new<P: AsRef<Path>>(file: P) -> Result<Self, DesktopItemError> {
         if file.as_ref().exists() {
             if file.as_ref().is_file() {
                 if let Some(extension) = file.as_ref().extension() {
@@ -68,7 +68,7 @@ impl DesktopItem {
 
                 Ok(Self {
                     path: PathBuf::from(file.as_ref()),
-                    name: file.as_ref().file_name().map(|n| n.to_str().map(ToString::to_string).unwrap()),
+                    name: file.as_ref().file_name().map(|name| name.to_str().unwrap().to_string()),
                     entry_type,
                     ..Self::default()
                 })
@@ -80,7 +80,7 @@ impl DesktopItem {
         }
     }
 
-    pub fn handle_exec(&mut self) -> Result<(), DesktopItemError> {
+    pub fn handle_exec(&self) -> Result<(), DesktopItemError> {
         match &self.entry_type {
             DesktopItemType::APP(entry) => entry.handle_exec(),
             _ => Err(DesktopItemError::InvalidType)

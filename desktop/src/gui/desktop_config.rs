@@ -3,11 +3,11 @@ use crate::configs::{
     DesktopConf, PersistentData,
     desktop_item_conf::{Arrangement, Sorting, DesktopItemConf}
 };
-use super::styles::CustomButton;
+use super::styles::{CustomButton, BACKGROUND};
 use super::has_changed::HasChanged;
 use iced_winit::{
-    pick_list, button, PickList, slider, Slider, Application, Program, Command, Element,
-    Text, Checkbox, scrollable, Scrollable, Column, Row, Length, Button, Space, Clipboard,
+    pick_list, button, scrollable, slider, PickList, Slider, Program, Command, Element, Color,
+    Text, Checkbox, Scrollable, Column, Row, Length, Button, Space, Clipboard, Application, 
 }; 
 use iced_wgpu::Renderer;
 
@@ -49,6 +49,10 @@ impl Application for DesktopConfigUI {
 
     fn title(&self) -> String {
         String::from("Desktop")
+    }
+
+    fn background_color(&self) -> Color {
+        BACKGROUND
     }
 }
 
@@ -100,9 +104,9 @@ impl Program for DesktopConfigUI {
         let pl_sort_by = PickList::new(sort_by_state, &Sorting::ALL[..], Some(desktop_item_conf.sorting), SortingChanged);
         let lb_arragement = Text::new("Arrangement:");
         let pl_arragement = PickList::new(arrangement_state, &Arrangement::ALL[..], Some(desktop_item_conf.arrangement), ArrangementChanged);
-        let lb_icon_size = Text::new(format!("Icon size: {}x{}", desktop_item_conf.icon_size, desktop_item_conf.icon_size));
+        let lb_icon_size = Text::new(format!("Icon size: {}x{}px", desktop_item_conf.icon_size, desktop_item_conf.icon_size));
         let sl_icon_size = Slider::new(icon_size_state, DesktopItemConf::MIN_ICON_SIZE..=DesktopItemConf::MAX_ICON_SIZE, desktop_item_conf.icon_size, IconSizeChanged);
-        let lb_grid_spacing = Text::new(format!("Grid Spacing: {}", desktop_item_conf.grid_spacing));
+        let lb_grid_spacing = Text::new(format!("Grid Spacing: {}px", desktop_item_conf.grid_spacing));
         let sl_grid_spacing = Slider::new(grid_spacing_state, DesktopItemConf::MIN_GRID_SPACING..=DesktopItemConf::MAX_GRID_SPACING, desktop_item_conf.grid_spacing, GridSpacingChanged);
         let chb_sort_desc = Checkbox::new(desktop_item_conf.sort_descending, "Sort descending", SortDescToggled);
         let chb_show_tooltip = Checkbox::new(desktop_item_conf.show_tooltip, "Show Tooltip", ShowTooltipToggled);
