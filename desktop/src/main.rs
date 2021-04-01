@@ -13,7 +13,7 @@ use proxy_message::ProxyMessage;
 use window_state::WindowState;
 use desktop_manager::DesktopManager;
 use gui::{
-    Desktop, ContextMenu, DesktopConfigUI, BackgroundConfigUI, ContextMsg, 
+    Desktop, ContextMenu, DesktopConfigUI, BackgroundConfigUI, ContextMsg, BackgroundConfMsg,
 };
 
 use std::{cell::RefCell, rc::Rc};
@@ -38,15 +38,15 @@ use tauri_dialog::{DialogBuilder, DialogButtons, DialogStyle, DialogSelection};
 fn main() {
     std::env::set_var("WINIT_X11_SCALE_FACTOR", "1.25");
     match DesktopManager::new() {
-        Ok(desktop_manager) => {
+        Ok(mut desktop_manager) => {
             let mut old_desktop_conf = desktop_manager.config().to_owned();
             let desktop_conf = Rc::new(RefCell::new(desktop_manager.config().to_owned()));
-            let desktop_items = desktop_manager.desktop_items().to_owned();
-            let wallpaper_items = desktop_manager.wallpaper_items().to_owned();
+            let desktop_items = RefCell::new(desktop_manager.desktop_items().to_owned());
 
             // Instance
             let mut windows = HashMap::new();
             let event_loop = EventLoop::with_user_event();
+            let event_proxy = event_loop.create_proxy();
             let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
             let mut runtime = {
                 let proxy = Proxy::new(event_loop.create_proxy());
@@ -57,7 +57,7 @@ fn main() {
 
             // Other 
             let settings = Settings {
-                default_text_size: 13,
+                default_text_size: 14,
                 ..Settings::default()
             };
             let (monitor_size, monitor_position) = event_loop.primary_monitor().map(|m| (m.size(), m.position())).unwrap_or((PhysicalSize::new(1920, 1080), PhysicalPosition::new(0, 0)));
@@ -67,7 +67,7 @@ fn main() {
             // Desktop Init Section
             let desktop_state = {
                 let (desktop, init_cmd) = {
-                    runtime.enter(|| Desktop::new((monitor_size.height, Rc::clone(&desktop_conf), desktop_items.to_owned())))
+                    runtime.enter(|| Desktop::new((monitor_size.height, Rc::clone(&desktop_conf), desktop_manager.desktop_items().len(), desktop_items)))
                 };
                 let desktop_window = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Desktop])
@@ -85,8 +85,8 @@ fn main() {
 
             // Context Menu Init Section
             let context_menu_size = PhysicalSize::new(300.0, 210.0);
-            let (context_menu, _) = ContextMenu::new(event_loop.create_proxy());
             let context_menu_state = {
+                let (context_menu, _) = ContextMenu::new(event_proxy.to_owned());
                 let context_menu_window = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Desktop, XWindowType::PopupMenu])
                     .with_position(cursor_position)
@@ -111,29 +111,58 @@ fn main() {
 
                 if let Some(event) = event.to_static() {
                     match event.clone() {
-                        Event::UserEvent(ProxyMessage::ContextMenu(msg)) => match msg {
-                            ContextMsg::ChangeBG => {
-                                // Background Config Init Section
-                                let (bg_config, _) = BackgroundConfigUI::new((Rc::clone(&desktop_conf), wallpaper_items.to_owned()));
-                                let bg_config_window = WindowBuilder::new()
-                                    .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
-                                    .with_title(bg_config.title())
-                                    .with_visible(false)
-                                    .build(&event_loop).unwrap();
-                                windows.insert(bg_config_window.id(), DynWinState::BgConfig(futures::executor::block_on(WindowState::new(&instance, bg_config_window, bg_config, true, Some(&settings)))));
-                            },
-                            ContextMsg::DesktopView => {
-                                // Desktop Config Init Section
-                                let (desktop_config, _) = DesktopConfigUI::new(Rc::clone(&desktop_conf));
-                                let desktop_config_window = WindowBuilder::new()
-                                    .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
-                                    .with_inner_size(PhysicalSize::new(250, 350))
-                                    .with_title(desktop_config.title())
-                                    .with_resizable(false)
-                                    .with_maximized(false)
-                                    .with_visible(false)
-                                    .build(&event_loop).unwrap();
-                                windows.insert(desktop_config_window.id(), DynWinState::DesktopConfig(futures::executor::block_on(WindowState::new(&instance, desktop_config_window, desktop_config, true, Some(&settings)))));
+                        Event::UserEvent(custom_event) => match custom_event {
+                            ProxyMessage::Bg(BackgroundConfMsg::AddWallpaperClicked) => if let nfd2::Response::Okay(file_path) = nfd2::open_file_dialog(Some("png,jpg"), None).expect("oh no") {
+                                if let Err(err) = desktop_manager.add_wallpaper(file_path) {
+                                    let _ = DialogBuilder::new().title("Error")
+                                        .message(&format!("{}", err))
+                                        .style(DialogStyle::Error)
+                                        .build().show();
+                                } else {
+
+                                }
+                            }
+                            ProxyMessage::ContextMenu(msg) => match msg {
+                                ContextMsg::NewFolder => {
+                                    if let Err(err) = desktop_manager.create_new_folder() {
+                                        let _ = DialogBuilder::new().title("Error")
+                                            .message(&format!("{}", err))
+                                            .style(DialogStyle::Error)
+                                            .build().show();
+                                    } else {
+                                        /////////////
+                                    }
+                                },
+                                ContextMsg::ChangeBG => {
+                                    // Background Config Init Section
+                                    let (bg_config, _) = BackgroundConfigUI::new((
+                                        event_proxy.to_owned(),
+                                        Rc::clone(&desktop_conf), 
+                                        desktop_manager.wallpaper_items().to_owned(), 
+                                        desktop_manager.wallpaper_items().iter()
+                                            .position(|item| old_desktop_conf.background_conf.wallpaper_conf.wallpaper_path == item.path)
+                                    ));
+                                    let bg_config_window = WindowBuilder::new()
+                                        .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
+                                        .with_title(bg_config.title())
+                                        .with_visible(false)
+                                        .build(&event_loop).unwrap();
+                                    windows.insert(bg_config_window.id(), DynWinState::BgConfig(futures::executor::block_on(WindowState::new(&instance, bg_config_window, bg_config, true, Some(&settings)))));
+                                },
+                                ContextMsg::DesktopView => {
+                                    // Desktop Config Init Section
+                                    let (desktop_config, _) = DesktopConfigUI::new(Rc::clone(&desktop_conf));
+                                    let desktop_config_window = WindowBuilder::new()
+                                        .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
+                                        .with_inner_size(PhysicalSize::new(250, 400))
+                                        .with_title(desktop_config.title())
+                                        .with_resizable(false)
+                                        .with_maximized(false)
+                                        .with_visible(false)
+                                        .build(&event_loop).unwrap();
+                                    windows.insert(desktop_config_window.id(), DynWinState::DesktopConfig(futures::executor::block_on(WindowState::new(&instance, desktop_config_window, desktop_config, true, Some(&settings)))));
+                                },
+                                _ => {}
                             },
                             _ => {}
                         },
@@ -233,7 +262,6 @@ fn main() {
                         task::Poll::Ready(_) => ControlFlow::Exit,
                     };
                 }
-
             });
         },
         Err(err) => eprintln!("{}", err)

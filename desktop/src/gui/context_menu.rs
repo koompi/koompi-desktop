@@ -60,7 +60,7 @@ impl Application for ContextMenu {
                     ])),
                     MenuItemNode::new("Desktop View", false, Some(DesktopView), None),
                 ],
-                proxy: flags
+                proxy: flags,
             },
             Command::none()
         )
@@ -83,11 +83,8 @@ impl Program for ContextMenu {
     fn update(&mut self, message: ContextMsg, _clipboard: &mut Clipboard) -> Command<ContextMsg> {
         use ContextMsg::*;
         match message {
+            NewFolder => self.proxy.send_event(ProxyMessage::ContextMenu(NewFolder)).unwrap(),
             ChangeBG => self.proxy.send_event(ProxyMessage::ContextMenu(ChangeBG)).unwrap(),
-            // if let nfd2::Response::Okay(file_path) = nfd2::open_file_dialog(Some("png,jpg,jpeg,gif"), None).expect("oh no") {
-            //     println!("{}", file_path.display())
-            // },
-            NewFolder => println!("create new folder"),
             SortBy => println!("change sort by field"),
             DesktopView => self.proxy.send_event(ProxyMessage::ContextMenu(DesktopView)).unwrap(),
         }

@@ -17,7 +17,8 @@ use tauri_dialog::{DialogBuilder, DialogStyle};
 #[derive(Debug)]
 pub struct Desktop {
     desktop_conf: Rc<RefCell<DesktopConf>>,
-    ls_desktop_items: Vec<(button::State, DesktopItem)>,
+    ls_desktop_items: RefCell<Vec<DesktopItem>>,
+    ls_desktop_items_state: Vec<button::State>,
     selected_desktop_item: Option<usize>,
     height: u32,
 }
@@ -30,29 +31,28 @@ pub enum DesktopMsg {
 }
 
 impl Desktop {
-    fn handle_exec(&mut self, idx: usize) {
-        if let Some((_, desktop_item)) = self.ls_desktop_items.get_mut(idx) {
-            match desktop_item.handle_exec() {
-                Ok(()) => {},
-                Err(err) => {
-                    let _ = DialogBuilder::new().title("Error")
-                    .message(&format!("{}", err))
-                    .style(DialogStyle::Error)
-                    .build().show();
-                }
+    fn handle_exec(&self, idx: usize) {
+        let desktop_items = self.ls_desktop_items.borrow();
+        if let Some(desktop_item) = desktop_items.get(idx) {
+            if let Err(err) = desktop_item.handle_exec() {
+                let _ = DialogBuilder::new().title("Error")
+                .message(&format!("{}", err))
+                .style(DialogStyle::Error)
+                .build().show();
             }
         }
     }
 }
 
 impl Application for Desktop {
-    type Flags = (u32, Rc<RefCell<DesktopConf>>, Vec<DesktopItem>);
+    type Flags = (u32, Rc<RefCell<DesktopConf>>, usize, RefCell<Vec<DesktopItem>>);
 
     fn new(flags: Self::Flags) -> (Self, Command<DesktopMsg>) { 
         (
             Self {
                 desktop_conf: flags.1,
-                ls_desktop_items: flags.2.iter().map(|item| (button::State::new(), item.to_owned())).collect(),
+                ls_desktop_items_state: vec![button::State::new(); flags.2],
+                ls_desktop_items: flags.3,
                 height: flags.0,
                 selected_desktop_item: None,
             },
@@ -86,6 +86,7 @@ impl Program for Desktop {
 
     fn update(&mut self, message: Self::Message, _clipboard: &mut Clipboard) -> Command<Self::Message> {
         use DesktopMsg::*;
+        let desktop_items = self.ls_desktop_items.borrow();
 
         match message {
             DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
@@ -98,7 +99,7 @@ impl Program for Desktop {
                         },
                         keyboard::Event::KeyPressed { key_code, .. } => match key_code {
                             keyboard::KeyCode::Right => if let Some(idx) = &mut self.selected_desktop_item {
-                                if *idx<self.ls_desktop_items.len()-1 {
+                                if *idx<desktop_items.len()-1 {
                                     *idx+=1;
                                 } else {
                                     *idx = 0;
@@ -110,7 +111,7 @@ impl Program for Desktop {
                                 if *idx>0 {
                                     *idx-=1;
                                 } else {
-                                    *idx = self.ls_desktop_items.len()-1;
+                                    *idx = desktop_items.len()-1;
                                 }
                             } else {
                                 self.selected_desktop_item = Some(0);
@@ -132,23 +133,25 @@ impl Program for Desktop {
         let Self {
             desktop_conf,
             ls_desktop_items,
+            ls_desktop_items_state,
             selected_desktop_item,
             ..
         } = self;
         
         let desktop_conf = desktop_conf.borrow();
+        let desktop_items = ls_desktop_items.borrow();
         let bg_conf = &desktop_conf.background_conf;
         let item_conf = &desktop_conf.desktop_item_conf;
         let grid_spacing = item_conf.grid_spacing;
-        let item_size = item_conf.icon_size + 35;
+        let item_size = item_conf.icon_size + 40;
         let item_size_spacing = item_size + (grid_spacing*2);
         let mut grid = Grid::new().column_width(item_size_spacing).padding(20).spacing(grid_spacing);
         if let Arrangement::Columns = item_conf.arrangement {
-            let items_in_height = usize::from(item_size_spacing + grid_spacing)*ls_desktop_items.len();
+            let items_in_height = usize::from(item_size_spacing + grid_spacing)*desktop_items.len();
             grid = grid.columns((items_in_height as f32/self.height as f32).ceil() as usize);
         }
 
-        let desktop_grid = ls_desktop_items.iter_mut().enumerate()
+        let desktop_grid = ls_desktop_items_state.iter_mut().zip(desktop_items.iter()).enumerate()
             .fold(grid, |grid, (idx, (state, item))| {
                 let icon: Element<Self::Message, Renderer> = if let Some(icon_path) = &item.icon_path {
                     if let Some(extension) = icon_path.extension() {
