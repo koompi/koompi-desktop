@@ -1,5 +1,5 @@
 use super::applets::ControlType;
-use super::common::icon;
+use super::common::*;
 use crate::styles::buttonstyle::buttons::ButtonStyle;
 use chrono::Timelike;
 use iced::time;
@@ -14,7 +14,7 @@ use winit::event_loop::EventLoopProxy;
 #[derive(Debug)]
 pub struct Controls {
     pub background_color: Color,
-    pub widgets: [button::State; 7],
+    pub widgets: [button::State; 5],
     pub is_exit: bool,
     pub is_shown: bool,
     pub pre_kind: ControlType,
@@ -25,6 +25,7 @@ pub struct Controls {
     sound_visible: bool,
     battery_visible: bool,
     wifi_visible: bool,
+    battery_level: f32,
 }
 
 impl Application for Controls {
@@ -44,6 +45,7 @@ impl Application for Controls {
                 sound_visible: false,
                 battery_visible: false,
                 wifi_visible: false,
+                battery_level: 0.0,
             },
             Command::none(),
         )
@@ -67,6 +69,7 @@ pub enum Message {
     SoundShow(bool),
     WifiShow(bool),
     Tick(chrono::DateTime<chrono::Local>),
+    BatteryUpdate(f32),
     Timer,
 }
 
@@ -91,6 +94,10 @@ impl Program for Controls {
                 self.proxy
                     .send_event(Message::WifiShow(self.wifi_visible))
                     .ok();
+            }
+
+            Message::BatteryUpdate(battery) => {
+                self.battery_level = battery;
             }
             Message::Battery(_) => {
                 self.battery_visible = !self.battery_visible;
@@ -135,7 +142,7 @@ impl Program for Controls {
     }
 
     fn view(&mut self) -> Element<Message, Renderer> {
-        let [b1, b2, b3, b4, b5, b6, b7] = &mut self.widgets;
+        let [b1, b2, b3, b6, b7] = &mut self.widgets;
         let current_time = self.now;
         let svg = Svg::from_path(format!(
             "{}/src/assets/images/koompi-black.svg",
@@ -163,7 +170,7 @@ impl Program for Controls {
                     .style(ButtonStyle::Transparent),
             )
             .push(
-                Button::new(b3, battery_icon())
+                Button::new(b3, condition(self.battery_level))
                     .height(Length::Fill)
                     .on_press(Message::Battery(true))
                     .style(ButtonStyle::Transparent),
@@ -193,21 +200,10 @@ impl Program for Controls {
     }
 }
 
-// fn menu_icon() -> Text {
-//     icon('\u{f0c9}')
-// }
 fn monitor_icon() -> Text {
     icon('\u{f108}')
 }
-fn battery_icon() -> Text {
-    icon('\u{f240}')
-}
-// fn clipboard() -> Text {
-//     icon('\u{f328}')
-// }
-// fn keyboard_icon() -> Text {
-//     icon('\u{f11c}')
-// }
+
 fn sound_icon() -> Text {
     icon('\u{f028}')
 }

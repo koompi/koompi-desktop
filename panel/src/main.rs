@@ -7,11 +7,11 @@ mod views;
 use views::{
     applets::{Applets, AppletsMsg, ControlType},
     context_menu::ContexMenu,
-    controls::{Controls, Message},
+    panel::{Controls, Message},
 };
 
 mod window_state;
-use create_window::{CustomEvent, NewWindow, WinType};
+use create_window::{NewWindow, WinType};
 use futures::executor::block_on;
 use iced_wgpu::wgpu;
 use iced_wgpu::Settings;
@@ -37,7 +37,7 @@ fn main() {
     );
     let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
     let window = winodw_new.instance();
-    let popup_new = NewWindow::new(&event_loop, WinType::Dock(Some((400, 400))));
+    let popup_new = NewWindow::new(&event_loop, WinType::Menu(Some((400, 400))));
     let popup_menu = popup_new.instance();
     let context_menu_new = NewWindow::new(&event_loop, WinType::Dock(Some((200, 200))));
     let context_menu = context_menu_new.instance();
@@ -58,7 +58,8 @@ fn main() {
     ));
     handle_window(&window, &mut popup_x);
     // Since main can't be async, we're going to need to block
-    let sound = Applets::new();
+    let event_battery_proxy = event_loop.create_proxy();
+    let (sound, _) = Applets::new(event_battery_proxy);
     let mut menu_state = block_on(State::new(
         popup_menu,
         sound,
@@ -81,6 +82,7 @@ fn main() {
 
     use std::time::Instant;
     let timer_length = std::time::Duration::new(1, 0);
+    let mut coutner: usize = 0;
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::NewEvents(StartCause::Init) => {
@@ -89,6 +91,7 @@ fn main() {
             // When the timer expires, dispatch a timer event and queue a new timer.
             Event::NewEvents(StartCause::ResumeTimeReached { .. }) => {
                 event_loop_proxy.send_event(Message::Timer).ok();
+
                 *control_flow = ControlFlow::WaitUntil(Instant::now() + timer_length);
             }
             Event::DeviceEvent { device_id, event } => match event {
@@ -131,7 +134,24 @@ fn main() {
             Event::UserEvent(event) => match event {
                 Message::Timer => {
                     control_state.win_state.queue_message(Message::Timer);
-                    menu_state.win_state.queue_message(AppletsMsg::BatteryTimer);
+                    if coutner == 30 {
+                        menu_state.win_state.queue_message(AppletsMsg::BatteryTimer);
+                        control_state
+                            .win_state
+                            .queue_message(Message::BatteryUpdate(
+                                menu_state
+                                    .win_state
+                                    .program()
+                                    .battery
+                                    .battery_state
+                                    .current_battery,
+                            ));
+
+                        coutner = 0;
+                    } else {
+                        coutner += 1;
+                    }
+                    println!("Counter: {}", coutner);
                 }
                 Message::ShowMenu => {
                     *control_flow = ControlFlow::Exit;

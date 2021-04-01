@@ -1,4 +1,5 @@
 use super::common::*;
+use super::panel::Message as PanelMessage;
 use crate::styles::{containers::CustomContainer, progress_bar::ProgressType, slider::SliderType};
 use battery::{units::ratio::percent, Batteries, Battery as BatteryInfo, Manager};
 use iced_wgpu::Renderer;
@@ -9,9 +10,9 @@ use iced_winit::{
 use std::any::type_name;
 
 #[derive(Debug)]
-struct Battery {
+pub struct Battery {
     // data state
-    current_battery: f32,
+    pub current_battery: f32,
     battery_health: f32,
     is_full: bool,
     is_charging: bool,
@@ -25,7 +26,7 @@ struct Display {
 }
 #[derive(Debug)]
 pub struct BatteryView {
-    battery_state: Battery,
+    pub battery_state: Battery,
     display_state: Display,
     // ui state
     display_slide: slider::State,
@@ -59,7 +60,7 @@ impl Program for BatteryView {
                 self.battery_state.current_battery =
                     (self.battery_state.battery_info.state_of_charge().value * 100.0).ceil();
             }
-        }
+        };
         Command::none()
     }
     fn view(&mut self) -> Element<BatteryViewMsg, Renderer> {
@@ -71,7 +72,7 @@ impl Program for BatteryView {
             },
         };
         let brigtness = Row::new()
-            .spacing(10)
+            .padding(10)
             .align_items(Align::Center)
             .push(icon('\u{f108}').size(24))
             .push(
@@ -97,8 +98,8 @@ impl Program for BatteryView {
             );
         let battery = Row::new()
             .align_items(Align::Center)
-            .spacing(10)
-            .push(icon('\u{f240}').size(24))
+            .padding(10)
+            .push(condition(self.battery_state.current_battery).size(24))
             .push(
                 Column::new()
                     .spacing(4)

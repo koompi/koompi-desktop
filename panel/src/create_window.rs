@@ -1,4 +1,4 @@
-use crate::views::controls::Message;
+use crate::views::panel::Message;
 use iced_winit::winit;
 use winit::event_loop::EventLoop;
 use winit::{
@@ -6,10 +6,7 @@ use winit::{
     platform::unix::{WindowBuilderExtUnix, XWindowStrut, XWindowType},
     window::{Window, WindowBuilder},
 };
-#[derive(Debug, Clone, Copy)]
-pub enum CustomEvent {
-    Timer,
-}
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum WinType {
     Panel(([u64; 4], Option<(u32, u32)>)),
@@ -63,6 +60,8 @@ impl NewWindow {
             WinType::Menu(size) => {
                 let win = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Menu])
+                    .with_decorations(false)
+                    .with_always_on_top(true)
                     .with_visible(false)
                     .build(&event_loop)
                     .unwrap();
@@ -76,7 +75,8 @@ impl NewWindow {
             }
             WinType::Dialog(size) => {
                 let win = WindowBuilder::new()
-                    .with_x11_window_type(vec![XWindowType::Dialog])
+                    .with_x11_window_type(vec![XWindowType::PopupMenu])
+                    .with_visible(false)
                     .build(&event_loop)
                     .unwrap();
                 match size {
