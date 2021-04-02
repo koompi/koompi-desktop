@@ -3,11 +3,11 @@ use crate::configs::{
     DesktopConf, PersistentData,
     desktop_item_conf::{Arrangement, Sorting, DesktopItemConf}
 };
-use super::styles::{CustomButton, BACKGROUND};
+use super::styles::{CustomButton, BACKGROUND, CustomSelect, CustomSlider, CustomCheckbox};
 use super::has_changed::HasChanged;
 use iced_winit::{
     pick_list, button, scrollable, slider, PickList, Slider, Program, Command, Element, Color,
-    Text, Checkbox, Scrollable, Column, Row, Length, Button, Space, Clipboard, Application, 
+    Text, Checkbox, Scrollable, Column, Row, Length, Button, Space, Clipboard, Application, Align,
 }; 
 use iced_wgpu::Renderer;
 
@@ -101,44 +101,44 @@ impl Program for DesktopConfigUI {
         let desktop_item_conf = &desktop_conf.desktop_item_conf;
 
         let lb_sort_by = Text::new("Sort by:");
-        let pl_sort_by = PickList::new(sort_by_state, &Sorting::ALL[..], Some(desktop_item_conf.sorting), SortingChanged);
+        let pl_sort_by = PickList::new(sort_by_state, &Sorting::ALL[..], Some(desktop_item_conf.sorting), SortingChanged).style(CustomSelect);
         let lb_arragement = Text::new("Arrangement:");
-        let pl_arragement = PickList::new(arrangement_state, &Arrangement::ALL[..], Some(desktop_item_conf.arrangement), ArrangementChanged);
+        let pl_arragement = PickList::new(arrangement_state, &Arrangement::ALL[..], Some(desktop_item_conf.arrangement), ArrangementChanged).style(CustomSelect);
         let lb_icon_size = Text::new(format!("Icon size: {}x{}px", desktop_item_conf.icon_size, desktop_item_conf.icon_size));
-        let sl_icon_size = Slider::new(icon_size_state, DesktopItemConf::MIN_ICON_SIZE..=DesktopItemConf::MAX_ICON_SIZE, desktop_item_conf.icon_size, IconSizeChanged);
+        let sl_icon_size = Slider::new(icon_size_state, DesktopItemConf::MIN_ICON_SIZE..=DesktopItemConf::MAX_ICON_SIZE, desktop_item_conf.icon_size, IconSizeChanged).style(CustomSlider);
         let lb_grid_spacing = Text::new(format!("Grid Spacing: {}px", desktop_item_conf.grid_spacing));
-        let sl_grid_spacing = Slider::new(grid_spacing_state, DesktopItemConf::MIN_GRID_SPACING..=DesktopItemConf::MAX_GRID_SPACING, desktop_item_conf.grid_spacing, GridSpacingChanged);
-        let chb_sort_desc = Checkbox::new(desktop_item_conf.sort_descending, "Sort descending", SortDescToggled);
-        let chb_show_tooltip = Checkbox::new(desktop_item_conf.show_tooltip, "Show Tooltip", ShowTooltipToggled);
+        let sl_grid_spacing = Slider::new(grid_spacing_state, DesktopItemConf::MIN_GRID_SPACING..=DesktopItemConf::MAX_GRID_SPACING, desktop_item_conf.grid_spacing, GridSpacingChanged).style(CustomSlider);
+        let chb_sort_desc = Checkbox::new(desktop_item_conf.sort_descending, "Sort descending", SortDescToggled).style(CustomCheckbox);
+        let chb_show_tooltip = Checkbox::new(desktop_item_conf.show_tooltip, "Show Tooltip", ShowTooltipToggled).style(CustomCheckbox);
 
-        let pl_sec_lb = Column::new().spacing(15)
+        let pl_sec_lb = Column::new().spacing(12)
             .push(lb_sort_by)
             .push(lb_arragement);
         let pl_sec = Column::new().spacing(7)
             .push(pl_sort_by)
             .push(pl_arragement);
+
+        let scrollable = Scrollable::new(scroll).scroller_width(4).scrollbar_width(4).spacing(10)
+            .push(
+                Row::new().spacing(10).align_items(Align::Center).push(pl_sec_lb).push(pl_sec)
+            )
+            .push(lb_icon_size)
+            .push(sl_icon_size)
+            .push(lb_grid_spacing)
+            .push(sl_grid_spacing)
+            .push(chb_sort_desc)
+            .push(chb_show_tooltip);
+
         let mut btn_apply = Button::new(btn_apply_state, Text::new("  Apply  ")).style(CustomButton::Primary);
         if self.is_changed {
             btn_apply = btn_apply.on_press(ApplyClicked)
         }
 
         Column::new().padding(15).width(Length::Fill)
-            .push(
-                Scrollable::new(scroll).scroller_width(4).scrollbar_width(4).spacing(10)
-                .push(
-                    Row::new().spacing(10).push(pl_sec_lb).push(pl_sec)
-                )
-                .push(lb_icon_size)
-                .push(sl_icon_size)
-                .push(lb_grid_spacing)
-                .push(sl_grid_spacing)
-                .push(chb_sort_desc)
-                .push(chb_show_tooltip)
-            )
+            .push(scrollable)
             .push(Space::with_height(Length::Fill))
             .push(Row::new().push(Space::with_width(Length::Fill)).push(btn_apply))
             .into()
-
     }
 }
 

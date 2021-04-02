@@ -41,7 +41,8 @@ fn main() {
         Ok(mut desktop_manager) => {
             let mut old_desktop_conf = desktop_manager.config().to_owned();
             let desktop_conf = Rc::new(RefCell::new(desktop_manager.config().to_owned()));
-            let desktop_items = RefCell::new(desktop_manager.desktop_items().to_owned());
+            let desktop_items = Rc::new(RefCell::new(desktop_manager.desktop_items().to_owned()));
+            let wallpaper_item = Rc::new(RefCell::new(desktop_manager.wallpaper_items().to_owned()));
 
             // Instance
             let mut windows = HashMap::new();
@@ -67,7 +68,7 @@ fn main() {
             // Desktop Init Section
             let desktop_state = {
                 let (desktop, init_cmd) = {
-                    runtime.enter(|| Desktop::new((monitor_size.height, Rc::clone(&desktop_conf), desktop_manager.desktop_items().len(), desktop_items)))
+                    runtime.enter(|| Desktop::new(((monitor_size.width, monitor_size.height), Rc::clone(&desktop_conf), desktop_manager.desktop_items().len(), Rc::clone(&desktop_items))))
                 };
                 let desktop_window = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Desktop])
@@ -118,9 +119,13 @@ fn main() {
                                         .message(&format!("{}", err))
                                         .style(DialogStyle::Error)
                                         .build().show();
-                                } else {
-
-                                }
+                                } 
+                                // else {
+                                //     let mut desktop_conf = desktop_conf.borrow_mut();
+                                //     let mut wallpaper_item = wallpaper_item.borrow_mut();
+                                //     desktop_conf.background_conf.wallpaper_conf.wallpaper_path = desktop_manager.config().background_conf.wallpaper_conf.wallpaper_path.to_path_buf();
+                                //     *wallpaper_item = desktop_manager.wallpaper_items().to_owned();
+                                // }
                             }
                             ProxyMessage::ContextMenu(msg) => match msg {
                                 ContextMsg::NewFolder => {
@@ -129,16 +134,20 @@ fn main() {
                                             .message(&format!("{}", err))
                                             .style(DialogStyle::Error)
                                             .build().show();
-                                    } else {
-                                        /////////////
-                                    }
+                                    } 
+                                    // else {
+                                    //     let mut desktop_items = desktop_items.borrow_mut();
+                                    //     *desktop_items = desktop_manager.desktop_items().to_owned();
+                                    // }
                                 },
                                 ContextMsg::ChangeBG => {
                                     // Background Config Init Section
                                     let (bg_config, _) = BackgroundConfigUI::new((
                                         event_proxy.to_owned(),
                                         Rc::clone(&desktop_conf), 
-                                        desktop_manager.wallpaper_items().to_owned(), 
+                                        (monitor_size.width, monitor_size.height),
+                                        desktop_manager.wallpaper_items().len(),
+                                        Rc::clone(&wallpaper_item), 
                                         desktop_manager.wallpaper_items().iter()
                                             .position(|item| old_desktop_conf.background_conf.wallpaper_conf.wallpaper_path == item.path)
                                     ));

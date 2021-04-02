@@ -10,7 +10,7 @@ use iced_wgpu::{
 use iced_winit::{
     winit, conversion, application, futures, Debug, Program, Cache, UserInterface, Event, Runtime, Proxy, Application,
 };
-use futures::{executor::LocalPool, task::SpawnExt};
+use futures::{task::SpawnExt, executor::LocalPool};
 use wgpu::util::StagingBelt;
 use winit::{
     window::Window,
@@ -37,6 +37,8 @@ pub struct WindowState<A: Application<Renderer=Renderer>> {
 }
 
 impl<A: Application<Renderer=Renderer>> WindowState<A> {
+    const CHUNK_SIZE: u64 = 10 * 1024;
+
     // Creating some of the wgpu types requires async code
     pub async fn new(
         instance: &wgpu::Instance, 
@@ -81,8 +83,8 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         }
         let clipboard = Clipboard::connect(&window);
         let viewport_version = state.viewport_version();
-        let staging_belt = StagingBelt::new(10 * 1024);
-        let local_pool = futures::executor::LocalPool::new();
+        let staging_belt = StagingBelt::new(Self::CHUNK_SIZE);
+        let local_pool = LocalPool::new();
 
         WindowState {
             window,
@@ -190,10 +192,13 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         self.window.set_cursor_icon(conversion::mouse_interaction(mouse_interaction));
 
         // Recall staging buffers
+        // futures::executor::block_on(async {
+        //     self.staging_belt.recall().await;
+        // });
         self.local_pool
             .spawner()
             .spawn(self.staging_belt.recall())
-            .expect("Recall staging belt");
+            .expect("Recall staging buffers");
 
         self.local_pool.run_until_stalled();
 

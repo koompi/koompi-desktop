@@ -17,10 +17,10 @@ use tauri_dialog::{DialogBuilder, DialogStyle};
 #[derive(Debug)]
 pub struct Desktop {
     desktop_conf: Rc<RefCell<DesktopConf>>,
-    ls_desktop_items: RefCell<Vec<DesktopItem>>,
+    ls_desktop_items: Rc<RefCell<Vec<DesktopItem>>>,
     ls_desktop_items_state: Vec<button::State>,
     selected_desktop_item: Option<usize>,
-    height: u32,
+    size: (u32, u32),
 }
 
 #[derive(Debug, Clone)]
@@ -45,7 +45,7 @@ impl Desktop {
 }
 
 impl Application for Desktop {
-    type Flags = (u32, Rc<RefCell<DesktopConf>>, usize, RefCell<Vec<DesktopItem>>);
+    type Flags = ((u32, u32), Rc<RefCell<DesktopConf>>, usize, Rc<RefCell<Vec<DesktopItem>>>);
 
     fn new(flags: Self::Flags) -> (Self, Command<DesktopMsg>) { 
         (
@@ -53,7 +53,7 @@ impl Application for Desktop {
                 desktop_conf: flags.1,
                 ls_desktop_items_state: vec![button::State::new(); flags.2],
                 ls_desktop_items: flags.3,
-                height: flags.0,
+                size: flags.0,
                 selected_desktop_item: None,
             },
             Command::none()
@@ -142,13 +142,14 @@ impl Program for Desktop {
         let desktop_items = ls_desktop_items.borrow();
         let bg_conf = &desktop_conf.background_conf;
         let item_conf = &desktop_conf.desktop_item_conf;
+
         let grid_spacing = item_conf.grid_spacing;
         let item_size = item_conf.icon_size + 40;
         let item_size_spacing = item_size + (grid_spacing*2);
         let mut grid = Grid::new().column_width(item_size_spacing).padding(20).spacing(grid_spacing);
         if let Arrangement::Columns = item_conf.arrangement {
             let items_in_height = usize::from(item_size_spacing + grid_spacing)*desktop_items.len();
-            grid = grid.columns((items_in_height as f32/self.height as f32).ceil() as usize);
+            grid = grid.columns((items_in_height as f32/self.size.1 as f32).ceil() as usize);
         }
 
         let desktop_grid = ls_desktop_items_state.iter_mut().zip(desktop_items.iter()).enumerate()
@@ -206,7 +207,7 @@ impl Program for Desktop {
                 let wallpaper_path = bg_conf.wallpaper_conf.wallpaper_path.to_path_buf();
                 if wallpaper_path.exists() && wallpaper_path.is_file() && wallpaper_path.is_absolute() {
                     Stack::new().width(Length::Fill).height(Length::Fill)
-                    .push(Image::new(wallpaper_path).width(Length::Fill).height(Length::Fill), None)
+                    .push(Image::new(wallpaper_path).width(Length::Fill), None)
                     .push(desktop_grid, None)
                     .into()
                 } else {
@@ -214,6 +215,7 @@ impl Program for Desktop {
                 }
             }
         };
+        
         Container::new(desktop_sec).width(Length::Fill).height(Length::Fill).into()
     }
 }

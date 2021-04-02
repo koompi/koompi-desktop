@@ -8,8 +8,6 @@ pub enum WallpaperError {
     #[error(transparent)]
     IOError(#[from] std::io::Error),
     #[error("this has no image: {0}")]
-    NoImage(String),
-    #[error("not found filename: {0}")]
     NotFound(String),
     #[error("invalid type of wallpaper", )]
     InvalidType,

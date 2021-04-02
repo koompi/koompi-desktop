@@ -41,7 +41,7 @@ impl DesktopManager {
     }
 
     pub fn create_new_folder(&mut self) -> Result<(), DesktopError> {
-        let prefix_name = "untitled_folder";
+        let prefix_name = "untitled folder";
         let num_untitled_folders = DESK_DIR.read_dir()?.filter(|entry| {
             let file_name = entry.as_ref().unwrap().file_name(); 
             if let Ok(path_str) = file_name.into_string() {
@@ -53,7 +53,7 @@ impl DesktopManager {
         let new_folder = if num_untitled_folders == 0 {
             prefix_name.to_string()
         } else {
-            format!("{}{}", prefix_name, num_untitled_folders+1)
+            format!("{} {}", prefix_name, num_untitled_folders+1)
         };
         let full_path = DESK_DIR.join(&new_folder);
 

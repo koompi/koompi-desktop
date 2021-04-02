@@ -64,12 +64,11 @@ impl DesktopItem {
                     Err(DesktopItemError::InvalidType)
                 }
             } else if file.as_ref().is_dir() {
-                let entry_type = DesktopItemType::DIR;
-
                 Ok(Self {
                     path: PathBuf::from(file.as_ref()),
+                    icon_path: Some(PathBuf::from("/usr/share/icons/koompi.svg")),
                     name: file.as_ref().file_name().map(|name| name.to_str().unwrap().to_string()),
-                    entry_type,
+                    entry_type: DesktopItemType::DIR,
                     ..Self::default()
                 })
             } else {
