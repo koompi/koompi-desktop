@@ -44,7 +44,7 @@ impl WallpaperItem {
     }
 
     pub fn load_image(&self, size: (u32, u32)) -> PathBuf {
-        let path = if self.path.is_file() {
+        if self.path.is_file() {
             self.path.to_path_buf()
         } else {
             let contents_path = self.path.join("contents");
@@ -55,18 +55,21 @@ impl WallpaperItem {
             } else if image_path.with_extension("png").exists() {
                 image_path.with_extension("png").to_path_buf()
             } else {
-                let screenshot = contents_path.join("screenshot").with_extension("png");
-                if screenshot.exists() {
-                    screenshot.to_path_buf() 
-                } else {
-                    screenshot.with_extension("jpg")
+                let mut screenshot = contents_path.join("screenshot").with_extension("png");
+                if !screenshot.exists() {
+                    screenshot = screenshot.with_extension("jpg");
                 }
-                // walkdir::WalkDir::new(images_path).follow_links(true).into_iter().filter_map(|e| e.ok()).nth(0)
-                //     .unwrap_or(contents_path.join("screenshot.jpg"))
+                screenshot
+                // walkdir::WalkDir::new(images_path).follow_links(true).into_iter().filter_map(|e| e.ok())
+                //     .filter_map(|entry| if entry.path().is_file() {
+                //         Some(entry.path().to_path_buf())
+                //     } else {
+                //         None
+                //     })
+                //     .nth(0)
+                //     .unwrap_or(screenshot)
             }
-        };
-        // println!("{}", path.display());
-        path
+        }
     }
 }
 

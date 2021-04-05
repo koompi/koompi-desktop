@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use iced::executor;
 use iced_wgpu::{wgpu, Settings};
 use iced_winit::{
-    futures, winit, Debug, Application, Runtime, Proxy, Executor,
+    futures, winit, Debug, Application, Runtime, Proxy, Executor, 
 };
 use futures::{
     channel::mpsc, task
@@ -42,7 +42,9 @@ fn main() {
             let mut old_desktop_conf = desktop_manager.config().to_owned();
             let desktop_conf = Rc::new(RefCell::new(desktop_manager.config().to_owned()));
             let desktop_items = Rc::new(RefCell::new(desktop_manager.desktop_items().to_owned()));
-            let wallpaper_item = Rc::new(RefCell::new(desktop_manager.wallpaper_items().to_owned()));
+            let mut desktop_items_len = desktop_manager.desktop_items().len();
+            let wallpaper_items = Rc::new(RefCell::new(desktop_manager.wallpaper_items().to_owned()));
+            let mut wallpaper_items_len = desktop_manager.wallpaper_items().len();
 
             // Instance
             let mut windows = HashMap::new();
@@ -68,7 +70,7 @@ fn main() {
             // Desktop Init Section
             let desktop_state = {
                 let (desktop, init_cmd) = {
-                    runtime.enter(|| Desktop::new(((monitor_size.width, monitor_size.height), Rc::clone(&desktop_conf), desktop_manager.desktop_items().len(), Rc::clone(&desktop_items))))
+                    runtime.enter(|| Desktop::new(((monitor_size.width, monitor_size.height), Rc::clone(&desktop_conf), desktop_items_len, Rc::clone(&desktop_items))))
                 };
                 let desktop_window = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Desktop])
@@ -81,7 +83,7 @@ fn main() {
                 let subscription = desktop.subscription();
                 runtime.spawn(init_cmd.map(Into::into));
                 runtime.track(subscription.map(Into::into));
-                futures::executor::block_on(WindowState::new(&instance, desktop_window, desktop, true, Some(&settings)))
+                futures::executor::block_on(WindowState::new(&instance, desktop_window, desktop, true, Some(&settings), None))
             };
 
             // Context Menu Init Section
@@ -97,7 +99,7 @@ fn main() {
                     .with_maximized(false)
                     .with_visible(false)
                     .build(&event_loop).unwrap();
-                futures::executor::block_on(WindowState::new(&instance, context_menu_window, context_menu, false, Some(&settings)))
+                futures::executor::block_on(WindowState::new(&instance, context_menu_window, context_menu, false, Some(&settings), None))
             };
 
             let mut run_instance = Box::pin(
@@ -114,31 +116,39 @@ fn main() {
                     match event.clone() {
                         Event::UserEvent(custom_event) => match custom_event {
                             ProxyMessage::Bg(BackgroundConfMsg::AddWallpaperClicked) => if let nfd2::Response::Okay(file_path) = nfd2::open_file_dialog(Some("png,jpg"), None).expect("oh no") {
-                                if let Err(err) = desktop_manager.add_wallpaper(file_path) {
-                                    let _ = DialogBuilder::new().title("Error")
-                                        .message(&format!("{}", err))
-                                        .style(DialogStyle::Error)
-                                        .build().show();
-                                } 
-                                // else {
-                                //     let mut desktop_conf = desktop_conf.borrow_mut();
-                                //     let mut wallpaper_item = wallpaper_item.borrow_mut();
-                                //     desktop_conf.background_conf.wallpaper_conf.wallpaper_path = desktop_manager.config().background_conf.wallpaper_conf.wallpaper_path.to_path_buf();
-                                //     *wallpaper_item = desktop_manager.wallpaper_items().to_owned();
-                                // }
-                            }
-                            ProxyMessage::ContextMenu(msg) => match msg {
-                                ContextMsg::NewFolder => {
-                                    if let Err(err) = desktop_manager.create_new_folder() {
+                                match desktop_manager.add_wallpaper(file_path) {
+                                    Ok((conf, items)) => {
+                                        let mut desktop_conf = desktop_conf.borrow_mut();
+                                        *desktop_conf = conf;
+                                        wallpaper_items_len = items.len();
+                                        let mut wallpaper_items = wallpaper_items.borrow_mut();
+                                        *wallpaper_items = items;
+                                        let _ = desktop_conf.save();
+                                        old_desktop_conf = desktop_conf.to_owned();
+                                    },
+                                    Err(err) => {
                                         let _ = DialogBuilder::new().title("Error")
                                             .message(&format!("{}", err))
                                             .style(DialogStyle::Error)
                                             .build().show();
+                                    }
+                                } 
+                            }
+                            ProxyMessage::ContextMenu(msg) => match msg {
+                                ContextMsg::NewFolder => {
+                                    match desktop_manager.create_new_folder() {
+                                        Ok(items) => {
+                                            desktop_items_len = items.len();
+                                            let mut desktop_items = desktop_items.borrow_mut();
+                                            *desktop_items = items;
+                                        },
+                                        Err(err) => {
+                                            let _ = DialogBuilder::new().title("Error")
+                                                .message(&format!("{}", err))
+                                                .style(DialogStyle::Error)
+                                                .build().show();
+                                        }
                                     } 
-                                    // else {
-                                    //     let mut desktop_items = desktop_items.borrow_mut();
-                                    //     *desktop_items = desktop_manager.desktop_items().to_owned();
-                                    // }
                                 },
                                 ContextMsg::ChangeBG => {
                                     // Background Config Init Section
@@ -146,17 +156,19 @@ fn main() {
                                         event_proxy.to_owned(),
                                         Rc::clone(&desktop_conf), 
                                         (monitor_size.width, monitor_size.height),
-                                        desktop_manager.wallpaper_items().len(),
-                                        Rc::clone(&wallpaper_item), 
+                                        wallpaper_items_len,
+                                        Rc::clone(&wallpaper_items), 
                                         desktop_manager.wallpaper_items().iter()
                                             .position(|item| old_desktop_conf.background_conf.wallpaper_conf.wallpaper_path == item.path)
                                     ));
                                     let bg_config_window = WindowBuilder::new()
                                         .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
                                         .with_title(bg_config.title())
+                                        .with_resizable(false)
+                                        .with_maximized(false)
                                         .with_visible(false)
                                         .build(&event_loop).unwrap();
-                                    windows.insert(bg_config_window.id(), DynWinState::BgConfig(futures::executor::block_on(WindowState::new(&instance, bg_config_window, bg_config, true, Some(&settings)))));
+                                    windows.insert(bg_config_window.id(), DynWinState::BgConfig(futures::executor::block_on(WindowState::new(&instance, bg_config_window, bg_config, true, Some(&settings), Some(20 * 1024)))));
                                 },
                                 ContextMsg::DesktopView => {
                                     // Desktop Config Init Section
@@ -169,7 +181,7 @@ fn main() {
                                         .with_maximized(false)
                                         .with_visible(false)
                                         .build(&event_loop).unwrap();
-                                    windows.insert(desktop_config_window.id(), DynWinState::DesktopConfig(futures::executor::block_on(WindowState::new(&instance, desktop_config_window, desktop_config, true, Some(&settings)))));
+                                    windows.insert(desktop_config_window.id(), DynWinState::DesktopConfig(futures::executor::block_on(WindowState::new(&instance, desktop_config_window, desktop_config, true, Some(&settings), None))));
                                 },
                                 _ => {}
                             },

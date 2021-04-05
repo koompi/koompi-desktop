@@ -129,7 +129,7 @@ pub struct CustomSlider;
 impl slider::StyleSheet for CustomSlider {
     fn active(&self) -> slider::Style {
         slider::Style {
-            rail_colors: (FOREGROUND, Color::TRANSPARENT),
+            rail_colors: (Color{ a: 0.5, ..HOVERED }, Color::TRANSPARENT),
             handle: slider::Handle {
                 shape: slider::HandleShape::Circle { radius: 9.0 },
                 color: PRIMARY,

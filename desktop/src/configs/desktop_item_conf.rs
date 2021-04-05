@@ -76,8 +76,8 @@ impl Default for DesktopItemConf {
 }
 
 impl DesktopItemConf {
-    pub const MIN_ICON_SIZE: u16 = 30;
-    pub const MAX_ICON_SIZE: u16 = 100;
+    pub const MIN_ICON_SIZE: u16 = 32;
+    pub const MAX_ICON_SIZE: u16 = 96;
     pub const MIN_GRID_SPACING: u16 = 5;
     pub const MAX_GRID_SPACING: u16 = 20;
 }

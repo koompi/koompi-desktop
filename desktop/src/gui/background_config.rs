@@ -102,7 +102,10 @@ impl Program for BackgroundConfigUI {
                     wallpaper_conf.wallpaper_path = item.load_image(self.size);
                 }
             },
-            AddWallpaperClicked => self.proxy.send_event(ProxyMessage::Bg(AddWallpaperClicked)).unwrap(),
+            AddWallpaperClicked => {
+                self.proxy.send_event(ProxyMessage::Bg(AddWallpaperClicked)).unwrap();
+                had_changed = !self.is_changed;
+            },
             ApplyClicked => {
                 let _ = desktop_conf.save();
                 had_changed = true;
@@ -146,10 +149,10 @@ impl Program for BackgroundConfigUI {
                 let pl_placement = PickList::new(placement_state, &Placement::ALL[..], Some(bg_conf.wallpaper_conf.placement), PlacementChanged).style(CustomSelect);
                 let sec_selected_wallpaper: Element<_, _> = if let Some(selected) = *selected_wallpaper {
                     if let Some(item) = wallpaper_items.get(selected) {
-                        let image = Image::new(item.path.to_path_buf()).width(Length::Units(200));
+                        let image = Image::new(item.load_image(self.size)).width(Length::Units(200));
                         let mut row = Row::new().padding(10).spacing(20).align_items(Align::Center).push(image);
                         if let Some(name) = &item.name {
-                            row = row.push(Text::new(name).size(17))
+                            row = row.push(Text::new(name).size(15))
                         }
                         
                         row.into()
@@ -172,14 +175,13 @@ impl Program for BackgroundConfigUI {
                     } else {
                         btn.style(CustomButton::Text)
                     };
+                    let content = Container::new(btn).height(Length::Fill).center_x().center_y();
 
-                    let content: Element<_, _> = if let Some(name) = &item.name {
-                        Tooltip::new(btn, name, tooltip::Position::FollowCursor).size(13).gap(5).padding(5).style(CustomTooltip).into()
+                    if let Some(name) = &item.name {
+                        grid.push(Tooltip::new(content, name, tooltip::Position::Top).size(13).gap(5).padding(5).style(CustomTooltip))
                     } else {
-                        btn.into()
-                    };
-        
-                    grid.push(Container::new(content).height(Length::Fill).center_x().center_y())
+                        grid.push(content)
+                    }
                 });
         
                 Column::new().spacing(15)
@@ -187,7 +189,7 @@ impl Program for BackgroundConfigUI {
                     Row::new().spacing(15).align_items(Align::Center).push(lb_placement).push(pl_placement)
                 )
                 .push(sec_selected_wallpaper)
-                .push(Container::new(wallpaper_grid).center_x().center_y().style(CustomContainer::Foreground))
+                .push(Container::new(wallpaper_grid).style(CustomContainer::Foreground))
                 .into()
             }
         };

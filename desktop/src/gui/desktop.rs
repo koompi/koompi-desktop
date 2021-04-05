@@ -10,17 +10,17 @@ use iced::{Svg, Image};
 use iced_wgpu::Renderer;
 use iced_winit::{
     Color, Command, Container, Element, Length, Program, Grid, Button, Text, Column, button, keyboard, Row, 
-    Align, HorizontalAlignment, Tooltip, tooltip, Application, Event, Subscription, Clipboard, Stack,
+    Align, HorizontalAlignment, Tooltip, tooltip, Application, Event, Subscription, Clipboard, Stack, mouse,
 };
 use tauri_dialog::{DialogBuilder, DialogStyle};
 
 #[derive(Debug)]
 pub struct Desktop {
-    desktop_conf: Rc<RefCell<DesktopConf>>,
-    ls_desktop_items: Rc<RefCell<Vec<DesktopItem>>>,
-    ls_desktop_items_state: Vec<button::State>,
-    selected_desktop_item: Option<usize>,
     size: (u32, u32),
+    desktop_conf: Rc<RefCell<DesktopConf>>,
+    ls_desktop_items_state: Vec<button::State>,
+    ls_desktop_items: Rc<RefCell<Vec<DesktopItem>>>,
+    selected_desktop_item: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -33,12 +33,13 @@ pub enum DesktopMsg {
 impl Desktop {
     fn handle_exec(&self, idx: usize) {
         let desktop_items = self.ls_desktop_items.borrow();
+
         if let Some(desktop_item) = desktop_items.get(idx) {
             if let Err(err) = desktop_item.handle_exec() {
                 let _ = DialogBuilder::new().title("Error")
-                .message(&format!("{}", err))
-                .style(DialogStyle::Error)
-                .build().show();
+                    .message(&format!("{}", err))
+                    .style(DialogStyle::Error)
+                    .build().show();
             }
         }
     }
@@ -50,10 +51,10 @@ impl Application for Desktop {
     fn new(flags: Self::Flags) -> (Self, Command<DesktopMsg>) { 
         (
             Self {
+                size: flags.0,
                 desktop_conf: flags.1,
                 ls_desktop_items_state: vec![button::State::new(); flags.2],
                 ls_desktop_items: flags.3,
-                size: flags.0,
                 selected_desktop_item: None,
             },
             Command::none()
@@ -93,6 +94,7 @@ impl Program for Desktop {
             LaunchDesktopItem(idx) => self.handle_exec(idx),
             WinitEvent(event) => {
                 match event {
+                    Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => self.selected_desktop_item = None, 
                     Event::Keyboard(key_event) => match key_event {
                         keyboard::Event::CharacterReceived('\r') => if let Some(idx) = self.selected_desktop_item {
                             self.handle_exec(idx);
@@ -132,14 +134,14 @@ impl Program for Desktop {
         use DesktopMsg::*;
         let Self {
             desktop_conf,
-            ls_desktop_items,
             ls_desktop_items_state,
+            ls_desktop_items,
             selected_desktop_item,
             ..
         } = self;
         
-        let desktop_conf = desktop_conf.borrow();
         let desktop_items = ls_desktop_items.borrow();
+        let desktop_conf = desktop_conf.borrow();
         let bg_conf = &desktop_conf.background_conf;
         let item_conf = &desktop_conf.desktop_item_conf;
 
@@ -152,8 +154,7 @@ impl Program for Desktop {
             grid = grid.columns((items_in_height as f32/self.size.1 as f32).ceil() as usize);
         }
 
-        let desktop_grid = ls_desktop_items_state.iter_mut().zip(desktop_items.iter()).enumerate()
-            .fold(grid, |grid, (idx, (state, item))| {
+        let desktop_grid = ls_desktop_items_state.iter_mut().zip(desktop_items.iter()).enumerate().fold(grid, |grid, (idx, (state, item))| {
                 let icon: Element<Self::Message, Renderer> = if let Some(icon_path) = &item.icon_path {
                     if let Some(extension) = icon_path.extension() {
                         if extension == "svg" {
@@ -207,7 +208,7 @@ impl Program for Desktop {
                 let wallpaper_path = bg_conf.wallpaper_conf.wallpaper_path.to_path_buf();
                 if wallpaper_path.exists() && wallpaper_path.is_file() && wallpaper_path.is_absolute() {
                     Stack::new().width(Length::Fill).height(Length::Fill)
-                    .push(Image::new(wallpaper_path).width(Length::Fill), None)
+                    .push(Image::new(wallpaper_path).width(Length::Fill).height(Length::Fill), None)
                     .push(desktop_grid, None)
                     .into()
                 } else {
