@@ -43,7 +43,7 @@ impl WallpaperItem {
         }
     }
 
-    pub fn load_image(&self, size: (u32, u32)) -> PathBuf {
+    pub fn load_image(&self, size: (u32, u32), high_dpi: bool) -> PathBuf {
         if self.path.is_file() {
             self.path.to_path_buf()
         } else {
@@ -59,15 +59,19 @@ impl WallpaperItem {
                 if !screenshot.exists() {
                     screenshot = screenshot.with_extension("jpg");
                 }
-                screenshot
-                // walkdir::WalkDir::new(images_path).follow_links(true).into_iter().filter_map(|e| e.ok())
-                //     .filter_map(|entry| if entry.path().is_file() {
-                //         Some(entry.path().to_path_buf())
-                //     } else {
-                //         None
-                //     })
-                //     .nth(0)
-                //     .unwrap_or(screenshot)
+                
+                if high_dpi {
+                    walkdir::WalkDir::new(images_path).follow_links(true).into_iter().filter_map(|e| e.ok())
+                        .filter_map(|entry| if entry.path().is_file() {
+                            Some(entry.path().to_path_buf())
+                        } else {
+                            None
+                        })
+                        .nth(0)
+                        .unwrap_or(screenshot)
+                } else {
+                    screenshot
+                }
             }
         }
     }

@@ -1,4 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
+use crate::constants::THUMBNAIL_SIZE;
 use crate::proxy_message::ProxyMessage;
 use crate::configs::{
     DesktopConf, PersistentData,
@@ -15,6 +16,7 @@ use iced_winit::{
     Text, Scrollable, Button, Space, Length, Align, Column, Application, TextInput, Tooltip, PickList, Grid, Color,
 };
 use winit::event_loop::EventLoopProxy;
+const MIN_THUMNAIL_SIZE: (u32, u32) = (640, 480);
 
 #[derive(Debug)]
 pub struct BackgroundConfigUI {
@@ -99,7 +101,7 @@ impl Program for BackgroundConfigUI {
             WallpaperChanged(idx) => {
                 self.selected_wallpaper = Some(idx);
                 if let Some(item) = wallpaper_items.get(idx) {
-                    wallpaper_conf.wallpaper_path = item.load_image(self.size);
+                    wallpaper_conf.wallpaper_path = item.load_image(self.size, true);
                 }
             },
             AddWallpaperClicked => {
@@ -149,7 +151,7 @@ impl Program for BackgroundConfigUI {
                 let pl_placement = PickList::new(placement_state, &Placement::ALL[..], Some(bg_conf.wallpaper_conf.placement), PlacementChanged).style(CustomSelect);
                 let sec_selected_wallpaper: Element<_, _> = if let Some(selected) = *selected_wallpaper {
                     if let Some(item) = wallpaper_items.get(selected) {
-                        let image = Image::new(item.load_image(self.size)).width(Length::Units(200));
+                        let image = Image::new(item.load_image(MIN_THUMNAIL_SIZE, false)).width(Length::Units(THUMBNAIL_SIZE));
                         let mut row = Row::new().padding(10).spacing(20).align_items(Align::Center).push(image);
                         if let Some(name) = &item.name {
                             row = row.push(Text::new(name).size(15))
@@ -165,7 +167,7 @@ impl Program for BackgroundConfigUI {
 
                 let mut wallpaper_grid = Grid::new().width(Length::Fill).column_width(175).padding(7).spacing(10);
                 wallpaper_grid = wallpaper_items_state.iter_mut().zip(wallpaper_items.iter()).enumerate().fold(wallpaper_grid, |grid, (idx, (state, item))| {
-                    let mut btn = Button::new(state, Image::new(item.load_image((640, 480))).width(Length::Fill)).padding(7).width(Length::Units(165)).on_press(WallpaperChanged(idx));
+                    let mut btn = Button::new(state, Image::new(item.load_image(MIN_THUMNAIL_SIZE, false)).width(Length::Fill)).padding(7).width(Length::Units(165)).on_press(WallpaperChanged(idx));
                     btn = if let Some(selected) = *selected_wallpaper {
                         if idx == selected {
                             btn.style(CustomButton::Selected)

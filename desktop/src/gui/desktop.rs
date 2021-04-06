@@ -155,52 +155,52 @@ impl Program for Desktop {
         }
 
         let desktop_grid = ls_desktop_items_state.iter_mut().zip(desktop_items.iter()).enumerate().fold(grid, |grid, (idx, (state, item))| {
-                let icon: Element<Self::Message, Renderer> = if let Some(icon_path) = &item.icon_path {
-                    if let Some(extension) = icon_path.extension() {
-                        if extension == "svg" {
-                            Svg::from_path(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
-                        } else {
-                            Image::new(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
-                        }
+            let icon: Element<Self::Message, Renderer> = if let Some(icon_path) = &item.icon_path {
+                if let Some(extension) = icon_path.extension() {
+                    if extension == "svg" {
+                        Svg::from_path(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
                     } else {
-                        Row::new().into()
+                        Image::new(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
                     }
                 } else {
                     Row::new().into()
-                };
-                let con = Column::new().spacing(10).align_items(Align::Center)
-                    .push(icon)
-                    .push(Text::new(item.name.as_ref().unwrap_or(&"Unknown name".to_string())).horizontal_alignment(HorizontalAlignment::Center));
+                }
+            } else {
+                Row::new().into()
+            };
+            let con = Column::new().spacing(10).align_items(Align::Center)
+                .push(icon)
+                .push(Text::new(item.name.as_ref().unwrap_or(&"Unknown name".to_string())).horizontal_alignment(HorizontalAlignment::Center));
 
-                let mut btn = Button::new(state, con)
-                    .width(Length::Units(item_size))
-                    .padding(7)
-                    .on_press(DesktopItemClicked(idx))
-                    .on_double_click(LaunchDesktopItem(idx));
-                if let Some(curr_idx) = *selected_desktop_item {
-                    if curr_idx == idx {
-                        btn = btn.style(CustomButton::Selected);
-                    } else {
-                        btn = btn.style(CustomButton::Transparent);
-                    }
+            let mut btn = Button::new(state, con)
+                .width(Length::Units(item_size))
+                .padding(7)
+                .on_press(DesktopItemClicked(idx))
+                .on_double_click(LaunchDesktopItem(idx));
+            if let Some(curr_idx) = *selected_desktop_item {
+                if curr_idx == idx {
+                    btn = btn.style(CustomButton::Selected);
                 } else {
                     btn = btn.style(CustomButton::Transparent);
                 }
+            } else {
+                btn = btn.style(CustomButton::Transparent);
+            }
 
-                let tooltip_btn: Element<Self::Message, Renderer> = if item_conf.show_tooltip {
-                    if let Some(cmt) = &item.comment {
-                        Tooltip::new(btn, cmt, tooltip::Position::FollowCursor).size(12).gap(5).padding(5).style(CustomTooltip).into()
-                    } else {
-                        btn.into()
-                    }
+            let tooltip_btn: Element<Self::Message, Renderer> = if item_conf.show_tooltip {
+                if let Some(cmt) = &item.comment {
+                    Tooltip::new(btn, cmt, tooltip::Position::FollowCursor).size(12).gap(5).padding(5).style(CustomTooltip).into()
                 } else {
                     btn.into()
-                };
+                }
+            } else {
+                btn.into()
+            };
 
-                grid.push(
-                    Container::new(tooltip_btn).center_x().center_y()
-                )
-            });
+            grid.push(
+                Container::new(tooltip_btn).center_x().center_y()
+            )
+        });
 
         let desktop_sec: Element<_, _> = match bg_conf.kind {
             BackgroundType::Color => desktop_grid.into(),

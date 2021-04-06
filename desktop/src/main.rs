@@ -8,6 +8,8 @@ mod errors;
 mod gui;
 mod proxy_message;
 
+use desktop_item::DesktopItem;
+use background::WallpaperItem;
 use configs::PersistentData;
 use proxy_message::ProxyMessage;
 use window_state::WindowState;
@@ -21,7 +23,7 @@ use std::collections::HashMap;
 use iced::executor;
 use iced_wgpu::{wgpu, Settings};
 use iced_winit::{
-    futures, winit, Debug, Application, Runtime, Proxy, Executor, 
+    futures, winit, button, Debug, Application, Runtime, Proxy, Executor, 
 };
 use futures::{
     channel::mpsc, task
@@ -42,9 +44,8 @@ fn main() {
             let mut old_desktop_conf = desktop_manager.config().to_owned();
             let desktop_conf = Rc::new(RefCell::new(desktop_manager.config().to_owned()));
             let desktop_items = Rc::new(RefCell::new(desktop_manager.desktop_items().to_owned()));
-            let mut desktop_items_len = desktop_manager.desktop_items().len();
             let wallpaper_items = Rc::new(RefCell::new(desktop_manager.wallpaper_items().to_owned()));
-            let mut wallpaper_items_len = desktop_manager.wallpaper_items().len();
+            // .into_iter().map(|item| (button::State::new(), item.to_owned())).collect::<Vec<(button::State, DesktopItem)>>()
 
             // Instance
             let mut windows = HashMap::new();
@@ -70,7 +71,7 @@ fn main() {
             // Desktop Init Section
             let desktop_state = {
                 let (desktop, init_cmd) = {
-                    runtime.enter(|| Desktop::new(((monitor_size.width, monitor_size.height), Rc::clone(&desktop_conf), desktop_items_len, Rc::clone(&desktop_items))))
+                    runtime.enter(|| Desktop::new(((monitor_size.width, monitor_size.height), Rc::clone(&desktop_conf), desktop_items.borrow().len(), Rc::clone(&desktop_items))))
                 };
                 let desktop_window = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Desktop])
@@ -120,9 +121,9 @@ fn main() {
                                     Ok((conf, items)) => {
                                         let mut desktop_conf = desktop_conf.borrow_mut();
                                         *desktop_conf = conf;
-                                        wallpaper_items_len = items.len();
                                         let mut wallpaper_items = wallpaper_items.borrow_mut();
                                         *wallpaper_items = items;
+                                        // .into_iter().map(|item| (button::State::new(), item)).collect();
                                         let _ = desktop_conf.save();
                                         old_desktop_conf = desktop_conf.to_owned();
                                     },
@@ -138,9 +139,9 @@ fn main() {
                                 ContextMsg::NewFolder => {
                                     match desktop_manager.create_new_folder() {
                                         Ok(items) => {
-                                            desktop_items_len = items.len();
                                             let mut desktop_items = desktop_items.borrow_mut();
                                             *desktop_items = items;
+                                            // .into_iter().map(|item| (button::State::new(), item)).collect();
                                         },
                                         Err(err) => {
                                             let _ = DialogBuilder::new().title("Error")
@@ -156,7 +157,7 @@ fn main() {
                                         event_proxy.to_owned(),
                                         Rc::clone(&desktop_conf), 
                                         (monitor_size.width, monitor_size.height),
-                                        wallpaper_items_len,
+                                        wallpaper_items.borrow().len(),
                                         Rc::clone(&wallpaper_items), 
                                         desktop_manager.wallpaper_items().iter()
                                             .position(|item| old_desktop_conf.background_conf.wallpaper_conf.wallpaper_path == item.path)
