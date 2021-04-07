@@ -102,21 +102,18 @@ impl DesktopItem {
                 let mut res = false;
                 let mime_type = mime_guess::from_path(self.path.to_path_buf());
                 let mime_type = mime_type.first_raw().unwrap_or(INODE_DIR);
-                println!("{}", mime_type);
 
-                let entry = freedesktop_entry_parser::parse_entry(CONF_DIR.join(MIME_FILE))?;
-                let default_apps = entry.section(DEFAULT_APPS);
-                let apps = if let Some(apps) = default_apps.attr(mime_type) {
+                let mut config = configparser::ini::Ini::new();
+                let _ = config.load(CONF_DIR.join(MIME_FILE).to_str().unwrap());
+                let apps = if let Some(apps) = config.get(DEFAULT_APPS, mime_type) {
                     Some(apps.to_string())
                 } else {
-                    let entry = freedesktop_entry_parser::parse_entry(LOCAL_DIR.join(MIME_INFO_CACHE))?;
-                    let default_apps = entry.section(MIME_CACHE);
-                    if let Some(apps) = default_apps.attr(mime_type) {
+                    let _ = config.load(LOCAL_DIR.join(MIME_INFO_CACHE).to_str().unwrap());
+                    if let Some(apps) = config.get(MIME_CACHE, mime_type) {
                         Some(apps.to_string())
                     } else {
-                        let entry = freedesktop_entry_parser::parse_entry(SYS_DIR.join(MIME_INFO_CACHE))?;
-                        let default_apps = entry.section(MIME_CACHE);
-                        default_apps.attr(mime_type).map(ToString::to_string)
+                        let _ = config.load(SYS_DIR.join(MIME_INFO_CACHE).to_str().unwrap());
+                        config.get(MIME_CACHE, mime_type)
                     }
                 }; 
                 
