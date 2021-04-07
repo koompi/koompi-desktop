@@ -21,7 +21,7 @@ impl DesktopEntry {
         }
     }
 
-    pub fn handle_exec(&self) -> Result<(), DesktopItemError> {
+    pub fn handle_exec(&self, arg: Option<&str>) -> Result<(), DesktopItemError> {
         let exec_str = if let Some(exec) = &self.try_exec {
             Some(exec)
         } else if let Some(exec) = &self.exec {
@@ -38,10 +38,14 @@ impl DesktopEntry {
             while let Some(arg) = splitted_exec_str.next() {
                 cmd = cmd.arg(arg);
             }
+            if let Some(arg) = arg {
+                cmd = cmd.arg(arg);
+            }
             if self.term {
                 cmd = cmd.arg("&");
             }
             let _ = cmd.detached().join()?;
+
             Ok(())
         } else {
             Err(DesktopItemError::NoExecString)

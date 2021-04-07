@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use std::fmt::{self, Display, Formatter};
-use crate::constants::{APP, DIR, LINK};
+use crate::constants::{APP, DIR, LINK, FILE};
 use super::desktop_item_error::DesktopItemError;
 use super::desktop_entry::DesktopEntry;
 
@@ -9,6 +9,7 @@ pub enum DesktopItemType {
     APP(DesktopEntry),
     LINK,
     DIR,
+    FILE,
     NULL,
 }
 
@@ -29,6 +30,7 @@ impl FromStr for DesktopItemType {
                 APP => Ok(DesktopItemType::APP(DesktopEntry::default())),
                 LINK => Ok(DesktopItemType::LINK),
                 DIR => Ok(DesktopItemType::DIR),
+                FILE => Ok(DesktopItemType::FILE),
                 _ => Err(DesktopItemError::InvalidType)
             }
         }
@@ -41,6 +43,7 @@ impl Display for DesktopItemType {
             DesktopItemType::APP(_) => APP,
             DesktopItemType::LINK => LINK,
             DesktopItemType::DIR => DIR,
+            DesktopItemType::FILE => FILE,
             _ => ""
         })
     }

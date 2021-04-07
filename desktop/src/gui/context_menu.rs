@@ -93,34 +93,33 @@ impl Program for ContextMenu {
     }
 
     fn view(&mut self) -> Element<ContextMsg, Renderer> {
-        let context_menu = self.menu_items.iter_mut()
-            .fold(Column::new().padding(4), |mut column, item| {
-                let mut content = Row::new().spacing(7).padding(5);
-                if item.selected {
-                    content = content.push(Icon::new(Icons::Check));
-                }
-                content = content.push(Text::new(&item.title));
-                // let mut submenu = None;
-                if let Some(_submenu) = &item.submenu {
-                    content = content
-                        .push(Space::with_width(Length::Fill))
-                        .push(Icon::new(Icons::AngleRight));
-                    // submenu = menu(submenu);
-                }
-                let mut btn = Button::new(&mut item.state, content)
-                    .width(Length::Fill)
-                    .style(CustomButton::Transparent);
-                if let Some(callback) = item.callback {
-                    btn = btn.on_press(callback);
-                }
+        let context_menu = self.menu_items.iter_mut().fold(Column::new().padding(4), |mut column, item| {
+            let mut content = Row::new().spacing(7).padding(5);
+            if item.selected {
+                content = content.push(Icon::new(Icons::Check));
+            }
+            content = content.push(Text::new(&item.title));
+            // let mut submenu = None;
+            if let Some(_submenu) = &item.submenu {
+                content = content
+                    .push(Space::with_width(Length::Fill))
+                    .push(Icon::new(Icons::AngleRight));
+                // submenu = menu(submenu);
+            }
+            let mut btn = Button::new(&mut item.state, content)
+                .width(Length::Fill)
+                .style(CustomButton::Transparent);
+            if let Some(callback) = item.callback {
+                btn = btn.on_press(callback);
+            }
 
-                column = column.push(btn);
-                if item.has_underline {
-                    column.push(Rule::horizontal(10))
-                } else {
-                    column
-                }
-            });
+            column = column.push(btn);
+            if item.has_underline {
+                column.push(Rule::horizontal(10))
+            } else {
+                column
+            }
+        });
         // let context_menu = menu(&mut self.menu_items);
 
         Container::new(context_menu)

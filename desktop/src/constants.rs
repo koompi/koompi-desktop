@@ -1,9 +1,10 @@
-// pub const THUMBNAIL_SIZE: u16 = 256;
+pub const THUMBNAIL_SIZE: u16 = 256;
 
 // Desktop Entry Types
 pub const APP: &str = "Application";
 pub const LINK: &str = "Link";
 pub const DIR: &str = "Directory";
+pub const FILE: &str = "File";
 
 /// Desktop Entry Keys
 pub const DESKTOP_ENTRY: &str = "Desktop Entry";
@@ -21,3 +22,10 @@ pub const ICON: &str =		"Icon";
 pub const TERMINAL: &str =	"Terminal";
 // pub const CATEGORIES: &str =	"Categories";
 // pub const ONLY_SHOW_IN: &str =	"OnlyShowIn";
+
+/// Mimetype
+pub const MIME_FILE: &str = "mimeapps.list";
+pub const DEFAULT_APPS: &str = "Default Applications";
+pub const MIME_INFO_CACHE: &str = "mimeinfo.cache";
+pub const MIME_CACHE: &str = "MIME Cache";
+pub const INODE_DIR: &str = "inode/directory";

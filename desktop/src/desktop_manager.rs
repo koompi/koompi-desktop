@@ -40,8 +40,8 @@ impl DesktopManager {
         })
     }
 
-    pub fn create_new_folder(&mut self) -> Result<(), DesktopError> {
-        let prefix_name = "untitled_folder";
+    pub fn create_new_folder(&mut self) -> Result<Vec<DesktopItem>, DesktopError> {
+        let prefix_name = "untitled folder";
         let num_untitled_folders = DESK_DIR.read_dir()?.filter(|entry| {
             let file_name = entry.as_ref().unwrap().file_name(); 
             if let Ok(path_str) = file_name.into_string() {
@@ -53,17 +53,17 @@ impl DesktopManager {
         let new_folder = if num_untitled_folders == 0 {
             prefix_name.to_string()
         } else {
-            format!("{}{}", prefix_name, num_untitled_folders+1)
+            format!("{} {}", prefix_name, num_untitled_folders+1)
         };
         let full_path = DESK_DIR.join(&new_folder);
 
         fs::create_dir(full_path.to_path_buf())?;
         self.desktop_items.push(DesktopItem::new(full_path)?);
 
-        Ok(())
+        Ok(self.desktop_items.to_owned())
     }
 
-    pub fn add_wallpaper<P: AsRef<Path>>(&mut self, path: P) -> Result<(), DesktopError> {
+    pub fn add_wallpaper<P: AsRef<Path>>(&mut self, path: P) -> Result<(DesktopConf, Vec<WallpaperItem>), DesktopError> {
         let mut res = false;
         if path.as_ref().exists() && path.as_ref().is_file() {
             if let Some(ext) = path.as_ref().extension() {
@@ -96,7 +96,7 @@ impl DesktopManager {
         } 
 
         if res {
-            Ok(())
+            Ok((self.conf.to_owned(), self.wallpaper_items.to_owned()))
         } else {
             Err(DesktopError::PathIsNotAFile(path.as_ref().display().to_string()))
         }

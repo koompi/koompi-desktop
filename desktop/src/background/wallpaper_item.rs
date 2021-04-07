@@ -3,7 +3,6 @@ use super::wallpaper_error::WallpaperError;
 use crate::constants::{DESKTOP_ENTRY, NAME};
 use std::cmp::Ordering;
 const METADATA_FILE: &str = "metadata.desktop";
-const SCREENSHOT_FILE: &str = "screenshot";
 
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Eq)]
 pub struct WallpaperItem {
@@ -28,22 +27,10 @@ impl WallpaperItem {
                     let entry = freedesktop_entry_parser::parse_entry(metadata)?;
                     let desktop_entry = entry.section(DESKTOP_ENTRY);
                     let name = desktop_entry.attr(NAME).map(ToString::to_string);
-                    let image_path = path.join("contents").join(SCREENSHOT_FILE);
-                    let image_file = if image_path.with_extension("png").exists() {
-                        Some(image_path.with_extension("png"))
-                    } else if image_path.with_extension("jpg").exists() {
-                        Some(image_path.with_extension("jpg"))
-                    } else {
-                        None
-                    };
 
-                    if let Some(path) = image_file {
-                        Ok(Self {
-                            is_local, name, path
-                        })
-                    } else {
-                        Err(WallpaperError::NoImage(path.display().to_string()))
-                    }
+                    Ok(Self {
+                        is_local, name, path: path.to_path_buf()
+                    })
 
                 } else {
                     Err(WallpaperError::NotFound(path.display().to_string()))
@@ -53,6 +40,39 @@ impl WallpaperItem {
             }
         } else {
             Err(WallpaperError::NotFound(path.display().to_string()))
+        }
+    }
+
+    pub fn load_image(&self, size: (u32, u32), high_dpi: bool) -> PathBuf {
+        if self.path.is_file() {
+            self.path.to_path_buf()
+        } else {
+            let contents_path = self.path.join("contents");
+            let images_path = contents_path.join("images");
+            let image_path = images_path.join(format!("{}x{}", size.0, size.1)).with_extension("jpg");
+            if image_path.exists() {
+                image_path.to_path_buf()
+            } else if image_path.with_extension("png").exists() {
+                image_path.with_extension("png").to_path_buf()
+            } else {
+                let mut screenshot = contents_path.join("screenshot").with_extension("png");
+                if !screenshot.exists() {
+                    screenshot = screenshot.with_extension("jpg");
+                }
+                
+                if high_dpi {
+                    walkdir::WalkDir::new(images_path).follow_links(true).into_iter().filter_map(|e| e.ok())
+                        .filter_map(|entry| if entry.path().is_file() {
+                            Some(entry.path().to_path_buf())
+                        } else {
+                            None
+                        })
+                        .nth(0)
+                        .unwrap_or(screenshot)
+                } else {
+                    screenshot
+                }
+            }
         }
     }
 }

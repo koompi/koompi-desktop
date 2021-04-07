@@ -14,7 +14,7 @@ pub enum DesktopItemError {
     NoExecString,
     // #[error("cannot launch due to bad execute string")]
     // BadExecString,
-    #[error("invalid type of application", )]
+    #[error("invalid type of desktop item", )]
     InvalidType,
     #[error(transparent)]
     IOError(#[from] std::io::Error),
