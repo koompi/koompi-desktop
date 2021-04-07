@@ -12,6 +12,7 @@ use desktop_item_status::DesktopItemStatus;
 use desktop_entry::DesktopEntry;
 pub use desktop_item_error::DesktopItemError;
 use lazy_static::lazy_static;
+
 const APPS_DIR: &str = "applications";
 lazy_static! {
     static ref SYS_DIR: PathBuf = PathBuf::from("/usr/share").join(APPS_DIR);
@@ -20,13 +21,13 @@ lazy_static! {
     static ref CONF_DIR: PathBuf = dirs_next::config_dir().unwrap();
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DesktopItem {
     pub path: PathBuf,
     pub name: Option<String>,
     pub icon_path: Option<PathBuf>,
     pub comment: Option<String>,
-    entry_type: DesktopItemType,
+    pub entry_type: DesktopItemType,
     status: DesktopItemStatus,
 }
 

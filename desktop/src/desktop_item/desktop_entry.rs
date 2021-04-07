@@ -3,21 +3,21 @@ use super::desktop_item_error::DesktopItemError;
 use subprocess::Exec;
 use freedesktop_entry_parser::AttrSelector;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DesktopEntry {
-    exec: Option<String>,
     try_exec: Option<String>,
+    exec: Option<String>,
     term: bool,
 }
 
 impl DesktopEntry {
     pub fn new(desktop_entry: &AttrSelector<&str>) -> Self {
-        let exec = desktop_entry.attr(EXEC).map(ToString::to_string);
         let try_exec = desktop_entry.attr(TRY_EXEC).map(ToString::to_string);
+        let exec = desktop_entry.attr(EXEC).map(ToString::to_string);
         let term = desktop_entry.attr(TERMINAL).map(|term| term.parse::<bool>().unwrap_or(false)).unwrap_or(false);
 
         Self {
-            exec, try_exec, term
+            try_exec, exec, term
         }
     }
 

@@ -1,6 +1,6 @@
 use std::path::{PathBuf, Path};
 use std::fs;
-use crate::configs::PersistentData;
+use crate::configs::{PersistentData, desktop_item_conf::Sorting};
 use super::desktop_item::DesktopItem;
 use super::background::WallpaperItem;
 use super::configs::DesktopConf;
@@ -22,6 +22,7 @@ pub struct DesktopManager {
 
 impl DesktopManager {
     pub fn new() -> Result<Self, DesktopError> {
+        let conf = DesktopConf::load()?;
         let desktop_items: Vec<DesktopItem> = DESK_DIR.read_dir()?.filter_map(|entry| DesktopItem::new(entry.unwrap().path()).ok()).collect();
         let mut wallpaper_items: Vec<WallpaperItem> = Vec::new();
         if SYS_DIR.exists() && SYS_DIR.is_dir() {
@@ -34,10 +35,11 @@ impl DesktopManager {
         }
         wallpaper_items.sort();
 
-        Ok(Self {
-            desktop_items, wallpaper_items,
-            conf: DesktopConf::load()?,
-        })
+        let mut desktop_mn = Self {
+            desktop_items, wallpaper_items, conf,
+        };
+        desktop_mn.sort_desktop_items(desktop_mn.conf.desktop_item_conf.sorting, desktop_mn.conf.desktop_item_conf.sort_descending);
+        Ok(desktop_mn)
     }
 
     pub fn create_new_folder(&mut self) -> Result<Vec<DesktopItem>, DesktopError> {
@@ -112,5 +114,30 @@ impl DesktopManager {
 
     pub fn wallpaper_items(&self) -> &[WallpaperItem] {
         self.wallpaper_items.as_slice()
+    }
+
+    pub fn sort_desktop_items(&mut self, sorting: Sorting, sort_desc: bool) {
+        match sorting {
+            Sorting::Name => self.desktop_items.sort_by(|a, b| if sort_desc {b.name.cmp(&a.name)} else {a.name.cmp(&b.name)}),
+            Sorting::Type => self.desktop_items.sort_by(|a, b| if sort_desc {b.entry_type.cmp(&a.entry_type)} else {a.entry_type.cmp(&b.entry_type)}),
+            Sorting::Date => self.desktop_items.sort_by(|a, b| {
+                let mut ordering = std::cmp::Ordering::Equal;
+                if let Ok(a_metadata) = a.path.metadata() {
+                    if let Ok(b_metadata) = b.path.metadata() {
+                        if let Ok(a_modified) = a_metadata.modified() {
+                            if let Ok(b_modified) = b_metadata.modified() {
+                                ordering = if sort_desc {
+                                    b_modified.cmp(&a_modified)
+                                } else {
+                                    a_modified.cmp(&b_modified)
+                                };
+                            }
+                        }
+                    }
+                }
+                ordering
+            }),
+            _ => self.desktop_items.sort()
+        }
     }
 }

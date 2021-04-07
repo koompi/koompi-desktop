@@ -15,7 +15,7 @@ use proxy_message::ProxyMessage;
 use window_state::WindowState;
 use desktop_manager::DesktopManager;
 use gui::{
-    Desktop, ContextMenu, DesktopConfigUI, BackgroundConfigUI, ContextMsg, BackgroundConfMsg,
+    Desktop, ContextMenu, DesktopConfigUI, BackgroundConfigUI, ContextMsg, BackgroundConfMsg, DesktopConfigMsg,
 };
 
 use std::{cell::RefCell, rc::Rc};
@@ -61,7 +61,7 @@ fn main() {
 
             // Other 
             let settings = Settings {
-                default_text_size: 14,
+                default_text_size: 13,
                 ..Settings::default()
             };
             let (monitor_size, monitor_position) = event_loop.primary_monitor().map(|m| (m.size(), m.position())).unwrap_or((PhysicalSize::new(1920, 1080), PhysicalPosition::new(0, 0)));
@@ -116,6 +116,13 @@ fn main() {
                 if let Some(event) = event.to_static() {
                     match event.clone() {
                         Event::UserEvent(custom_event) => match custom_event {
+                            ProxyMessage::DesktopConf(DesktopConfigMsg::SortingChanged(_)) | 
+                            ProxyMessage::DesktopConf(DesktopConfigMsg::SortDescToggled(_)) => {
+                                let desktop_conf = desktop_conf.borrow();
+                                desktop_manager.sort_desktop_items(desktop_conf.desktop_item_conf.sorting, desktop_conf.desktop_item_conf.sort_descending);
+                                let mut desktop_items = desktop_items.borrow_mut();
+                                *desktop_items = desktop_manager.desktop_items().to_owned();
+                            }
                             ProxyMessage::Bg(BackgroundConfMsg::AddWallpaperClicked) => if let nfd2::Response::Okay(file_path) = nfd2::open_file_dialog(Some("png,jpg"), None).expect("oh no") {
                                 match desktop_manager.add_wallpaper(file_path) {
                                     Ok((conf, items)) => {
@@ -173,7 +180,7 @@ fn main() {
                                 },
                                 ContextMsg::DesktopView => {
                                     // Desktop Config Init Section
-                                    let (desktop_config, _) = DesktopConfigUI::new(Rc::clone(&desktop_conf));
+                                    let (desktop_config, _) = DesktopConfigUI::new((event_proxy.to_owned(), Rc::clone(&desktop_conf)));
                                     let desktop_config_window = WindowBuilder::new()
                                         .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
                                         .with_inner_size(PhysicalSize::new(250, 400))

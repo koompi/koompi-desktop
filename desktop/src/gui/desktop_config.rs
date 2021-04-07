@@ -1,4 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
+use crate::proxy_message::ProxyMessage;
 use crate::configs::{
     DesktopConf, PersistentData,
     desktop_item_conf::{Arrangement, Sorting, DesktopItemConf}
@@ -6,12 +7,13 @@ use crate::configs::{
 use super::styles::{CustomButton, BACKGROUND, CustomSelect, CustomSlider, CustomCheckbox};
 use super::has_changed::HasChanged;
 use iced_winit::{
-    pick_list, button, scrollable, slider, PickList, Slider, Program, Command, Element, Color,
+    winit, pick_list, button, scrollable, slider, PickList, Slider, Program, Command, Element, Color,
     Text, Checkbox, Scrollable, Column, Row, Length, Button, Space, Clipboard, Application, Align,
 }; 
+use winit::event_loop::EventLoopProxy;
 use iced_wgpu::Renderer;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug)]
 pub struct DesktopConfigUI {
     desktop_conf: Rc<RefCell<DesktopConf>>,
     arrangement_state: pick_list::State<Arrangement>,
@@ -21,6 +23,7 @@ pub struct DesktopConfigUI {
     btn_apply_state: button::State,
     is_changed: bool,
     scroll: scrollable::State,
+    proxy: EventLoopProxy<ProxyMessage>,
 }
 
 #[derive(Debug, Clone)]
@@ -35,13 +38,20 @@ pub enum DesktopConfigMsg {
 }
 
 impl Application for DesktopConfigUI {
-    type Flags = Rc<RefCell<DesktopConf>>;
+    type Flags = (EventLoopProxy<ProxyMessage>, Rc<RefCell<DesktopConf>>);
 
     fn new(flags: Self::Flags) -> (Self, Command<DesktopConfigMsg>) {
         (
             Self {
-                desktop_conf: flags,
-                ..Self::default()
+                proxy: flags.0,
+                desktop_conf: flags.1,
+                arrangement_state: Default::default(),
+                sort_by_state: Default::default(),
+                icon_size_state: Default::default(),
+                grid_spacing_state: Default::default(),
+                btn_apply_state: Default::default(),
+                scroll: Default::default(),
+                is_changed: false,
             },
             Command::none()
         )
@@ -69,10 +79,16 @@ impl Program for DesktopConfigUI {
 
         match msg {
             ArrangementChanged(val) => desktop_item_conf.arrangement = val,
-            SortingChanged(val) => desktop_item_conf.sorting = val,
+            SortingChanged(val) => {
+                desktop_item_conf.sorting = val;
+                self.proxy.send_event(ProxyMessage::DesktopConf(SortingChanged(val))).unwrap();
+            },
             IconSizeChanged(val) => desktop_item_conf.icon_size = val,
             GridSpacingChanged(val) => desktop_item_conf.grid_spacing = val,
-            SortDescToggled(is_checked) => desktop_item_conf.sort_descending = is_checked,
+            SortDescToggled(is_checked) => {
+                desktop_item_conf.sort_descending = is_checked;
+                self.proxy.send_event(ProxyMessage::DesktopConf(SortDescToggled(is_checked))).unwrap();
+            },
             ShowTooltipToggled(is_checked) => desktop_item_conf.show_tooltip = is_checked,
             ApplyClicked => {
                 let _ = desktop_conf.save();
