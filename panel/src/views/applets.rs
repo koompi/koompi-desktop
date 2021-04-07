@@ -7,8 +7,9 @@ use super::wireless::{Wireless, WirelessMsg};
 use crate::styles::containers::CustomContainer;
 use iced_wgpu::Renderer;
 use iced_winit::{
-    button, slider, winit::event_loop::EventLoopProxy, Application, Command, Container, Element,
-    Length, Program, Text,
+    button, slider,
+    winit::event_loop::{EventLoop, EventLoopProxy},
+    Application, Command, Container, Element, Length, Program, Text,
 };
 
 #[derive(Debug)]
@@ -21,7 +22,6 @@ pub struct Applets {
     audio: Audio,
     wireless: Wireless,
     pub battery: BatteryView,
-    proxy: EventLoopProxy<Message>,
 }
 #[derive(Debug, Clone)]
 pub enum AppletsMsg {
@@ -56,11 +56,10 @@ impl Application for Applets {
                 audio: Audio::new(),
                 monitor: Monitor::new(),
                 kind: ControlType::Monitor,
-                wireless: Wireless::new(),
+                wireless: Wireless::new(flags),
                 mute: button::State::new(),
                 value: 0.0,
                 slider: slider::State::new(),
-                proxy: flags,
             },
             Command::none(),
         )
@@ -112,7 +111,8 @@ impl Program for Applets {
                 .battery
                 .view()
                 .map(|msg| AppletsMsg::BatteryViewMsg(msg)),
-            ControlType::Default => Container::new(Text::new("Default"))
+            ControlType::Default => Container::new(Text::new(""))
+                .style(CustomContainer::ForegroundGray)
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into(),

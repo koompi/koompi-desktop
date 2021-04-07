@@ -4,9 +4,10 @@ use crate::styles::{containers::CustomContainer, progress_bar::ProgressType, sli
 use battery::{units::ratio::percent, Batteries, Battery as BatteryInfo, Manager};
 use iced_wgpu::Renderer;
 use iced_winit::{
-    slider, Align, Application, Column, Command, Container, Element, Length, Program, ProgressBar,
-    Row, Slider, Space, Text,
+    slider, Align, Application, Column, Command, Container, Element, HorizontalAlignment, Length,
+    Program, ProgressBar, Row, Slider, Space, Text,
 };
+use libkoompi::system_settings::devices::Brightness;
 use std::any::type_name;
 
 #[derive(Debug)]
@@ -30,13 +31,14 @@ pub struct BatteryView {
     display_state: Display,
     // ui state
     display_slide: slider::State,
-    brigth_level: u8,
+    brigth_level: u32,
     battery_level: f32,
+    brightness: Brightness,
 }
 
 #[derive(Debug, Clone)]
 pub enum BatteryViewMsg {
-    OnBrightChanged(u8),
+    OnBrightChanged(u32),
     BatteryRefresh,
 }
 
@@ -47,6 +49,11 @@ impl Program for BatteryView {
         match msg {
             BatteryViewMsg::OnBrightChanged(val) => {
                 self.brigth_level = val;
+                self.display_state.current_bright = val.to_string();
+                match self.brightness.login1_set_brightness(val) {
+                    Ok(()) => {}
+                    Err(e) => println!("Error: {:?}", e),
+                }
             }
             BatteryViewMsg::BatteryRefresh => {
                 match self
@@ -72,9 +79,14 @@ impl Program for BatteryView {
             },
         };
         let brigtness = Row::new()
-            .padding(10)
             .align_items(Align::Center)
-            .push(icon('\u{f108}').size(24))
+            .spacing(10)
+            .push(
+                icon('\u{f108}')
+                    .size(24)
+                    .width(Length::Units(20))
+                    .horizontal_alignment(HorizontalAlignment::Center),
+            )
             .push(
                 Column::new()
                     .align_items(Align::Center)
@@ -84,7 +96,10 @@ impl Program for BatteryView {
                             .align_items(Align::Center)
                             .push(Text::new("Display Brightness"))
                             .push(Space::with_width(Length::Fill))
-                            .push(Text::new(self.display_state.current_bright.as_str())),
+                            .push(Text::new(format!(
+                                "{}%",
+                                self.display_state.current_bright.as_str()
+                            ))),
                     )
                     .push(
                         Slider::new(
@@ -98,8 +113,12 @@ impl Program for BatteryView {
             );
         let battery = Row::new()
             .align_items(Align::Center)
-            .padding(10)
-            .push(condition(self.battery_state.current_battery).size(24))
+            .spacing(10)
+            .push(
+                condition(self.battery_state.current_battery)
+                    .size(24)
+                    .width(Length::Units(20)),
+            )
             .push(
                 Column::new()
                     .spacing(4)
@@ -142,6 +161,7 @@ impl Program for BatteryView {
             );
         Container::new(
             Column::new()
+                .push(Text::new("Battery and Brightness").size(18))
                 .align_items(Align::Center)
                 .spacing(10)
                 .push(brigtness)
@@ -176,17 +196,20 @@ impl Application for BatteryView {
             is_discharged: false,
             manager,
         };
-        let display_state = Display {
-            current_bright: String::new(),
-        };
         let init_battery_level = battery.current_battery;
+        let brigth = Brightness::new();
+        let display_state = Display {
+            current_bright: brigth.get_percent().to_string(),
+        };
+        let level = brigth.get_percent();
         (
             Self {
                 battery_state: battery,
-                brigth_level: 0,
+                brigth_level: level,
                 battery_level: init_battery_level,
                 display_slide: slider::State::new(),
                 display_state,
+                brightness: brigth,
             },
             Command::none(),
         )

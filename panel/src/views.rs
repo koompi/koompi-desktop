@@ -6,3 +6,4 @@ pub mod monitor;
 pub mod panel;
 pub mod sound;
 pub mod wireless;
+pub mod wifi_pwd;

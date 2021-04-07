@@ -8,6 +8,7 @@ use views::{
     applets::{Applets, AppletsMsg, ControlType},
     context_menu::ContexMenu,
     panel::{Controls, Message},
+    wifi_pwd::{WifiPwdView, WifiPwdViewMsg},
 };
 
 mod window_state;
@@ -37,7 +38,7 @@ fn main() {
     );
     let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
     let window = winodw_new.instance();
-    let popup_new = NewWindow::new(&event_loop, WinType::Menu(Some((400, 400))));
+    let popup_new = NewWindow::new(&event_loop, WinType::Dock(Some((400, 400))));
     let popup_menu = popup_new.instance();
     let context_menu_new = NewWindow::new(&event_loop, WinType::Dock(Some((200, 200))));
     let context_menu = context_menu_new.instance();
@@ -64,6 +65,24 @@ fn main() {
         popup_menu,
         sound,
         Some(&setttings(16)),
+        cursor_position,
+        &mut debug,
+        &instance,
+    ));
+    let wifi_password = NewWindow::new(&event_loop, WinType::Menu(Some((300, 200))));
+    let wifi_password = wifi_password.instance();
+    if let Some(display) = wifi_password.primary_monitor() {
+        wifi_password.set_outer_position(PhysicalPosition::new(
+            (display.size().width - wifi_password.outer_size().width) / 2,
+            (display.size().height - wifi_password.outer_size().height) / 2,
+        ))
+    }
+    let wifi_pwd_proxy = event_loop.create_proxy();
+    let wireless = WifiPwdView::new(wifi_pwd_proxy);
+    let mut wifi_state = block_on(State::new(
+        wifi_password,
+        wireless,
+        Some(&setttings(14)),
         cursor_position,
         &mut debug,
         &instance,
@@ -160,6 +179,16 @@ fn main() {
                     handle_visible_pos(&mut menu_state, ControlType::Monitor, is_visible, popup_x);
                     menu_state.is_visible = is_visible;
                 }
+                Message::RequestExit => {
+                    wifi_state.window.set_visible(false);
+                }
+                Message::ShowPwdDialog(pwd) => {
+                    wifi_state
+                        .win_state
+                        .queue_message(WifiPwdViewMsg::AcceptSsid(pwd));
+                    wifi_state.window.set_visible(true);
+                    wifi_state.window.set_always_on_top(true);
+                }
                 Message::SoundShow(is_visible) => {
                     handle_visible_pos(&mut menu_state, ControlType::Sound, is_visible, popup_x);
                     menu_state.is_visible = is_visible;
@@ -181,13 +210,19 @@ fn main() {
                 // UPDATED!
                 match event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                    WindowEvent::KeyboardInput { input, .. } => match input {
+                    WindowEvent::KeyboardInput {
+                        input,
+                        is_synthetic,
+                        ..
+                    } => match input {
                         KeyboardInput {
                             state: ElementState::Pressed,
                             virtual_keycode: Some(VirtualKeyCode::Escape),
                             ..
                         } => *control_flow = ControlFlow::Exit,
-                        _ => {}
+                        _ => {
+                            println!("Is synthetic: {:?}", is_synthetic);
+                        }
                     },
                     WindowEvent::Focused(is_focus) => {
                         println!("Is focus: {:?}", is_focus);
@@ -219,8 +254,10 @@ fn main() {
                             control_state.resize(*physical_size);
                         } else if menu_state.window.id() == window_id {
                             menu_state.resize(*physical_size);
-                        } else {
+                        } else if context_state.window.id() == window_id {
                             context_state.resize(*physical_size);
+                        } else {
+                            wifi_state.resize(*physical_size);
                         }
                     }
                     WindowEvent::CursorMoved { position, .. } => {
@@ -238,6 +275,7 @@ fn main() {
                         } else if context_state.window.id() == window_id {
                             context_state.resize(**new_inner_size);
                         } else {
+                            wifi_state.resize(**new_inner_size);
                         }
                     }
                     _ => {}
@@ -248,6 +286,8 @@ fn main() {
                     menu_state.map_event(&modifiers, &event);
                 } else if window_id == context_state.window.id() {
                     context_state.map_event(&modifiers, &event);
+                } else if wifi_state.window.id() == window_id {
+                    wifi_state.map_event(&modifiers, &event);
                 } else {
                     {}
                 }
@@ -256,6 +296,7 @@ fn main() {
                 control_state.update_frame(cursor_position, &mut debug);
                 menu_state.update_frame(cursor_position, &mut debug);
                 context_state.update_frame(cursor_position, &mut debug);
+                wifi_state.update_frame(cursor_position, &mut debug);
             }
             Event::RedrawRequested(window_id) => {
                 if control_state.window.id() == window_id {
@@ -264,6 +305,9 @@ fn main() {
                     menu_state.redraw(&debug);
                 } else if context_state.window.id() == window_id {
                     context_state.redraw(&debug);
+                } else if wifi_state.window.id() == window_id {
+                    wifi_state.redraw(&debug);
+                } else {
                 }
             }
 

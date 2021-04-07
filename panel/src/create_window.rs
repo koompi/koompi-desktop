@@ -49,6 +49,7 @@ impl NewWindow {
                     .with_visible(false)
                     .build(&event_loop)
                     .unwrap();
+                win.set_decorations(false);
                 match size {
                     Some((w, h)) => {
                         win.set_inner_size(PhysicalSize::new(w, h));
@@ -59,9 +60,11 @@ impl NewWindow {
             }
             WinType::Menu(size) => {
                 let win = WindowBuilder::new()
-                    .with_x11_window_type(vec![XWindowType::Menu])
+                    .with_x11_window_type(vec![XWindowType::PopupMenu, XWindowType::Menu])
                     .with_decorations(false)
                     .with_always_on_top(true)
+                    .with_inner_size(PhysicalSize::new(400, 200))
+                    // .with_resizable(false)
                     .with_visible(false)
                     .build(&event_loop)
                     .unwrap();

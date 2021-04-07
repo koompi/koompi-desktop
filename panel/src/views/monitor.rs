@@ -3,8 +3,8 @@ use crate::styles::containers::CustomContainer;
 use iced::svg::Svg;
 use iced_wgpu::Renderer;
 use iced_winit::{
-    button, Align, Button, Checkbox, Column, Command, Container, Element, Length, Program, Row,
-    Text,
+    button, Align, Button, Checkbox, Column, Command, Container, Element, HorizontalAlignment,
+    Length, Program, Row, Text,
 };
 #[derive(Debug, Default)]
 pub struct Monitor {
@@ -56,8 +56,8 @@ impl Program for Monitor {
             "{}/src/assets/images/monitor.svg",
             env!("CARGO_MANIFEST_DIR")
         ))
-        .width(Length::Units(36))
-        .height(Length::Units(36));
+        .width(Length::Units(24))
+        .height(Length::Units(24));
         let [svg1, svg2, svg3, svg4] = [svg.clone(), svg.clone(), svg.clone(), svg.clone()];
         Container::new(
             Column::new()
@@ -66,33 +66,12 @@ impl Program for Monitor {
                 .push(Text::new("Screen Layout").size(18))
                 .push(
                     Row::new()
-                        .align_items(Align::Center)
                         .spacing(10)
-                        .push(
-                            Button::new(b1, svg)
-                                .padding(10)
-                                .on_press(MonitorMsg::External),
-                        )
-                        .push(
-                            Button::new(b2, svg1)
-                                .padding(10)
-                                .on_press(MonitorMsg::Laptop),
-                        )
-                        .push(
-                            Button::new(b3, svg2)
-                                .padding(10)
-                                .on_press(MonitorMsg::Unify),
-                        )
-                        .push(
-                            Button::new(b4, svg3)
-                                .padding(10)
-                                .on_press(MonitorMsg::ExtendLeft),
-                        )
-                        .push(
-                            Button::new(b5, svg4)
-                                .padding(10)
-                                .on_press(MonitorMsg::ExtendRight),
-                        ),
+                        .push(Button::new(b1, svg).on_press(MonitorMsg::External))
+                        .push(Button::new(b2, svg1).on_press(MonitorMsg::Laptop))
+                        .push(Button::new(b3, svg2).on_press(MonitorMsg::Unify))
+                        .push(Button::new(b4, svg3).on_press(MonitorMsg::ExtendLeft))
+                        .push(Button::new(b5, svg4).on_press(MonitorMsg::ExtendRight)),
                 )
                 .push(Checkbox::new(
                     self.is_present_mode,
@@ -107,7 +86,6 @@ impl Program for Monitor {
                         b6,
                         Row::new()
                             .spacing(4)
-                            .align_items(Align::Center)
                             .push(icon('\u{f108}'))
                             .push(Text::new("Advance Display Settings")),
                     )

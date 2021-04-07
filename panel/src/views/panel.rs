@@ -70,6 +70,8 @@ pub enum Message {
     WifiShow(bool),
     Tick(chrono::DateTime<chrono::Local>),
     BatteryUpdate(f32),
+    ShowPwdDialog(String),
+    RequestExit,
     Timer,
 }
 
@@ -85,6 +87,12 @@ impl Program for Controls {
             Message::ShowAction => {}
             Message::ShowMenu => {
                 self.proxy.send_event(Message::ShowMenu).ok();
+            }
+            Message::RequestExit => {
+                self.proxy.send_event(Message::RequestExit).ok();
+            }
+            Message::ShowPwdDialog(pwd) => {
+                println!("Data: {:?}", pwd);
             }
             Message::WifiShow(_) => {
                 self.wifi_visible = !self.wifi_visible;
