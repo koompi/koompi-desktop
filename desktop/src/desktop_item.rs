@@ -3,7 +3,7 @@ mod desktop_item_type;
 mod desktop_item_error;
 mod desktop_entry;
 
-use super::constants::{TYPE, DESKTOP_ENTRY, ICON, NAME, COMMENT, DEFAULT_APPS, MIME_FILE, INODE_DIR};
+use super::constants::{TYPE, DESKTOP_ENTRY, ICON, NAME, COMMENT, DEFAULT_APPS, MIME_FILE, MIME_INFO_CACHE, MIME_CACHE, INODE_DIR};
 use std::path::{PathBuf, Path};
 use std::str::FromStr;
 use std::convert::From;
@@ -11,7 +11,14 @@ use desktop_item_type::DesktopItemType;
 use desktop_item_status::DesktopItemStatus;
 use desktop_entry::DesktopEntry;
 pub use desktop_item_error::DesktopItemError;
+use lazy_static::lazy_static;
 const APPS_DIR: &str = "applications";
+lazy_static! {
+    static ref SYS_DIR: PathBuf = PathBuf::from("/usr/share").join(APPS_DIR);
+    static ref SYS_LOCAL_DIR: PathBuf = PathBuf::from("/usr/local/share").join(APPS_DIR);
+    static ref LOCAL_DIR: PathBuf = dirs_next::data_dir().unwrap().join(APPS_DIR);
+    static ref CONF_DIR: PathBuf = dirs_next::config_dir().unwrap();
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct DesktopItem {
@@ -95,14 +102,36 @@ impl DesktopItem {
                 let mut res = false;
                 let mime_type = mime_guess::from_path(self.path.to_path_buf());
                 let mime_type = mime_type.first_raw().unwrap_or(INODE_DIR);
-                let entry = freedesktop_entry_parser::parse_entry(dirs_next::config_dir().unwrap().join(MIME_FILE))?;
+                println!("{}", mime_type);
+
+                let entry = freedesktop_entry_parser::parse_entry(CONF_DIR.join(MIME_FILE))?;
                 let default_apps = entry.section(DEFAULT_APPS);
-                let apps = default_apps.attr(mime_type).map(ToString::to_string);
+                let apps = if let Some(apps) = default_apps.attr(mime_type) {
+                    Some(apps.to_string())
+                } else {
+                    let entry = freedesktop_entry_parser::parse_entry(LOCAL_DIR.join(MIME_INFO_CACHE))?;
+                    let default_apps = entry.section(MIME_CACHE);
+                    if let Some(apps) = default_apps.attr(mime_type) {
+                        Some(apps.to_string())
+                    } else {
+                        let entry = freedesktop_entry_parser::parse_entry(SYS_DIR.join(MIME_INFO_CACHE))?;
+                        let default_apps = entry.section(MIME_CACHE);
+                        default_apps.attr(mime_type).map(ToString::to_string)
+                    }
+                }; 
                 
                 if let Some(apps) = apps {
                     let mut splitted_apps = apps.split(';');
                     while let Some(app) = splitted_apps.next() {
-                        let entry = freedesktop_entry_parser::parse_entry(dirs_next::data_local_dir().unwrap().join(APPS_DIR).join(app))?;
+                        let mut app_path = LOCAL_DIR.join(app);
+                        if !app_path.exists() {
+                            app_path = SYS_LOCAL_DIR.join(app);
+                            if !app_path.exists() {
+                                app_path = SYS_DIR.join(app);
+                            }
+                        }
+                        
+                        let entry = freedesktop_entry_parser::parse_entry(app_path)?;
                         let desktop_entry = entry.section(DESKTOP_ENTRY);
                         let entry = DesktopEntry::new(&desktop_entry);
                         if let Ok(()) = entry.handle_exec(self.path.to_str()) {

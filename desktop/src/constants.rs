@@ -24,6 +24,8 @@ pub const TERMINAL: &str =	"Terminal";
 // pub const ONLY_SHOW_IN: &str =	"OnlyShowIn";
 
 /// Mimetype
-pub const DEFAULT_APPS: &str = "Default Applications";
 pub const MIME_FILE: &str = "mimeapps.list";
+pub const DEFAULT_APPS: &str = "Default Applications";
+pub const MIME_INFO_CACHE: &str = "mimeinfo.cache";
+pub const MIME_CACHE: &str = "MIME Cache";
 pub const INODE_DIR: &str = "inode/directory";
