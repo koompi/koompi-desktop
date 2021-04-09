@@ -12,7 +12,6 @@ use iced_winit::{
     Application, Command, Container, Element, Length, Program, Text,
 };
 
-#[derive(Debug)]
 pub struct Applets {
     pub slider: slider::State,
     pub value: f32,

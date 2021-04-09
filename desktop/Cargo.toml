@@ -15,17 +15,21 @@ categories = ["gui"]
 [dependencies]
 iced_winit = { git = "https://github.com/koompi/iced.git", branch = "custom-widgets" }
 iced_wgpu = { git = "https://github.com/koompi/iced.git", branch = "custom-widgets" }
+iced_style = { git = "https://github.com/koompi/iced.git", branch = "custom-widgets"}
 iced = { git = "https://github.com/koompi/iced.git", branch = "custom-widgets", features = ["svg", "image"] }
 serde = { version = "1.0.124", features = ["derive"] }
 serde_repr = "0.1.6"
 toml = "0.5.8"
-version-compare = "0.0.11"
-thiserror = "1.0.24"
-freedesktop_entry_parser = "1.1.1"
-dirs-next = "2.0.0"
-walkdir = "2.3.1"
-nfd2 = "0.3.0"
-tauri-dialog = "0.1.0"
 subprocess = "0.2.6"
 regex = "1.4.5"
+lazy_static = "1.4.0"
+thiserror = "1.0.24"
+dirs-next = "2.0.0"
+walkdir = "2.3.2"
+mime_guess = "2.0.3"
+version-compare = "0.0.11"
+configparser = "2.0.0"
+freedesktop_entry_parser = "1.1.1"
+nfd2 = "0.3.0"
+tauri-dialog = "0.1.0"
 # iced_aw = { git = "https://github.com/kaiden42/iced_aw", default-features = false, features = ["color_picker"] }

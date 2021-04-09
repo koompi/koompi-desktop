@@ -14,7 +14,7 @@ impl StyleSheet for SliderType {
                 shape: HandleShape::Circle { radius: 8.0 },
                 color: Color::from_rgb(0.95, 0.95, 0.95),
                 border_color: Color::from_rgb(0.6, 0.6, 0.6),
-                border_width: 4.0,
+                border_width: 10.0,
             },
         }
     }

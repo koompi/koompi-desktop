@@ -1,0 +1,14 @@
+/home/sna/project/koompi-desktop/desktop/target/rls/debug/deps/wgpu-91ecc6c085256364.rmeta: /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/lib.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/backend/mod.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/backend/direct.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/backend/error.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/backend/native_gpu_future.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/util/mod.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/util/belt.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/util/device.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/util/encoder.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/macros.rs
+
+/home/sna/project/koompi-desktop/desktop/target/rls/debug/deps/wgpu-91ecc6c085256364.d: /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/lib.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/backend/mod.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/backend/direct.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/backend/error.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/backend/native_gpu_future.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/util/mod.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/util/belt.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/util/device.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/util/encoder.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/macros.rs
+
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/lib.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/backend/mod.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/backend/direct.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/backend/error.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/backend/native_gpu_future.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/util/mod.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/util/belt.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/util/device.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/util/encoder.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/wgpu-0.7.0/src/macros.rs:

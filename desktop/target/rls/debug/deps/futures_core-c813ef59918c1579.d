@@ -1,0 +1,11 @@
+/home/sna/project/koompi-desktop/desktop/target/rls/debug/deps/futures_core-c813ef59918c1579.rmeta: /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/lib.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/future.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/stream.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/task/mod.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/task/poll.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/task/__internal/mod.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/task/__internal/atomic_waker.rs
+
+/home/sna/project/koompi-desktop/desktop/target/rls/debug/deps/futures_core-c813ef59918c1579.d: /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/lib.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/future.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/stream.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/task/mod.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/task/poll.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/task/__internal/mod.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/task/__internal/atomic_waker.rs
+
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/lib.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/future.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/stream.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/task/mod.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/task/poll.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/task/__internal/mod.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/futures-core-0.3.13/src/task/__internal/atomic_waker.rs:

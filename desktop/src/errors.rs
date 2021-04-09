@@ -5,6 +5,8 @@ use thiserror::Error;
 pub enum DesktopError {
     #[error("Config file not found: {0}")]
     ConfigNotFound(String),
+    #[error("path is not exists or a file: {0}")]
+    PathIsNotAFile(String),
     #[error(transparent)]
     ParseConfigError(#[from] toml::de::Error),
     #[error(transparent)]

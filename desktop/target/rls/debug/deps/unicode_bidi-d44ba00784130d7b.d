@@ -1,0 +1,13 @@
+/home/sna/project/koompi-desktop/desktop/target/rls/debug/deps/unicode_bidi-d44ba00784130d7b.rmeta: /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/lib.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/deprecated.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/format_chars.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/level.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/char_data/mod.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/char_data/tables.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/explicit.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/implicit.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/prepare.rs
+
+/home/sna/project/koompi-desktop/desktop/target/rls/debug/deps/unicode_bidi-d44ba00784130d7b.d: /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/lib.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/deprecated.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/format_chars.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/level.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/char_data/mod.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/char_data/tables.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/explicit.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/implicit.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/prepare.rs
+
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/lib.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/deprecated.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/format_chars.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/level.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/char_data/mod.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/char_data/tables.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/explicit.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/implicit.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/unicode-bidi-0.3.4/src/prepare.rs:

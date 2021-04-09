@@ -161,7 +161,11 @@ impl Program for BatteryView {
             );
         Container::new(
             Column::new()
-                .push(Text::new("Battery and Brightness").size(18))
+                .push(
+                    Text::new("Battery and Brightness")
+                        .size(18)
+                        .horizontal_alignment(HorizontalAlignment::Left),
+                )
                 .align_items(Align::Center)
                 .spacing(10)
                 .push(brigtness)

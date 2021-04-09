@@ -3,25 +3,25 @@ use super::desktop_item_error::DesktopItemError;
 use subprocess::Exec;
 use freedesktop_entry_parser::AttrSelector;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DesktopEntry {
-    exec: Option<String>,
     try_exec: Option<String>,
+    exec: Option<String>,
     term: bool,
 }
 
 impl DesktopEntry {
     pub fn new(desktop_entry: &AttrSelector<&str>) -> Self {
-        let exec = desktop_entry.attr(EXEC).map(ToString::to_string);
         let try_exec = desktop_entry.attr(TRY_EXEC).map(ToString::to_string);
+        let exec = desktop_entry.attr(EXEC).map(ToString::to_string);
         let term = desktop_entry.attr(TERMINAL).map(|term| term.parse::<bool>().unwrap_or(false)).unwrap_or(false);
 
         Self {
-            exec, try_exec, term
+            try_exec, exec, term
         }
     }
 
-    pub fn handle_exec(&self) -> Result<(), DesktopItemError> {
+    pub fn handle_exec(&self, arg: Option<&str>) -> Result<(), DesktopItemError> {
         let exec_str = if let Some(exec) = &self.try_exec {
             Some(exec)
         } else if let Some(exec) = &self.exec {
@@ -38,10 +38,14 @@ impl DesktopEntry {
             while let Some(arg) = splitted_exec_str.next() {
                 cmd = cmd.arg(arg);
             }
+            if let Some(arg) = arg {
+                cmd = cmd.arg(arg);
+            }
             if self.term {
                 cmd = cmd.arg("&");
             }
             let _ = cmd.detached().join()?;
+
             Ok(())
         } else {
             Err(DesktopItemError::NoExecString)

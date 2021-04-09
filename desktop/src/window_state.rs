@@ -1,10 +1,16 @@
-use super::proxy_message::ProxyMessage;
-use iced_wgpu::{wgpu, Backend, Renderer, Settings};
-use iced_winit::{
-    application, conversion, winit, Application, Cache, Clipboard, Command, Debug, Event, Executor,
-    Program, Proxy, Runtime, Size, Subscription, UserInterface,
-};
 use std::mem::ManuallyDrop;
+use super::proxy_message::ProxyMessage;
+use super::gui::HasChanged;
+use iced::{
+    Size, Clipboard, Executor, Command, Subscription,
+};
+use iced_wgpu::{
+    wgpu, Renderer, Backend, Settings
+};
+use iced_winit::{
+    winit, conversion, application, futures, Debug, Program, Cache, UserInterface, Event, Runtime, Proxy, Application,
+};
+use futures::{task::SpawnExt, executor::LocalPool};
 use wgpu::util::StagingBelt;
 use winit::{
     dpi::PhysicalPosition,
@@ -12,7 +18,7 @@ use winit::{
     window::Window,
 };
 
-pub struct WindowState<A: Application<Renderer = Renderer>> {
+pub struct WindowState<A: Application<Renderer=Renderer>> {
     pub window: Window,
     application: A,
     state: application::State<A>,
@@ -24,12 +30,15 @@ pub struct WindowState<A: Application<Renderer = Renderer>> {
     renderer: Renderer,
     clipboard: Clipboard,
     staging_belt: StagingBelt,
+    local_pool: LocalPool,
     events: Vec<Event>,
     messages: Vec<A::Message>,
     viewport_version: usize,
 }
 
-impl<A: Application<Renderer = Renderer>> WindowState<A> {
+impl<A: Application<Renderer=Renderer>> WindowState<A> {
+    const CHUNK_SIZE: u64 = 10 * 1024;
+
     // Creating some of the wgpu types requires async code
     pub async fn new(
         instance: &wgpu::Instance,
@@ -37,6 +46,7 @@ impl<A: Application<Renderer = Renderer>> WindowState<A> {
         application: A,
         visible: bool,
         settings: Option<&Settings>,
+        chunk_size: Option<u64>,
     ) -> Self {
         let size = window.inner_size();
 
@@ -68,7 +78,7 @@ impl<A: Application<Renderer = Renderer>> WindowState<A> {
             format: adapter.get_swap_chain_preferred_format(&surface),
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Mailbox,
+            present_mode: wgpu::PresentMode::Fifo,
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
         let renderer = Renderer::new(Backend::new(
@@ -76,12 +86,14 @@ impl<A: Application<Renderer = Renderer>> WindowState<A> {
             settings.map(ToOwned::to_owned).unwrap_or_default(),
         ));
         let state = application::State::new(&application, &window);
+        // This condition statement must be below state declaration.
         if visible {
             window.set_visible(visible);
         }
         let clipboard = Clipboard::connect(&window);
         let viewport_version = state.viewport_version();
-        let staging_belt = StagingBelt::new(10 * 1024);
+        let staging_belt = StagingBelt::new(chunk_size.unwrap_or(Self::CHUNK_SIZE));
+        let local_pool = LocalPool::new();
 
         WindowState {
             window,
@@ -95,6 +107,7 @@ impl<A: Application<Renderer = Renderer>> WindowState<A> {
             renderer,
             clipboard,
             staging_belt,
+            local_pool,
             events: Vec::new(),
             messages: Vec::new(),
             viewport_version,
@@ -131,23 +144,20 @@ impl<A: Application<Renderer = Renderer>> WindowState<A> {
         );
 
         if self.viewport_version != self.state.viewport_version() {
-            debug.layout_started();
-            user_interface = user_interface.relayout(self.state.logical_size(), &mut self.renderer);
-            debug.layout_finished();
+            let size = self.state.physical_size();
+            
+            if size.width != 0 && size.height != 0 {
+                debug.layout_started();
+                user_interface = user_interface.relayout(self.state.logical_size(), &mut self.renderer);
+                debug.layout_finished();
 
-            self.sc_desc.height = self.state.physical_size().height;
-            self.sc_desc.width = self.state.physical_size().width;
-            self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
-
-            self.viewport_version = self.state.viewport_version();
+                self.sc_desc.height = size.height;
+                self.sc_desc.width = size.width;
+                self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
+    
+                self.viewport_version = self.state.viewport_version();
+            }
         }
-
-        debug.draw_started();
-        let primitive = user_interface.draw(
-            &mut self.renderer,
-            conversion::cursor_position(cursor_position, self.state.scale_factor()),
-        );
-        debug.draw_finished();
 
         let frame = self.swap_chain.get_current_frame()?.output;
         let mut encoder = self
@@ -176,6 +186,11 @@ impl<A: Application<Renderer = Renderer>> WindowState<A> {
                 depth_stencil_attachment: None,
             });
         }
+        
+        debug.draw_started();
+        let primitive = user_interface
+            .draw(&mut self.renderer, conversion::cursor_position(cursor_position, self.state.scale_factor()),);
+        debug.draw_finished();
 
         let mouse_interaction = self.renderer.backend_mut().draw(
             &mut self.device,
@@ -186,15 +201,22 @@ impl<A: Application<Renderer = Renderer>> WindowState<A> {
             &primitive,
             &debug.overlay(),
         );
-        debug.render_finished();
 
         // Then we submit the work
         self.staging_belt.finish();
         self.queue.submit(Some(encoder.finish()));
 
         // Update the mouse cursor
-        self.window
-            .set_cursor_icon(conversion::mouse_interaction(mouse_interaction));
+        self.window.set_cursor_icon(conversion::mouse_interaction(mouse_interaction));
+
+        // Recall staging buffers
+        self.local_pool
+            .spawner()
+            .spawn(self.staging_belt.recall())
+            .expect("Recall staging buffers");
+        self.local_pool.run_until_stalled();
+        debug.render_finished();
+        
         Ok(())
     }
 
@@ -301,6 +323,11 @@ impl<A: Application<Renderer = Renderer>> WindowState<A> {
                 true
             }
         }
+    }
+
+    pub fn has_changed(&self) -> bool 
+    where A: HasChanged {
+        self.application.has_changed()
     }
 }
 

@@ -181,7 +181,9 @@ where
             // The system is out of memory, we should probably quit
             Err(wgpu::SwapChainError::OutOfMemory) => {}
             // All other errors (Outdated, Timeout) should be resolved by the next frame
-            Err(e) => {}
+            Err(e) => {
+                eprintln!("Error: {:?}", e)
+            }
         }
     }
     pub fn update_frame(&mut self, cursor_pos: PhysicalPosition<f64>, debug: &mut Debug) {

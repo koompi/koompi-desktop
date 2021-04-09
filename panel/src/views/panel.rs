@@ -12,7 +12,7 @@ use iced_winit::{
 // use std::{cell::RefCell, rc::Rc};
 use winit::event_loop::EventLoopProxy;
 #[derive(Debug)]
-pub struct Controls {
+pub struct DesktopPanel {
     pub background_color: Color,
     pub widgets: [button::State; 5],
     pub is_exit: bool,
@@ -28,11 +28,11 @@ pub struct Controls {
     battery_level: f32,
 }
 
-impl Application for Controls {
+impl Application for DesktopPanel {
     type Flags = EventLoopProxy<Message>;
     fn new(flags: Self::Flags) -> (Self, Command<Message>) {
         (
-            Controls {
+            Self {
                 background_color: Color::from_rgb8(255, 255, 255),
                 widgets: Default::default(),
                 is_exit: false,
@@ -75,7 +75,7 @@ pub enum Message {
     Timer,
 }
 
-impl Program for Controls {
+impl Program for DesktopPanel {
     type Renderer = Renderer;
     type Message = Message;
 

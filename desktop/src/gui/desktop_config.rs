@@ -1,16 +1,20 @@
-use super::styles::CustomButton;
+use super::has_changed::HasChanged;
+use super::styles::{CustomButton, CustomCheckbox, CustomSelect, CustomSlider, BACKGROUND};
 use crate::configs::{
     desktop_item_conf::{Arrangement, DesktopItemConf, Sorting},
     DesktopConf, PersistentData,
 };
+use crate::proxy_message::ProxyMessage;
 use iced_wgpu::Renderer;
 use iced_winit::{
-    button, pick_list, scrollable, slider, Application, Button, Checkbox, Clipboard, Column,
-    Command, Element, Length, PickList, Program, Row, Scrollable, Slider, Space, Text,
+    button, pick_list, scrollable, slider, winit, Align, Application, Button, Checkbox, Clipboard,
+    Color, Column, Command, Element, Length, PickList, Program, Row, Scrollable, Slider, Space,
+    Text,
 };
 use std::{cell::RefCell, rc::Rc};
+use winit::event_loop::EventLoopProxy;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug)]
 pub struct DesktopConfigUI {
     desktop_conf: Rc<RefCell<DesktopConf>>,
     arrangement_state: pick_list::State<Arrangement>,
@@ -20,6 +24,7 @@ pub struct DesktopConfigUI {
     btn_apply_state: button::State,
     is_changed: bool,
     scroll: scrollable::State,
+    proxy: EventLoopProxy<ProxyMessage>,
 }
 
 #[derive(Debug, Clone)]
@@ -34,13 +39,20 @@ pub enum DesktopConfigMsg {
 }
 
 impl Application for DesktopConfigUI {
-    type Flags = Rc<RefCell<DesktopConf>>;
+    type Flags = (EventLoopProxy<ProxyMessage>, Rc<RefCell<DesktopConf>>);
 
     fn new(flags: Self::Flags) -> (Self, Command<DesktopConfigMsg>) {
         (
             Self {
-                desktop_conf: flags,
-                ..Self::default()
+                proxy: flags.0,
+                desktop_conf: flags.1,
+                arrangement_state: Default::default(),
+                sort_by_state: Default::default(),
+                icon_size_state: Default::default(),
+                grid_spacing_state: Default::default(),
+                btn_apply_state: Default::default(),
+                scroll: Default::default(),
+                is_changed: false,
             },
             Command::none(),
         )
@@ -48,6 +60,10 @@ impl Application for DesktopConfigUI {
 
     fn title(&self) -> String {
         String::from("Desktop")
+    }
+
+    fn background_color(&self) -> Color {
+        BACKGROUND
     }
 }
 
@@ -64,10 +80,20 @@ impl Program for DesktopConfigUI {
 
         match msg {
             ArrangementChanged(val) => desktop_item_conf.arrangement = val,
-            SortingChanged(val) => desktop_item_conf.sorting = val,
+            SortingChanged(val) => {
+                desktop_item_conf.sorting = val;
+                self.proxy
+                    .send_event(ProxyMessage::DesktopConf(SortingChanged(val)))
+                    .unwrap();
+            }
             IconSizeChanged(val) => desktop_item_conf.icon_size = val,
             GridSpacingChanged(val) => desktop_item_conf.grid_spacing = val,
-            SortDescToggled(is_checked) => desktop_item_conf.sort_descending = is_checked,
+            SortDescToggled(is_checked) => {
+                desktop_item_conf.sort_descending = is_checked;
+                self.proxy
+                    .send_event(ProxyMessage::DesktopConf(SortDescToggled(is_checked)))
+                    .unwrap();
+            }
             ShowTooltipToggled(is_checked) => desktop_item_conf.show_tooltip = is_checked,
             ApplyClicked => {
                 let _ = desktop_conf.save();
@@ -101,16 +127,18 @@ impl Program for DesktopConfigUI {
             &Sorting::ALL[..],
             Some(desktop_item_conf.sorting),
             SortingChanged,
-        );
+        )
+        .style(CustomSelect);
         let lb_arragement = Text::new("Arrangement:");
         let pl_arragement = PickList::new(
             arrangement_state,
             &Arrangement::ALL[..],
             Some(desktop_item_conf.arrangement),
             ArrangementChanged,
-        );
+        )
+        .style(CustomSelect);
         let lb_icon_size = Text::new(format!(
-            "Icon size: {}x{}",
+            "Icon size: {}x{}px",
             desktop_item_conf.icon_size, desktop_item_conf.icon_size
         ));
         let sl_icon_size = Slider::new(
@@ -118,34 +146,59 @@ impl Program for DesktopConfigUI {
             DesktopItemConf::MIN_ICON_SIZE..=DesktopItemConf::MAX_ICON_SIZE,
             desktop_item_conf.icon_size,
             IconSizeChanged,
-        );
-        let lb_grid_spacing =
-            Text::new(format!("Grid Spacing: {}", desktop_item_conf.grid_spacing));
+        )
+        .style(CustomSlider);
+        let lb_grid_spacing = Text::new(format!(
+            "Grid Spacing: {}px",
+            desktop_item_conf.grid_spacing
+        ));
         let sl_grid_spacing = Slider::new(
             grid_spacing_state,
             DesktopItemConf::MIN_GRID_SPACING..=DesktopItemConf::MAX_GRID_SPACING,
             desktop_item_conf.grid_spacing,
             GridSpacingChanged,
-        );
+        )
+        .style(CustomSlider);
         let chb_sort_desc = Checkbox::new(
             desktop_item_conf.sort_descending,
             "Sort descending",
             SortDescToggled,
-        );
+        )
+        .style(CustomCheckbox);
         let chb_show_tooltip = Checkbox::new(
             desktop_item_conf.show_tooltip,
             "Show Tooltip",
             ShowTooltipToggled,
-        );
+        )
+        .style(CustomCheckbox);
 
         let pl_sec_lb = Column::new()
-            .spacing(15)
+            .spacing(12)
             .push(lb_sort_by)
             .push(lb_arragement);
         let pl_sec = Column::new()
             .spacing(7)
             .push(pl_sort_by)
             .push(pl_arragement);
+
+        let scrollable = Scrollable::new(scroll)
+            .scroller_width(4)
+            .scrollbar_width(4)
+            .spacing(10)
+            .push(
+                Row::new()
+                    .spacing(10)
+                    .align_items(Align::Center)
+                    .push(pl_sec_lb)
+                    .push(pl_sec),
+            )
+            .push(lb_icon_size)
+            .push(sl_icon_size)
+            .push(lb_grid_spacing)
+            .push(sl_grid_spacing)
+            .push(chb_sort_desc)
+            .push(chb_show_tooltip);
+
         let mut btn_apply =
             Button::new(btn_apply_state, Text::new("  Apply  ")).style(CustomButton::Primary);
         if self.is_changed {
@@ -155,19 +208,7 @@ impl Program for DesktopConfigUI {
         Column::new()
             .padding(15)
             .width(Length::Fill)
-            .push(
-                Scrollable::new(scroll)
-                    .scroller_width(4)
-                    .scrollbar_width(4)
-                    .spacing(10)
-                    .push(Row::new().spacing(10).push(pl_sec_lb).push(pl_sec))
-                    .push(lb_icon_size)
-                    .push(sl_icon_size)
-                    .push(lb_grid_spacing)
-                    .push(sl_grid_spacing)
-                    .push(chb_sort_desc)
-                    .push(chb_show_tooltip),
-            )
+            .push(scrollable)
             .push(Space::with_height(Length::Fill))
             .push(
                 Row::new()
@@ -175,5 +216,11 @@ impl Program for DesktopConfigUI {
                     .push(btn_apply),
             )
             .into()
+    }
+}
+
+impl HasChanged for DesktopConfigUI {
+    fn has_changed(&self) -> bool {
+        self.is_changed
     }
 }

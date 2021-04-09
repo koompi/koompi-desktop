@@ -1,0 +1,14 @@
+/home/sna/project/koompi-desktop/desktop/target/rls/debug/deps/ab_glyph-aa5fd6408811725b.rmeta: /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/lib.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/codepoint_ids.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/err.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/font.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/font_arc.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/glyph.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/outlined.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/scale.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/ttfp.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/ttfp/outliner.rs
+
+/home/sna/project/koompi-desktop/desktop/target/rls/debug/deps/ab_glyph-aa5fd6408811725b.d: /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/lib.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/codepoint_ids.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/err.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/font.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/font_arc.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/glyph.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/outlined.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/scale.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/ttfp.rs /home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/ttfp/outliner.rs
+
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/lib.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/codepoint_ids.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/err.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/font.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/font_arc.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/glyph.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/outlined.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/scale.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/ttfp.rs:
+/home/sna/.cargo/registry/src/github.com-1ecc6299db9ec823/ab_glyph-0.2.10/src/ttfp/outliner.rs:

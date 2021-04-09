@@ -1,62 +1,67 @@
-const STRUT_HEIGHT: u64 = 32;
 const WINDOW_HEIGHT: u32 = 32;
-const MENU_POS: u32 = 32;
-mod create_window;
+const RESERVE_SIZE: [u64; 4] = [0, 0, 32, 0];
+const MENU_WIDTH: u16 = 400;
+const MENU_HEIGHT: u16 = MENU_WIDTH;
+mod proxy_message;
 mod styles;
+mod task_manager;
 mod views;
+use proxy_message::ProxyMessage;
 use views::{
     applets::{Applets, AppletsMsg, ControlType},
-    context_menu::ContexMenu,
-    panel::{Controls, Message},
-    wifi_pwd::{WifiPwdView, WifiPwdViewMsg},
+    panel::{DesktopPanel, Message},
 };
-
-mod window_state;
-use create_window::{NewWindow, WinType};
-use futures::executor::block_on;
-use iced_wgpu::wgpu;
-use iced_wgpu::Settings;
-use iced_winit::{futures, Debug};
-use iced_winit::{winit, Application, Program};
-use window_state::State;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
+    platform::unix::{WindowBuilderExtUnix, XWindowStrut, XWindowType},
+    window::{Window, WindowBuilder},
+};
+mod window_state;
+use futures::executor::block_on;
+use futures::{channel::mpsc, task};
+use iced_wgpu::wgpu;
+use iced_wgpu::Settings;
+use iced_winit::{button, futures, winit, Application, Debug, Executor, Program, Proxy, Runtime};
+
+use window_state::State;
+use winit::{
     event::{
         DeviceEvent, ElementState, Event, KeyboardInput, ModifiersState, MouseButton, StartCause,
         VirtualKeyCode, WindowEvent,
     },
     event_loop::{ControlFlow, EventLoop},
-    window::Window,
 };
 fn main() {
     std::env::set_var("WINIT_X11_SCALE_FACTOR", "1.25");
-    env_logger::init();
-    let event_loop = EventLoop::<Message>::with_user_event();
-    let winodw_new = NewWindow::new(
-        &event_loop,
-        WinType::Panel(([0, 0, STRUT_HEIGHT, 0], Some((0, 0)))),
-    );
+
+    let event_loop = EventLoop::with_user_event();
+    // uncomment to be able to test task manager.
+    // let task_manager = task_manager::taskmanager::TaskManager::new();
+    // match task_manager {
+    //     Ok(()) => {}
+    //     Err(e) => println!("Error: {:?}", e),
+    // }
     let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
-    let window = winodw_new.instance();
-    let popup_new = NewWindow::new(&event_loop, WinType::Dock(Some((400, 400))));
-    let popup_menu = popup_new.instance();
-    let context_menu_new = NewWindow::new(&event_loop, WinType::Dock(Some((200, 200))));
-    let context_menu = context_menu_new.instance();
+    let window = WindowBuilder::new()
+        .with_x11_window_strut(vec![XWindowStrut::Strut(RESERVE_SIZE)])
+        .with_x11_window_type(vec![XWindowType::Dock])
+        .build(&event_loop)
+        .unwrap();
+
+    let popup_menu = WindowBuilder::new()
+        .with_x11_window_type(vec![XWindowType::PopupMenu, XWindowType::Menu])
+        .with_decorations(false)
+        .with_always_on_top(true)
+        .with_inner_size(PhysicalSize::new(MENU_WIDTH, MENU_HEIGHT))
+        .with_visible(false)
+        .build(&event_loop)
+        .unwrap();
     let mut popup_x = 0;
     let (mut cursor_position, mut debug, mut modifiers) = (
         PhysicalPosition::new(-1.0, -1.0),
         Debug::new(),
         ModifiersState::default(),
     );
-    let (context_instance, _) = ContexMenu::new(());
-    let mut context_state = block_on(State::new(
-        context_menu,
-        context_instance,
-        Some(&setttings(20)),
-        cursor_position,
-        &mut debug,
-        &instance,
-    ));
     handle_window(&window, &mut popup_x);
     // Since main can't be async, we're going to need to block
     let event_battery_proxy = event_loop.create_proxy();
@@ -69,26 +74,9 @@ fn main() {
         &mut debug,
         &instance,
     ));
-    let wifi_password = NewWindow::new(&event_loop, WinType::Menu(Some((300, 200))));
-    let wifi_password = wifi_password.instance();
-    if let Some(display) = wifi_password.primary_monitor() {
-        wifi_password.set_outer_position(PhysicalPosition::new(
-            (display.size().width - wifi_password.outer_size().width) / 2,
-            (display.size().height - wifi_password.outer_size().height) / 2,
-        ))
-    }
-    let wifi_pwd_proxy = event_loop.create_proxy();
-    let wireless = WifiPwdView::new(wifi_pwd_proxy);
-    let mut wifi_state = block_on(State::new(
-        wifi_password,
-        wireless,
-        Some(&setttings(14)),
-        cursor_position,
-        &mut debug,
-        &instance,
-    ));
+
     let event_send_proxy = event_loop.create_proxy();
-    let (panel, _) = Controls::new(event_send_proxy);
+    let (panel, _) = DesktopPanel::new(event_send_proxy);
     let mut control_state = block_on(State::new(
         window,
         panel,
@@ -98,7 +86,6 @@ fn main() {
         &instance,
     ));
     let event_loop_proxy = event_loop.create_proxy();
-
     use std::time::Instant;
     let timer_length = std::time::Duration::new(1, 0);
     let mut coutner: usize = 0;
@@ -114,12 +101,11 @@ fn main() {
                 *control_flow = ControlFlow::WaitUntil(Instant::now() + timer_length);
             }
             Event::DeviceEvent { device_id, event } => match event {
-                DeviceEvent::Button { button, state } => {
+                DeviceEvent::Button { .. } => {
                     let kind = menu_state.win_state.program().kind;
                     if menu_state.is_cursor_left.unwrap() && menu_state.is_visible {
                         match kind {
                             ControlType::Battery => {
-                                println!("Battery");
                                 control_state
                                     .win_state
                                     .queue_message(Message::Battery(false));
@@ -128,19 +114,16 @@ fn main() {
                                 control_state
                                     .win_state
                                     .queue_message(Message::MonitorShow(false));
-                                println!("Monitor");
                             }
                             ControlType::Sound => {
                                 control_state
                                     .win_state
                                     .queue_message(Message::SoundShow(false));
-                                println!("Sound");
                             }
                             ControlType::Wifi => {
                                 control_state
                                     .win_state
                                     .queue_message(Message::WifiShow(false));
-                                println!("Wifi");
                             }
                             _ => {}
                         }
@@ -170,24 +153,11 @@ fn main() {
                     } else {
                         coutner += 1;
                     }
-                    println!("Counter: {}", coutner);
                 }
-                Message::ShowMenu => {
-                    *control_flow = ControlFlow::Exit;
-                }
+                Message::ShowMenu => {}
                 Message::MonitorShow(is_visible) => {
                     handle_visible_pos(&mut menu_state, ControlType::Monitor, is_visible, popup_x);
                     menu_state.is_visible = is_visible;
-                }
-                Message::RequestExit => {
-                    wifi_state.window.set_visible(false);
-                }
-                Message::ShowPwdDialog(pwd) => {
-                    wifi_state
-                        .win_state
-                        .queue_message(WifiPwdViewMsg::AcceptSsid(pwd));
-                    wifi_state.window.set_visible(true);
-                    wifi_state.window.set_always_on_top(true);
                 }
                 Message::SoundShow(is_visible) => {
                     handle_visible_pos(&mut menu_state, ControlType::Sound, is_visible, popup_x);
@@ -238,26 +208,13 @@ fn main() {
                     WindowEvent::MouseInput {
                         device_id: _,
                         state: _,
-                        button,
-                        modifiers: _,
-                    } => match button {
-                        MouseButton::Right => {
-                            context_state.window.set_visible(true);
-                        }
-                        MouseButton::Left => {
-                            context_state.window.set_visible(false);
-                        }
-                        _ => {}
-                    },
+                        ..
+                    } => {}
                     WindowEvent::Resized(physical_size) => {
                         if control_state.window.id() == window_id {
                             control_state.resize(*physical_size);
                         } else if menu_state.window.id() == window_id {
                             menu_state.resize(*physical_size);
-                        } else if context_state.window.id() == window_id {
-                            context_state.resize(*physical_size);
-                        } else {
-                            wifi_state.resize(*physical_size);
                         }
                     }
                     WindowEvent::CursorMoved { position, .. } => {
@@ -272,10 +229,6 @@ fn main() {
                             control_state.resize(**new_inner_size);
                         } else if menu_state.window.id() == window_id {
                             menu_state.resize(**new_inner_size);
-                        } else if context_state.window.id() == window_id {
-                            context_state.resize(**new_inner_size);
-                        } else {
-                            wifi_state.resize(**new_inner_size);
                         }
                     }
                     _ => {}
@@ -284,10 +237,6 @@ fn main() {
                     control_state.map_event(&modifiers, &event);
                 } else if window_id == menu_state.window.id() {
                     menu_state.map_event(&modifiers, &event);
-                } else if window_id == context_state.window.id() {
-                    context_state.map_event(&modifiers, &event);
-                } else if wifi_state.window.id() == window_id {
-                    wifi_state.map_event(&modifiers, &event);
                 } else {
                     {}
                 }
@@ -295,18 +244,12 @@ fn main() {
             Event::MainEventsCleared => {
                 control_state.update_frame(cursor_position, &mut debug);
                 menu_state.update_frame(cursor_position, &mut debug);
-                context_state.update_frame(cursor_position, &mut debug);
-                wifi_state.update_frame(cursor_position, &mut debug);
             }
             Event::RedrawRequested(window_id) => {
                 if control_state.window.id() == window_id {
                     control_state.redraw(&debug);
                 } else if menu_state.window.id() == window_id {
                     menu_state.redraw(&debug);
-                } else if context_state.window.id() == window_id {
-                    context_state.redraw(&debug);
-                } else if wifi_state.window.id() == window_id {
-                    wifi_state.redraw(&debug);
                 } else {
                 }
             }
@@ -334,6 +277,7 @@ pub fn handle_visible_pos(win: &mut State<Applets>, kind: ControlType, is_visibl
     win.win_state.queue_message(AppletsMsg::SwitchView(kind));
     if is_visible {
         win.window.set_visible(true);
+        win.window.set_always_on_top(true);
     } else {
         win.window.set_visible(false);
         win.win_state
@@ -342,3 +286,102 @@ pub fn handle_visible_pos(win: &mut State<Applets>, kind: ControlType, is_visibl
     win.window
         .set_outer_position(PhysicalPosition::new(pos, 32));
 }
+
+// async fn run_instance<E>(
+//     mut desktop_state: State<DesktopPanel>,
+//     mut context_menu_state: State<Applets>,
+//     mut runtime: Runtime<E, Proxy<ProxyMessage>, ProxyMessage>,
+//     mut receiver: mpsc::UnboundedReceiver<winit::event::Event<'_, ProxyMessage>>,
+//     context_menu_size: PhysicalSize<f64>,
+//     monitor_size: PhysicalSize<u32>,
+// ) where
+//     E: Executor + 'static,
+// {
+//     use futures::stream::StreamExt;
+
+//     // Other
+//     let mut debug = Debug::new();
+//     let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
+//     let mut is_context_shown = false;
+
+//     while let Some(event) = receiver.next().await {
+//         match event {
+//             Event::UserEvent(ProxyMessage::DesktopPanel(msg)) => desktop_state.map_message(msg),
+//             Event::WindowEvent {
+//                 ref event,
+//                 window_id,
+//             } => {
+//                 match event {
+//                     WindowEvent::CursorMoved { position, .. } => cursor_position = *position,
+//                     WindowEvent::KeyboardInput { input, .. } => match input {
+//                         KeyboardInput {
+//                             state: ElementState::Pressed,
+//                             virtual_keycode: Some(VirtualKeyCode::Escape),
+//                             ..
+//                         } => is_context_shown = false,
+//                         _ => {}
+//                     },
+//                     WindowEvent::MouseInput {
+//                         state: ElementState::Pressed,
+//                         button,
+//                         ..
+//                     } => {
+//                         if desktop_state.window.id() == window_id {
+//                             match button {
+//                                 MouseButton::Right => {
+//                                     context_menu_state.window.set_outer_position(
+//                                         get_prefered_position(
+//                                             cursor_position,
+//                                             context_menu_size,
+//                                             monitor_size,
+//                                         ),
+//                                     );
+//                                     is_context_shown = true;
+//                                 }
+//                                 _ => is_context_shown = false,
+//                             }
+//                         }
+//                     }
+//                     _ => {}
+//                 }
+
+//                 if context_menu_state.window.id() == window_id {
+//                     if context_menu_state.window_event_request_exit(&event, &mut debug) {
+//                         is_context_shown = false;
+//                     }
+//                 } else if desktop_state.window.id() == window_id {
+//                     desktop_state.window_event_request_exit(&event, &mut debug);
+//                 }
+//                 context_menu_state.window.set_visible(is_context_shown);
+//             }
+//             Event::MainEventsCleared => {
+//                 if let Some(cmd) =
+//                     desktop_state.update_frame(Some(&mut runtime), cursor_position, &mut debug)
+//                 {
+//                     runtime.spawn(cmd.map(Into::into));
+//                     runtime.track(desktop_state.subscription().map(Into::into));
+//                     desktop_state.window.request_redraw();
+//                 }
+
+//                 context_menu_state.update_frame::<executor::Default>(
+//                     None,
+//                     cursor_position,
+//                     &mut debug,
+//                 );
+//                 context_menu_state.window.request_redraw();
+//             }
+//             Event::RedrawRequested(window_id) => {
+//                 let is_success = if context_menu_state.window.id() == window_id {
+//                     context_menu_state.redraw(cursor_position, &mut debug)
+//                 } else {
+//                     desktop_state.redraw(cursor_position, &mut debug)
+//                 };
+
+//                 if !is_success {
+//                     break;
+//                 }
+//             }
+//             _ => (),
+//         }
+//     }
+// }

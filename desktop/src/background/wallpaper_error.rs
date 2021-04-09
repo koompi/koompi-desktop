@@ -7,10 +7,8 @@ pub enum WallpaperError {
     ParseError(#[from] ParseError),
     #[error(transparent)]
     IOError(#[from] std::io::Error),
-    #[error("not found filename: {name}")]
-    NotFound {
-        name: String
-    },
+    #[error("this has no image: {0}")]
+    NotFound(String),
     #[error("invalid type of wallpaper", )]
     InvalidType,
 }
