@@ -122,10 +122,10 @@ impl Program for DesktopConfigUI {
         let pl_arragement = PickList::new(arrangement_state, &Arrangement::ALL[..], Some(desktop_item_conf.arrangement), ArrangementChanged).style(CustomSelect);
         let lb_icon_size = Text::new(format!("Icon size: {}x{}px", desktop_item_conf.icon_size, desktop_item_conf.icon_size));
         let sl_icon_size = Slider::new(icon_size_state, DesktopItemConf::MIN_ICON_SIZE..=DesktopItemConf::MAX_ICON_SIZE, desktop_item_conf.icon_size, IconSizeChanged).style(CustomSlider);
-        let lb_grid_spacing = Text::new(format!("Grid Spacing: {}px", desktop_item_conf.grid_spacing));
+        let lb_grid_spacing = Text::new(format!("Grid spacing: {}px", desktop_item_conf.grid_spacing));
         let sl_grid_spacing = Slider::new(grid_spacing_state, DesktopItemConf::MIN_GRID_SPACING..=DesktopItemConf::MAX_GRID_SPACING, desktop_item_conf.grid_spacing, GridSpacingChanged).style(CustomSlider);
         let chb_sort_desc = Checkbox::new(desktop_item_conf.sort_descending, "Sort descending", SortDescToggled).style(CustomCheckbox);
-        let chb_show_tooltip = Checkbox::new(desktop_item_conf.show_tooltip, "Show Tooltip", ShowTooltipToggled).style(CustomCheckbox);
+        let chb_show_tooltip = Checkbox::new(desktop_item_conf.show_tooltip, "Show tooltip", ShowTooltipToggled).style(CustomCheckbox);
 
         let pl_sec_lb = Column::new().spacing(12)
             .push(lb_sort_by)

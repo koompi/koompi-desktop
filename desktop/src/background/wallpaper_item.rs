@@ -7,17 +7,15 @@ const METADATA_FILE: &str = "metadata.desktop";
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Eq)]
 pub struct WallpaperItem {
     pub name: Option<String>,
-    pub is_local: bool,
     pub path: PathBuf,
 }
 
 impl WallpaperItem {
-    pub fn from_file<P: AsRef<Path>>(path: P, is_local: bool) -> Result<Self, WallpaperError> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, WallpaperError> {
         let path = path.as_ref();
         if path.exists() {
             if path.is_file() {
                 Ok(Self {
-                    is_local,
                     path: path.to_path_buf(),
                     name: path.file_stem().map(|name| name.to_str().unwrap().to_string()),
                 })
@@ -29,7 +27,7 @@ impl WallpaperItem {
                     let name = desktop_entry.attr(NAME).map(ToString::to_string);
 
                     Ok(Self {
-                        is_local, name, path: path.to_path_buf()
+                        name, path: path.to_path_buf()
                     })
 
                 } else {

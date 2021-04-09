@@ -1,4 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
+use std::path::PathBuf;
 use crate::configs::{
     DesktopConf,
     background_conf::BackgroundType,
@@ -147,23 +148,24 @@ impl Program for Desktop {
 
         let grid_spacing = item_conf.grid_spacing;
         let item_size = item_conf.icon_size + 40;
-        let item_size_spacing = item_size + (grid_spacing*2);
+        let item_size_spacing = item_size + grid_spacing;
         let mut grid = Grid::new().column_width(item_size_spacing).padding(20).spacing(grid_spacing);
         if let Arrangement::Columns = item_conf.arrangement {
-            let items_in_height = usize::from(item_size_spacing + grid_spacing)*desktop_items.len();
+            let items_in_height = item_size_spacing as usize*desktop_items.len();
             grid = grid.columns((items_in_height as f32/self.size.1 as f32).ceil() as usize);
         }
 
         let desktop_grid = ls_desktop_items_state.iter_mut().zip(desktop_items.iter()).enumerate().fold(grid, |grid, (idx, (state, item))| {
-            let icon: Element<Self::Message, Renderer> = if let Some(icon_path) = &item.icon_path {
-                if let Some(extension) = icon_path.extension() {
-                    if extension == "svg" {
-                        Svg::from_path(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
-                    } else {
-                        Image::new(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
-                    }
+            let icon_path = if let Some(path) = &item.icon_path {
+                path.to_path_buf()
+            } else {
+                PathBuf::from("/usr/share/icons/koompi.svg")
+            };
+            let icon: Element<_, _> = if let Some(extension) = icon_path.extension() {
+                if extension == "svg" || extension == "svgz" {
+                    Svg::from_path(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
                 } else {
-                    Row::new().into()
+                    Image::new(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
                 }
             } else {
                 Row::new().into()
@@ -207,7 +209,7 @@ impl Program for Desktop {
             BackgroundType::Wallpaper => {
                 let wallpaper_path = bg_conf.wallpaper_conf.wallpaper_path.to_path_buf();
                 if wallpaper_path.exists() && wallpaper_path.is_file() && wallpaper_path.is_absolute() {
-                    Stack::new().width(Length::Fill).height(Length::Fill)
+                    Stack::new()
                     .push(Image::new(wallpaper_path).width(Length::Fill).height(Length::Fill), None)
                     .push(desktop_grid, None)
                     .into()

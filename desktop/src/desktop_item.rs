@@ -3,7 +3,7 @@ mod desktop_item_type;
 mod desktop_item_error;
 mod desktop_entry;
 
-use super::constants::{TYPE, DESKTOP_ENTRY, ICON, NAME, COMMENT, DEFAULT_APPS, MIME_FILE, MIME_INFO_CACHE, MIME_CACHE, INODE_DIR};
+use super::constants::{TYPE, DESKTOP_ENTRY, NAME, COMMENT, DEFAULT_APPS, MIME_FILE, MIME_INFO_CACHE, MIME_CACHE, INODE_DIR};
 use std::path::{PathBuf, Path};
 use std::str::FromStr;
 use std::convert::From;
@@ -28,16 +28,16 @@ pub struct DesktopItem {
     pub icon_path: Option<PathBuf>,
     pub comment: Option<String>,
     pub entry_type: DesktopItemType,
-    status: DesktopItemStatus,
+    pub status: DesktopItemStatus,
 }
 
 impl DesktopItem {
-    pub fn new<P: AsRef<Path>>(file: P) -> Result<Self, DesktopItemError> {
+    pub fn new<P: AsRef<Path>>(file: P, icon_path: Option<PathBuf>) -> Result<Self, DesktopItemError> {
         let file = file.as_ref();
-        let mut res = false;
         let mut desktop_item = Self {
             path: file.to_path_buf(),
             name: file.file_name().map(|name| name.to_str().unwrap().to_string()),
+            icon_path,
             ..Self::default()
         };
 
@@ -53,44 +53,19 @@ impl DesktopItem {
                         if let DesktopItemType::APP(entry) = &mut entry_type {
                             *entry = DesktopEntry::new(&desktop_entry);
                         }
-                        let icon_path = desktop_entry.attr(ICON).map(|name| {
-                            if Path::new(name).is_absolute() {
-                                PathBuf::from(name)
-                            } else {
-                                let path = PathBuf::from("/usr/share/icons/hicolor/scalable/apps").join(format!("{}.svg", name));
-                                if path.exists() {
-                                    path
-                                } else {
-                                    walkdir::WalkDir::new("/usr/share/icons").follow_links(true).into_iter().filter_map(|e| e.ok())
-                                        .find(|entry| entry.path().file_stem().unwrap().to_str().unwrap() == name.split('.').collect::<Vec<&str>>()[0])
-                                        .map(|entry| entry.into_path())
-                                        .unwrap_or(PathBuf::from("/usr/share/icons/koompi.svg"))
-                                }
-                            }
-                        });
 
-                        desktop_item = Self {
-                            path: file.to_path_buf(),
-                            entry_type, name, icon_path, comment, 
-                            ..Self::default()
-                        };
+                        desktop_item.name = name;
+                        desktop_item.comment = comment;
+                        desktop_item.entry_type = entry_type;
                     } else {
                         desktop_item.entry_type = DesktopItemType::FILE;
-                        desktop_item.icon_path = Some(PathBuf::from("/usr/share/icons/koompi.svg"));
                     }
-                    res = true;
                 }
             } else if file.is_dir() {
                 desktop_item.entry_type = DesktopItemType::DIR;
-                desktop_item.icon_path = Some(PathBuf::from("/usr/share/icons/koompi.svg"));
-                res = true;
-            } 
-
-            if res {
-                Ok(desktop_item)
-            } else {
-                Err(DesktopItemError::InvalidType)
             }
+
+            Ok(desktop_item)
         } else {
             Err(DesktopItemError::NoFilename (file.display().to_string()))
         }

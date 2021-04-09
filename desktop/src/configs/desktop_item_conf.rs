@@ -65,8 +65,8 @@ impl Display for Sorting {
 impl Default for DesktopItemConf {
     fn default() -> Self {
         Self {
-            icon_size: 45,
-            grid_spacing: 10,
+            icon_size: Self::DEF_ICON_SIZE,
+            grid_spacing: Self::DEF_GRID_SPACING,
             arrangement: Arrangement::Rows,
             sort_descending: false,
             sorting: Sorting::Manual,
@@ -77,7 +77,9 @@ impl Default for DesktopItemConf {
 
 impl DesktopItemConf {
     pub const MIN_ICON_SIZE: u16 = 32;
-    pub const MAX_ICON_SIZE: u16 = 96;
-    pub const MIN_GRID_SPACING: u16 = 5;
-    pub const MAX_GRID_SPACING: u16 = 20;
+    pub const DEF_ICON_SIZE: u16 = 42;
+    pub const MAX_ICON_SIZE: u16 = 78;
+    pub const MIN_GRID_SPACING: u16 = 3;
+    pub const DEF_GRID_SPACING: u16 = 5;
+    pub const MAX_GRID_SPACING: u16 = 10;
 }
