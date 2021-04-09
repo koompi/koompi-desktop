@@ -2,9 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 use crate::constants::THUMBNAIL_SIZE;
 use crate::proxy_message::ProxyMessage;
 use crate::configs::{
-    DesktopConf, PersistentData,
-    background_conf::BackgroundType,
-    wallpaper_conf::Placement
+    background_conf::BackgroundType, wallpaper_conf::Placement, DesktopConf, PersistentData,
 };
 use crate::background::WallpaperItem;
 use super::styles::{CustomButton, CustomTooltip, CustomContainer, BACKGROUND, CustomSelect};
@@ -67,7 +65,7 @@ impl Application for BackgroundConfigUI {
                 placement_state: Default::default(),
                 scroll: Default::default(),
             },
-            Command::none()
+            Command::none(),
         )
     }
 

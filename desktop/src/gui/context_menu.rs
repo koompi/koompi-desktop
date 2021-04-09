@@ -1,11 +1,11 @@
+use super::styles::{CustomButton, HOVERED};
+use crate::proxy_message::ProxyMessage;
 use iced_wgpu::Renderer;
 use iced_winit::{
     Command, Container, Element, Length, Program, Button, Text, Column, button, 
     Row, Icon, icon::Icons, Space, Rule, Application, Color, winit, Clipboard,
 };
 use winit::event_loop::EventLoopProxy;
-use super::styles::{CustomButton, HOVERED};
-use crate::proxy_message::ProxyMessage;
 
 #[derive(Debug)]
 pub struct ContextMenu {
@@ -25,9 +25,16 @@ pub struct MenuItemNode {
 }
 
 impl MenuItemNode {
-    pub fn new(title: &str, has_underline: bool, callback: Option<ContextMsg>, submenu: Option<Vec<MenuItemNode>>) -> Self {
+    pub fn new(
+        title: &str,
+        has_underline: bool,
+        callback: Option<ContextMsg>,
+        submenu: Option<Vec<MenuItemNode>>,
+    ) -> Self {
         Self {
-            submenu, callback, has_underline,
+            submenu,
+            callback,
+            has_underline,
             title: title.to_owned(),
             ..Self::default()
         }
@@ -52,21 +59,26 @@ impl Application for ContextMenu {
                 menu_items: vec![
                     MenuItemNode::new("New Folder", true, Some(NewFolder), None),
                     MenuItemNode::new("Change Desktop Background", false, Some(ChangeBG), None),
-                    MenuItemNode::new("Sort By", true, Some(SortBy), Some(vec![
-                        MenuItemNode::new("Manual", true, None, None),
-                        MenuItemNode::new("Name", false, None, None),
-                        MenuItemNode::new("Type", false, None, None),
-                        MenuItemNode::new("Date", false, None, None),
-                    ])),
+                    MenuItemNode::new(
+                        "Sort By",
+                        true,
+                        Some(SortBy),
+                        Some(vec![
+                            MenuItemNode::new("Manual", true, None, None),
+                            MenuItemNode::new("Name", false, None, None),
+                            MenuItemNode::new("Type", false, None, None),
+                            MenuItemNode::new("Date", false, None, None),
+                        ]),
+                    ),
                     MenuItemNode::new("Desktop View", false, Some(DesktopView), None),
                 ],
                 proxy: flags,
             },
-            Command::none()
+            Command::none(),
         )
     }
 
-    fn title(&self) -> String { 
+    fn title(&self) -> String {
         String::from("Context Menu")
     }
 
@@ -86,7 +98,10 @@ impl Program for ContextMenu {
             NewFolder => self.proxy.send_event(ProxyMessage::ContextMenu(NewFolder)).unwrap(),
             ChangeBG => self.proxy.send_event(ProxyMessage::ContextMenu(ChangeBG)).unwrap(),
             SortBy => println!("change sort by field"),
-            DesktopView => self.proxy.send_event(ProxyMessage::ContextMenu(DesktopView)).unwrap(),
+            DesktopView => self
+                .proxy
+                .send_event(ProxyMessage::ContextMenu(DesktopView))
+                .unwrap(),
         }
 
         Command::none()

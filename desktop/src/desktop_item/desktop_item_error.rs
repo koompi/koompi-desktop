@@ -1,7 +1,6 @@
-use thiserror::Error;
 use freedesktop_entry_parser::errors::ParseError;
 use subprocess::PopenError;
-
+use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum DesktopItemError {
     #[error(transparent)]

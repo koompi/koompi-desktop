@@ -1,7 +1,6 @@
-use thiserror::Error;
-use super::desktop_item::DesktopItemError;
 use super::background::WallpaperError;
-
+use super::desktop_item::DesktopItemError;
+use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum DesktopError {
     #[error("Config file not found: {0}")]
@@ -18,4 +17,4 @@ pub enum DesktopError {
     WallpaperError(#[from] WallpaperError),
     #[error(transparent)]
     IOError(#[from] std::io::Error),
-}   
+}

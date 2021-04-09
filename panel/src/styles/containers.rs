@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use iced_wgpu::{container, Color};
+use iced::{container, Color};
 
 pub const BACKGROUND: Color = Color::from_rgb(238.0 / 255.0, 238.0 / 255.0, 238.0 / 255.0);
 pub const FOREGROUND: Color = Color::from_rgb(224.0 / 255.0, 224.0 / 255.0, 224.0 / 255.0);
@@ -52,7 +52,7 @@ impl container::StyleSheet for CustomContainer {
             ),
             border_radius: match self {
                 Segment => 10.0,
-                ForegroundGray | Hovered => 7.0,
+                ForegroundGray | Hovered => 0.0,
                 FadedBrightForeground => 4.0,
                 Success | Warning | Primary => 5.0,
                 _ => 0.0,

@@ -29,14 +29,20 @@ impl button::StyleSheet for CustomButton {
                 Transparent | Selected => Color::WHITE,
                 _ => Color::BLACK,
             },
-            background: Some(match self {
-                Default => Color::WHITE,
-                Selected => Color { a: 0.5, ..PRIMARY },
-                Primary => Color { a: 0.3, ..PRIMARY },
-                Secondary => Color { a: 0.3, ..SECONDARY },
-                Hovered => Color { a: 0.3, ..HOVERED },
-                _ => Color::TRANSPARENT,
-            }.into()),
+            background: Some(
+                match self {
+                    Default => Color::WHITE,
+                    Selected => Color { a: 0.5, ..PRIMARY },
+                    Primary => Color { a: 0.3, ..PRIMARY },
+                    Secondary => Color {
+                        a: 0.3,
+                        ..SECONDARY
+                    },
+                    Hovered => Color { a: 0.3, ..HOVERED },
+                    _ => Color::TRANSPARENT,
+                }
+                .into(),
+            ),
             border_radius: 7.0,
             border_color: Color::TRANSPARENT,
             border_width: 1.0,
@@ -53,14 +59,14 @@ impl button::StyleSheet for CustomButton {
 
         button::Style {
             background: match self {
-                Transparent => Some(Color { a: 0.3, ..PRIMARY}.into()),
+                Transparent => Some(Color { a: 0.3, ..PRIMARY }.into()),
                 Text => Some(Color { a: 0.3, ..HOVERED }.into()),
                 Primary | Secondary | Hovered => Some(active.text_color.into()),
-                _ => active.background
+                _ => active.background,
             },
             text_color: match self {
                 Primary | Secondary | Hovered => Color::WHITE,
-                _ => active.text_color
+                _ => active.text_color,
             },
             ..active
         }

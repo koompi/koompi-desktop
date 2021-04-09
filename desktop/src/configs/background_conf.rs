@@ -1,13 +1,16 @@
-use std::fmt::{self, Display, Formatter};
-use serde::{Serialize, Deserialize};
+use super::wallpaper_conf::WallpaperConf;
 use de::deserialize_color_hex_string;
 use ser::serialize_color_hex;
-use super::wallpaper_conf::WallpaperConf;
+use serde::{Deserialize, Serialize};
+use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackgroundConf {
     pub kind: BackgroundType,
-    #[serde(deserialize_with = "deserialize_color_hex_string", serialize_with = "serialize_color_hex")]
+    #[serde(
+        deserialize_with = "deserialize_color_hex_string",
+        serialize_with = "serialize_color_hex"
+    )]
     pub color_background: iced_winit::Color,
     #[serde(rename = "Wallpaper_Config")]
     pub wallpaper_conf: WallpaperConf,
@@ -26,28 +29,30 @@ impl Default for BackgroundConf {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BackgroundType {
     Color,
-    Wallpaper
+    Wallpaper,
 }
 
 impl BackgroundType {
-    pub const ALL: [BackgroundType; 2] = [
-        BackgroundType::Color, BackgroundType::Wallpaper
-    ];  
+    pub const ALL: [BackgroundType; 2] = [BackgroundType::Color, BackgroundType::Wallpaper];
 }
 
 impl Display for BackgroundType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         use BackgroundType::*;
-        write!(f, "{}", match self {
-            Color => "Color",
-            Wallpaper => "Wallpaper"
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Color => "Color",
+                Wallpaper => "Wallpaper",
+            }
+        )
     }
 }
 
 mod ser {
-    use serde::ser::Serializer;
     use iced_winit::Color;
+    use serde::ser::Serializer;
 
     pub(super) fn serialize_color_hex<S>(color: &Color, s: S) -> Result<S::Ok, S::Error>
     where
@@ -61,9 +66,9 @@ mod ser {
 }
 
 mod de {
+    use iced_winit::Color;
     use serde::de::{self, Error, Unexpected, Visitor};
     use std::fmt;
-    use iced_winit::Color;
 
     fn hex_to_color(hex: &str) -> Option<Color> {
         if hex.len() == 7 {
@@ -86,9 +91,7 @@ mod de {
         None
     }
 
-    pub(super) fn deserialize_color_hex_string<'de, D>(
-        deserializer: D,
-    ) -> Result<Color, D::Error>
+    pub(super) fn deserialize_color_hex_string<'de, D>(deserializer: D) -> Result<Color, D::Error>
     where
         D: de::Deserializer<'de>,
     {

@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,18 +18,20 @@ pub enum Arrangement {
 }
 
 impl Arrangement {
-    pub const ALL: [Arrangement; 2] = [
-        Arrangement::Rows, Arrangement::Columns
-    ];
+    pub const ALL: [Arrangement; 2] = [Arrangement::Rows, Arrangement::Columns];
 }
 
 impl Display for Arrangement {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result { 
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         use Arrangement::*;
-        write!(f, "{}", match self {
-            Rows => "Rows",
-            Columns => "Columns"
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Rows => "Rows",
+                Columns => "Columns",
+            }
+        )
     }
 }
 
@@ -42,23 +44,22 @@ pub enum Sorting {
 }
 
 impl Sorting {
-    pub const ALL: [Sorting; 4] = [
-        Sorting::Manual,
-        Sorting::Name,
-        Sorting::Type,
-        Sorting::Date,
-    ];
+    pub const ALL: [Sorting; 4] = [Sorting::Manual, Sorting::Name, Sorting::Type, Sorting::Date];
 }
 
 impl Display for Sorting {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result { 
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         use Sorting::*;
-        write!(f, "{}", match self {
-            Manual => "None",
-            Name => "Name",
-            Type => "Type",
-            Date => "Date"
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Manual => "None",
+                Name => "Name",
+                Type => "Type",
+                Date => "Date",
+            }
+        )
     }
 }
 

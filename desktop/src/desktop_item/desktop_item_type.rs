@@ -4,12 +4,12 @@ use crate::constants::{APP, DIR, LINK, FILE};
 use super::desktop_item_error::DesktopItemError;
 use super::desktop_entry::DesktopEntry;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub enum DesktopItemType {
     APP(DesktopEntry),
-    LINK,
     DIR,
     FILE,
+    LINK,
     NULL,
 }
 

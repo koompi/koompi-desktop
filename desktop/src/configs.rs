@@ -1,11 +1,11 @@
 pub mod background_conf;
 pub mod desktop_item_conf;
-pub mod wallpaper_conf;
 mod persistent_data;
+pub mod wallpaper_conf;
 
-pub use persistent_data::PersistentData;
 use background_conf::BackgroundConf;
 use desktop_item_conf::DesktopItemConf;
+pub use persistent_data::PersistentData;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -22,5 +22,15 @@ pub struct DesktopConf {
 impl PersistentData for DesktopConf {
     fn relative_path() -> PathBuf {
         PathBuf::from("desktop").join(DESKTOP_CONF)
+    }
+}
+
+impl DesktopConf {
+    pub fn background_conf(&self) -> &BackgroundConf {
+        &self.background_conf
+    }
+
+    pub fn desktop_item_conf(&self) -> &DesktopItemConf {
+        &self.desktop_item_conf
     }
 }

@@ -13,9 +13,9 @@ use iced_winit::{
 use futures::{task::SpawnExt, executor::LocalPool};
 use wgpu::util::StagingBelt;
 use winit::{
-    window::Window,
-    event::{WindowEvent, ModifiersState},
     dpi::PhysicalPosition,
+    event::{ModifiersState, WindowEvent},
+    window::Window,
 };
 
 pub struct WindowState<A: Application<Renderer=Renderer>> {
@@ -41,10 +41,10 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
 
     // Creating some of the wgpu types requires async code
     pub async fn new(
-        instance: &wgpu::Instance, 
-        window: Window, 
-        application: A, 
-        visible: bool, 
+        instance: &wgpu::Instance,
+        window: Window,
+        application: A,
+        visible: bool,
         settings: Option<&Settings>,
         chunk_size: Option<u64>,
     ) -> Self {
@@ -53,21 +53,25 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let surface = unsafe { instance.create_surface(&window) };
-        let adapter = instance.request_adapter(
-            &wgpu::RequestAdapterOptions {
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
                 compatible_surface: Some(&surface),
-            },
-        ).await.unwrap();
+            })
+            .await
+            .unwrap();
 
-        let (mut device, queue) = adapter.request_device(
-            &wgpu::DeviceDescriptor {
-                features: wgpu::Features::empty(),
-                limits: wgpu::Limits::default(),
-                label: None,
-            },
-            None, // Trace path
-        ).await.unwrap();
+        let (mut device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    features: wgpu::Features::empty(),
+                    limits: wgpu::Limits::default(),
+                    label: None,
+                },
+                None, // Trace path
+            )
+            .await
+            .unwrap();
 
         let sc_desc = wgpu::SwapChainDescriptor {
             usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
@@ -77,7 +81,10 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
             present_mode: wgpu::PresentMode::Fifo,
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
-        let renderer = Renderer::new(Backend::new(&mut device, settings.map(ToOwned::to_owned).unwrap_or_default()));
+        let renderer = Renderer::new(Backend::new(
+            &mut device,
+            settings.map(ToOwned::to_owned).unwrap_or_default(),
+        ));
         let state = application::State::new(&application, &window);
         // This condition statement must be below state declaration.
         if visible {
@@ -107,7 +114,11 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         }
     }
 
-    pub fn window_event_request_exit(&mut self, event: &WindowEvent<'_>, debug: &mut Debug) -> bool {
+    pub fn window_event_request_exit(
+        &mut self,
+        event: &WindowEvent<'_>,
+        debug: &mut Debug,
+    ) -> bool {
         let is_close = requests_exit(&event, self.state.modifiers());
         self.state.update(&self.window, &event, debug);
         if let Some(event) =
@@ -118,7 +129,11 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         is_close
     }
 
-    pub fn render(&mut self, cursor_position: PhysicalPosition<f64>, debug: &mut Debug) -> Result<(), wgpu::SwapChainError> {
+    pub fn render(
+        &mut self,
+        cursor_position: PhysicalPosition<f64>,
+        debug: &mut Debug,
+    ) -> Result<(), wgpu::SwapChainError> {
         debug.render_started();
         let mut user_interface = build_user_interface(
             &mut self.application,
@@ -145,31 +160,29 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         }
 
         let frame = self.swap_chain.get_current_frame()?.output;
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: None,
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         {
             let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
-                color_attachments: &[
-                    wgpu::RenderPassColorAttachmentDescriptor {
-                        attachment: &frame.view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear({
-                                let [r, g, b, a] = self.state.background_color().into_linear();
+                color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
+                    attachment: &frame.view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear({
+                            let [r, g, b, a] = self.state.background_color().into_linear();
 
-                                wgpu::Color {
-                                    r: r as f64,
-                                    g: g as f64,
-                                    b: b as f64,
-                                    a: a as f64,
-                                }
-                            }),
-                            store: true,
-                        }
-                    }
-                ],
+                            wgpu::Color {
+                                r: r as f64,
+                                g: g as f64,
+                                b: b as f64,
+                                a: a as f64,
+                            }
+                        }),
+                        store: true,
+                    },
+                }],
                 depth_stencil_attachment: None,
             });
         }
@@ -215,8 +228,13 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
         self.application.subscription()
     }
 
-    pub fn update_frame<E>(&mut self, runtime: Option<&mut Runtime<E, Proxy<ProxyMessage>, ProxyMessage>>, cursor_position: PhysicalPosition<f64>, debug: &mut Debug) -> Option<Command<A::Message>>
-    where 
+    pub fn update_frame<E>(
+        &mut self,
+        runtime: Option<&mut Runtime<E, Proxy<ProxyMessage>, ProxyMessage>>,
+        cursor_position: PhysicalPosition<f64>,
+        debug: &mut Debug,
+    ) -> Option<Command<A::Message>>
+    where
         E: Executor + 'static,
     {
         let Self {
@@ -244,9 +262,7 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
                 self.state.logical_size(),
                 debug,
             ));
-    
             debug.event_processing_started();
-    
             let mut messages = Vec::new();
             let statuses = user_interface.update(
                 &self.events,
@@ -265,9 +281,9 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
                 if !messages.is_empty() {
                     commands = Some(Command::batch(messages.into_iter().map(|message| {
                         debug.log_message(&message);
-                
                         debug.update_started();
-                        let command = runtime.enter(|| self.application.update(message, &mut self.clipboard));
+                        let command =
+                            runtime.enter(|| self.application.update(message, &mut self.clipboard));
                         debug.update_finished();
                         command
                     })))
@@ -278,7 +294,6 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
                 if !messages.is_empty() {
                     commands = Some(Command::batch(messages.into_iter().map(|message| {
                         debug.log_message(&message);
-                
                         debug.update_started();
                         let command = self.application.update(message, &mut self.clipboard);
                         debug.update_finished();
@@ -299,14 +314,14 @@ impl<A: Application<Renderer=Renderer>> WindowState<A> {
             Err(wgpu::SwapChainError::Lost) => {
                 self.swap_chain = self.device.create_swap_chain(&self.surface, &self.sc_desc);
                 true
-            },
+            }
             // The system is out of memory, we should probably quit
             Err(wgpu::SwapChainError::OutOfMemory) => false,
             // All other errors (Outdated, Timeout) should be resolved by the next frame
             Err(e) => {
                 eprintln!("{:?}", e);
                 true
-            },
+            }
         }
     }
 
@@ -334,10 +349,7 @@ fn build_user_interface<'a, P: Program>(
     user_interface
 }
 
-pub fn requests_exit(
-    event: &WindowEvent<'_>,
-    _modifiers: ModifiersState,
-) -> bool {
+pub fn requests_exit(event: &WindowEvent<'_>, _modifiers: ModifiersState) -> bool {
     match event {
         WindowEvent::CloseRequested => true,
         #[cfg(target_os = "macos")]

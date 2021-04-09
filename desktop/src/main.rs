@@ -1,41 +1,38 @@
-mod window_state;
 mod background;
-mod desktop_item;
-mod constants;
-mod desktop_manager;
 mod configs;
+mod constants;
+mod desktop_item;
+mod desktop_manager;
 mod errors;
 mod gui;
 mod proxy_message;
-
-use desktop_item::DesktopItem;
+mod window_state;
 use background::WallpaperItem;
 use configs::PersistentData;
-use proxy_message::ProxyMessage;
-use window_state::WindowState;
+use desktop_item::DesktopItem;
 use desktop_manager::DesktopManager;
-use gui::{
-    Desktop, ContextMenu, DesktopConfigUI, BackgroundConfigUI, ContextMsg, BackgroundConfMsg,
-};
+use tauri_dialog::{DialogBuilder, DialogButtons, DialogSelection, DialogStyle};
 
+use gui::{
+    BackgroundConfMsg, BackgroundConfigUI, ContextMenu, ContextMsg, Desktop, DesktopConfigMsg,
+    DesktopConfigUI,
+};
+use proxy_message::ProxyMessage;
 use std::{cell::RefCell, rc::Rc};
-use std::collections::HashMap;
+use window_state::WindowState;
+
+use futures::{channel::mpsc, task};
 use iced::executor;
 use iced_wgpu::{wgpu, Settings};
-use iced_winit::{
-    futures, winit, button, Debug, Application, Runtime, Proxy, Executor, 
-};
-use futures::{
-    channel::mpsc, task
-};
+use iced_winit::{button, futures, winit, Application, Debug, Executor, Proxy, Runtime};
+use std::collections::HashMap;
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
-    event::{Event, WindowEvent, MouseButton, KeyboardInput, ElementState, VirtualKeyCode},
+    event::{ElementState, Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     platform::unix::{WindowBuilderExtUnix, XWindowType},
-    window::WindowBuilder, 
+    window::WindowBuilder,
 };
-use tauri_dialog::{DialogBuilder, DialogButtons, DialogStyle, DialogSelection};
 
 fn main() {
     std::env::set_var("WINIT_X11_SCALE_FACTOR", "1.25");
@@ -44,7 +41,8 @@ fn main() {
             let mut old_desktop_conf = desktop_manager.config().to_owned();
             let desktop_conf = Rc::new(RefCell::new(desktop_manager.config().to_owned()));
             let desktop_items = Rc::new(RefCell::new(desktop_manager.desktop_items().to_owned()));
-            let wallpaper_items = Rc::new(RefCell::new(desktop_manager.wallpaper_items().to_owned()));
+            let wallpaper_items =
+                Rc::new(RefCell::new(desktop_manager.wallpaper_items().to_owned()));
             // .into_iter().map(|item| (button::State::new(), item.to_owned())).collect::<Vec<(button::State, DesktopItem)>>()
 
             // Instance
@@ -59,19 +57,29 @@ fn main() {
             };
             let (mut sender, receiver) = mpsc::unbounded();
 
-            // Other 
+            // Other
             let settings = Settings {
-                default_text_size: 14,
+                default_text_size: 13,
                 ..Settings::default()
             };
-            let (monitor_size, monitor_position) = event_loop.primary_monitor().map(|m| (m.size(), m.position())).unwrap_or((PhysicalSize::new(1920, 1080), PhysicalPosition::new(0, 0)));
+            let (monitor_size, monitor_position) = event_loop
+                .primary_monitor()
+                .map(|m| (m.size(), m.position()))
+                .unwrap_or((PhysicalSize::new(1920, 1080), PhysicalPosition::new(0, 0)));
             let mut cursor_position = PhysicalPosition::new(-1.0, -1.0);
             let mut debug = Debug::new();
 
             // Desktop Init Section
             let desktop_state = {
                 let (desktop, init_cmd) = {
-                    runtime.enter(|| Desktop::new(((monitor_size.width, monitor_size.height), Rc::clone(&desktop_conf), desktop_items.borrow().len(), Rc::clone(&desktop_items))))
+                    runtime.enter(|| {
+                        Desktop::new((
+                            (monitor_size.width, monitor_size.height),
+                            Rc::clone(&desktop_conf),
+                            desktop_items.borrow().len(),
+                            Rc::clone(&desktop_items),
+                        ))
+                    })
                 };
                 let desktop_window = WindowBuilder::new()
                     .with_x11_window_type(vec![XWindowType::Desktop])
@@ -79,12 +87,20 @@ fn main() {
                     .with_title(desktop.title())
                     .with_inner_size(monitor_size)
                     .with_visible(false)
-                    .build(&event_loop).unwrap();
+                    .build(&event_loop)
+                    .unwrap();
 
                 let subscription = desktop.subscription();
                 runtime.spawn(init_cmd.map(Into::into));
                 runtime.track(subscription.map(Into::into));
-                futures::executor::block_on(WindowState::new(&instance, desktop_window, desktop, true, Some(&settings), None))
+                futures::executor::block_on(WindowState::new(
+                    &instance,
+                    desktop_window,
+                    desktop,
+                    true,
+                    Some(&settings),
+                    None,
+                ))
             };
 
             // Context Menu Init Section
@@ -99,15 +115,26 @@ fn main() {
                     .with_resizable(false)
                     .with_maximized(false)
                     .with_visible(false)
-                    .build(&event_loop).unwrap();
-                futures::executor::block_on(WindowState::new(&instance, context_menu_window, context_menu, false, Some(&settings), None))
+                    .build(&event_loop)
+                    .unwrap();
+                futures::executor::block_on(WindowState::new(
+                    &instance,
+                    context_menu_window,
+                    context_menu,
+                    false,
+                    Some(&settings),
+                    None,
+                ))
             };
 
-            let mut run_instance = Box::pin(
-                run_instance::<executor::Default>(
-                    desktop_state, context_menu_state, runtime, receiver, context_menu_size, monitor_size,
-                )
-            );
+            let mut run_instance = Box::pin(run_instance::<executor::Default>(
+                desktop_state,
+                context_menu_state,
+                runtime,
+                receiver,
+                context_menu_size,
+                monitor_size,
+            ));
             let mut context = task::Context::from_waker(task::noop_waker_ref());
 
             event_loop.run(move |event, event_loop, control_flow| {
@@ -116,24 +143,40 @@ fn main() {
                 if let Some(event) = event.to_static() {
                     match event.clone() {
                         Event::UserEvent(custom_event) => match custom_event {
-                            ProxyMessage::Bg(BackgroundConfMsg::AddWallpaperClicked) => if let nfd2::Response::Okay(file_path) = nfd2::open_file_dialog(Some("png,jpg"), None).expect("oh no") {
-                                match desktop_manager.add_wallpaper(file_path) {
-                                    Ok((conf, items)) => {
-                                        let mut desktop_conf = desktop_conf.borrow_mut();
-                                        *desktop_conf = conf;
-                                        let mut wallpaper_items = wallpaper_items.borrow_mut();
-                                        *wallpaper_items = items;
-                                        // .into_iter().map(|item| (button::State::new(), item)).collect();
-                                        let _ = desktop_conf.save();
-                                        old_desktop_conf = desktop_conf.to_owned();
-                                    },
-                                    Err(err) => {
-                                        let _ = DialogBuilder::new().title("Error")
-                                            .message(&format!("{}", err))
-                                            .style(DialogStyle::Error)
-                                            .build().show();
+                            ProxyMessage::DesktopConf(DesktopConfigMsg::SortingChanged(_))
+                            | ProxyMessage::DesktopConf(DesktopConfigMsg::SortDescToggled(_)) => {
+                                let desktop_conf = desktop_conf.borrow();
+                                desktop_manager.sort_desktop_items(
+                                    desktop_conf.desktop_item_conf.sorting,
+                                    desktop_conf.desktop_item_conf.sort_descending,
+                                );
+                                let mut desktop_items = desktop_items.borrow_mut();
+                                *desktop_items = desktop_manager.desktop_items().to_owned();
+                            }
+                            ProxyMessage::Bg(BackgroundConfMsg::AddWallpaperClicked) => {
+                                if let nfd2::Response::Okay(file_path) =
+                                    nfd2::open_file_dialog(Some("png,jpg"), None).expect("oh no")
+                                {
+                                    match desktop_manager.add_wallpaper(file_path) {
+                                        Ok((conf, items)) => {
+                                            let mut desktop_conf = desktop_conf.borrow_mut();
+                                            *desktop_conf = conf;
+                                            let mut wallpaper_items = wallpaper_items.borrow_mut();
+                                            *wallpaper_items = items;
+                                            // .into_iter().map(|item| (button::State::new(), item)).collect();
+                                            let _ = desktop_conf.save();
+                                            old_desktop_conf = desktop_conf.to_owned();
+                                        }
+                                        Err(err) => {
+                                            let _ = DialogBuilder::new()
+                                                .title("Error")
+                                                .message(&format!("{}", err))
+                                                .style(DialogStyle::Error)
+                                                .build()
+                                                .show();
+                                        }
                                     }
-                                } 
+                                }
                             }
                             ProxyMessage::ContextMenu(msg) => match msg {
                                 ContextMsg::NewFolder => {
@@ -142,78 +185,126 @@ fn main() {
                                             let mut desktop_items = desktop_items.borrow_mut();
                                             *desktop_items = items;
                                             // .into_iter().map(|item| (button::State::new(), item)).collect();
-                                        },
+                                        }
                                         Err(err) => {
-                                            let _ = DialogBuilder::new().title("Error")
+                                            let _ = DialogBuilder::new()
+                                                .title("Error")
                                                 .message(&format!("{}", err))
                                                 .style(DialogStyle::Error)
-                                                .build().show();
+                                                .build()
+                                                .show();
                                         }
-                                    } 
-                                },
+                                    }
+                                }
                                 ContextMsg::ChangeBG => {
                                     // Background Config Init Section
                                     let (bg_config, _) = BackgroundConfigUI::new((
                                         event_proxy.to_owned(),
-                                        Rc::clone(&desktop_conf), 
+                                        Rc::clone(&desktop_conf),
                                         (monitor_size.width, monitor_size.height),
                                         wallpaper_items.borrow().len(),
-                                        Rc::clone(&wallpaper_items), 
-                                        desktop_manager.wallpaper_items().iter()
-                                            .position(|item| old_desktop_conf.background_conf.wallpaper_conf.wallpaper_path == item.path)
+                                        Rc::clone(&wallpaper_items),
+                                        desktop_manager.wallpaper_items().iter().position(|item| {
+                                            old_desktop_conf
+                                                .background_conf
+                                                .wallpaper_conf
+                                                .wallpaper_path
+                                                == item.path
+                                        }),
                                     ));
                                     let bg_config_window = WindowBuilder::new()
-                                        .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
+                                        .with_x11_window_type(vec![
+                                            XWindowType::Normal,
+                                            XWindowType::Utility,
+                                        ])
                                         .with_title(bg_config.title())
                                         .with_resizable(false)
                                         .with_maximized(false)
                                         .with_visible(false)
-                                        .build(&event_loop).unwrap();
-                                    windows.insert(bg_config_window.id(), DynWinState::BgConfig(futures::executor::block_on(WindowState::new(&instance, bg_config_window, bg_config, true, Some(&settings), Some(20 * 1024)))));
-                                },
+                                        .build(&event_loop)
+                                        .unwrap();
+                                    windows.insert(
+                                        bg_config_window.id(),
+                                        DynWinState::BgConfig(futures::executor::block_on(
+                                            WindowState::new(
+                                                &instance,
+                                                bg_config_window,
+                                                bg_config,
+                                                true,
+                                                Some(&settings),
+                                                Some(20 * 1024),
+                                            ),
+                                        )),
+                                    );
+                                }
                                 ContextMsg::DesktopView => {
                                     // Desktop Config Init Section
-                                    let (desktop_config, _) = DesktopConfigUI::new(Rc::clone(&desktop_conf));
+                                    let (desktop_config, _) = DesktopConfigUI::new((
+                                        event_proxy.to_owned(),
+                                        Rc::clone(&desktop_conf),
+                                    ));
                                     let desktop_config_window = WindowBuilder::new()
-                                        .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
+                                        .with_x11_window_type(vec![
+                                            XWindowType::Normal,
+                                            XWindowType::Utility,
+                                        ])
                                         .with_inner_size(PhysicalSize::new(250, 400))
                                         .with_title(desktop_config.title())
                                         .with_resizable(false)
                                         .with_maximized(false)
                                         .with_visible(false)
-                                        .build(&event_loop).unwrap();
-                                    windows.insert(desktop_config_window.id(), DynWinState::DesktopConfig(futures::executor::block_on(WindowState::new(&instance, desktop_config_window, desktop_config, true, Some(&settings), None))));
-                                },
+                                        .build(&event_loop)
+                                        .unwrap();
+                                    windows.insert(
+                                        desktop_config_window.id(),
+                                        DynWinState::DesktopConfig(futures::executor::block_on(
+                                            WindowState::new(
+                                                &instance,
+                                                desktop_config_window,
+                                                desktop_config,
+                                                true,
+                                                Some(&settings),
+                                                None,
+                                            ),
+                                        )),
+                                    );
+                                }
                                 _ => {}
                             },
                             _ => {}
                         },
-                        Event::WindowEvent { ref event, window_id } => {
+                        Event::WindowEvent {
+                            ref event,
+                            window_id,
+                        } => {
                             use DynWinState::*;
 
                             if let WindowEvent::CursorMoved { position, .. } = event {
                                 cursor_position = *position;
-                            } 
+                            }
 
                             let mut handle_exit = |has_changed: bool| -> bool {
                                 let mut is_close = true;
 
                                 if has_changed {
-                                    match DialogBuilder::new().title("Configuration")
+                                    match DialogBuilder::new()
+                                        .title("Configuration")
                                         .message("Do you want to save the configuration?")
                                         .buttons(DialogButtons::YesNo)
                                         .style(DialogStyle::Question)
-                                        .build().show() {
+                                        .build()
+                                        .show()
+                                    {
                                         DialogSelection::Yes => {
                                             let desktop_conf = desktop_conf.borrow();
                                             let _ = desktop_conf.save();
                                             old_desktop_conf = desktop_conf.to_owned();
-                                        },
+                                        }
                                         DialogSelection::No => {
                                             let mut desktop_conf = desktop_conf.borrow_mut();
                                             *desktop_conf = old_desktop_conf.to_owned();
-                                        },
-                                        _ => is_close = false
+                                        }
+                                        _ => is_close = false,
                                     }
                                 } else {
                                     let desktop_conf = desktop_conf.borrow();
@@ -231,47 +322,56 @@ fn main() {
                                                 windows.remove(&window_id);
                                             }
                                         }
-                                    },
+                                    }
                                     BgConfig(state) => {
                                         if state.window_event_request_exit(&event, &mut debug) {
                                             if handle_exit(state.has_changed()) {
                                                 windows.remove(&window_id);
                                             }
-                                        } 
-                                    },
+                                        }
+                                    }
                                 }
                             }
-                        },
+                        }
                         Event::MainEventsCleared => {
-                            windows.iter_mut().for_each(|(_, state)| {
-                                match state {
-                                    DynWinState::DesktopConfig(state) => {
-                                        state.update_frame::<executor::Default>(None, cursor_position, &mut debug);
-                                        state.window.request_redraw();
-                                    },
-                                    DynWinState::BgConfig(state) => {
-                                        state.update_frame::<executor::Default>(None, cursor_position, &mut debug);
-                                        state.window.request_redraw();
-                                    },
+                            windows.iter_mut().for_each(|(_, state)| match state {
+                                DynWinState::DesktopConfig(state) => {
+                                    state.update_frame::<executor::Default>(
+                                        None,
+                                        cursor_position,
+                                        &mut debug,
+                                    );
+                                    state.window.request_redraw();
+                                }
+                                DynWinState::BgConfig(state) => {
+                                    state.update_frame::<executor::Default>(
+                                        None,
+                                        cursor_position,
+                                        &mut debug,
+                                    );
+                                    state.window.request_redraw();
                                 }
                             });
-                        },
+                        }
                         Event::RedrawRequested(window_id) => {
                             let is_success = if let Some(state) = windows.get_mut(&window_id) {
                                 Some(match state {
-                                    DynWinState::DesktopConfig(prog_state) => prog_state.redraw(cursor_position, &mut debug),
-                                    DynWinState::BgConfig(prog_state) => prog_state.redraw(cursor_position, &mut debug),
+                                    DynWinState::DesktopConfig(prog_state) => {
+                                        prog_state.redraw(cursor_position, &mut debug)
+                                    }
+                                    DynWinState::BgConfig(prog_state) => {
+                                        prog_state.redraw(cursor_position, &mut debug)
+                                    }
                                 })
                             } else {
                                 None
                             };
-            
                             if let Some(is_success) = is_success {
                                 if !is_success {
                                     *control_flow = ControlFlow::Exit;
                                 }
                             }
-                        },
+                        }
                         _ => {}
                     }
 
@@ -285,8 +385,8 @@ fn main() {
                     };
                 }
             });
-        },
-        Err(err) => eprintln!("{}", err)
+        }
+        Err(err) => eprintln!("{:?}", err),
     }
 }
 
@@ -309,8 +409,11 @@ async fn run_instance<E>(
 
     while let Some(event) = receiver.next().await {
         match event {
-            Event::UserEvent(ProxyMessage::Desktop(msg) ) => desktop_state.map_message(msg),
-            Event::WindowEvent { ref event, window_id } => {
+            Event::UserEvent(ProxyMessage::Desktop(msg)) => desktop_state.map_message(msg),
+            Event::WindowEvent {
+                ref event,
+                window_id,
+            } => {
                 match event {
                     WindowEvent::CursorMoved { position, .. } => cursor_position = *position,
                     WindowEvent::KeyboardInput { input, .. } => match input {
@@ -321,13 +424,25 @@ async fn run_instance<E>(
                         } => is_context_shown = false,
                         _ => {}
                     },
-                    WindowEvent::MouseInput { state: ElementState::Pressed, button, .. } => if desktop_state.window.id() == window_id {
-                        match button {
-                            MouseButton::Right => {
-                                context_menu_state.window.set_outer_position(get_prefered_position(cursor_position, context_menu_size, monitor_size));
-                                is_context_shown = true;
-                            },
-                            _ => is_context_shown = false,
+                    WindowEvent::MouseInput {
+                        state: ElementState::Pressed,
+                        button,
+                        ..
+                    } => {
+                        if desktop_state.window.id() == window_id {
+                            match button {
+                                MouseButton::Right => {
+                                    context_menu_state.window.set_outer_position(
+                                        get_prefered_position(
+                                            cursor_position,
+                                            context_menu_size,
+                                            monitor_size,
+                                        ),
+                                    );
+                                    is_context_shown = true;
+                                }
+                                _ => is_context_shown = false,
+                            }
                         }
                     }
                     _ => {}
@@ -337,21 +452,27 @@ async fn run_instance<E>(
                     if context_menu_state.window_event_request_exit(&event, &mut debug) {
                         is_context_shown = false;
                     }
-                } else  if desktop_state.window.id() == window_id {
+                } else if desktop_state.window.id() == window_id {
                     desktop_state.window_event_request_exit(&event, &mut debug);
                 }
                 context_menu_state.window.set_visible(is_context_shown);
-            },
+            }
             Event::MainEventsCleared => {
-                if let Some(cmd) = desktop_state.update_frame(Some(&mut runtime), cursor_position, &mut debug){
+                if let Some(cmd) =
+                    desktop_state.update_frame(Some(&mut runtime), cursor_position, &mut debug)
+                {
                     runtime.spawn(cmd.map(Into::into));
                     runtime.track(desktop_state.subscription().map(Into::into));
                     desktop_state.window.request_redraw();
                 }
 
-                context_menu_state.update_frame::<executor::Default>(None, cursor_position, &mut debug);
+                context_menu_state.update_frame::<executor::Default>(
+                    None,
+                    cursor_position,
+                    &mut debug,
+                );
                 context_menu_state.window.request_redraw();
-            },
+            }
             Event::RedrawRequested(window_id) => {
                 let is_success = if context_menu_state.window.id() == window_id {
                     context_menu_state.redraw(cursor_position, &mut debug)
@@ -368,7 +489,11 @@ async fn run_instance<E>(
     }
 }
 
-fn get_prefered_position(cursor_position: PhysicalPosition<f64>, window_size: PhysicalSize<f64>, monitor_size: PhysicalSize<u32>) -> PhysicalPosition<f64> {
+fn get_prefered_position(
+    cursor_position: PhysicalPosition<f64>,
+    window_size: PhysicalSize<f64>,
+    monitor_size: PhysicalSize<u32>,
+) -> PhysicalPosition<f64> {
     let prefered_x = if window_size.width + cursor_position.x > monitor_size.width as f64 {
         cursor_position.x - window_size.width
     } else {

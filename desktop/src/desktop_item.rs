@@ -1,7 +1,7 @@
+mod desktop_entry;
+mod desktop_item_error;
 mod desktop_item_status;
 mod desktop_item_type;
-mod desktop_item_error;
-mod desktop_entry;
 
 use super::constants::{TYPE, DESKTOP_ENTRY, ICON, NAME, COMMENT, DEFAULT_APPS, MIME_FILE, MIME_INFO_CACHE, MIME_CACHE, INODE_DIR};
 use std::path::{PathBuf, Path};
@@ -12,6 +12,7 @@ use desktop_item_status::DesktopItemStatus;
 use desktop_entry::DesktopEntry;
 pub use desktop_item_error::DesktopItemError;
 use lazy_static::lazy_static;
+
 const APPS_DIR: &str = "applications";
 lazy_static! {
     static ref SYS_DIR: PathBuf = PathBuf::from("/usr/share").join(APPS_DIR);
@@ -20,13 +21,13 @@ lazy_static! {
     static ref CONF_DIR: PathBuf = dirs_next::config_dir().unwrap();
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DesktopItem {
     pub path: PathBuf,
     pub name: Option<String>,
     pub icon_path: Option<PathBuf>,
     pub comment: Option<String>,
-    entry_type: DesktopItemType,
+    pub entry_type: DesktopItemType,
     status: DesktopItemStatus,
 }
 
@@ -48,7 +49,8 @@ impl DesktopItem {
                         let desktop_entry = entry.section(DESKTOP_ENTRY);
                         let name = desktop_entry.attr(NAME).map(ToString::to_string);
                         let comment = desktop_entry.attr(COMMENT).map(ToString::to_string);
-                        let mut entry_type = DesktopItemType::from_str(desktop_entry.attr(TYPE).unwrap_or(""))?;
+                        let mut entry_type =
+                            DesktopItemType::from_str(desktop_entry.attr(TYPE).unwrap_or(""))?;
                         if let DesktopItemType::APP(entry) = &mut entry_type {
                             *entry = DesktopEntry::new(&desktop_entry);
                         }
@@ -56,12 +58,19 @@ impl DesktopItem {
                             if Path::new(name).is_absolute() {
                                 PathBuf::from(name)
                             } else {
-                                let path = PathBuf::from("/usr/share/icons/hicolor/scalable/apps").join(format!("{}.svg", name));
+                                let path = PathBuf::from("/usr/share/icons/hicolor/scalable/apps")
+                                    .join(format!("{}.svg", name));
                                 if path.exists() {
                                     path
                                 } else {
-                                    walkdir::WalkDir::new("/usr/share/icons").follow_links(true).into_iter().filter_map(|e| e.ok())
-                                        .find(|entry| entry.path().file_stem().unwrap().to_str().unwrap() == name.split('.').collect::<Vec<&str>>()[0])
+                                    walkdir::WalkDir::new("/usr/share/icons")
+                                        .follow_links(true)
+                                        .into_iter()
+                                        .filter_map(|e| e.ok())
+                                        .find(|entry| {
+                                            entry.path().file_stem().unwrap().to_str().unwrap()
+                                                == name.split('.').collect::<Vec<&str>>()[0]
+                                        })
                                         .map(|entry| entry.into_path())
                                         .unwrap_or(PathBuf::from("/usr/share/icons/koompi.svg"))
                                 }

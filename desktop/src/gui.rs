@@ -1,12 +1,13 @@
-mod desktop;
-mod context_menu;
-mod desktop_config;
 mod background_config;
-mod styles;
+mod color_config;
+mod context_menu;
+mod desktop;
+mod desktop_config;
 mod has_changed;
+mod styles;
 
-pub use desktop::{Desktop, DesktopMsg};
+pub use background_config::{BackgroundConfMsg, BackgroundConfigUI};
 pub use context_menu::{ContextMenu, ContextMsg};
-pub use desktop_config::{DesktopConfigUI, DesktopConfigMsg};
-pub use background_config::{BackgroundConfigUI, BackgroundConfMsg};
+pub use desktop::{Desktop, DesktopMsg};
+pub use desktop_config::{DesktopConfigMsg, DesktopConfigUI};
 pub use has_changed::HasChanged;
