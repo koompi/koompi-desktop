@@ -31,18 +31,9 @@ pub trait Resources {
                 walkdir = walkdir.max_depth(max_depth);
             }
             
-            walkdir.into_iter().filter_map(|e| if let Ok(entry) = e {
-                let path = entry.into_path();
-                if path.is_file() {
-                    Some(path)
-                } else {
-                    None
-                }
-            } else {
-                None
-            }).for_each(|path| {
-                let key = path.file_stem().unwrap().to_str().unwrap();
-                map.insert(key.to_string(), path);
+            walkdir.into_iter().filter_map(|e| e.ok()).for_each(|entry| {
+                let key = entry.file_name().to_str().unwrap().split('.').collect::<Vec<&str>>()[0];
+                map.insert(key.to_string(), entry.into_path());
             });
         });
         map
