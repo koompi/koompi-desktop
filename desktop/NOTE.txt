@@ -1,0 +1,14 @@
+- Resources
+  + Shared MIME databases: A shared MIME database across desktop environments. (xdg-mime crate)
+    @ $HOME/.local/share/mime, /usr/local/share/mime and /usr/share/mime
+
+- Configs
+  + mimeapps.list: Default applications for each MIME type. (XDG)
+    @ $HOME/.mime.types, $HOME/.config/mimeapps.list, /etc/xdg/mimeapps.list, /usr/local/share/applications/mimeapps.list and /usr/share/applications/mimeapps.list
+  + mimeinfo.cache: Find all desktop files that might be used to handle given MIME type.
+    @ /usr/share/applications/mimeinfo.cache
+
+- Tips
+  + it is possible to configure default applications and MIME types by directly editing mimeapps.list and the shared MIME database
+  + it is possible that a single file type is identified by several different magic numbers and file name extensions
+  + if the cache file is located at /usr/share/applications/mimeinfo.cache, bar.desktop refers to the file /usr/share/applications/bar.desktop.

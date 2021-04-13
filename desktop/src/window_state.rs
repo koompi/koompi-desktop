@@ -14,7 +14,7 @@ use futures::{task::SpawnExt, executor::LocalPool};
 use wgpu::util::StagingBelt;
 use winit::{
     window::Window,
-    event::{WindowEvent, ModifiersState},
+    event::{WindowEvent, ModifiersState, ElementState, KeyboardInput},
     dpi::PhysicalPosition,
 };
 

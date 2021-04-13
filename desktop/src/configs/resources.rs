@@ -1,12 +1,8 @@
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 
 pub trait Resources {
     fn relative_path() -> PathBuf;
-
-    fn additional_paths() -> Option<Vec<PathBuf>> {
-        None
-    }
 
     fn base_paths() -> Vec<PathBuf> {
         let sys_dir = PathBuf::from("/usr/share");
@@ -14,8 +10,12 @@ pub trait Resources {
         let local_dir = dirs_next::data_dir().unwrap();
         vec![local_dir, sys_local_dir, sys_dir]
     }
+    
+    fn additional_paths() -> Option<Vec<PathBuf>> {
+        None
+    }
 
-    fn paths() -> Vec<PathBuf> {
+    fn paths(&self) -> Vec<PathBuf> {
         let mut paths: Vec<PathBuf> = Self::base_paths().into_iter().map(|path| path.join(Self::relative_path())).collect();
         if let Some(additional_paths) = Self::additional_paths() {
             paths.extend(additional_paths);
@@ -23,9 +23,20 @@ pub trait Resources {
         paths
     }
 
-    fn resources(max_depth: Option<usize>) -> HashMap<String, PathBuf> {
+    fn find_path_exists<P: AsRef<Path>>(&self, file: P) -> Option<PathBuf> {
+        self.paths().into_iter().find_map(|p| {
+            let path = p.join(file.as_ref());
+            if path.exists() {
+                Some(path)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn resources(&self, max_depth: Option<usize>) -> HashMap<String, PathBuf> {
         let mut map = HashMap::new();
-        Self::paths().into_iter().filter(|path| path.exists() && path.is_dir()).for_each(|path| {
+        self.paths().into_iter().filter(|path| path.exists() && path.is_dir()).for_each(|path| {
             let mut walkdir = walkdir::WalkDir::new(path.to_path_buf());
             if let Some(max_depth) = max_depth {
                 walkdir = walkdir.max_depth(max_depth);

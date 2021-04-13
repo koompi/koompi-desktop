@@ -3,11 +3,12 @@ use std::collections::HashMap;
 use std::fs;
 use crate::constants::{DESKTOP_ENTRY, ICON, INODE_DIR, ICON_THEME, INHERITS};
 use crate::configs::{PersistentData, Resources, desktop_item_conf::Sorting};
-use super::desktop_item::DesktopItem;
+use super::desktop_item::{DesktopItem, DesktopItemType};
 use super::background::WallpaperItem;
 use super::configs::DesktopConf;
 use super::errors::DesktopError;
 use lazy_static::lazy_static;
+use xdg_mime::SharedMimeInfo;
 
 const WALLPAPERS_DIR: &str = "wallpapers";
 const ICONS_DIR: &str = "icons";
@@ -27,15 +28,30 @@ pub struct DesktopManager {
 impl DesktopManager {
     pub fn new() -> Result<Self, DesktopError> {
         let conf = DesktopConf::load()?;
-        let desktop_icons = DesktopIconResource::resources(None);
-        let desktop_items: Vec<DesktopItem> = DESK_DIR.read_dir()?.filter_map(|e| e.ok()).filter_map(|entry| {
-            let file = entry.path();
-            let icon_path = Self::get_icon_path(file.to_path_buf(), &desktop_icons);
+        let desktop_icons = DesktopIconResource.resources(None);
+        let desktop_items: Vec<DesktopItem> = DESK_DIR.read_dir()?.filter_map(|entry| {
+            let mut res = None;
+            if let Ok(entry) = entry {
+                if !is_hidden(&entry) {
+                    let file = entry.path();
+                    let icon_path = Self::get_icon_path(file.to_path_buf(), &desktop_icons);
+        
+                    if let Ok(desktop_item) = DesktopItem::new(file, icon_path) {
+                        if let DesktopItemType::APP(entry) = &desktop_item.entry_type {
+                            if !(entry.term || entry.is_hidden || entry.no_display) {
+                                res = Some(desktop_item);
+                            }
+                        } else {
+                            res = Some(desktop_item);
+                        }
+                    }
+                }
+            }
 
-            DesktopItem::new(file, icon_path).ok()
+            res
         }).collect();
 
-        let mut wallpaper_items: Vec<WallpaperItem> = WallpaperResource::resources(Some(1)).values().filter_map(|path| WallpaperItem::from_file(path).ok()).collect();
+        let mut wallpaper_items: Vec<WallpaperItem> = WallpaperResource.resources(Some(1)).values().filter_map(|path| WallpaperItem::from_file(path).ok()).collect();
         wallpaper_items.sort();
 
         let mut desktop_mn = Self {
@@ -158,16 +174,26 @@ impl DesktopManager {
                 }
             }
         }
+        // if icon_name.is_none() {
+        //     let mime_type = mime_guess::from_path(file.to_path_buf());
+        //     let mime_type = mime_type.first_raw().unwrap_or(INODE_DIR);
+        //     let mime_type_colon = format!("{}:", mime_type);
+        //     icon_name = read_lines(PathBuf::from("/usr/share/mime").join("generic-icons")).unwrap().find_map(|line| if let Ok(line) = line {
+        //         line.strip_prefix(&mime_type_colon).map(ToOwned::to_owned)
+        //     } else {
+        //         None
+        //     });
+        // }
         if icon_name.is_none() {
-            let mime_type = mime_guess::from_path(file.to_path_buf());
-            let mime_type = mime_type.first_raw().unwrap_or(INODE_DIR);
-            let mime_type_colon = format!("{}:", mime_type);
-            icon_name = read_lines(PathBuf::from("/usr/share/mime").join("generic-icons")).unwrap().find_map(|line| if let Ok(line) = line {
-                line.strip_prefix(&mime_type_colon).map(ToOwned::to_owned)
-            } else {
-                None
-            });
+            let mime_info = SharedMimeInfo::new();
+            let mime_types = mime_info.get_mime_types_from_file_name(file.to_str().unwrap());
+            println!("{:#?}", mime_types);
+            if let Some(mime) = mime_types.first() {
+                icon_name = mime_info.lookup_icon_names(mime).first().map(ToOwned::to_owned);
+            }
         }
+        println!("{:?}", icon_name);
+
         icon_name.map(|name| {
             let icon_path = PathBuf::from(&name);
             if icon_path.is_absolute() {
@@ -216,4 +242,11 @@ use std::io::{self, BufRead};
 fn read_lines<P: AsRef<Path>>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>> {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
+}
+
+fn is_hidden(entry: &std::fs::DirEntry) -> bool {
+    entry.file_name()
+        .to_str()
+        .map(|s| s.starts_with("."))
+        .unwrap_or(false)
 }

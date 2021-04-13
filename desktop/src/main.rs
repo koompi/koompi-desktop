@@ -88,7 +88,7 @@ fn main() {
             };
 
             // Context Menu Init Section
-            let context_menu_size = PhysicalSize::new(300.0, 210.0);
+            let context_menu_size = PhysicalSize::new(300.0, 210.0); 
             let context_menu_state = {
                 let (context_menu, _) = ContextMenu::new(event_proxy.to_owned());
                 let context_menu_window = WindowBuilder::new()
@@ -344,7 +344,7 @@ async fn run_instance<E>(
                     if context_menu_state.window_event_request_exit(&event, &mut debug) {
                         is_context_shown = false;
                     }
-                } else  if desktop_state.window.id() == window_id {
+                } else if desktop_state.window.id() == window_id {
                     desktop_state.window_event_request_exit(&event, &mut debug);
                 }
                 context_menu_state.window.set_visible(is_context_shown);

@@ -4,10 +4,11 @@ mod desktop_item_error;
 mod desktop_entry;
 
 use super::constants::{TYPE, DESKTOP_ENTRY, NAME, COMMENT, DEFAULT_APPS, MIME_FILE, MIME_INFO_CACHE, MIME_CACHE, INODE_DIR};
+use crate::configs::Resources;
 use std::path::{PathBuf, Path};
 use std::str::FromStr;
 use std::convert::From;
-use desktop_item_type::DesktopItemType;
+pub use desktop_item_type::DesktopItemType;
 use desktop_item_status::DesktopItemStatus;
 use desktop_entry::DesktopEntry;
 pub use desktop_item_error::DesktopItemError;
@@ -16,7 +17,6 @@ use lazy_static::lazy_static;
 const APPS_DIR: &str = "applications";
 lazy_static! {
     static ref SYS_DIR: PathBuf = PathBuf::from("/usr/share").join(APPS_DIR);
-    static ref SYS_LOCAL_DIR: PathBuf = PathBuf::from("/usr/local/share").join(APPS_DIR);
     static ref LOCAL_DIR: PathBuf = dirs_next::data_dir().unwrap().join(APPS_DIR);
     static ref CONF_DIR: PathBuf = dirs_next::config_dir().unwrap();
 }
@@ -79,6 +79,7 @@ impl DesktopItem {
                 let mime_type = mime_guess::from_path(self.path.to_path_buf());
                 let mime_type = mime_type.first_raw().unwrap_or(INODE_DIR);
 
+                // !FIXME: inconvenient solution
                 let mut config = configparser::ini::Ini::new();
                 let _ = config.load(CONF_DIR.join(MIME_FILE).to_str().unwrap());
                 let apps = if let Some(apps) = config.get(DEFAULT_APPS, mime_type) {
@@ -96,20 +97,16 @@ impl DesktopItem {
                 if let Some(apps) = apps {
                     let mut splitted_apps = apps.split(';');
                     while let Some(app) = splitted_apps.next() {
-                        let mut app_path = LOCAL_DIR.join(app);
-                        if !app_path.exists() {
-                            app_path = SYS_LOCAL_DIR.join(app);
-                            if !app_path.exists() {
-                                app_path = SYS_DIR.join(app);
-                            }
-                        }
+                        let app_path = ApplicationResource.find_path_exists(app);
                         
-                        let entry = freedesktop_entry_parser::parse_entry(app_path)?;
-                        let desktop_entry = entry.section(DESKTOP_ENTRY);
-                        let entry = DesktopEntry::new(&desktop_entry);
-                        if let Ok(()) = entry.handle_exec(self.path.to_str()) {
-                            res = true;
-                            break;
+                        if let Some(app_path) = app_path {
+                            let entry = freedesktop_entry_parser::parse_entry(app_path)?;
+                            let desktop_entry = entry.section(DESKTOP_ENTRY);
+                            let entry = DesktopEntry::new(&desktop_entry);
+                            if let Ok(()) = entry.handle_exec(self.path.to_str()) {
+                                res = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -122,5 +119,17 @@ impl DesktopItem {
             },
             _ => Err(DesktopItemError::InvalidType)
         }
+    }
+}
+
+pub struct ApplicationResource;
+impl Resources for ApplicationResource {
+    fn relative_path() -> PathBuf {
+        PathBuf::from(APPS_DIR)
+    }
+
+    fn additional_paths() -> Option<Vec<PathBuf>> {
+        let current_de = std::env::var("XDG_CURRENT_DESKTOP");
+        current_de.map(|de| Self::base_paths().into_iter().map(|path| path.join(APPS_DIR).join(de.as_str())).collect()).ok()
     }
 }
