@@ -20,12 +20,36 @@ pub struct DesktopPanel {
     pub pre_kind: ControlType,
     pub kind: ControlType,
     pub now: chrono::DateTime<chrono::Local>,
+    task_list: Vec<TaskManager>,
+    task_count: usize,
+    test_button: button::State,
     proxy: EventLoopProxy<Message>,
     monitor_visible: bool,
     sound_visible: bool,
     battery_visible: bool,
     wifi_visible: bool,
     battery_level: f32,
+}
+#[derive(Debug)]
+struct TaskManager {
+    pub id: u32,
+    pub name: String,
+    pub icon: String,
+    pub sub_task: Vec<u32>,
+    pub size: usize,
+    pub count: usize,
+}
+impl Default for TaskManager {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            name: "Rust".to_string(),
+            icon: "rust".to_string(),
+            sub_task: vec![],
+            size: 20,
+            count: 0,
+        }
+    }
 }
 
 impl Application for DesktopPanel {
@@ -39,6 +63,9 @@ impl Application for DesktopPanel {
                 is_shown: false,
                 pre_kind: ControlType::Monitor,
                 kind: ControlType::Monitor,
+                task_list: vec![],
+                task_count: 0,
+                test_button: button::State::new(),
                 now: chrono::Local::now(),
                 proxy: flags,
                 monitor_visible: false,
@@ -71,7 +98,9 @@ pub enum Message {
     Tick(chrono::DateTime<chrono::Local>),
     BatteryUpdate(f32),
     ShowPwdDialog(String),
+    ActiveWindow(u32),
     RequestExit,
+    OnTaskActive,
     Timer,
 }
 
@@ -94,6 +123,16 @@ impl Program for DesktopPanel {
             Message::ShowPwdDialog(pwd) => {
                 println!("Data: {:?}", pwd);
             }
+            Message::ActiveWindow(win_id) => {
+                let task = TaskManager {
+                    id: win_id,
+                    ..Default::default()
+                };
+                self.task_count += 1;
+                self.task_list.push(task);
+                println!("Task object: {:?}", self.task_list);
+                println!("task count: {}", self.task_count);
+            }
             Message::WifiShow(_) => {
                 self.wifi_visible = !self.wifi_visible;
                 self.battery_visible = false;
@@ -103,6 +142,7 @@ impl Program for DesktopPanel {
                     .send_event(Message::WifiShow(self.wifi_visible))
                     .ok();
             }
+            Message::OnTaskActive => {}
 
             Message::BatteryUpdate(battery) => {
                 self.battery_level = battery;
@@ -163,6 +203,14 @@ impl Program for DesktopPanel {
             .width(Length::Shrink)
             .height(Length::Shrink)
             .style(ButtonStyle::Transparent);
+        let task_manager = if self.task_count > 0 {
+            self.task_list.iter_mut().fold(
+                Row::new().spacing(4),
+                |row: Row<Message, Renderer>, task| row.push(Text::new("hello")),
+            )
+        } else {
+            Row::new()
+        };
         let system_tray = Row::new()
             .align_items(Align::Center)
             .push(
@@ -199,6 +247,7 @@ impl Program for DesktopPanel {
             .height(Length::Fill)
             .align_items(Align::End)
             .push(menu)
+            .push(task_manager)
             .push(Space::with_width(Length::Fill))
             .push(system_tray);
         Container::new(row)

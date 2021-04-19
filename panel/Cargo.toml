@@ -9,11 +9,10 @@ edition = "2018"
 [dependencies]
 iced_wgpu = {git = "https://github.com/koompi/iced.git", branch="winit_strut"}
 iced_winit = {git = "https://github.com/koompi/iced.git", branch="winit_strut"}
-iced_graphics = {git = "https://github.com/koompi/iced.git", branch="winit_strut"}
 iced = {git = "https://github.com/koompi/iced.git", branch="winit_strut", features=["tokio", "svg"]}
 libkoompi = { git="https://github.com/koompi/libkoompi", branch="main" }
 futures = "*"
 chrono = "0.4"
 battery = "0.7.8"
 async-std = "1.9.0"
-x11rb = {version="0.8.1", features=["allow-unsafe-code"]}
+x11rb = {version="0.8.1", features=["allow-unsafe-code", "present"]}

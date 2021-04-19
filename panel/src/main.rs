@@ -18,10 +18,10 @@ use winit::{
 };
 mod window_state;
 use futures::executor::block_on;
-use futures::{channel::mpsc, task};
 use iced_wgpu::wgpu;
 use iced_wgpu::Settings;
 use iced_winit::{button, futures, winit, Application, Debug, Executor, Program, Proxy, Runtime};
+use std::sync::mpsc;
 
 use window_state::State;
 use winit::{
@@ -36,11 +36,14 @@ fn main() {
 
     let event_loop = EventLoop::with_user_event();
     // uncomment to be able to test task manager.
-    // let task_manager = task_manager::taskmanager::TaskManager::new();
-    // match task_manager {
-    //     Ok(()) => {}
-    //     Err(e) => println!("Error: {:?}", e),
-    // }
+    let (tx, rx): (mpsc::Sender<u32>, mpsc::Receiver<u32>) = mpsc::channel();
+    let task_manager = task_manager::taskmanager::TaskManager::new(tx);
+    match task_manager {
+        Ok(()) => {}
+        Err(e) => println!("Error: {:?}", e),
+    }
+    // handler.join().unwrap();
+
     let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
     let window = WindowBuilder::new()
         .with_x11_window_strut(vec![XWindowStrut::Strut(RESERVE_SIZE)])
@@ -89,7 +92,16 @@ fn main() {
     use std::time::Instant;
     let timer_length = std::time::Duration::new(1, 0);
     let mut coutner: usize = 0;
+
     event_loop.run(move |event, _, control_flow| {
+        match rx.try_recv() {
+            Ok(data) => {
+                control_state
+                    .win_state
+                    .queue_message(Message::ActiveWindow(data));
+            }
+            Err(_) => {}
+        }
         match event {
             Event::NewEvents(StartCause::Init) => {
                 *control_flow = ControlFlow::WaitUntil(Instant::now() + timer_length);
@@ -97,7 +109,6 @@ fn main() {
             // When the timer expires, dispatch a timer event and queue a new timer.
             Event::NewEvents(StartCause::ResumeTimeReached { .. }) => {
                 event_loop_proxy.send_event(Message::Timer).ok();
-
                 *control_flow = ControlFlow::WaitUntil(Instant::now() + timer_length);
             }
             Event::DeviceEvent { device_id, event } => match event {
@@ -154,7 +165,9 @@ fn main() {
                         coutner += 1;
                     }
                 }
-                Message::ShowMenu => {}
+                Message::ShowMenu => {
+                    *control_flow = ControlFlow::Exit;
+                }
                 Message::MonitorShow(is_visible) => {
                     handle_visible_pos(&mut menu_state, ControlType::Monitor, is_visible, popup_x);
                     menu_state.is_visible = is_visible;

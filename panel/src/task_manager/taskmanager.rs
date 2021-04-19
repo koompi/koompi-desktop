@@ -1,17 +1,24 @@
-use std::any::Any;
-use std::collections::HashMap;
-use std::error::Error;
-use x11rb::connection::Connection;
-use x11rb::protocol::xproto::{Atom, AtomEnum, ConnectionExt, GetPropertyReply, Window};
-use x11rb::x11_utils::TryParse;
-use x11rb::xcb_ffi::XCBConnection;
-
+use std::sync::mpsc;
 pub struct TaskManager {
     window_id: Window,
     window_class: Option<String>,
     window_instance: Option<String>,
     window_name: Option<String>,
 }
+const EVENT_MASK: u32 = 0x400000;
+use std::collections::HashMap;
+use std::error::Error;
+use x11rb::connection::Connection;
+
+use std::thread;
+use x11rb::protocol::xproto::{
+    change_window_attributes, Atom, AtomEnum, ChangeWindowAttributesAux, ConnectionExt,
+    GetPropertyReply, Window,
+};
+use x11rb::protocol::Event;
+use x11rb::x11_utils::TryParse;
+use x11rb::xcb_ffi::XCBConnection;
+
 fn find_active_window(
     conn: &impl Connection,
     root: Window,
@@ -63,10 +70,11 @@ fn parse_wm_class(property: &GetPropertyReply) -> (&str, &str) {
         ("Missing null byte", "Missing null byte")
     }
 }
+
 impl TaskManager {
-    pub fn new() -> Result<(), Box<dyn Error>> {
+    pub fn new(tx: mpsc::Sender<u32>) -> Result<(), Box<dyn Error>> {
         let mut last_seen = HashMap::new();
-        last_seen.insert("xid", Some(10000000));
+        last_seen.insert("xid", Some(0));
         // Set up our state
         let (conn, screen) = XCBConnection::connect(None)?;
         let root = conn.setup().roots[screen].root;
@@ -77,7 +85,6 @@ impl TaskManager {
         let net_wm_name = net_wm_name.reply().unwrap().atom;
         let utf8_string = utf8_string.reply().unwrap().atom;
         let (focus, _) = find_active_window(&conn, root, net_activate_win, &mut last_seen)?;
-        println!("XID {:?}", focus);
         // Collect the replies to the atoms
         let (net_wm_name, utf8_string) = (net_wm_name, utf8_string);
         let (wm_class, string): (AtomEnum, AtomEnum) =
@@ -86,23 +93,37 @@ impl TaskManager {
         let name =
             conn.get_property(false, focus, net_wm_name, utf8_string, 0, u32::max_value())?;
         let class = conn.get_property(false, focus, wm_class, string, 0, u32::max_value())?;
-        let (name, class) = (name.reply()?, class.reply()?);7j
+        let (name, class) = (name.reply()?, class.reply()?);
         println!("Window name: {:?}", parse_string_property(&name));
         let (instance, class) = parse_wm_class(&class);
         println!("Window instance: {:?}", instance);
         println!("Window class: {:?}", class);
         // Print out the result
-        // loop {
-        //     let (win, changed) = find_active_window(&conn, root, net_activate_win, &mut last_seen)?;
-        //     if changed {
-        //         println!("Window name: {:?}", parse_string_property(&name));
-        //         let (instance, class) = parse_wm_class(&class);
-        //         println!("Window instance: {:?}", instance);
-        //         println!("Window class: {:?}", class);
-        //     } else {
-        //         loop {}
-        //     }
-        // }
+        let cw_mask = ChangeWindowAttributesAux::new();
+        change_window_attributes(&conn, root, &cw_mask.event_mask(EVENT_MASK))?;
+        conn.flush().unwrap();
+        thread::spawn(move || loop {
+            loop {
+                let (win, changed) =
+                    find_active_window(&conn, root, net_activate_win, &mut last_seen).unwrap();
+                if changed {
+                    println!("XID: {:?}", win);
+                    tx.send(win).unwrap();
+                } else {
+                }
+                match conn.wait_for_event() {
+                    Ok(event) => match event {
+                        Event::PropertyNotify(e) => {
+                            if e.atom == net_activate_win {
+                                break;
+                            }
+                        }
+                        _ => {}
+                    },
+                    Err(e) => println!("Error: {:?}", e),
+                }
+            }
+        });
         Ok(())
     }
 }
