@@ -1,3 +1,11 @@
+const EVENT_MASK: u32 = 0x400000;
+const NET_WM_WINDOW_TYPE_DESKTOP: &str = "_NET_WM_WINDOW_TYPE_DESKTOP";
+const NET_WM_WINDOW_TYPE_DIALOG: &str = "_NET_WM_WINDOW_TYPE_DIALOG";
+use std::ffi::CStr;
+use std::os::raw::{c_char, c_uint};
+extern "C" {
+    fn get_wndow_type(win_id: c_uint) -> *const c_char;
+}
 use std::sync::mpsc;
 pub struct TaskManager {
     window_id: Window,
@@ -5,7 +13,7 @@ pub struct TaskManager {
     window_instance: Option<String>,
     window_name: Option<String>,
 }
-const EVENT_MASK: u32 = 0x400000;
+
 use std::collections::HashMap;
 use std::error::Error;
 use x11rb::connection::Connection;
@@ -107,8 +115,21 @@ impl TaskManager {
                 let (win, changed) =
                     find_active_window(&conn, root, net_activate_win, &mut last_seen).unwrap();
                 if changed {
-                    println!("XID: {:?}", win);
-                    tx.send(win).unwrap();
+                    unsafe {
+                        if win != 0 {
+                            let data: *const c_char = get_wndow_type(win);
+                            let c_str = CStr::from_ptr(data);
+                            let win_type = c_str.to_str().unwrap();
+                            if win_type != NET_WM_WINDOW_TYPE_DESKTOP
+                                && win_type != NET_WM_WINDOW_TYPE_DIALOG
+                            {
+                                println!("Window type: {:?}", c_str.to_str());
+                                println!("XID:{}", win);
+                                tx.send(win).unwrap();
+                            } else {
+                            }
+                        }
+                    }
                 } else {
                 }
                 match conn.wait_for_event() {

@@ -124,14 +124,12 @@ impl Program for DesktopPanel {
                 println!("Data: {:?}", pwd);
             }
             Message::ActiveWindow(win_id) => {
-                let task = TaskManager {
+                self.task_list.retain(|v| v.id != win_id);
+                self.task_list.push(TaskManager {
                     id: win_id,
                     ..Default::default()
-                };
+                });
                 self.task_count += 1;
-                self.task_list.push(task);
-                println!("Task object: {:?}", self.task_list);
-                println!("task count: {}", self.task_count);
             }
             Message::WifiShow(_) => {
                 self.wifi_visible = !self.wifi_visible;
