@@ -16,9 +16,20 @@ pub trait Resources {
     }
 
     fn paths(&self) -> Vec<PathBuf> {
-        let mut paths: Vec<PathBuf> = Self::base_paths().into_iter().map(|path| path.join(Self::relative_path())).collect();
+        let mut paths: Vec<PathBuf> = Self::base_paths().into_iter().filter_map(|base| {
+            let path = base.join(Self::relative_path());
+            if path.exists() {
+                Some(path)
+            } else {
+                None
+            }
+        }).collect();
         if let Some(additional_paths) = Self::additional_paths() {
-            paths.extend(additional_paths);
+            additional_paths.into_iter().for_each(|path| {
+                if path.exists() && path.is_dir() {
+                    paths.push(path)
+                }
+            })
         }
         paths
     }

@@ -36,7 +36,7 @@ impl Desktop {
         let desktop_items = self.ls_desktop_items.borrow();
 
         if let Some(desktop_item) = desktop_items.get(idx) {
-            if let Err(err) = desktop_item.handle_exec() {
+            if let Err(err) = desktop_item.handle_exec(None) {
                 let _ = DialogBuilder::new().title("Error")
                     .message(&format!("{}", err))
                     .style(DialogStyle::Error)
@@ -156,7 +156,7 @@ impl Program for Desktop {
         }
 
         let desktop_grid = ls_desktop_items_state.iter_mut().zip(desktop_items.iter()).enumerate().fold(grid, |grid, (idx, (state, item))| {
-            let icon_path = if let Some(path) = &item.icon_path {
+            let icon_path = if let Some(path) = item.icon_paths.iter().find(|path| path.exists() && path.is_file()) {
                 path.to_path_buf()
             } else {
                 PathBuf::from("/usr/share/icons/koompi.svg")

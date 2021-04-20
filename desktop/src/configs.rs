@@ -3,9 +3,11 @@ pub mod desktop_item_conf;
 pub mod wallpaper_conf;
 mod persistent_data;
 mod resources;
+mod config;
 
 pub use persistent_data::PersistentData;
 pub use resources::Resources;
+pub use config::Config;
 use background_conf::BackgroundConf;
 use desktop_item_conf::DesktopItemConf;
 use serde::{Deserialize, Serialize};

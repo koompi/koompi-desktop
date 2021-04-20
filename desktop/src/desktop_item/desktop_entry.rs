@@ -1,10 +1,12 @@
-use crate::constants::{EXEC, TRY_EXEC, TERMINAL, HIDDEN, NO_DISPLAY};
+use std::fmt::{self, Display, Formatter};
+use crate::constants::{NAME, EXEC, TRY_EXEC, TERMINAL, HIDDEN, NO_DISPLAY};
 use super::desktop_item_error::DesktopItemError;
 use subprocess::Exec;
 use freedesktop_entry_parser::AttrSelector;
 
 #[derive(Debug, Clone, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DesktopEntry {
+    name: String,
     try_exec: Option<String>,
     exec: Option<String>,
     pub term: bool,
@@ -14,6 +16,7 @@ pub struct DesktopEntry {
 
 impl DesktopEntry {
     pub fn new(desktop_entry: &AttrSelector<&str>) -> Self {
+        let name = desktop_entry.attr(NAME).map(ToOwned::to_owned).unwrap_or_default();
         let try_exec = desktop_entry.attr(TRY_EXEC).map(ToString::to_string);
         let exec = desktop_entry.attr(EXEC).map(ToString::to_string);
         let term = desktop_entry.attr(TERMINAL).map(|term| term.parse::<bool>().unwrap_or_default()).unwrap_or_default();
@@ -21,7 +24,7 @@ impl DesktopEntry {
         let no_display = desktop_entry.attr(NO_DISPLAY).map(|term| term.parse::<bool>().unwrap_or_default()).unwrap_or_default();
 
         Self {
-            try_exec, exec, term, is_hidden, no_display
+            name, try_exec, exec, term, is_hidden, no_display
         }
     }
 
@@ -54,5 +57,11 @@ impl DesktopEntry {
         } else {
             Err(DesktopItemError::NoExecString)
         }
+    }
+}
+
+impl Display for DesktopEntry {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result { 
+        write!(f, "{}", self.name)
     }
 }

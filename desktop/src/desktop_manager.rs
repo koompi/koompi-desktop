@@ -143,17 +143,22 @@ impl DesktopManager {
             Sorting::Type => self.desktop_items.sort_by(|a, b| if sort_desc {b.entry_type.cmp(&a.entry_type)} else {a.entry_type.cmp(&b.entry_type)}),
             Sorting::Date => self.desktop_items.sort_by(|a, b| {
                 let mut ordering = std::cmp::Ordering::Equal;
-                if let Ok(a_metadata) = a.path.metadata() {
-                    if let Ok(b_metadata) = b.path.metadata() {
-                        if let Ok(a_modified) = a_metadata.modified() {
-                            if let Ok(b_modified) = b_metadata.modified() {
-                                ordering = if sort_desc {
-                                    b_modified.cmp(&a_modified)
-                                } else {
-                                    a_modified.cmp(&b_modified)
-                                };
-                            }
-                        }
+
+                if let Some(a_modified) = a.modified {
+                    if let Some(b_modified) = b.modified {
+                        ordering = if sort_desc {
+                            b_modified.cmp(&a_modified)
+                        } else {
+                            a_modified.cmp(&b_modified)
+                        };
+                    }
+                } else if let Some(a_created) = a.created {
+                    if let Some(b_created) = b.created {
+                        ordering = if sort_desc {
+                            b_created.cmp(&a_created)
+                        } else {
+                            a_created.cmp(&b_created)
+                        };
                     }
                 }
                 ordering
@@ -162,15 +167,15 @@ impl DesktopManager {
         }
     }
 
-    fn get_icon_path(file: PathBuf, desktop_icons: &HashMap<String, PathBuf>) -> Option<PathBuf> {
-        let mut icon_name = None;
+    fn get_icon_path(file: PathBuf, desktop_icons: &HashMap<String, PathBuf>) -> Vec<PathBuf> {
+        let mut icon_name = Vec::new();
 
         if file.is_file() {
             if let Some(extension) = file.extension() {
                 if extension.eq("desktop") {
                     let entry = freedesktop_entry_parser::parse_entry(&file).unwrap();
                     let desktop_entry = entry.section(DESKTOP_ENTRY);
-                    icon_name = desktop_entry.attr(ICON).map(ToOwned::to_owned);
+                    icon_name = vec![desktop_entry.attr(ICON).map(ToOwned::to_owned).unwrap()];
                 }
             }
         }
@@ -184,25 +189,23 @@ impl DesktopManager {
         //         None
         //     });
         // }
-        if icon_name.is_none() {
+        if icon_name.is_empty() {
             let mime_info = SharedMimeInfo::new();
             let mime_types = mime_info.get_mime_types_from_file_name(file.to_str().unwrap());
-            println!("{:#?}", mime_types);
             if let Some(mime) = mime_types.first() {
-                icon_name = mime_info.lookup_icon_names(mime).first().map(ToOwned::to_owned);
+                icon_name = mime_info.lookup_icon_names(mime);
             }
         }
         println!("{:?}", icon_name);
 
-        icon_name.map(|name| {
+        icon_name.into_iter().filter_map(|name| {
             let icon_path = PathBuf::from(&name);
             if icon_path.is_absolute() {
-               icon_path
+               Some(icon_path)
             } else {
                 desktop_icons.get(name.split('.').collect::<Vec<&str>>()[0]).map(ToOwned::to_owned)
-                    .unwrap_or(PathBuf::from("/usr/share/icons/koompi.svg"))
             }
-        })
+        }).collect()
     }
 }
 

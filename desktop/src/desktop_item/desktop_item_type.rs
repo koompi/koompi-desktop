@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use std::fmt::{self, Display, Formatter};
+use std::fs::FileType;
 use crate::constants::{APP, DIR, LINK, FILE};
 use super::desktop_item_error::DesktopItemError;
 use super::desktop_entry::DesktopEntry;
@@ -33,6 +34,20 @@ impl FromStr for DesktopItemType {
                 FILE => Ok(DesktopItemType::FILE),
                 _ => Err(DesktopItemError::InvalidType)
             }
+        }
+    }
+}
+
+impl From<FileType> for DesktopItemType {
+    fn from(file_type: FileType) -> Self { 
+        if file_type.is_file() {
+            DesktopItemType::FILE
+        } else if file_type.is_dir() {
+            DesktopItemType::DIR
+        } else if file_type.is_symlink() {
+            DesktopItemType::LINK
+        } else {
+            DesktopItemType::default()
         }
     }
 }
