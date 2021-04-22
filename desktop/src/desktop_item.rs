@@ -3,7 +3,7 @@ mod desktop_item_type;
 mod desktop_item_error;
 mod desktop_entry;
 
-use super::constants::{TYPE, DESKTOP_ENTRY, NAME, COMMENT, DEFAULT_APPS, MIME_FILE, MIME_INFO_CACHE, MIME_CACHE, INODE_DIR};
+use super::constants::{DATA_DIRS, TYPE, DESKTOP_ENTRY, NAME, COMMENT, DEFAULT_APPS, MIME_FILE, MIME_INFO_CACHE, MIME_CACHE, INODE_DIR};
 use crate::configs::{Resources, Config};
 use std::path::{PathBuf, Path};
 use std::str::FromStr;
@@ -13,14 +13,8 @@ pub use desktop_item_type::DesktopItemType;
 use desktop_item_status::DesktopItemStatus;
 use desktop_entry::DesktopEntry;
 pub use desktop_item_error::DesktopItemError;
-use lazy_static::lazy_static;
 
 const APPS_DIR: &str = "applications";
-lazy_static! {
-    static ref SYS_DIR: PathBuf = PathBuf::from("/usr/share").join(APPS_DIR);
-    static ref LOCAL_DIR: PathBuf = dirs_next::data_dir().unwrap().join(APPS_DIR);
-    static ref CONF_DIR: PathBuf = dirs_next::config_dir().unwrap();
-}
 
 #[derive(Debug, Clone, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DesktopItem {
@@ -76,8 +70,11 @@ impl DesktopItem {
         }
     }
 
-    pub fn ls_prefered_apps(&self) -> Option<Vec<DesktopEntry>> {
+    pub fn ls_prefered_apps(&self) -> Vec<DesktopEntry> {
+        let mut res = Vec::new();
+
         match &self.entry_type {
+            DesktopItemType::APP(entry) => res.push(entry.to_owned()),
             DesktopItemType::DIR | DesktopItemType::FILE | DesktopItemType::LINK => {
                 let path = if let DesktopItemType::LINK = self.entry_type {
                     self.path.read_link().ok()
@@ -87,9 +84,21 @@ impl DesktopItem {
 
                 if let Some(path) = path {
                     let mime_guess = mime_guess::from_path(path);
-                    let mime_type = mime_guess.first_or_octet_stream().to_string();
+                    let mime_type = if let DesktopItemType::DIR = self.entry_type {
+                        INODE_DIR.to_string()
+                    } else {
+                        mime_guess.first_or_octet_stream().to_string()
+                    };
                     println!("{:?}", mime_type);
-                    let apps = MimeTypeConfig.find_value(DEFAULT_APPS, &mime_type);
+                    
+                    let mut apps = Vec::new();
+                    if let Some(apps_str) = MimeAppsConfig.find_value(DEFAULT_APPS, &mime_type) {
+                        apps.extend(apps_str.split(';').map(ToOwned::to_owned).collect::<Vec<String>>());
+                    } 
+                    if let Some(apps_str) = MimeCacheConfig.find_value(MIME_CACHE, &mime_type) {
+                        apps.extend(apps_str.split(';').map(ToOwned::to_owned).collect::<Vec<String>>());
+                    }
+                    apps.dedup();
                     
                     // !FIXME: inconvenient solution
                     /* 
@@ -111,23 +120,18 @@ impl DesktopItem {
                         }; 
                     */
     
-                    if let Some(apps) = apps {
-                        Some(apps.split(';').filter_map(|app| {
-                            ApplicationResource.find_path_exists(app).map(|app_path| {
-                                let entry = freedesktop_entry_parser::parse_entry(app_path).unwrap();
-                                let desktop_entry = entry.section(DESKTOP_ENTRY);
-                                DesktopEntry::new(&desktop_entry)
-                            })
-                        }).collect())
-                    } else {
-                        None
-                    }
-                } else {
-                    None
+                    res.extend(apps.into_iter().filter_map(|app| {
+                        ApplicationResource.find_path_exists(app).map(|app_path| {
+                            let entry = freedesktop_entry_parser::parse_entry(app_path).unwrap();
+                            let desktop_entry = entry.section(DESKTOP_ENTRY);
+                            DesktopEntry::new(&desktop_entry)
+                        })
+                    }))
                 }
             },
-            _ => None
+            _ => {}
         }
+        res
     }
 
     pub fn handle_exec(&self, prefer_app_idx: Option<usize>) -> Result<(), DesktopItemError> {
@@ -140,10 +144,8 @@ impl DesktopItem {
                     self.path.to_path_buf()
                 };
 
-                if let Some(prefer_apps) = self.ls_prefered_apps() {
-                    if let Some(entry) = prefer_apps.get(prefer_app_idx.unwrap_or(0)) {
-                        entry.handle_exec(path.to_str())?
-                    }
+                if let Some(entry) = self.ls_prefered_apps().get(prefer_app_idx.unwrap_or(0)) {
+                    entry.handle_exec(path.to_str())?
                 }
 
                 Ok(())
@@ -165,17 +167,24 @@ impl Resources for ApplicationResource {
     }
 }
 
-pub struct MimeTypeConfig;
-impl Config for MimeTypeConfig {
-    fn base_paths() -> Vec<PathBuf> {
-        vec![CONF_DIR.to_path_buf(), LOCAL_DIR.to_path_buf(), SYS_DIR.to_path_buf()]
-    }
-
+pub struct MimeAppsConfig;
+impl Config for MimeAppsConfig {
     fn config_file() -> PathBuf {
         PathBuf::from(MIME_FILE)
     }
 
-    fn cache_file() -> Option<PathBuf> {
-        Some(PathBuf::from(MIME_INFO_CACHE))
+    fn additional_base_paths() -> Option<Vec<PathBuf>> {
+        Some(DATA_DIRS.iter().map(|path| path.join(APPS_DIR)).collect())
+    }
+}
+
+pub struct MimeCacheConfig;
+impl Config for MimeCacheConfig {
+    fn config_file() -> PathBuf {
+        PathBuf::from(MIME_INFO_CACHE)
+    }
+
+    fn additional_base_paths() -> Option<Vec<PathBuf>> {
+        Some(DATA_DIRS.iter().map(|path| path.join(APPS_DIR)).collect())
     }
 }

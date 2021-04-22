@@ -28,6 +28,7 @@ pub struct Desktop {
 pub enum DesktopMsg {
     DesktopItemClicked(usize),
     LaunchDesktopItem(usize),
+    DesktopItemRightClicked(usize),
     WinitEvent(Event)
 }
 
@@ -93,6 +94,7 @@ impl Program for Desktop {
         match message {
             DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
             LaunchDesktopItem(idx) => self.handle_exec(idx),
+            DesktopItemRightClicked(idx) => println!("right click on {}", idx),
             WinitEvent(event) => {
                 match event {
                     Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => self.selected_desktop_item = None, 
@@ -178,7 +180,8 @@ impl Program for Desktop {
                 .width(Length::Units(item_size))
                 .padding(7)
                 .on_press(DesktopItemClicked(idx))
-                .on_double_click(LaunchDesktopItem(idx));
+                .on_double_click(LaunchDesktopItem(idx))
+                .on_right_click(DesktopItemRightClicked(idx));
             if let Some(curr_idx) = *selected_desktop_item {
                 if curr_idx == idx {
                     btn = btn.style(CustomButton::Selected);

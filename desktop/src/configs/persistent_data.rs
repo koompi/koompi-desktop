@@ -1,13 +1,14 @@
 use serde::{de::DeserializeOwned, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use crate::constants::LOCAL_CONF;
 use crate::errors::DesktopError;
 
 pub trait PersistentData: DeserializeOwned + Serialize + Default {
     fn relative_path() -> PathBuf;
 
     fn path() -> Result<PathBuf, DesktopError> {
-        let path = dirs_next::config_dir().unwrap().join(Self::relative_path());
+        let path = LOCAL_CONF.join(Self::relative_path());
         if let Some(dir) = path.parent() {
             fs::create_dir_all(dir)?;
         }

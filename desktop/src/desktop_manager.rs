@@ -1,7 +1,7 @@
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 use std::fs;
-use crate::constants::{DESKTOP_ENTRY, ICON, INODE_DIR, ICON_THEME, INHERITS};
+use crate::constants::{LOCAL_DATA, DESKTOP_ENTRY, ICON};
 use crate::configs::{PersistentData, Resources, desktop_item_conf::Sorting};
 use super::desktop_item::{DesktopItem, DesktopItemType};
 use super::background::WallpaperItem;
@@ -13,9 +13,8 @@ use xdg_mime::SharedMimeInfo;
 const WALLPAPERS_DIR: &str = "wallpapers";
 const ICONS_DIR: &str = "icons";
 lazy_static! {
-    static ref LOCAL_DIR: PathBuf = dirs_next::data_local_dir().unwrap().join(WALLPAPERS_DIR);
+    static ref WALL_LOCAL_DIR: PathBuf = LOCAL_DATA.join(WALLPAPERS_DIR);
     static ref DESK_DIR: PathBuf = dirs_next::desktop_dir().unwrap_or(dirs_next::home_dir().unwrap().join("Desktop"));
-    static ref DEF_THEME: PathBuf = PathBuf::from("/usr/share").join(ICONS_DIR).join("default").join("index.theme");
 }
 
 pub struct DesktopManager {
@@ -93,19 +92,19 @@ impl DesktopManager {
                 let exts = ext.to_str().unwrap();
                 if exts == "png" || exts == "jpg" {
                     if let Some(file_name) = path.as_ref().file_name() {
-                        if !LOCAL_DIR.exists() {
-                            fs::create_dir_all(LOCAL_DIR.to_path_buf())?;
+                        if !WALL_LOCAL_DIR.exists() {
+                            fs::create_dir_all(WALL_LOCAL_DIR.to_path_buf())?;
                         }
 
-                        let local_path = if LOCAL_DIR.join(file_name).exists() {
-                            let mut local_path = LOCAL_DIR.join(file_name);
+                        let local_path = if WALL_LOCAL_DIR.join(file_name).exists() {
+                            let mut local_path = WALL_LOCAL_DIR.join(file_name);
                             if let Some(name) = path.as_ref().file_stem() {
-                                local_path = LOCAL_DIR.join(format!("{}-(1)", name.to_str().unwrap())).with_extension(ext);
+                                local_path = WALL_LOCAL_DIR.join(format!("{}-(1)", name.to_str().unwrap())).with_extension(ext);
                             }
         
                             local_path
                         } else {
-                            LOCAL_DIR.join(file_name)
+                            WALL_LOCAL_DIR.join(file_name)
                         };
 
                         fs::copy(path.as_ref(), local_path.to_path_buf())?;
@@ -179,16 +178,6 @@ impl DesktopManager {
                 }
             }
         }
-        // if icon_name.is_none() {
-        //     let mime_type = mime_guess::from_path(file.to_path_buf());
-        //     let mime_type = mime_type.first_raw().unwrap_or(INODE_DIR);
-        //     let mime_type_colon = format!("{}:", mime_type);
-        //     icon_name = read_lines(PathBuf::from("/usr/share/mime").join("generic-icons")).unwrap().find_map(|line| if let Ok(line) = line {
-        //         line.strip_prefix(&mime_type_colon).map(ToOwned::to_owned)
-        //     } else {
-        //         None
-        //     });
-        // }
         if icon_name.is_empty() {
             let mime_info = SharedMimeInfo::new();
             let mime_types = mime_info.get_mime_types_from_file_name(file.to_str().unwrap());
@@ -200,7 +189,7 @@ impl DesktopManager {
 
         icon_name.into_iter().filter_map(|name| {
             let icon_path = PathBuf::from(&name);
-            if icon_path.is_absolute() {
+            if icon_path.exists() && icon_path.is_absolute() {
                Some(icon_path)
             } else {
                 desktop_icons.get(name.split('.').collect::<Vec<&str>>()[0]).map(ToOwned::to_owned)
@@ -219,32 +208,21 @@ impl Resources for WallpaperResource {
 pub struct DesktopIconResource;
 impl Resources for DesktopIconResource {
     fn relative_path() -> PathBuf {
-        let mut config = configparser::ini::Ini::new();
-        let _ = config.load(DEF_THEME.to_str().unwrap());
-        let def_theme = config.get(ICON_THEME, INHERITS);
-        let base_path = if let Some(theme) = def_theme {
-            PathBuf::from(ICONS_DIR).join(theme)
-        } else {
-            PathBuf::from(ICONS_DIR).join("hicolor")
-        };
-        base_path.join("48x48")
+        // !Should be current theme dir
+        PathBuf::from(ICONS_DIR).join("hicolor").join("scalable")
     }
 
     fn additional_paths() -> Option<Vec<PathBuf>> {
-        let fallback_path = PathBuf::from("/usr/share").join(ICONS_DIR).join("hicolor");
-
-        Some(vec![
-            fallback_path.join("scalable"),
-            fallback_path.join("48x48")
-        ])
+        // !Should be fallback theme dir(hicolor)
+        Some(Self::base_paths().into_iter().filter_map(|base| {
+            let path = base.join(Self::relative_path().parent().unwrap()).join("48x48");
+            if path.exists() {
+                Some(path)
+            } else {
+                None
+            }
+        }).collect())
     }
-}
-
-use std::fs::File;
-use std::io::{self, BufRead};
-fn read_lines<P: AsRef<Path>>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>> {
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
 }
 
 fn is_hidden(entry: &std::fs::DirEntry) -> bool {

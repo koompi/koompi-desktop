@@ -1,14 +1,14 @@
 use std::path::{PathBuf, Path};
+use crate::constants::{DATA_DIRS, LOCAL_DATA};
 use std::collections::HashMap;
 
 pub trait Resources {
     fn relative_path() -> PathBuf;
 
     fn base_paths() -> Vec<PathBuf> {
-        let sys_dir = PathBuf::from("/usr/share");
-        let sys_local_dir = PathBuf::from("/usr/local/share");
-        let local_dir = dirs_next::data_dir().unwrap();
-        vec![local_dir, sys_local_dir, sys_dir]
+        let mut base_paths = vec![LOCAL_DATA.to_path_buf()];
+        DATA_DIRS.iter().for_each(|path| base_paths.push(path.to_path_buf()));
+        base_paths
     }
     
     fn additional_paths() -> Option<Vec<PathBuf>> {

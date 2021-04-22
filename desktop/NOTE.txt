@@ -4,7 +4,7 @@
 
 - Configs
   + mimeapps.list: Default applications for each MIME type. (XDG)
-    @ $HOME/.mime.types, $HOME/.config/mimeapps.list, /etc/xdg/mimeapps.list, /usr/local/share/applications/mimeapps.list and /usr/share/applications/mimeapps.list
+    @ $HOME/.config/mimeapps.list, /etc/xdg/mimeapps.list, /usr/local/share/applications/mimeapps.list and /usr/share/applications/mimeapps.list
   + mimeinfo.cache: Find all desktop files that might be used to handle given MIME type.
     @ /usr/share/applications/mimeinfo.cache
 

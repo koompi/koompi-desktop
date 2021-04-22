@@ -1,5 +1,4 @@
 use std::{cell::RefCell, rc::Rc};
-use crate::constants::THUMBNAIL_SIZE;
 use crate::proxy_message::ProxyMessage;
 use crate::configs::{
     DesktopConf, PersistentData,
@@ -16,7 +15,9 @@ use iced_winit::{
     Text, Scrollable, Button, Space, Length, Align, Column, Application, TextInput, Tooltip, PickList, Grid, Color,
 };
 use winit::event_loop::EventLoopProxy;
+
 const MIN_THUMNAIL_SIZE: (u32, u32) = (640, 480);
+const THUMBNAIL_SIZE: u16 = 256;
 
 #[derive(Debug)]
 pub struct BackgroundConfigUI {
