@@ -32,7 +32,7 @@ use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::{Event, WindowEvent, MouseButton, KeyboardInput, ElementState, VirtualKeyCode},
     event_loop::{ControlFlow, EventLoop},
-    // platform::unix::{WindowBuilderExtUnix, XWindowType},
+    platform::unix::{WindowBuilderExtUnix, XWindowType},
     window::WindowBuilder, 
 };
 use tauri_dialog::{DialogBuilder, DialogButtons, DialogStyle, DialogSelection};
@@ -74,7 +74,7 @@ fn main() {
                     runtime.enter(|| Desktop::new(((monitor_size.width, monitor_size.height), Rc::clone(&desktop_conf), desktop_items.borrow().len(), Rc::clone(&desktop_items))))
                 };
                 let desktop_window = WindowBuilder::new()
-                    // .with_x11_window_type(vec![XWindowType::Desktop])
+                    .with_x11_window_type(vec![XWindowType::Desktop])
                     .with_position(monitor_position)
                     .with_title(desktop.title())
                     .with_inner_size(monitor_size)
@@ -92,7 +92,7 @@ fn main() {
             let context_menu_state = {
                 let (context_menu, _) = ContextMenu::new(event_proxy.to_owned());
                 let context_menu_window = WindowBuilder::new()
-                    // .with_x11_window_type(vec![XWindowType::Desktop, XWindowType::PopupMenu])
+                    .with_x11_window_type(vec![XWindowType::Desktop, XWindowType::PopupMenu])
                     .with_position(cursor_position)
                     .with_title(context_menu.title())
                     .with_inner_size(context_menu_size)
@@ -170,7 +170,7 @@ fn main() {
                                             .position(|item| old_desktop_conf.background_conf.wallpaper_conf.wallpaper_path == item.path)
                                     ));
                                     let bg_config_window = WindowBuilder::new()
-                                        // .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
+                                        .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
                                         .with_title(bg_config.title())
                                         .with_resizable(false)
                                         .with_maximized(false)
@@ -182,7 +182,7 @@ fn main() {
                                     // Desktop Config Init Section
                                     let (desktop_config, _) = DesktopConfigUI::new((event_proxy.to_owned(), Rc::clone(&desktop_conf)));
                                     let desktop_config_window = WindowBuilder::new()
-                                        // .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
+                                        .with_x11_window_type(vec![XWindowType::Normal, XWindowType::Utility])
                                         .with_inner_size(PhysicalSize::new(250, 400))
                                         .with_title(desktop_config.title())
                                         .with_resizable(false)

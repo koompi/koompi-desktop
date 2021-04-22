@@ -166,7 +166,7 @@ impl DesktopManager {
         }
     }
 
-    fn get_icon_path(file: PathBuf, desktop_icons: &HashMap<String, PathBuf>) -> Vec<PathBuf> {
+    fn get_icon_path(file: PathBuf, desktop_icons: &HashMap<String, PathBuf>) -> Option<PathBuf> {
         let mut icon_name = Vec::new();
 
         if file.is_file() {
@@ -187,14 +187,14 @@ impl DesktopManager {
         }
         println!("{:?}", icon_name);
 
-        icon_name.into_iter().filter_map(|name| {
+        icon_name.into_iter().find_map(|name| {
             let icon_path = PathBuf::from(&name);
             if icon_path.exists() && icon_path.is_absolute() {
                Some(icon_path)
             } else {
                 desktop_icons.get(name.split('.').collect::<Vec<&str>>()[0]).map(ToOwned::to_owned)
             }
-        }).collect()
+        })
     }
 }
 

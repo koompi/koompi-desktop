@@ -42,6 +42,7 @@ pub const EXEC: &str =		"Exec";
 // pub const ACTIONS: &str =	"Actions";
 pub const ICON: &str =		"Icon";
 pub const HIDDEN: &str =	"Hidden";
+pub const MIME_TYPE: &str =	"MimeType";
 // pub const PATH: &str =		"Path";
 pub const TERMINAL: &str =	"Terminal";
 // pub const CATEGORIES: &str =	"Categories";
@@ -50,6 +51,8 @@ pub const TERMINAL: &str =	"Terminal";
 /// Mimetype
 pub const MIME_FILE: &str = "mimeapps.list";
 pub const DEFAULT_APPS: &str = "Default Applications";
+pub const ADDED_ASSOCS: &str = "Added Associations";
+pub const REM_ASSOCS: &str = "Removed Associations";
 pub const MIME_INFO_CACHE: &str = "mimeinfo.cache";
 pub const MIME_CACHE: &str = "MIME Cache";
 pub const INODE_DIR: &str = "inode/directory";

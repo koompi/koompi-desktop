@@ -1,5 +1,4 @@
 use std::{cell::RefCell, rc::Rc};
-use std::path::PathBuf;
 use crate::configs::{
     DesktopConf,
     background_conf::BackgroundType,
@@ -158,20 +157,16 @@ impl Program for Desktop {
         }
 
         let desktop_grid = ls_desktop_items_state.iter_mut().zip(desktop_items.iter()).enumerate().fold(grid, |grid, (idx, (state, item))| {
-            let icon_path = if let Some(path) = item.icon_paths.iter().find(|path| path.exists() && path.is_file()) {
-                path.to_path_buf()
-            } else {
-                PathBuf::from("/usr/share/icons/koompi.svg")
-            };
-            let icon: Element<_, _> = if let Some(extension) = icon_path.extension() {
-                if extension == "svg" || extension == "svgz" {
-                    Svg::from_path(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
-                } else {
-                    Image::new(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
+            let mut icon = Row::new();
+            if let Some(icon_path) = &item.icon_path {
+                if let Some(extension) = icon_path.extension() {
+                    icon = icon.push::<Element<_, _>>(if extension == "svg" || extension == "svgz" {
+                        Svg::from_path(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
+                    } else {
+                        Image::new(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
+                    });
                 }
-            } else {
-                Row::new().into()
-            };
+            }
             let con = Column::new().spacing(10).align_items(Align::Center)
                 .push(icon)
                 .push(Text::new(item.name.as_ref().unwrap_or(&"Unknown name".to_string())).horizontal_alignment(HorizontalAlignment::Center));
