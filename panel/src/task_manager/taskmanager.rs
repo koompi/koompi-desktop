@@ -1,6 +1,9 @@
-const EVENT_MASK: u32 = 0x400000;
-const NET_WM_WINDOW_TYPE_DESKTOP: &str = "_NET_WM_WINDOW_TYPE_DESKTOP";
-const NET_WM_WINDOW_TYPE_DIALOG: &str = "_NET_WM_WINDOW_TYPE_DIALOG";
+use crate::helper::{
+    constant::{
+        NET_WM_WINDOW_TYPE_DESKTOP, NET_WM_WINDOW_TYPE_DIALOG, NET_WM_WINDOW_TYPE_POPUP_MENU,
+    },
+    event_queue::EventQueue,
+};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_uint};
 extern "C" {
@@ -20,7 +23,7 @@ use x11rb::connection::Connection;
 
 use std::thread;
 use x11rb::protocol::xproto::{
-    change_window_attributes, Atom, AtomEnum, ChangeWindowAttributesAux, ConnectionExt,
+    change_window_attributes, Atom, AtomEnum, ChangeWindowAttributesAux, ConnectionExt, EventMask,
     GetPropertyReply, Window,
 };
 use x11rb::protocol::Event;
@@ -80,7 +83,7 @@ fn parse_wm_class(property: &GetPropertyReply) -> (&str, &str) {
 }
 
 impl TaskManager {
-    pub fn new(tx: mpsc::Sender<u32>) -> Result<(), Box<dyn Error>> {
+    pub fn new(tx: mpsc::Sender<EventQueue>) -> Result<(), Box<dyn Error>> {
         let mut last_seen = HashMap::new();
         last_seen.insert("xid", Some(0));
         // Set up our state
@@ -108,36 +111,55 @@ impl TaskManager {
         println!("Window class: {:?}", class);
         // Print out the result
         let cw_mask = ChangeWindowAttributesAux::new();
-        change_window_attributes(&conn, root, &cw_mask.event_mask(EVENT_MASK))?;
+        change_window_attributes(
+            &conn,
+            root,
+            &cw_mask.event_mask(
+                EventMask::STRUCTURE_NOTIFY
+                    | EventMask::PROPERTY_CHANGE
+                    | EventMask::SUBSTRUCTURE_NOTIFY,
+            ),
+        )
+        .unwrap();
         conn.flush().unwrap();
         thread::spawn(move || loop {
-            loop {
-                let (win, changed) =
-                    find_active_window(&conn, root, net_activate_win, &mut last_seen).unwrap();
-                if changed {
-                    unsafe {
-                        if win != 0 {
-                            let data: *const c_char = get_wndow_type(win);
-                            let c_str = CStr::from_ptr(data);
-                            let win_type = c_str.to_str().unwrap();
-                            if win_type != NET_WM_WINDOW_TYPE_DESKTOP
-                                && win_type != NET_WM_WINDOW_TYPE_DIALOG
-                            {
-                                println!("Window type: {:?}", c_str.to_str());
-                                println!("XID:{}", win);
-                                tx.send(win).unwrap();
-                            } else {
-                            }
+            let (win, changed) =
+                find_active_window(&conn, root, net_activate_win, &mut last_seen).unwrap();
+            if changed {
+                unsafe {
+                    if win != 0 {
+                        let data = get_wndow_type(win);
+                        let c_str = CStr::from_ptr(data);
+                        let win_type = c_str.to_str().unwrap();
+                        if win_type != NET_WM_WINDOW_TYPE_POPUP_MENU
+                            && win_type != NET_WM_WINDOW_TYPE_DIALOG
+                            && win_type != NET_WM_WINDOW_TYPE_DESKTOP
+                        {
+                            println!("Window type: {:?}", c_str.to_str());
+                            println!("XID:{}", win);
+                            tx.send(EventQueue::Active(win)).unwrap();
                         }
                     }
-                } else {
                 }
+            } else {
+            }
+            loop {
                 match conn.wait_for_event() {
                     Ok(event) => match event {
                         Event::PropertyNotify(e) => {
-                            if e.atom == net_activate_win {
-                                break;
-                            }
+                            if e.atom == net_activate_win {}
+                            break;
+                        }
+                        Event::CreateNotify(e) => {
+                            println!("Create:");
+                            break;
+                        }
+                        Event::DestroyNotify(e) => {
+                            match tx.send(EventQueue::Delete(e.window)) {
+                                Ok(()) => {}
+                                Err(_) => {}
+                            };
+                            break;
                         }
                         _ => {}
                     },

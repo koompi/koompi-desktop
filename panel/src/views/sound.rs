@@ -1,14 +1,13 @@
 use super::common::icon;
+use crate::library::core::sound::types_impl::{DeviceControl, SinkController, SourceController};
 use crate::styles::containers::CustomContainer;
 use crate::styles::slider::SliderType;
-use iced::{Column, Element};
+// use iced::{Column, Element};
 use iced_wgpu::Renderer;
 use iced_winit::{
-    button, slider, Align, Button, Command, Container, Length, Program, Row, Slider, Text,
+    button, slider, Align, Column, Command, Container, Element, Length, Program, Row, Slider, Text,
 };
-use libkoompi::system_settings::sounds::controllers::{
-    DeviceControl, SinkController, SourceController,
-};
+
 #[derive(Default)]
 pub struct Audio {
     controllers: [button::State; 2],
@@ -163,7 +162,7 @@ impl Program for Audio {
         }
         Command::none()
     }
-    fn view(&mut self) -> Element<Self::Message> {
+    fn view(&mut self) -> Element<Self::Message, Renderer> {
         let [mute, settings, devices, apps] = &mut self.settings;
         let [device, app] = &mut self.controllers;
         let tab = Row::new()

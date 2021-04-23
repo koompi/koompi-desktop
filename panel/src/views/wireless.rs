@@ -1,16 +1,18 @@
 use super::common::*;
 use super::panel::Message;
 use crate::styles::{buttonstyle::buttons::ButtonStyle, containers::CustomContainer};
-use async_std::task;
+
+use crate::library::core::network::{
+    accesspoint::get_accesspoints,
+    wifi::{Connectivity, Wifi, WifiInterface},
+};
 use iced_wgpu::Renderer;
 use iced_winit::{
     button, scrollable, text_input, winit::event_loop::EventLoopProxy, Align, Button, Column,
     Command, Container, Element, HorizontalAlignment, Length, Program, Row, Rule, Scrollable,
     Space, Text, TextInput,
 };
-use libkoompi::system_settings::network::{
-    get_accesspoints, wifi::Connectivity, wifi::WifiInterface, Wifi,
-};
+
 use std::sync::mpsc;
 #[derive(Debug, Clone)]
 pub struct Wireless {
@@ -168,42 +170,42 @@ impl Program for Wireless {
                                 let p = v.password.clone();
                                 let (tx, rx): (mpsc::Sender<bool>, mpsc::Receiver<bool>) =
                                     mpsc::channel();
-                                let handler = task::spawn(async move {
-                                    let handle = task::spawn(async move {
-                                        // test(s, p);
-                                        let result = match Wifi::connect(s, p) {
-                                            Ok(status) => status,
-                                            Err(e) => {
-                                                println!("Error : {:?}", e);
-                                                false
-                                            }
-                                        };
-                                        result
-                                    });
-                                    let result: bool = handle.await;
-                                    match tx.send(result) {
-                                        Ok(()) => {}
-                                        Err(e) => println!("Error : {:?}", e),
-                                    }
-                                });
-                                println!("Task state: {:?}", handler.task());
-                                match rx.recv() {
-                                    Ok(data) => {
-                                        if data {
-                                            v.con_state = ConnectionState::Activated;
-                                            v.push_to_section = true;
-                                            self.is_connect = true;
-                                            is_deactive = ConnectionState::Started;
-                                            println!("Connection established......");
-                                        } else {
-                                            {}
-                                        }
-                                    }
-                                    Err(e) => {
-                                        println!("Error: {:?}", e)
-                                    }
-                                }
-                                println!("Run after receving message");
+                                // let handler = task::spawn(async move {
+                                //     let handle = task::spawn(async move {
+                                //         // test(s, p);
+                                //         let result = match Wifi::connect(s, p) {
+                                //             Ok(status) => status,
+                                //             Err(e) => {
+                                //                 println!("Error : {:?}", e);
+                                //                 false
+                                //             }
+                                //         };
+                                //         result
+                                //     });
+                                //     let result: bool = handle.await;
+                                //     match tx.send(result) {
+                                //         Ok(()) => {}
+                                //         Err(e) => println!("Error : {:?}", e),
+                                //     }
+                                // });
+                                // println!("Task state: {:?}", handler.task());
+                                // match rx.recv() {
+                                //     Ok(data) => {
+                                //         if data {
+                                //             v.con_state = ConnectionState::Activated;
+                                //             v.push_to_section = true;
+                                //             self.is_connect = true;
+                                //             is_deactive = ConnectionState::Started;
+                                //             println!("Connection established......");
+                                //         } else {
+                                //             {}
+                                //         }
+                                //     }
+                                //     Err(e) => {
+                                //         println!("Error: {:?}", e)
+                                //     }
+                                // }
+                                // println!("Run after receving message");
                                 is_active = v.con_state.clone();
                                 new_data
                                     .iter_mut()

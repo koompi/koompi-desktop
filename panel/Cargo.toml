@@ -5,16 +5,17 @@ authors = ["veasnama <maveasnalearntosolve@gmail>"]
 edition = "2018"
 build  = "build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-iced_wgpu = {git = "https://github.com/koompi/iced.git", branch="winit_strut"}
+iced_wgpu = {git = "https://github.com/koompi/iced.git", branch="winit_strut", features=["svg"]}
 iced_winit = {git = "https://github.com/koompi/iced.git", branch="winit_strut"}
-iced = {git = "https://github.com/koompi/iced.git", branch="winit_strut", features=["tokio", "svg"]}
-libkoompi = { git="https://github.com/koompi/libkoompi", branch="main" }
+iced_style = {git ="https://github.com/koompi/iced.git", branch="winit_strut"}
 futures = "*"
 chrono = "0.4"
+dbus = "*"
+udev = "*"
+libmath = "*"
 battery = "0.7.8"
-async-std = "1.9.0"
+libpulse-binding = {version = "2.23.0", features= ["pa_v5", "pa_v14"]}
 x11rb = {version="0.8.1", features=["allow-unsafe-code", "present"]}
 [build-dependencies]
 cc = "1.0"

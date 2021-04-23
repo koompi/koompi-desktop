@@ -1,5 +1,7 @@
-use iced::{Font, HorizontalAlignment, Length, Text, VerticalAlignment};
-pub fn icon(unicode: char) -> Text {
+use iced_wgpu::Renderer;
+use iced_winit::{Font, HorizontalAlignment, Length, Text, VerticalAlignment};
+type SText = Text<Renderer>;
+pub fn icon(unicode: char) -> SText {
     Text::new(&unicode.to_string())
         .font(ICONS)
         .width(Length::Units(16))
@@ -11,7 +13,7 @@ const ICONS: Font = Font::External {
     name: "Line Awesome",
     bytes: include_bytes!("../assets/font/la-solid-900.ttf"),
 };
-pub fn condition(level: f32) -> Text {
+pub fn condition(level: f32) -> SText {
     let to_i32 = level as i32;
     match to_i32 {
         0..=10 => battery_full(),
@@ -22,35 +24,35 @@ pub fn condition(level: f32) -> Text {
         _ => battery_empty(),
     }
 }
-fn battery_empty() -> Text {
+fn battery_empty() -> SText {
     icon('\u{f244}')
 }
-fn battery_quarter() -> Text {
+fn battery_quarter() -> SText {
     icon('\u{f243}')
 }
-fn battery_half() -> Text {
+fn battery_half() -> SText {
     icon('\u{f242}')
 }
-fn battery_three_quarter() -> Text {
+fn battery_three_quarter() -> SText {
     icon('\u{f241}')
 }
-fn battery_full() -> Text {
+fn battery_full() -> SText {
     icon('\u{f240}')
 }
 
-pub fn key() -> Text {
+pub fn key() -> SText {
     icon('\u{f084}')
 }
-pub fn unlock() -> Text {
+pub fn unlock() -> SText {
     icon('\u{f09c}')
 }
-pub fn wifi() -> Text {
+pub fn wifi() -> SText {
     icon('\u{f1eb}')
 }
-pub fn search() -> Text {
+pub fn search() -> SText {
     icon('\u{f002}')
 }
 
-pub fn refresh() -> Text {
+pub fn refresh() -> SText {
     icon('\u{f2f1}')
 }

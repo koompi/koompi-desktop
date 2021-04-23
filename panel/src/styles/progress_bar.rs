@@ -1,4 +1,4 @@
-use iced::{
+use iced_style::{
     progress_bar::{Style, StyleSheet},
     Background, Color,
 };

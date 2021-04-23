@@ -1,6 +1,6 @@
-use iced::{
+use iced_style::{
     slider::{Handle, HandleShape, Style, StyleSheet},
-    Background, Color,
+    Color,
 };
 
 pub enum SliderType {

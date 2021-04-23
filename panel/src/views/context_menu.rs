@@ -1,4 +1,3 @@
-use iced::time;
 use iced_wgpu::Renderer;
 use iced_winit::{
     application::Application, button, Button, Column, Command, Container, Element, Program,
@@ -34,10 +33,6 @@ impl Application for ContexMenu {
     }
     fn title(&self) -> String {
         String::from("Context Menu")
-    }
-    fn subscription(&self) -> Subscription<ContextMenuMsg> {
-        time::every(std::time::Duration::from_millis(500))
-            .map(|_| ContextMenuMsg::Tick(chrono::Local::now()))
     }
 }
 impl Program for ContexMenu {

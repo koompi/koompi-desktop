@@ -1,12 +1,12 @@
-const WINDOW_HEIGHT: u32 = 32;
-const RESERVE_SIZE: [u64; 4] = [0, 0, 32, 0];
-const MENU_WIDTH: u16 = 400;
-const MENU_HEIGHT: u16 = MENU_WIDTH;
-mod proxy_message;
+mod helper;
+mod library;
 mod styles;
 mod task_manager;
 mod views;
-use proxy_message::ProxyMessage;
+use helper::{
+    constant::{MENU_HEIGHT, MENU_WIDTH, RESERVE_SIZE, WINDOW_HEIGHT},
+    event_queue::EventQueue,
+};
 use views::{
     applets::{Applets, AppletsMsg, ControlType},
     panel::{DesktopPanel, Message},
@@ -36,7 +36,7 @@ fn main() {
 
     let event_loop = EventLoop::with_user_event();
     // uncomment to be able to test task manager.
-    let (tx, rx): (mpsc::Sender<u32>, mpsc::Receiver<u32>) = mpsc::channel();
+    let (tx, rx): (mpsc::Sender<EventQueue>, mpsc::Receiver<EventQueue>) = mpsc::channel();
     let task_manager = task_manager::taskmanager::TaskManager::new(tx);
     match task_manager {
         Ok(()) => {}
@@ -95,11 +95,16 @@ fn main() {
 
     event_loop.run(move |event, _, control_flow| {
         match rx.try_recv() {
-            Ok(data) => {
-                control_state
-                    .win_state
-                    .queue_message(Message::ActiveWindow(data));
-            }
+            Ok(data_type) => match data_type {
+                EventQueue::Active(data) => {
+                    control_state
+                        .win_state
+                        .queue_message(Message::ActiveWindow(data));
+                }
+                EventQueue::Delete(data) => {
+                    println!("Delete window: {}", data);
+                }
+            },
             Err(_) => {}
         }
         match event {

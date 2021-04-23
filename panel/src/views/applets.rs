@@ -11,7 +11,6 @@ use iced_winit::{
     winit::event_loop::{EventLoop, EventLoopProxy},
     Application, Command, Container, Element, Length, Program, Text,
 };
-
 pub struct Applets {
     pub slider: slider::State,
     pub value: f32,

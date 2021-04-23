@@ -2,12 +2,11 @@ use super::applets::ControlType;
 use super::common::*;
 use crate::styles::buttonstyle::buttons::ButtonStyle;
 use chrono::Timelike;
-use iced::time;
-use iced::{svg::Svg, Text};
+
 use iced_wgpu::Renderer;
 use iced_winit::{
     application::Application, button, winit, Align, Button, Color, Command, Container, Element,
-    Length, Program, Row, Space, Subscription,
+    Image, Length, Program, Row, Space, Subscription, Svg, Text,
 };
 // use std::{cell::RefCell, rc::Rc};
 use winit::event_loop::EventLoopProxy;
@@ -20,7 +19,7 @@ pub struct DesktopPanel {
     pub pre_kind: ControlType,
     pub kind: ControlType,
     pub now: chrono::DateTime<chrono::Local>,
-    task_list: Vec<TaskManager>,
+    task_list: Vec<(button::State, TaskManager)>,
     task_count: usize,
     test_button: button::State,
     proxy: EventLoopProxy<Message>,
@@ -80,10 +79,6 @@ impl Application for DesktopPanel {
     fn title(&self) -> String {
         String::from("Title ")
     }
-    fn subscription(&self) -> Subscription<Message> {
-        time::every(std::time::Duration::from_millis(500))
-            .map(|_| Message::Tick(chrono::Local::now()))
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -100,6 +95,7 @@ pub enum Message {
     ShowPwdDialog(String),
     ActiveWindow(u32),
     RequestExit,
+    OnMaxMinChange,
     OnTaskActive,
     Timer,
 }
@@ -124,11 +120,14 @@ impl Program for DesktopPanel {
                 println!("Data: {:?}", pwd);
             }
             Message::ActiveWindow(win_id) => {
-                self.task_list.retain(|v| v.id != win_id);
-                self.task_list.push(TaskManager {
-                    id: win_id,
-                    ..Default::default()
-                });
+                self.task_list.retain(|(_, v)| v.id != win_id);
+                self.task_list.push((
+                    button::State::new(),
+                    TaskManager {
+                        id: win_id,
+                        ..Default::default()
+                    },
+                ));
                 self.task_count += 1;
             }
             Message::WifiShow(_) => {
@@ -172,6 +171,7 @@ impl Program for DesktopPanel {
                     .send_event(Message::SoundShow(self.sound_visible))
                     .ok();
             }
+            Message::OnMaxMinChange => {}
             Message::Timer => {
                 self.now = chrono::Local::now();
             }
@@ -204,7 +204,11 @@ impl Program for DesktopPanel {
         let task_manager = if self.task_count > 0 {
             self.task_list.iter_mut().fold(
                 Row::new().spacing(4),
-                |row: Row<Message, Renderer>, task| row.push(Text::new("hello")),
+                |row: Row<Message, Renderer>, (btn, task)| {
+                    row.push(
+                        Button::new(btn, Text::new("firefox")).on_press(Message::OnMaxMinChange),
+                    )
+                },
             )
         } else {
             Row::new()
@@ -255,13 +259,13 @@ impl Program for DesktopPanel {
     }
 }
 
-fn monitor_icon() -> Text {
+fn monitor_icon() -> Text<Renderer> {
     icon('\u{f108}')
 }
 
-fn sound_icon() -> Text {
+fn sound_icon() -> Text<Renderer> {
     icon('\u{f028}')
 }
-fn wifi_icon() -> Text {
+fn wifi_icon() -> Text<Renderer> {
     icon('\u{f1eb}')
 }

@@ -1,5 +1,6 @@
 use super::common::*;
 use super::panel::Message as PanelMessage;
+use crate::library::core::bright::Brightness;
 use crate::styles::{containers::CustomContainer, progress_bar::ProgressType, slider::SliderType};
 use battery::{units::ratio::percent, Batteries, Battery as BatteryInfo, Manager};
 use iced_wgpu::Renderer;
@@ -7,7 +8,6 @@ use iced_winit::{
     slider, Align, Application, Column, Command, Container, Element, HorizontalAlignment, Length,
     Program, ProgressBar, Row, Slider, Space, Text,
 };
-use libkoompi::system_settings::devices::Brightness;
 use std::any::type_name;
 
 #[derive(Debug)]

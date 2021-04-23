@@ -1,10 +1,10 @@
 use super::common::icon;
 use crate::styles::containers::CustomContainer;
-use iced::svg::Svg;
+
 use iced_wgpu::Renderer;
 use iced_winit::{
-    button, Align, Button, Checkbox, Column, Command, Container, Element, HorizontalAlignment,
-    Length, Program, Row, Text,
+    button, svg::Svg, Align, Button, Checkbox, Column, Command, Container, Element,
+    HorizontalAlignment, Length, Program, Row, Text,
 };
 #[derive(Debug, Default)]
 pub struct Monitor {
