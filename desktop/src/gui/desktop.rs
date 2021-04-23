@@ -32,11 +32,11 @@ pub enum DesktopMsg {
 }
 
 impl Desktop {
-    fn handle_exec(&self, idx: usize) {
+    fn handle_double_clicked(&self, idx: usize) {
         let desktop_items = self.ls_desktop_items.borrow();
 
         if let Some(desktop_item) = desktop_items.get(idx) {
-            if let Err(err) = desktop_item.handle_exec(None) {
+            if let Err(err) = desktop_item.exec_default_app() {
                 let _ = DialogBuilder::new().title("Error")
                     .message(&format!("{}", err))
                     .style(DialogStyle::Error)
@@ -92,14 +92,14 @@ impl Program for Desktop {
 
         match message {
             DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
-            LaunchDesktopItem(idx) => self.handle_exec(idx),
+            LaunchDesktopItem(idx) => self.handle_double_clicked(idx),
             DesktopItemRightClicked(idx) => println!("right click on {}", idx),
             WinitEvent(event) => {
                 match event {
                     Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => self.selected_desktop_item = None, 
                     Event::Keyboard(key_event) => match key_event {
                         keyboard::Event::CharacterReceived('\r') => if let Some(idx) = self.selected_desktop_item {
-                            self.handle_exec(idx);
+                            self.handle_double_clicked(idx);
                         },
                         keyboard::Event::KeyPressed { key_code, .. } => match key_code {
                             keyboard::KeyCode::Right => if let Some(idx) = &mut self.selected_desktop_item {
