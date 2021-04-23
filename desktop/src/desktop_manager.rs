@@ -1,7 +1,7 @@
 use std::path::{PathBuf, Path};
 use std::collections::HashMap;
 use std::fs;
-use crate::constants::{LOCAL_DATA, DESKTOP_ENTRY, ICON};
+use crate::constants::{DATA_DIRS, LOCAL_DATA, DESKTOP_ENTRY, ICON};
 use crate::configs::{PersistentData, Resources, desktop_item_conf::Sorting};
 use super::desktop_item::{DesktopItem, DesktopItemType};
 use super::background::WallpaperItem;
@@ -34,6 +34,7 @@ impl DesktopManager {
                 if !is_hidden(&entry) {
                     let file = entry.path();
                     let icon_path = Self::get_icon_path(file.to_path_buf(), &desktop_icons);
+                    println!("{:?}", icon_path);
         
                     if let Ok(desktop_item) = DesktopItem::new(file, icon_path) {
                         if let DesktopItemType::APP(entry) = &desktop_item.entry_type {
@@ -185,7 +186,7 @@ impl DesktopManager {
                 icon_name = mime_info.lookup_icon_names(mime);
             }
         }
-        println!("{:?}", icon_name);
+        // println!("{:?}", icon_name);
 
         icon_name.into_iter().filter_map(|name| {
             let icon_path = PathBuf::from(&name);
@@ -209,19 +210,23 @@ pub struct DesktopIconResource;
 impl Resources for DesktopIconResource {
     fn relative_path() -> PathBuf {
         // !Should be current theme dir
-        PathBuf::from(ICONS_DIR).join("hicolor").join("scalable")
+        PathBuf::from(ICONS_DIR).join("hicolor")
     }
 
+    // fn additional_paths() -> Option<Vec<PathBuf>> {
+    //     // !Should be fallback theme dir(hicolor)
+    //     Some(Self::base_paths().into_iter().filter_map(|base| {
+    //         let path = base.join(Self::relative_path().parent().unwrap()).join("48x48");
+    //         if path.exists() {
+    //             Some(path)
+    //         } else {
+    //             None
+    //         }
+    //     }).collect())
+    // }
+
     fn additional_paths() -> Option<Vec<PathBuf>> {
-        // !Should be fallback theme dir(hicolor)
-        Some(Self::base_paths().into_iter().filter_map(|base| {
-            let path = base.join(Self::relative_path().parent().unwrap()).join("48x48");
-            if path.exists() {
-                Some(path)
-            } else {
-                None
-            }
-        }).collect())
+        Some(DATA_DIRS.iter().map(|dir| dir.join("pixmaps")).collect())
     }
 }
 
