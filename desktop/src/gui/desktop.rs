@@ -1,5 +1,4 @@
 use std::{cell::RefCell, rc::Rc};
-use std::path::PathBuf;
 use crate::configs::{
     DesktopConf,
     background_conf::BackgroundType,
@@ -33,11 +32,11 @@ pub enum DesktopMsg {
 }
 
 impl Desktop {
-    fn handle_exec(&self, idx: usize) {
+    fn handle_double_clicked(&self, idx: usize) {
         let desktop_items = self.ls_desktop_items.borrow();
 
         if let Some(desktop_item) = desktop_items.get(idx) {
-            if let Err(err) = desktop_item.handle_exec(None) {
+            if let Err(err) = desktop_item.exec_default_app() {
                 let _ = DialogBuilder::new().title("Error")
                     .message(&format!("{}", err))
                     .style(DialogStyle::Error)
@@ -93,14 +92,14 @@ impl Program for Desktop {
 
         match message {
             DesktopItemClicked(idx) => self.selected_desktop_item = Some(idx),
-            LaunchDesktopItem(idx) => self.handle_exec(idx),
+            LaunchDesktopItem(idx) => self.handle_double_clicked(idx),
             DesktopItemRightClicked(idx) => println!("right click on {}", idx),
             WinitEvent(event) => {
                 match event {
                     Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => self.selected_desktop_item = None, 
                     Event::Keyboard(key_event) => match key_event {
                         keyboard::Event::CharacterReceived('\r') => if let Some(idx) = self.selected_desktop_item {
-                            self.handle_exec(idx);
+                            self.handle_double_clicked(idx);
                         },
                         keyboard::Event::KeyPressed { key_code, .. } => match key_code {
                             keyboard::KeyCode::Right => if let Some(idx) = &mut self.selected_desktop_item {
@@ -158,20 +157,16 @@ impl Program for Desktop {
         }
 
         let desktop_grid = ls_desktop_items_state.iter_mut().zip(desktop_items.iter()).enumerate().fold(grid, |grid, (idx, (state, item))| {
-            let icon_path = if let Some(path) = item.icon_paths.iter().find(|path| path.exists() && path.is_file()) {
-                path.to_path_buf()
-            } else {
-                PathBuf::from("/usr/share/icons/koompi.svg")
-            };
-            let icon: Element<_, _> = if let Some(extension) = icon_path.extension() {
-                if extension == "svg" || extension == "svgz" {
-                    Svg::from_path(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
-                } else {
-                    Image::new(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
+            let mut icon = Row::new();
+            if let Some(icon_path) = &item.icon_path {
+                if let Some(extension) = icon_path.extension() {
+                    icon = icon.push::<Element<_, _>>(if extension == "svg" || extension == "svgz" {
+                        Svg::from_path(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
+                    } else {
+                        Image::new(icon_path).width(Length::Units(item_conf.icon_size)).height(Length::Units(item_conf.icon_size)).into()
+                    });
                 }
-            } else {
-                Row::new().into()
-            };
+            }
             let con = Column::new().spacing(10).align_items(Align::Center)
                 .push(icon)
                 .push(Text::new(item.name.as_ref().unwrap_or(&"Unknown name".to_string())).horizontal_alignment(HorizontalAlignment::Center));

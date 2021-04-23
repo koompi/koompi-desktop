@@ -41,4 +41,19 @@ pub trait Config {
             }
         })
     }
+
+    fn find_values(&self, section: &str, key: &str) -> Vec<String> {
+        let mut config = configparser::ini::Ini::new();
+
+        let values = self.paths().into_iter().fold(Vec::new(), |mut vals, path| {
+            if let Ok(_) = config.load(path.to_str().unwrap()) {
+                if let Some(val) = config.get(section, key) {
+                    vals.push(val);
+                }
+            }
+            vals
+        });
+
+        values
+    }
 }

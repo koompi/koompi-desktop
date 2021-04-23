@@ -11,12 +11,11 @@ pub enum DesktopItemType {
     DIR,
     FILE,
     LINK,
-    NULL,
 }
 
 impl Default for DesktopItemType {
     fn default() -> Self {
-        Self::NULL
+        Self::FILE
     }
 }
 
@@ -24,16 +23,12 @@ impl FromStr for DesktopItemType {
     type Err = DesktopItemError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.is_empty() {
-            Ok(DesktopItemType::NULL)
-        } else {
-            match s {
-                APP => Ok(DesktopItemType::APP(DesktopEntry::default())),
-                LINK => Ok(DesktopItemType::LINK),
-                DIR => Ok(DesktopItemType::DIR),
-                FILE => Ok(DesktopItemType::FILE),
-                _ => Err(DesktopItemError::InvalidType)
-            }
+        match s {
+            APP => Ok(DesktopItemType::APP(DesktopEntry::default())),
+            LINK => Ok(DesktopItemType::LINK),
+            DIR => Ok(DesktopItemType::DIR),
+            FILE => Ok(DesktopItemType::FILE),
+            _ => Err(DesktopItemError::InvalidType)
         }
     }
 }
@@ -59,7 +54,6 @@ impl Display for DesktopItemType {
             DesktopItemType::LINK => LINK,
             DesktopItemType::DIR => DIR,
             DesktopItemType::FILE => FILE,
-            _ => ""
         })
     }
 }

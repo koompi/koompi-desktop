@@ -12,8 +12,10 @@ pub enum DesktopItemError {
     NoFilename(String),
     #[error("cannot launch due to no execute string")]
     NoExecString,
-    // #[error("cannot launch due to bad execute string")]
-    // BadExecString,
+    #[error("bad handle launch execute")]
+    BadHandleExec,
+    #[error("no default application to execute")]
+    NoDefaultExec,
     #[error("invalid type of desktop item", )]
     InvalidType,
     #[error(transparent)]
