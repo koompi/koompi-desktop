@@ -1,8 +1,11 @@
 use std::{cell::RefCell, rc::Rc};
 use crate::proxy_message::ProxyMessage;
-use crate::configs::{
-    DesktopConf, PersistentData,
-    desktop_item_conf::{Arrangement, Sorting, DesktopItemConf}
+use libkoompi::desktop::{
+    PersistentData, 
+    configs::{
+        DesktopConf,
+        desktop_item_conf::{Arrangement, Sorting, DesktopItemConf}
+    }
 };
 use super::styles::{CustomButton, BACKGROUND, CustomSelect, CustomSlider, CustomCheckbox};
 use super::has_changed::HasChanged;

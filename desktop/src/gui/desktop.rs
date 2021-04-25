@@ -1,10 +1,12 @@
 use std::{cell::RefCell, rc::Rc};
-use crate::configs::{
-    DesktopConf,
-    background_conf::BackgroundType,
-    desktop_item_conf::Arrangement,
+use libkoompi::desktop::{
+    DesktopItem,
+    configs::{
+        DesktopConf,
+        background_conf::BackgroundType,
+        desktop_item_conf::Arrangement,
+    }
 };
-use crate::desktop_item::DesktopItem;
 use super::styles::{CustomButton, CustomTooltip};
 use iced::{Svg, Image};
 use iced_wgpu::Renderer;
@@ -75,7 +77,10 @@ impl Application for Desktop {
         let bg_conf = &desktop_conf.background_conf;
 
         match bg_conf.kind {
-            BackgroundType::Color => bg_conf.color_background,
+            BackgroundType::Color => {
+                let color = bg_conf.color_background;
+                Color::from_rgb8(color.r, color.g, color.b)
+            },
             BackgroundType::Wallpaper => Color::TRANSPARENT
         }
     }

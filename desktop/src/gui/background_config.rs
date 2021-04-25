@@ -1,11 +1,13 @@
 use std::{cell::RefCell, rc::Rc};
 use crate::proxy_message::ProxyMessage;
-use crate::configs::{
-    DesktopConf, PersistentData,
-    background_conf::BackgroundType,
-    wallpaper_conf::Placement
+use libkoompi::desktop::{
+    WallpaperItem, PersistentData, 
+    configs::{
+        DesktopConf,
+        background_conf::BackgroundType,
+        wallpaper_conf::Placement
+    }
 };
-use crate::background::WallpaperItem;
 use super::styles::{CustomButton, CustomTooltip, CustomContainer, BACKGROUND, CustomSelect};
 use super::has_changed::HasChanged;
 use iced::Image;

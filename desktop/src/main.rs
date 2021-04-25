@@ -1,21 +1,14 @@
-mod window_state;
-mod background;
-mod desktop_item;
-mod constants;
-mod desktop_manager;
-mod configs;
-mod errors;
 mod gui;
 mod proxy_message;
+mod window_state;
 
-use desktop_item::DesktopItem;
-use background::WallpaperItem;
-use configs::PersistentData;
 use proxy_message::ProxyMessage;
 use window_state::WindowState;
-use desktop_manager::DesktopManager;
 use gui::{
     Desktop, ContextMenu, DesktopConfigUI, BackgroundConfigUI, ContextMsg, BackgroundConfMsg, DesktopConfigMsg,
+};
+use libkoompi::desktop::{
+    DesktopManager, PersistentData, DesktopItem, WallpaperItem,
 };
 
 use std::{cell::RefCell, rc::Rc};
