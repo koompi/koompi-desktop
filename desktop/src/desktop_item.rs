@@ -76,11 +76,11 @@ impl DesktopItem {
             DesktopItemType::APP(entry) => Some(entry.to_owned()),
             DesktopItemType::DIR | DesktopItemType::FILE | DesktopItemType::LINK => {
                 if let Some(mime_type) = self.mime_type() {
-                    let def_app_ids: HashSet<_> = MimeAppsConfig.find_values(DEFAULT_APPS, &mime_type).join(";").split(';').map(ToOwned::to_owned).collect();
+                    let def_app_ids: HashSet<_> = MimeAppsConfig.find_values(DEFAULT_APPS, &mime_type, true).join(";").split(';').map(ToOwned::to_owned).collect();
 
                     def_app_ids.into_iter().find_map(|desktop_id| self.find_desktop_entry(desktop_id))
                     .or_else(|| {
-                        let cache_desk_ids: HashSet<_> = MimeCacheConfig.find_values(MIME_CACHE, &mime_type).join(";").split(';').map(ToOwned::to_owned).collect();
+                        let cache_desk_ids: HashSet<_> = MimeCacheConfig.find_values(MIME_CACHE, &mime_type, true).join(";").split(';').map(ToOwned::to_owned).collect();
                         cache_desk_ids.into_iter().find_map(|desktop_id| self.find_desktop_entry(desktop_id))
                     })
                 } else {
@@ -97,9 +97,9 @@ impl DesktopItem {
             DesktopItemType::APP(entry) => res = vec![entry.to_owned()],
             DesktopItemType::DIR | DesktopItemType::FILE | DesktopItemType::LINK => {
                 if let Some(mime_type) = self.mime_type() {
-                    let blacklist: HashSet<_> = MimeAppsConfig.find_values(REM_ASSOCS, &mime_type).join(";").split(';').map(ToOwned::to_owned).collect();
-                    let mut added = MimeAppsConfig.find_values(ADDED_ASSOCS, &mime_type);
-                    added.extend(MimeCacheConfig.find_values(MIME_CACHE, &mime_type));
+                    let blacklist: HashSet<_> = MimeAppsConfig.find_values(REM_ASSOCS, &mime_type, true).join(";").split(';').map(ToOwned::to_owned).collect();
+                    let mut added = MimeAppsConfig.find_values(ADDED_ASSOCS, &mime_type, true);
+                    added.extend(MimeCacheConfig.find_values(MIME_CACHE, &mime_type, true));
                     let apps: HashSet<_> = added.join(";").split(';').map(ToOwned::to_owned).collect();
                     let filtered_apps: Vec<_> = apps.into_iter().filter(|app| blacklist.contains(app)).collect();
     

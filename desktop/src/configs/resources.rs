@@ -37,7 +37,7 @@ pub trait Resources {
     fn find_path_exists<P: AsRef<Path>>(&self, file: P) -> Option<PathBuf> {
         self.paths().into_iter().find_map(|p| {
             let path = p.join(file.as_ref());
-            if path.exists() {
+            if path.exists() && path.is_file() {
                 Some(path)
             } else {
                 None

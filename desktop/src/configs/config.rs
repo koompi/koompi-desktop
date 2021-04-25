@@ -30,8 +30,11 @@ pub trait Config {
         }).collect()
     }
 
-    fn find_value(&self, section: &str, key: &str) -> Option<String> {
+    fn find_value(&self, section: &str, key: &str, allow_semicolon: bool) -> Option<String> {
         let mut config = configparser::ini::Ini::new();
+        if allow_semicolon {
+            config.set_comment_symbols(&['#']);
+        }
 
         self.paths().into_iter().find_map(|path| {
             if let Ok(_) = config.load(path.to_str().unwrap()) {
@@ -42,9 +45,12 @@ pub trait Config {
         })
     }
 
-    fn find_values(&self, section: &str, key: &str) -> Vec<String> {
+    fn find_values(&self, section: &str, key: &str, allow_semicolon: bool) -> Vec<String> {
         let mut config = configparser::ini::Ini::new();
-
+        if allow_semicolon {
+            config.set_comment_symbols(&['#']);
+        }
+        
         let values = self.paths().into_iter().fold(Vec::new(), |mut vals, path| {
             if let Ok(_) = config.load(path.to_str().unwrap()) {
                 if let Some(val) = config.get(section, key) {
