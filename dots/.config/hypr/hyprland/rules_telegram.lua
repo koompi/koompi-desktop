@@ -1,4 +1,4 @@
--- Telegram widget (SUPER + Y): window rules and the placement handlers.
+-- Telegram widget (SUPER + T): window rules and the placement handlers.
 -- Both Telegram classes on purpose: env.lua forces QT_QPA_PLATFORM=xcb session wide,
 -- so Qt apps come up on XWayland and Hyprland reports the X11 WM_CLASS, not the
 -- Wayland app_id. Any rule keyed on a Qt app's app_id has the same problem.
@@ -81,7 +81,7 @@ end
 -- and take the right panel. An app Telegram hands a file to (Okular for a PDF)
 -- lands there too, with a class of its own: it goes to the monitor's regular
 -- workspace, tiled, as if launched from anywhere, and focusing it hides the
--- widget until SUPER + Y. Floated into the right panel it would not scroll.
+-- widget until SUPER + T. Floated into the right panel it would not scroll.
 -- Any other arrival already floating is a dialog and keeps its own place.
 hl.on("window.open", function(w)
     local ws = w.workspace

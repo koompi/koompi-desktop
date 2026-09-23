@@ -43,7 +43,7 @@ Search is the keyboard's launcher; this is the touchpad's.
 
 | Keys | Opens |
 | --- | --- |
-| `Super+Return` or `Super+T` | a terminal |
+| `Super+Return` | a terminal |
 | `Super+E` | the file manager |
 | `Super+W` | your browser |
 | `Super+C` | your code editor |
@@ -63,7 +63,7 @@ Press the key once to bring it down, again to send it away.
 | --- | --- |
 | `Super` with `` ` `` | a terminal |
 | `Super+\` | the system monitor |
-| `Super+Y` | Telegram |
+| `Super+T` | Telegram |
 
 ## Two more that are worth the muscle memory
 
