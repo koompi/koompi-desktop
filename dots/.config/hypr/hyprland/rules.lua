@@ -61,7 +61,7 @@ hl.window_rule({match = {title = "^(KOOMPI Settings)$" },                    cen
 hl.window_rule({match = {title = ".*Shell conflicts.*" },                    float = true})
 hl.window_rule({match = {class = "^(Zotero)$" },                             float = true})
 hl.window_rule({match = {class = "^(Zotero)$" },                             size = {"(monitor_w*0.45)", "(monitor_h*0.45)"} })
--- Telegram (SUPER + Y): rules_telegram.lua, its own file for the file-length cap.
+-- Telegram (SUPER + T): rules_telegram.lua, its own file for the file-length cap.
 -- Discord: SUPER + SHIFT + D
 hl.window_rule({match = {class = "^(discord)$" },                            workspace = "special:discord silent"})
 hl.window_rule({match = {class = "^(discord)$" },                            float = true})

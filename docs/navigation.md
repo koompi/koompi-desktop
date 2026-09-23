@@ -228,7 +228,7 @@ The `XF86Audio*` and `XF86MonBrightness*` keys carry the same actions and are ma
 
 | Keys | Action |
 | --- | --- |
-| `Super+Return`, `Super+T` | terminal |
+| `Super+Return` | terminal |
 | `Super+E` | file manager |
 | `Super+W` | browser |
 | `Super+C` | code editor |
@@ -237,7 +237,7 @@ The `XF86Audio*` and `XF86MonBrightness*` keys carry the same actions and are ma
 | `Ctrl+Shift+Escape` | task manager |
 | `Super+`` ` `` | terminal panel |
 | `Super+\` | system monitor panel |
-| `Super+Y` | Telegram panel |
+| `Super+T` | Telegram panel |
 
 App binds are the one group that may grow, because they name what the user installed rather than what the shell owns.
 Anything opened as a scratchpad panel rather than a normal window is a shell surface and belongs to a role above.
