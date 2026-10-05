@@ -46,29 +46,17 @@ without updating them first is a defect, not a variant.
 
 ## Which branch a machine follows
 
-Installed machines track `prod-hd`, not `main`.
-`prod-hd` is only ever fast-forwarded from `main` and nothing is authored on it, so its
-history is a prefix of `main`'s: a school laptop lands only on a commit somebody blessed.
-`install.sh` clones it when the remote has it and falls back to `main` when it does not — a
-mirror without the branch still installs — saying which line it took; `KOOMPI_REF` overrides
-both. `./setup update` moves an existing checkout onto it, but only a *managed* one.
+Installed machines track `main`; day-to-day work happens on `dev` and lands on `main` by PR.
+`install.sh` clones `main`, and `KOOMPI_REF` picks another branch.
+A re-run of the one-liner repoints an existing checkout at the tracked branch, fetch refspec included.
 
-Managed means the checkout carries nothing of its own: a clean tree, on `main`, an
-`origin` that is the KOOMPI repo, and no commit `origin/main` does not already have.
-Anything else — a dirty tree, your own branch, one local commit, a fork — is left exactly
-where it is, with the reason on one line. Before `origin/prod-hd` exists, or offline, the
-update is the ordinary one it always was and says nothing about branches at all.
-
-To keep tracking `main` deliberately:
-
-```sh
-KOOMPI_FOLLOW_PROD=0 ./setup update      # this run
-git config koompi.followprod false       # this checkout, every run
-```
-
-`KOOMPI_FOLLOW_PROD=1` overrides the config the other way. The name lives in exactly one
-place, `PROD_BRANCH` in `sdata/install/update.sh`; the SD flavour gets its own when there
-is one to have.
+`prod-hd`, the old release line, is retired.
+`./setup update` moves a *managed* checkout off it onto `main`: a clean tree on `prod-hd`, an `origin` that is the KOOMPI repo, and no commit `origin/main` does not already have.
+Anything else, such as a dirty tree, one local commit or a fork, is left exactly where it is, with the reason on one line.
+A checkout already on `main` loses any leftover `prod-hd` fetch refspec, which would fail every fetch once the branch is deleted.
+The name lives in one place, `RETIRED_BRANCH` in `sdata/install/update.sh`.
+A machine on `prod-hd` runs its old updater first, which only pulls `prod-hd`; the move happens in the re-exec from the pulled tree.
+So `prod-hd` is fast-forwarded to a `main` that carries this code and kept until the field has updated; delete it before then and those machines can only recover by re-running the one-liner.
 
 An update also re-runs itself once from the tree it just pulled, so a change to installer
 logic takes effect on the run that pulls it rather than the one after. If you are writing

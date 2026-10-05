@@ -5,8 +5,7 @@
 set -euo pipefail
 
 REPO_URL="${KOOMPI_REPO:-https://github.com/koompi/koompi-desktop.git}"
-PROD_REF='prod-hd'
-REPO_REF="${KOOMPI_REF:-}"
+REPO_REF="${KOOMPI_REF:-main}"
 DEST="${KOOMPI_DEST:-$HOME/.local/share/koompi-desktop}"
 
 if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
@@ -34,27 +33,28 @@ bootstrap_git() {
 
 bootstrap_git
 
-# prod-hd is the release line, main is where it comes from. A mirror that
-# carries only main, or this repo before the branch was ever pushed, must still
-# install rather than die on "Remote branch prod-hd not found".
-if [[ -n "$REPO_REF" ]]; then
-    say "tracking $REPO_REF (KOOMPI_REF)"
-elif git ls-remote --exit-code --heads "$REPO_URL" "$PROD_REF" >/dev/null 2>&1; then
-    REPO_REF="$PROD_REF"
-    say "tracking $PROD_REF, the line KOOMPI releases from"
-else
-    REPO_REF=main
-    say "$REPO_URL has no $PROD_REF branch; tracking main"
-fi
+say "tracking $REPO_REF"
 
 if [[ -d "$DEST/.git" ]]; then
     say "updating $DEST"
     git -C "$DEST" remote set-url origin "$REPO_URL"
+    # One refspec, for the tracked branch: a checkout made when installs followed
+    # prod-hd names only that, and fails every fetch once the branch is gone.
+    # A KOOMPI_REF that is a tag, not a branch, has no branch to track.
+    is_branch=false
+    git -C "$DEST" ls-remote --exit-code --heads origin "$REPO_REF" >/dev/null 2>&1 && is_branch=true
+    if [[ "$is_branch" == true ]]; then
+        git -C "$DEST" config --replace-all remote.origin.fetch \
+            "+refs/heads/$REPO_REF:refs/remotes/origin/$REPO_REF"
+    fi
     git -C "$DEST" fetch --depth 1 origin "$REPO_REF"
     # Hard reset rather than pull: this checkout is ours, and a merge conflict
     # here would strand the user inside a bootstrap script with no good way out.
     # Anything the user edits belongs in ~/.config, which ./setup never clobbers.
     git -C "$DEST" reset --hard FETCH_HEAD
+    if [[ "$is_branch" == true ]]; then
+        git -C "$DEST" checkout -q -B "$REPO_REF" --track "origin/$REPO_REF"
+    fi
     git -C "$DEST" submodule update --init --recursive --depth 1
 else
     say "cloning $REPO_URL ($REPO_REF)"
