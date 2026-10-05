@@ -1,10 +1,8 @@
 -- put former exec-once commands inside the func and former exec commands outside
 hl.on("hyprland.start", function ()
 
-    -- Bar, wallpaper
-    -- The shell draws through layer-shell, which XWayland has no notion of, so
-    -- it opts out of the session-wide xcb default that the global menu needs.
-    hl.exec_cmd("env QT_QPA_PLATFORM=wayland qs -c $qsConfig")
+    -- Bar, wallpaper; the script puts an alert on screen if the shell cannot start
+    hl.exec_cmd("$HOME/.config/hypr/hyprland/scripts/start_shell.sh")
     hl.exec_cmd("$HOME/.config/hypr/custom/scripts/__restore_video_wallpaper.sh")
     -- Swipe progress for the shell's wallpaper. Hyprland version-locks plugins,
     -- so after a Hyprland update this simply does not load until it is rebuilt

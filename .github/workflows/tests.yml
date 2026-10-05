@@ -7,10 +7,9 @@
 # pacman line away.
 #
 # What cannot run here, and how it is skipped honestly: no step here has a
-# Wayland session, a running quickshell, or the local AI backend, and quickshell
-# itself is not in the Arch repos (koompi-quickshell-git builds it from source,
-# a Qt build this job does not attempt). The tests that need those check for
-# them (`command -v qs`, HYPRLAND_INSTANCE_SIGNATURE, the LiteRT-LM port) and
+# Wayland session, a running quickshell, or the local AI backend, and the job
+# does not install quickshell. The tests that need those check for them
+# (`command -v qs`, HYPRLAND_INSTANCE_SIGNATURE, the LiteRT-LM port) and
 # print a "skip:" line for the part they could not run; run.sh counts such a
 # test as skipped, not passed. The last step names each expected skip with its
 # reason and fails the job on any other, so a tool missing from the install

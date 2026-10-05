@@ -549,8 +549,8 @@ update_packaged() {
     run sudo pacman -Syu "${noconfirm[@]}" \
         || die "pacman upgrade failed; fix that before reloading the session"
 
-    # KOOMPI's own -git packages (quickshell, microtex) live in the AUR, and
-    # pacman will not rebuild them. Only bother if a helper is already there.
+    # KOOMPI's own -git package (microtex) lives in the AUR, and pacman will
+    # not rebuild it. Only bother if a helper is already there.
     local helper
     for helper in paru yay; do
         if have "$helper"; then

@@ -456,7 +456,7 @@ No back/cancel once writes begin.
   Log  (↑↓ scroll, End to follow)
    ┌──────────────────────────────────────────────────┐
    │ installing koompi-desktop-hyprland (142/418)…     │
-   │ downloading quickshell-git…                        │
+   │ downloading quickshell…                            │
    │ ▒ tail follows newest line                         │
    └──────────────────────────────────────────────────┘
 ```
