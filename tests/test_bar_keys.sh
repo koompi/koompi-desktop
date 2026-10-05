@@ -206,7 +206,12 @@ wait
 SH
 chmod +x "$WORK/inner.sh"
 
+# QT_QPA_PLATFORM=wayland on purpose: env.lua forces xcb session wide, and a
+# probe that inherits it gets no layershell, so the bar never maps and every
+# assertion below fails on the very desktop this test ships with. execs.lua
+# launches the real shell with the same override.
 PATH="$WORK/bin:$PATH" KOOMPI_UPDATES_FORCE=12 KOOMPI_SHELLD="$WORK/bin/koompi-shelld" PROBE_OUT="$WORK/out" \
+    QT_QPA_PLATFORM=wayland \
     XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" XDG_CACHE_HOME="$WORK/xdg/cache" \
     timeout 90 kwin_wayland --virtual --width 1280 --height 400 --no-lockscreen --no-global-shortcuts \
         --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1

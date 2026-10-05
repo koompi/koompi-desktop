@@ -416,7 +416,7 @@ Singleton {
                     property bool showAppIcons: true
                     property bool alwaysShowNumbers: false
                     property int showNumberDelay: 300 // milliseconds
-                    property list<string> numberMap: ["1", "2"] // Characters to show instead of numbers on workspace indicator
+                    property list<string> numberMap: [] // [] is plain numbers; anything else must match a BarConfig preset or Settings shows none selected
                     property bool useNerdFont: false
                 }
                 property JsonObject weather: JsonObject {

@@ -37,7 +37,11 @@ Item {
     property bool showNumbers: false
     Timer {
         id: showNumbersTimer
-        interval: (Config?.options.bar.autoHide.showWhenPressingSuper.delay ?? 100)
+        // showNumberDelay, not autoHide.showWhenPressingSuper.delay: that one
+        // paces revealing a hidden bar, and Settings offers this one under
+        // "Number show delay when pressing Super". Reading the other left the
+        // spinbox wired to nothing.
+        interval: (Config?.options.bar.workspaces.showNumberDelay ?? 300)
         repeat: false
         onTriggered: {
             root.showNumbers = true
