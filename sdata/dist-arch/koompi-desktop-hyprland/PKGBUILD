@@ -6,7 +6,7 @@
 groups=(koompi)
 pkgname=koompi-desktop-hyprland
 pkgver=1.0
-pkgrel=2
+pkgrel=3
 pkgdesc='KOOMPI OS — Hyprland edition (metapackage)'
 arch=(any)
 license=(None)
@@ -19,7 +19,6 @@ depends=(
   # Swipe progress on the event socket, so the wallpaper follows the finger.
   # Rebuilds itself after a Hyprland upgrade; harmless when it cannot.
   koompi-swipe-progress
-  koompi-quickshell-git
   koompi-widgets
   koompi-microtex-git
   # Hyprland dotfiles into /etc/skel (conflicts koompi-kde-config — one edition

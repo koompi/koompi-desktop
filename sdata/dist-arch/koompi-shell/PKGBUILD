@@ -15,7 +15,7 @@
 groups=(koompi)
 pkgname=koompi-shell
 pkgver=1.1
-pkgrel=12
+pkgrel=13
 pkgdesc='KOOMPI desktop shell (Quickshell config) and koompi-* tools'
 arch=(x86_64 aarch64)
 license=(GPL-3.0-only)
@@ -23,7 +23,7 @@ license=(GPL-3.0-only)
 # D-Bus only on X11, so the global menu reads the menu address off XWayland
 # window properties with xprop. Without either one the bar is silently empty.
 # python-gobject: koompi-remotedesktop-portal is a Python script on Gio/GLib.
-depends=(koompi-quickshell-git rsync jq xorg-xprop xorg-xwayland python-gobject)
+depends=(quickshell rsync jq xorg-xprop xorg-xwayland python-gobject)
 makedepends=(zig rsync)
 
 # Every dots/.local/bin/koompi-* executable ships, by name, so what the package

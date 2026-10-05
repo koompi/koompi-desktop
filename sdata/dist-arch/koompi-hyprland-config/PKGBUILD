@@ -8,12 +8,12 @@
 groups=(koompi)
 pkgname=koompi-hyprland-config
 pkgver=1.0
-pkgrel=2
+pkgrel=3
 pkgdesc='KOOMPI Hyprland dotfiles, installed into /etc/skel for new users'
 arch=(any)
 license=(None)
 # The config configures these; the full edition is pulled by koompi-desktop-hyprland.
-depends=(koompi-hyprland koompi-quickshell-git)
+depends=(koompi-hyprland)
 # Mutually exclusive with the Plasma edition's /etc/skel layout: both ship the
 # same shared KDE/Qt theming paths, so they conflict (one edition per machine).
 conflicts=('koompi-kde-config')
