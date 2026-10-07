@@ -140,10 +140,14 @@ no_game() { local l; for l in "${GAME_LINES[@]}"; do has "$l" && return 1; done;
 until_ok() { local n=$(( $1 * 10 )) i; shift; for (( i = 0; i < n; i++ )); do "$@" && return 0; sleep 0.1; done; return 1; }
 modes() { qs -p modes_probe.qml ipc call modes "$@" 2> /dev/null; }
 is_ready() { [[ "$(modes read)" == ready* ]]; }
+written_back() { jq -e '.configVersion != null' "$CFG" > /dev/null 2>&1; }
 start_qs() {
     qs -p modes_probe.qml > "$WORK/qs-$1.log" 2>&1 &
     QS=$!
     until_ok 40 is_ready || verdict bad "$1: the probe never became ready"
+    # an edit made while Config's own startup write is in flight is undone when that write lands
+    until_ok 8 written_back || verdict bad "$1: Config never wrote its defaults back"
+    sleep 0.3
 }
 stop_qs() { kill "$QS" 2> /dev/null; wait "$QS" 2> /dev/null; }
 check() { # description, command...
@@ -248,13 +252,16 @@ SPACED="$WORK/a dir with spaces"
 mkdir -p "$SPACED/config/koompi"
 printf '{"windows":{"workspaceHelp":false},"appearance":{"reduceMotion":true}}\n' > "$SPACED/config/koompi/config.json"
 OVR_HOME="$OVR"
+CFG_HOME="$CFG"
 OVR="$SPACED/config/hypr/hyprland/shellOverrides/main.lua"
+CFG="$SPACED/config/koompi/config.json"
 export XDG_CONFIG_HOME="$SPACED/config"
 start_qs g
 check "a config directory with a space in its name still gets the write" until_ok 8 has "$ANIM"
 stop_qs
 export XDG_CONFIG_HOME="$WORK/config"
 OVR="$OVR_HOME"
+CFG="$CFG_HOME"
 
 logged() { [[ "$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/qs-$1.log" | grep -c -- "$2")" -ge "$3" ]]; }
 if (( EUID == 0 )); then
@@ -272,6 +279,7 @@ else
     check "and that failure is logged too" until_ok 8 logged h 'HyprlandConfig.*exited 1' 2
     chmod 755 "$(dirname -- "$OVR")"
     modes reduceMotion off
+    sleep 0.5
     modes reduceMotion on
     check "once the directory is writable the next change lands" until_ok 8 has "$ANIM"
     check "and the owner's record agrees with the file" reads 'held=[animations:enabled]'
@@ -305,6 +313,7 @@ check "a script that cannot start is logged" until_ok 8 logged j 'HyprlandConfig
 check "and nothing is marked applied that was never written" until_ok 8 reads 'held=[]'
 chmod +x "$CONFIGURATOR"
 modes reduceMotion off
+sleep 0.5
 modes reduceMotion on
 check "once it can start the next change lands" until_ok 8 has "$ANIM"
 stop_qs
@@ -319,6 +328,7 @@ check "a run that hangs is stopped and logged" until_ok 8 logged k 'HyprlandConf
 check "and what it was asked for is not marked applied" until_ok 8 reads 'held=[]'
 rm -f "$RUNS.delay"
 modes reduceMotion off
+sleep 0.5
 modes reduceMotion on
 check "and the next change runs" until_ok 8 has "$ANIM"
 stop_qs
