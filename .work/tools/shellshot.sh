@@ -5,6 +5,7 @@
 # Env passes through (KOOMPI_UPDATES_FORCE etc); SHELLSHOT_CONFIG=<json> replaces the seeded config.
 # Leaves OUT_DIR/qs.log and OUT_DIR/<name>.png.
 set -euo pipefail
+[[ -n ${KOOMPI_HEAVY_LOCKED:-} ]] || KOOMPI_HEAVY_LOCKED=1 exec flock /tmp/koompi-heavy.lock "${BASH_SOURCE[0]}" "$@"
 
 root=$(realpath "$1"); out=$(realpath -m "$2"); shift 2
 size=1920x1200

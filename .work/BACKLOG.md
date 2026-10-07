@@ -54,3 +54,29 @@ Measurements behind them: `/tmp/surfaces.tsv` (per-surface PSS, headless), `/tmp
 Live seat damage from test harnesses, fixed 2026-10-07 (`e6d563717`): private buses auto-started the host's portals; xdph segfaulted (crash toasts on the founder's desktop) and a private document portal unmounted the live `/run/user/1000/doc`. The lead restarted `xdg-document-portal.service`.
 
 Live seat findings outside any job: hot corners are dead because `fakeScreenRounding` is 0 there (J08 fixes the coupling; the live config is the founder's).
+
+## Swarm, from 2026-10-07 (founder: "identify the leftover work and assign a subagent swarm")
+
+Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet workers at once; every nested compositor and full suite runs under `.work/tools/heavy.sh` (flock on `/tmp/koompi-heavy.lock`); the harness tools lock themselves. Specs for J17-J32 and J36-J40 are being written by two lead forks.
+
+| Job | Work | Depends on | State |
+| --- | --- | --- | --- |
+| J04 | Cheatsheet keys, rows, layout, 1366 clamp | | round 3 running |
+| J09 | Qt on Wayland, xcb allowlist | | running |
+| J10 | Motion and Reduce Motion | | running |
+| J12 | Clipboard watcher, memd on demand | | running |
+| J14 | Three identity mockups | | running |
+| J16 | Refresh rate per monitor in Displays | | running |
+| J07 | Lazy surfaces (the hub: Phase 2 and most Phase 3 build on it) | J04 | next slot |
+| J08 | Screen corners | | queued |
+| J15 | `test_update_now_runs.sh` flake | | queued (holds the heavy lock for its load runs) |
+| J11 | Settings in the running shell | J07 | queued |
+| J13 | Launch feedback | J09 | queued |
+| J17-J24 | Phase 2: Alt+Tab, dynamic workspaces, overview, Control Center, Notification Center, bar order and contrast, blended Search, one assistant | J07 | specs being written |
+| J25-J32 | Phase 3: session menu, Settings names and search, launchpad folders, wallpaper gallery, widget overlay labels, single-window gaps, glyph tuning, Reduce Transparency | J07, J10, J11 as each spec says | specs being written |
+| J33-J35 | Icon plate, koompi-icons, cursor | the founder's pick from J14 | waiting |
+| J36-J38 | Phase 4: content index, appmenu bridge, Now drawer | J23, J09, J24 | specs being written |
+| J39 | Settings > Shortcuts key names | J04 | spec being written |
+| J40 | Translations for the campaign's strings | everything else | spec being written |
+
+Founder-only: the pick from J14's mockups; authorising deployment to the live seat and the re-measurement; pushing `dev` and any merge to `main`.

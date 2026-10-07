@@ -25,6 +25,8 @@ The main checkout is `/home/userx/workspace/koompi/koompi-desktop`; its `.work/`
 
 ## Checks you run
 
+Six workers share the founder's live 8-core machine (Jev: `swarm_concurrency six_with_heavy_lock p=0.91`). Run the full suite and every test that starts `kwin_wayland`, `Hyprland` or `qs` through the machine-wide lock: `/home/userx/workspace/koompi/koompi-desktop/.work/tools/heavy.sh <command>` (e.g. `heavy.sh env -u HYPRLAND_INSTANCE_SIGNATURE NO_COLOR=1 ./tests/run.sh`). `shellshot.sh`, `hyprshot.sh` and `measure_surfaces.sh` take the lock themselves. Waiting on it is normal; never bypass it. Hand-back: also copy your report to `/home/userx/.tmp/<JOB>-handoff/` (the main checkout's `.work/` may refuse your writes).
+
 - The tests you touched or added, then `NO_COLOR=1 env -u HYPRLAND_INSTANCE_SIGNATURE ./tests/run.sh` once at the end (with the signature set, `test_bar_keys.sh` reads the live compositor's binds; unset it for every test you run). Baseline on `dev` after J01: see `/home/userx/workspace/koompi/koompi-desktop/.work/BACKLOG.md`; name any failure and say whether it fails on `dev` too.
 - For any QML change: run the changed surface headless and look at it:
   `/home/userx/workspace/koompi/koompi-desktop/.work/tools/shellshot.sh dots/.config/quickshell/koompi /tmp/<job>-shots -- shot:before ...`

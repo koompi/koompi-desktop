@@ -4,6 +4,7 @@
 # STEP: ipc:<target> <fn> [args] | hypr:<lua dispatch expr> | run:<cmd> | sleep:<s> | shot:<name>
 # execs.lua is replaced by a launcher for the shell alone: the real one talks to the user's systemd and PipeWire.
 set -euo pipefail
+[[ -n ${KOOMPI_HEAVY_LOCKED:-} ]] || KOOMPI_HEAVY_LOCKED=1 exec flock /tmp/koompi-heavy.lock "${BASH_SOURCE[0]}" "$@"
 
 repo=$(realpath "$1"); out=$(realpath -m "$2"); shift 2
 size=1920x1200
