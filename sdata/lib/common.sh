@@ -248,10 +248,8 @@ record_repo_path() {
 
 # Reloading Hyprland is cheap; the shell is restarted outright because Quickshell
 # does not reliably hot-reload a changed tree.
-#
-# The QT_QPA_PLATFORM override matters: hyprland/env.lua puts the session on xcb so
-# the global menu works, and a Quickshell that inherits it maps no layer surfaces at
-# all. Same reasoning as the CTRL+SUPER+R bind in hyprland/keybinds.lua.
+# QT_QPA_PLATFORM is pinned: a session older than the wayland default still
+# exports xcb, and a shell on xcb maps no layer surfaces. As in CTRL+SUPER+R.
 reload_session() {
     have hyprctl || return 0
     [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] || {

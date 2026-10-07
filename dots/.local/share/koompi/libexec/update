@@ -93,11 +93,8 @@ confirm() {
 }
 
 # Reload the running session so the update is visible without logging out.
-#
-# The QT_QPA_PLATFORM override is not optional: the KOOMPI session runs Qt on
-# xcb so the global menu works, and a Quickshell that inherits that maps no
-# layer surfaces at all, which looks exactly like the shell failing to start.
-# Same command as the CTRL+SUPER+R bind in hyprland/keybinds.lua.
+# QT_QPA_PLATFORM is pinned: a session older than the wayland default still
+# exports xcb, and a shell on xcb maps no layer surfaces. As in CTRL+SUPER+R.
 reload_session() {
     if [[ "$NO_RELOAD" == true ]]; then
         info "not reloading; the update applies at your next login"

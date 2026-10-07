@@ -104,8 +104,8 @@ hl.bind("CTRL + SUPER + ALT + T", hl.dsp.global("quickshell:wallpaperSelectorRan
 hl.bind("CTRL + SUPER + SHIFT + D", hl.dsp.global("quickshell:toggleLightDark"),
     { description = "Shell: Toggle light/dark mode" })
 hl.bind("CTRL + SUPER + T", hl.dsp.exec_cmd(qsIsAlive .. " || " .. qsScripts .. "/colors/switchwall.sh")) -- # [hidden] fallback
--- Wayland override needed: env.lua sets xcb session-wide and the respawned shell
--- maps no layer surfaces at all. killall -w so it does not race the old instance.
+-- pinned to wayland as in execs.lua: a shell on xcb maps no layer surfaces at all
+-- killall -w so it does not race the old instance
 hl.bind("CTRL + SUPER + R", hl.dsp.exec_cmd(
         "killall -w global-menu-daemon qs quickshell; hyprctl reload; env QT_QPA_PLATFORM=wayland qs -c $qsConfig &"),
     { description = "Shell: Restart widgets" })

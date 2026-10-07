@@ -2,8 +2,7 @@
 hl.on("hyprland.start", function ()
 
     -- Bar, wallpaper
-    -- The shell draws through layer-shell, which XWayland has no notion of, so
-    -- it opts out of the session-wide xcb default that the global menu needs.
+    -- layer-shell exists only on wayland: pinned, no xcb fallback
     hl.exec_cmd("env QT_QPA_PLATFORM=wayland qs -c $qsConfig")
     hl.exec_cmd("$HOME/.config/hypr/custom/scripts/__restore_video_wallpaper.sh")
     -- Swipe progress for the shell's wallpaper. Hyprland version-locks plugins,

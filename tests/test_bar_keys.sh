@@ -276,10 +276,7 @@ wait
 SH
 chmod +x "$WORK/inner.sh"
 
-# QT_QPA_PLATFORM=wayland on purpose: env.lua forces xcb session wide, and a
-# probe that inherits it gets no layershell, so the bar never maps and every
-# assertion below fails on the very desktop this test ships with. execs.lua
-# launches the real shell with the same override.
+# QT_QPA_PLATFORM=wayland on purpose: a probe that inherits xcb gets no layershell and the bar never maps
 mkdir -p "$WORK/xdg/data" "$WORK/home" "$WORK/rt" && chmod 700 "$WORK/rt"
 env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
     PATH="$WORK/bin:$PATH" KOOMPI_UPDATES_FORCE=12 KOOMPI_SHELLD="$WORK/bin/koompi-shelld" PROBE_OUT="$WORK/out" \
