@@ -90,6 +90,10 @@ Singleton {
                 property bool inhibit: false
             }
 
+            property JsonObject easyEffects: JsonObject {
+                property bool enabled: false
+            }
+
             property JsonObject overlay: JsonObject {
                 property list<string> open: ["crosshair", "recorder", "volumeMixer", "resources"]
                 property JsonObject crosshair: JsonObject {
