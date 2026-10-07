@@ -2,7 +2,7 @@
 
 `koompi-crash-watch` (`dots/.local/bin/koompi-crash-watch`, user unit
 `dots/.config/systemd/user/koompi-crash-watch.service`) follows the journal for
-systemd-coredump's entries and raises one critical toast per crashed program.
+systemd-coredump's entries and raises one plain-worded toast per crashed program.
 Clicking it runs `koompi-crash-diagnose`, which writes a report and asks the local
 model about it. OMARCHY-AUDIT O30; the omarchy originals are
 `bin/omarchy-crash-watch` and `bin/omarchy-agent-crash`.
@@ -11,7 +11,7 @@ model about it. OMARCHY-AUDIT O30; the omarchy originals are
 
 - Source: `journalctl --quiet --follow --lines=0 --output=json
   MESSAGE_ID=fc2e22bc6ee647b6b90729ab34a250b1 COREDUMP_UID=$UID`
-  (`koompi-crash-watch:92-99`). The MESSAGE_ID is systemd-coredump's
+  (`koompi-crash-watch:126-131`). The MESSAGE_ID is systemd-coredump's
   (systemd.journal-fields(7)); it is logged for every crash the handler saw, core
   kept or not (`Storage: none` entries included). Only this user's crashes match;
   a daemon's core is the sysadmin's.
@@ -30,10 +30,18 @@ model about it. OMARCHY-AUDIT O30; the omarchy originals are
 - The toast waits up to `KOOMPI_CRASH_NOTIFY_WAIT` (30 s) for
   `org.freedesktop.Notifications` to have an owner (NameHasOwner, not a Notify
   probe, so nothing gets D-Bus-activated) because a shell crash is the one that
-  takes the server down. Then `koompi-notify-send -a KOOMPI -u critical
-  "Process crashed: <name>" "<signal>. Click to diagnose with the local model."
-  --exec koompi-crash-diagnose <pid> <comm> <exe> <signal>`: four argv words,
-  never a reparsed string (`koompi-notify-send`'s `koompi-exec-argv` hint).
+  takes the server down. Then `koompi-notify-send -a KOOMPI -u normal
+  "<App> closed unexpectedly" "Click to find out why. The check runs on this
+  computer." --exec koompi-crash-diagnose <pid> <comm> <exe> <signal>`: four
+  argv words, never a reparsed string (`koompi-notify-send`'s `koompi-exec-argv`
+  hint). Normal urgency, so a crash in a background helper does not pin a toast.
+  The signal name stays out of the text and reaches only the diagnose action.
+- `<App>` is the `Name=` of the first `[Desktop Entry]` whose `Exec` binary
+  (after any `env VAR=value` prefix) has the crashed program's name, searched in
+  `$XDG_DATA_HOME/applications` then each of `$XDG_DATA_DIRS`; `Hidden=true`
+  entries and the `Name=` of `[Desktop Action]` groups are ignored. With no
+  match it is the program's name with its first letter capitalised
+  (`chrome` becomes `Chrome`).
 - `koompi-crash-watch --once --dry-run` reads the newest matching entry and
   prints the argv it would send; nothing is sent and the bus is not touched.
 - Off switch: the unit has
