@@ -148,7 +148,7 @@ ApplicationWindow {
                 id: navRailWrapper
                 Layout.fillHeight: true
                 Layout.margins: 5
-                implicitWidth: navRail.expanded ? 150 : fab.baseSize
+                implicitWidth: navRail.expanded ? 150 : configFileButton.baseSize
                 Behavior on implicitWidth {
                     animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
                 }
@@ -156,39 +156,12 @@ ApplicationWindow {
                     id: navRail
                     anchors {
                         left: parent.left
+                        right: parent.right
                         top: parent.top
                         bottom: parent.bottom
                     }
                     spacing: 10
                     expanded: root.width > 900
-
-                    FloatingActionButton {
-                        id: fab
-                        property bool justCopied: false
-                        iconText: justCopied ? "check" : "edit"
-                        buttonText: justCopied ? Translation.tr("Path copied") : Translation.tr("Config file")
-                        expanded: navRail.expanded
-                        downAction: () => {
-                            Qt.openUrlExternally(`${Directories.config}/koompi/config.json`);
-                        }
-                        altAction: () => {
-                            Quickshell.clipboardText = CF.FileUtils.trimFileProtocol(`${Directories.config}/koompi/config.json`);
-                            fab.justCopied = true;
-                            revertTextTimer.restart()
-                        }
-
-                        Timer {
-                            id: revertTextTimer
-                            interval: 1500
-                            onTriggered: {
-                                fab.justCopied = false;
-                            }
-                        }
-
-                        StyledToolTip {
-                            text: Translation.tr("Open the shell config file\nAlternatively right-click to copy path")
-                        }
-                    }
 
                     StyledFlickable { // The page list outgrows the window; let it scroll
                         Layout.fillHeight: true
@@ -217,6 +190,16 @@ ApplicationWindow {
                                     showToggledHighlight: false
                                     showCollapsedLabel: false
                                 }
+                            }
+                            NavigationRailButton {
+                                id: configFileButton
+                                toggled: false
+                                expanded: navRail.expanded
+                                buttonIcon: "edit"
+                                buttonText: Translation.tr("Edit config file")
+                                showToggledHighlight: false
+                                showCollapsedLabel: false
+                                onClicked: Qt.openUrlExternally(`${Directories.config}/koompi/config.json`)
                             }
                         }
                     }
