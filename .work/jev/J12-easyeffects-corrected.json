@@ -1,0 +1,21 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "correction": "The earlier question (J12_easyeffects_login, remember_toggle p=1.0) said the seat runs EasyEffects with no effects configured. That was wrong: the lead checked only the presets folders. KOOMPI ships a seed, dots/.config/easyeffects/db/easyeffectsrc (commit 34e8be469, 'ship EasyEffects a chain, so its toggle does something'): rnnoise on every microphone stream and a limiter on every output stream. The founder's seat runs exactly that chain.",
+    "now": "execs.lua:24 starts EasyEffects in service mode at every login, so every KOOMPI install gets mic noise suppression and an output limiter by default. The right sidebar's toggle means 'is the process running'; turning it off is undone at the next login.",
+    "cost": "Measured on the founder's seat: Pss 31.1 MB resident plus 29.8 MB in swap; three PipeWire nodes.",
+    "j12_round2": "J12 round 2 (on its branch, not merged) implements remember_toggle with every install starting off: the shell stores the toggle in states.json, starts EasyEffects at login only if it was left on, and execs.lua stops starting it. With that default, every existing and new user loses mic denoise and the limiter after the update until they find the toggle.",
+    "platforms": "macOS applies voice isolation per call through Mic Mode and protects its speakers in the driver; neither is a user-visible app at login. Windows ships communications noise suppression in the driver stack on many laptops."
+  },
+  "questions": {
+    "J12_easyeffects_default": {
+      "type": "choice",
+      "instructions": "The shell remembers the EasyEffects toggle either way. What should a profile with nothing remembered do?",
+      "criteria": {
+        "default_on": "Start it: a fresh install and an existing user with nothing stored keep the shipped denoise and limiter, and turning it off now sticks. Strongest case: keeps the deliberate 34e8be469 audio chain, which is the only reason the package ships, and still fixes the toggle bug. Cost: 61 MB on every machine until a user turns it off.",
+        "default_off": "Keep J12 round 2 as built: nothing starts until the user turns it on once. Strongest case: nothing runs that the user did not ask for. Cost: every user silently loses mic denoise and the output limiter after the update, which undoes 34e8be469 without telling anyone.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}
