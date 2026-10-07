@@ -25,7 +25,7 @@ chmod 700 "$RUNTIME"
 kept=0
 cleanup() { (( kept )) && echo "kept $WORK" >&2 || rm -rf "$WORK"; rm -rf "$RUNTIME"; }
 trap cleanup EXIT
-mkdir -p "$WORK/shell" "$WORK/bin" "$WORK/xdg/config" "$WORK/xdg/state" "$WORK/xdg/cache" "$WORK/xdg/data"
+mkdir -p "$WORK/shell" "$WORK/bin" "$WORK/home" "$WORK/xdg/config" "$WORK/xdg/state" "$WORK/xdg/cache" "$WORK/xdg/data"
 
 lua "$RECORDER" "$HYPR" hyprland.keybinds hyprland.keybinds_shell_extra custom.keybinds > "$WORK/binds.json" 2> "$WORK/rec.err" \
     || { cat "$WORK/rec.err" >&2; fail "recorder could not replay the shipped keybinds"; }
@@ -341,14 +341,13 @@ cd "$WORK/shell"
 exec qs -p "$WORK/shell/layout_probe.qml" > "$WORK/qs-$size.log" 2>&1
 SH
     chmod +x "$WORK/inner.sh"
-    env -u WAYLAND_DISPLAY -u DISPLAY \
+    env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
         PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland \
         SHIM_BINDS="$WORK/binds.txt" SHIM_LOG="$WORK/shim.log" HYPRLAND_CONFIG="$HYPR/hyprland.lua" \
-        PROBE_EXPECT_SCROLL="$expect" XDG_RUNTIME_DIR="$RUNTIME" \
+        PROBE_EXPECT_SCROLL="$expect" HOME="$WORK/home" XDG_RUNTIME_DIR="$RUNTIME" \
         XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" XDG_CACHE_HOME="$WORK/xdg/cache" XDG_DATA_HOME="$WORK/xdg/data" \
-        timeout 150 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- \
-            kwin_wayland --virtual --width "$width" --height "$height" --no-lockscreen --no-global-shortcuts \
-            --exit-with-session "$WORK/inner.sh" > "$WORK/kwin-$size.log" 2>&1
+        timeout 150 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width "$width" --height "$height" \
+            --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin-$size.log" 2>&1
     local out
     out="$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/qs-$size.log" 2> /dev/null)"
     printf '%s\n' "$out" | grep -E '^ DEBUG qml: (PASS|FAIL)' | sed "s/^ DEBUG qml: /     $size  /"
