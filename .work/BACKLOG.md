@@ -69,7 +69,7 @@ Queue: `queue_order breakage_then_hub p=0.71 (jev-1.13.0)`: J42, J07, J13, J15, 
 | J10 | Motion and Reduce Motion | | running; scope added: one owner for `animations:enabled` with Game mode, which resets the key and reads its own state from it (J32 extends the owner to blur) |
 | J12 | Clipboard watcher, memd on demand | | running |
 | J14 | Three identity mockups | | running |
-| J16 | Refresh rate per monitor in Displays | | running |
+| J16 | Refresh rate per monitor in Displays | | round 1 merged (`5027d05ae`); round 2 queued: rules keyed by display description and kept while unplugged (`J16_persist_scope desc_keyed_merge p=0.99`), whole-hertz labels unless ambiguous (`J16_rate_labels round_unless_ambiguous p=0.68`), keep-or-revert countdown (`J16_confirm_revert confirm_or_revert p=1.0`; a deploy blocker for the rate row), errors on the page, CLI usage, comments. Its queue position escalated (`J16_round2_position after_j42 p=0.53 ESCALATE: end_of_queue=0.4`); end of the queue until the founder says otherwise |
 | J07 | Lazy surfaces (the hub: Phase 2 and most Phase 3 build on it) | J04 for the cheatsheet root only | second in the queue, after J42; converts the cheatsheet last, after J04 merges |
 | J08 | Screen corners | | queued |
 | J15 | `test_update_now_runs.sh` flake, and the KWin start-up wedge J09 found (nested Hyprland with no output) | | queued (holds the heavy lock for its load runs); owns the nested start-up in the three nested tests and `hyprshot.sh` |
@@ -82,7 +82,7 @@ Queue: `queue_order breakage_then_hub p=0.71 (jev-1.13.0)`: J42, J07, J13, J15, 
 | J39 | Settings > Shortcuts key names | J04 | spec reviewed |
 | J40 | Translations for the campaign's strings | everything else | spec reviewed; Khmer (`km_KH.json`) is a founder call, raised in its report |
 | J41 | Crash watch announces only this session's crashes (nested tests run with their own `XDG_RUNTIME_DIR`) | | queued, small |
-| J42 | The session target ships with KOOMPI and login items start: `xdg-desktop-autostart.target` refuses the manual start in `execs.lua:33`, and `hyprland-session.target` exists only on the founder's host, so a fresh install gets no `graphical-session.target` (no hypridle, crash watch, portals) and fcitx5 never starts anywhere | | next free slot; `J42_autostart_scope autostart_hide_duplicates p=0.98` |
+| J42 | The session target ships with KOOMPI and login items start: `xdg-desktop-autostart.target` refuses the manual start in `execs.lua:33`, and `hyprland-session.target` exists only on the founder's host, so a fresh install gets no `graphical-session.target` (no hypridle, crash watch, portals) and fcitx5 never starts anywhere | | running; `J42_autostart_scope autostart_hide_duplicates p=0.98` |
 | J43 | Restored and pinned apps match the running app by desktop entry (J09 open points 2, 3) | J09 | queued |
 
 Founder-only: the four xcb apps' children (`J09_xcb_leak` ESCALATE, asked 2026-10-07); the pick from J14's mockups; authorising deployment to the live seat and the re-measurement; pushing `dev` and any merge to `main`.

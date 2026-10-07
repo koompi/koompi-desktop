@@ -28,3 +28,40 @@ Files owned: `modules/settings/DisplaysConfig.qml`, `dots/.local/bin/koompi-disp
 - Applying a rate on the live seat: the lead does that only with the founder's word.
 - Resolution or scale choosers, VRR, a drag canvas.
 - The nested harness cannot exercise mode choice (its output has no modes, and `hyprshot.sh` adds its own monitor rule); do not try to prove the hot-apply there.
+
+## Round 2 (lead, 2026-10-07; round 1 merged)
+
+Files owned:
+- `dots/.local/bin/koompi-displays`
+- `modules/settings/DisplaysConfig.qml`
+- your two tests
+- `services/Brightness.qml` (one line)
+- `cli/src/main.zig:19` (one usage string)
+- whatever small piece the confirm step needs, named in the report
+
+Decided:
+- `J16_persist_scope desc_keyed_merge p=0.99 (jev-1.13.0)`
+- `J16_rate_labels round_unless_ambiguous p=0.68 (jev-1.13.0)`
+- `J16_confirm_revert confirm_or_revert p=1.0 (jev-1.13.0)`
+
+1. **Saved rules belong to a display, not a port.**
+   - `persist_layout` writes `output = "desc:<description>"` for each connected monitor. The founder's are `BOE 0x0CE0` and `WAM HDMI 18250023`.
+   - It keeps every rule in the old file for a monitor that is not connected now.
+   - A port-keyed rule from an older file is replaced when its port is next seen connected, and kept until then.
+   - Escape descriptions for a Lua string: `validate_lua` must still pass with a quote or a backslash in one.
+   - Prove in the nested harness that a `desc:` rule in the Lua config matches: read back a property the rule set.
+   - Idempotent: two runs with the same monitors write the same file.
+2. **Labels:** whole hertz ("75 Hz"), unless two listed rates round to the same integer; those show two decimals ("59.94 Hz" beside "60 Hz").
+3. **Confirm or revert.**
+   - After a switch, ask "Keep this refresh rate?" with a 15 s countdown.
+   - Save only on Keep. Revert to the previous mode on Revert, on timeout, and if the Settings window closes.
+   - The revert must not depend on anyone seeing or clicking anything: the screen may be black.
+   - Put the timer where it survives the page, and say where and why.
+   - Test the timeout path: no answer means the old rate is back and `monitors.lua` is unchanged.
+4. **Errors reach the page.** Replace `execDetached` with something that sees the exit status, and show the tool's message under the row when it fails. Do this for `place` too.
+5. `cli/src/main.zig:19`: the usage lists `display rate` as well. Build the CLI the way its own check does.
+6. `Brightness.qml:70` reads `monitor.screen.name` with no null check. A monitor that goes away (unplug, or teardown in your renders) logs a TypeError. Guard it.
+7. Look at the screen again: 1366x768 and 1920x1200, one and two monitors, the countdown visible, and the error line.
+8. Comments break CONTRACT.md line 19: the headers of `test_displays_rate.sh` and `test_displays_rate_row.sh` (20 comment lines each) become one line each, and narrative blocks inside go.
+
+FYI: the lead fixed `test_popup_clamp.sh` and `test_bar_keys.sh` (your open point 4). `test_private_bus.sh` now fails on any `kwin_wayland` outside a private bus.
