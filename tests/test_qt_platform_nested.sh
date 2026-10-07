@@ -15,7 +15,7 @@ REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 failed=0
 fail() { printf 'FAIL: %s\n' "$1" >&2; failed=1; }
 
-for tool in Hyprland hyprctl kwin_wayland dbus-run-session jq Xwayland okular kdeconnect-app kdialog; do
+for tool in Hyprland hyprctl kwin_wayland dbus-run-session jq pgrep Xwayland okular kdeconnect-app kdialog; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, nested Hyprland not run"; exit 0; }
 done
 
@@ -30,7 +30,7 @@ cat > "$HOME_DIR/.config/hypr/hyprland.lua" <<'LUA'
 require("hyprland.env")
 require("hyprland.rules")
 hl.monitor({ output = "", mode = "1280x800", position = "auto", scale = 1 })
-hl.config({ misc = { disable_watchdog_warning = true } })
+hl.config({ misc = { disable_watchdog_warning = true }, ecosystem = { no_update_news = true, no_donation_nag = true } })
 LUA
 
 printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/logger"
@@ -46,6 +46,7 @@ set -uo pipefail
 unset HYPRLAND_INSTANCE_SIGNATURE
 parent=$WAYLAND_DISPLAY
 Hyprland -c "$HOME/.config/hypr/hyprland.lua" > "$WORK/hyprland.log" 2>&1 &
+hypr_pid=$!
 for _ in $(seq 1 100); do sig=$(ls "$XDG_RUNTIME_DIR/hypr" 2> /dev/null | head -1); [[ -n $sig ]] && break; sleep 0.2; done
 export HYPRLAND_INSTANCE_SIGNATURE=$sig
 for _ in $(seq 1 100); do d=$(ls "$XDG_RUNTIME_DIR" | grep -E '^wayland-[0-9]+$' | grep -v "^$parent$" | head -1); [[ -n $d ]] && break; sleep 0.2; done
@@ -63,20 +64,29 @@ printf 'monitor\tready\n' >> "$WORK/readings"
 
 launch() { hyprctl dispatch "hl.dsp.exec_cmd(\"$1\")" > /dev/null 2>&1; }
 
-# class, xwayland, floating, pid of the first client whose class contains $1
+# class, xwayland, floating of the first client whose class contains $1
 window_of() {
     hyprctl clients -j 2> /dev/null | jq -r --arg a "$1" \
-        '[.[] | select(.class | ascii_downcase | contains($a))][0] | select(. != null) | [.class, .xwayland, .floating, .pid] | @tsv'
+        '[.[] | select(.class | ascii_downcase | contains($a))][0] | select(. != null) | [.class, .xwayland, .floating] | @tsv'
+}
+
+# every app is a child of the nested Hyprland. They stop before its Xwayland does: an
+# xcb client that loses its X server while running can segfault at exit, and every
+# coredump of this user makes the live desktop post a crash toast.
+stop_apps() {
+    local child
+    for child in $(pgrep -P "$hypr_pid"); do
+        [[ $(cat "/proc/$child/comm" 2> /dev/null) == Xwayland ]] || kill "$child" 2> /dev/null
+    done
 }
 
 # probe NAME COMMAND CLASS-FRAGMENT: start it, record its client, stop it
 probe() {
-    local row="" pid
+    local row=""
     launch "$2"
     for _ in $(seq 1 120); do row=$(window_of "$3"); [[ -n $row ]] && break; sleep 0.5; done
     printf '%s\t%s\n' "$1" "${row:-missing}" >> "$WORK/readings"
-    pid=$(cut -f4 <<< "$row")
-    [[ -n $pid ]] && kill "$pid" 2> /dev/null
+    stop_apps
     for _ in $(seq 1 60); do [[ -z $(window_of "$3") ]] && break; sleep 0.5; done
 }
 
@@ -87,6 +97,8 @@ probe kdeconnect-app 'koompi-launch kdeconnect-app' kdeconnect
 probe kdialog-wayland 'koompi-launch kdialog --getopenfilename . --title probe-wayland' kdialog
 probe kdialog-xcb 'env QT_QPA_PLATFORM=xcb kdialog --getopenfilename . --title probe-xcb' kdialog
 
+stop_apps
+sleep 1
 hyprctl dispatch 'hl.dsp.exit()' > /dev/null 2>&1
 sleep 1
 SH
