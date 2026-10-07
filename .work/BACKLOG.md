@@ -41,15 +41,15 @@ Measurements behind them: `/tmp/surfaces.tsv` (per-surface PSS, headless), `/tmp
 
 | Job | Title | Files owned | Wave | State |
 | --- | --- | --- | --- | --- |
-| J07 | Lazy surfaces | `panelFamilies/*`, new `modules/common/LazySurface.qml`, root files of launchpad, cheatsheet, polkit, screenTranslator, mediaControls, overview, sidebarRight, sessionScreen, tour, screensaver, sidebarLeft | A | ready |
-| J09 | Qt on Wayland, xcb allowlist | `hypr/hyprland/env.lua`, `dots/.local/bin/koompi-launch`, rules keyed on Qt X11 classes, kdeconnectd override | A | dispatched (first of Phase 1; J07 waits for J04, both touch the cheatsheet) |
-| J08 | Screen corners | `modules/koompi/screenCorners/*` | B | ready |
-| J10 | Motion and Reduce Motion | `modules/common/Appearance.qml`, `hypr/hyprland/general.lua` (animations), `Config.qml` (one option), the appearance settings page | B | ready |
-| J11 | Settings in the running shell | `settings.qml`, `dots/.local/bin/koompi-settings`, `panelFamilies/KoompiFamily.qml` (one loader) | C, after J07 | ready |
-| J12 | Clipboard watcher; memd on demand | `hypr/hyprland/execs.lua` (wl-paste lines), `services/Cliphist.qml`, `services/MemoryService.qml` | C | ready |
-| J13 | Launch feedback | `modules/koompi/bar/ActiveWindow.qml`, new launch service, `koompi-launch` (one call) | D, after J09 | ready |
-| J16 | Refresh rate per monitor in Settings > Displays (F8, D7) | `modules/settings/DisplaysConfig.qml`, `dots/.local/bin/koompi-displays`, its test | C | ready |
-| J15 | `test_update_now_runs.sh` flakes under load | `tests/test_update_now_runs.sh` | after Phase 0 | ready; evidence in `J15-evidence/` |
+| J07 | Lazy surfaces | `panelFamilies/*`, new `modules/common/LazySurface.qml`, root files of launchpad, cheatsheet, polkit, screenTranslator, mediaControls, overview, sidebarRight, sessionScreen, tour, screensaver, sidebarLeft | A | next free slot |
+| J09 | Qt on Wayland, xcb allowlist | `hypr/hyprland/env.lua`, `dots/.local/bin/koompi-launch`, rules keyed on Qt X11 classes, kdeconnectd override | A | running |
+| J08 | Screen corners | `modules/koompi/screenCorners/*` | B | queued |
+| J10 | Motion and Reduce Motion | `modules/common/Appearance.qml`, `hypr/hyprland/general.lua` (animations), `Config.qml` (one option), the appearance settings page | B | running |
+| J11 | Settings in the running shell | `settings.qml`, `dots/.local/bin/koompi-settings`, `panelFamilies/KoompiFamily.qml` (one loader) | C, after J07 | queued, after J07 |
+| J12 | Clipboard watcher; memd on demand | `hypr/hyprland/execs.lua` (wl-paste lines), `services/Cliphist.qml`, `services/MemoryService.qml` | C | running |
+| J13 | Launch feedback | `modules/koompi/bar/ActiveWindow.qml`, new launch service, `koompi-launch` (one call) | D, after J09 | queued, after J09 |
+| J16 | Refresh rate per monitor in Settings > Displays (F8, D7) | `modules/settings/DisplaysConfig.qml`, `dots/.local/bin/koompi-displays`, its test | C | running |
+| J15 | `test_update_now_runs.sh` flakes under load | `tests/test_update_now_runs.sh` | after Phase 0 | queued |
 
 Live seat damage from test harnesses, fixed 2026-10-07 (`e6d563717`): private buses auto-started the host's portals; xdph segfaulted (crash toasts on the founder's desktop) and a private document portal unmounted the live `/run/user/1000/doc`. The lead restarted `xdg-document-portal.service`.
 
