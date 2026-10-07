@@ -191,6 +191,10 @@ Scope {
                                 Layout.alignment: Qt.AlignHCenter
                                 visible: !!root.lastEntry
                                 buttonText: Translation.tr("Open %1").arg(root.lastEntry?.name ?? "")
+                                colBackground: Appearance.colors.colSecondaryContainer
+                                colBackgroundHover: Appearance.colors.colSecondaryContainerHover
+                                colRipple: Appearance.colors.colSecondaryContainerActive
+                                colText: Appearance.m3colors.m3onSecondaryContainer
                                 onClicked: root.openLastPlayer()
                             }
                         }
