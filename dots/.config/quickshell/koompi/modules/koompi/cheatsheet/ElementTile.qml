@@ -6,6 +6,8 @@ import QtQuick
 RippleButton {
     id: root
     required property var element
+    // text keeps its size down to this tile height, then shrinks with the tile
+    readonly property real textScale: Math.max(0.7, Math.min(1, height / 56))
     opacity: element.type != "empty" ? 1 : 0
     implicitHeight: 70
     implicitWidth: 70
@@ -30,7 +32,7 @@ RippleButton {
             anchors.left: parent.left
             color: Appearance.colors.colOnLayer2
             text: root.element.number
-            font.pixelSize: Appearance.font.pixelSize.smallest
+            font.pixelSize: Math.round(Appearance.font.pixelSize.smallest * root.textScale)
         }
     }
 
@@ -52,7 +54,7 @@ RippleButton {
             anchors.right: parent.right
             color: Appearance.colors.colOnLayer2
             text: root.element.weight
-            font.pixelSize: Appearance.font.pixelSize.smallest
+            font.pixelSize: Math.round(Appearance.font.pixelSize.smallest * root.textScale)
         }
     }
 
@@ -60,7 +62,7 @@ RippleButton {
         id: elementSymbol
         anchors.centerIn: parent
         color: Appearance.colors.colSecondary
-        font.pixelSize: Appearance.font.pixelSize.huge
+        font.pixelSize: Math.round(Appearance.font.pixelSize.huge * root.textScale)
         text: root.element.symbol
     }
 
@@ -71,7 +73,12 @@ RippleButton {
             bottom: parent.bottom
             bottomMargin: 4
         }
-        font.pixelSize: Appearance.font.pixelSize.smallest
+        width: parent.width
+        horizontalAlignment: Text.AlignHCenter
+        // the long names (Praseodymium, Rutherfordium) shrink to a narrower tile instead of leaving it
+        fontSizeMode: Text.HorizontalFit
+        minimumPixelSize: 8
+        font.pixelSize: Math.round(Appearance.font.pixelSize.smallest * root.textScale)
         color: Appearance.colors.colOnLayer2
         text: root.element.name
     }

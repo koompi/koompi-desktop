@@ -179,6 +179,53 @@ ShellRoot {
             texts + " rows in " + p.cats.length + " columns stay inside their column" + (bad.length ? ": " + bad.length + " out, first " + bad.slice(0, 5).join("; ") : ""));
     }
 
+    // The element tiles of the Elements page, empty slots left out.
+    function tiles(obj, out) {
+        if (!obj) return out;
+        if (obj.element !== undefined && obj.element.type !== undefined && obj.element.type !== "empty") out.push(obj);
+        const kids = obj.children ?? [];
+        for (let i = 0; i < kids.length; i++) probe.tiles(kids[i], out);
+        return out;
+    }
+
+    function nameOf(tile) {
+        for (let i = 0; i < tile.children.length; i++)
+            if (tile.children[i].text === tile.element.name) return tile.children[i];
+        return null;
+    }
+
+    // All 118 tiles whole inside the page and the panel's inner rect, each name inside
+    // its tile and at least 9 px: the periodic table gives way to the panel, not the other way round.
+    function checkElements(p) {
+        const panel = probe.find(p.win.contentItem, "cheatsheetPanel", [])[0];
+        const pb = panel.mapToItem(null, 0, 0);
+        const inner = { left: pb.x + panel.padding, top: pb.y + panel.padding, right: pb.x + panel.width - panel.padding, bottom: pb.y + panel.height - panel.padding };
+        const tiles = probe.tiles(p.win.contentItem, []);
+        let page = tiles.length > 0 ? tiles[0] : null;
+        while (page && !(page.clip === true && page.contentChildren !== undefined)) page = page.parent;
+        const pageBox = page ? page.mapToItem(null, 0, 0) : { x: 0, y: 0 };
+        const cut = [];
+        let smallest = 1e9;
+        let overshoot = -1e9;
+        for (const t of tiles) {
+            const b = t.mapToItem(null, 0, 0);
+            const inside = b.x >= inner.left - 0.5 && b.y >= inner.top - 0.5 && b.x + t.width <= inner.right + 0.5 && b.y + t.height <= inner.bottom + 0.5
+                && page !== null && b.x >= pageBox.x - 0.5 && b.y >= pageBox.y - 0.5 && b.x + t.width <= pageBox.x + page.width + 0.5 && b.y + t.height <= pageBox.y + page.height + 0.5;
+            if (!inside) cut.push(t.element.symbol);
+            const n = probe.nameOf(t);
+            if (n) {
+                smallest = Math.min(smallest, n.fontInfo.pixelSize);
+                overshoot = Math.max(overshoot, n.contentWidth - t.width);
+            }
+        }
+        probe.verdict(tiles.length === 118 && cut.length === 0,
+            (tiles.length - cut.length) + " of " + tiles.length + " element tiles are whole inside the panel's inner rect"
+                + (tiles.length > 0 ? " (tile " + Math.round(tiles[0].width) + "x" + Math.round(tiles[0].height) + ")" : "")
+                + (cut.length ? ", cut: " + cut.slice(0, 14).join(" ") : ""));
+        probe.verdict(tiles.length > 0 && smallest >= 9 && overshoot <= 0.5,
+            "element names read at " + smallest + " px or more and stay inside their tile (widest is " + Math.round(overshoot * 10) / 10 + " px past it)");
+    }
+
     function checkScroll(p) {
         probe.maxY = Math.max(0, p.flick.contentHeight - p.flick.height);
         probe.verdict(probe.maxBottom <= p.flick.contentHeight + 0.5,
@@ -211,7 +258,7 @@ ShellRoot {
                 probe.mark = probe.ticks;
                 return;
             }
-            if (probe.stage === 5) {
+            if (probe.stage === 7) {
                 if (waited < 4) return;
                 probe.verdict(!GlobalStates.cheatsheetOpen, "Enter runs the first match and closes the sheet");
                 console.log("PROBE DONE");
@@ -245,24 +292,35 @@ ShellRoot {
                     "scrolled to the end: " + Math.round(p.flick.contentY) + " of " + Math.round(probe.maxY));
                 probe.verdict(probe.maxBottom - p.flick.contentY <= p.flick.height + 0.5,
                     "the last row is in view at the end: its bottom " + Math.round(probe.maxBottom - p.flick.contentY) + " in a viewport of " + Math.round(p.flick.height));
-                // every chord's text carries "Super", so this keeps most rows and the page still scrolls
-                p.search.text = "super";
+                Persistent.states.cheatsheet.tabIndex = 1;
                 probe.stage = 3;
                 probe.mark = probe.ticks;
             } else if (probe.stage === 3) {
+                if (waited < 8) return;
+                probe.checkElements(p);
+                Persistent.states.cheatsheet.tabIndex = 0;
+                probe.stage = 4;
+                probe.mark = probe.ticks;
+            } else if (probe.stage === 4) {
+                if (waited < 8) return;
+                // every chord's text carries "Super", so this keeps most rows and the page still scrolls
+                p.search.text = "super";
+                probe.stage = 5;
+                probe.mark = probe.ticks;
+            } else if (probe.stage === 5) {
                 if (waited < 8) return;
                 const room = p.flick.contentHeight - p.flick.height;
                 probe.verdict(room > 1, "a broad query still leaves " + Math.round(room) + " to scroll");
                 probe.verdict(p.flick.contentY < 1, "a query puts the sheet back at the top: contentY " + Math.round(p.flick.contentY));
                 p.search.text = "Toggle cheatsheet";
-                probe.stage = 4;
+                probe.stage = 6;
                 probe.mark = probe.ticks;
-            } else if (probe.stage === 4) {
+            } else if (probe.stage === 6) {
                 if (waited < 8) return;
                 const rows = probe.find(p.win.contentItem, "bindDescription", []).length;
                 probe.verdict(rows > 0 && rows < probe.rowCount / 2, "a narrow query leaves " + rows + " of " + probe.rowCount + " rows");
                 p.search.accepted();
-                probe.stage = 5;
+                probe.stage = 7;
                 probe.mark = probe.ticks;
             }
         }
