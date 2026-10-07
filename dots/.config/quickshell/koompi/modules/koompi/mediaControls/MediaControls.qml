@@ -24,6 +24,34 @@ Scope {
     property real popupRounding: Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 1
     readonly property list<real> visualizerPoints: Cava.points
 
+    // mpris drops a player when it quits, so keep what it was as strings
+    property var lastPlayer: null
+    readonly property var lastEntry: {
+        const scanned = DesktopEntries.applications.values.length > 0;
+        return root.lastPlayer && scanned ? DesktopEntries.heuristicLookup(root.lastPlayer.entry || root.lastPlayer.name) : null;
+    }
+
+    function remember() {
+        if (root.activePlayer)
+            root.lastPlayer = {
+                name: root.activePlayer.identity,
+                entry: root.activePlayer.desktopEntry
+            };
+    }
+
+    onActivePlayerChanged: root.remember()
+    Component.onCompleted: root.remember()
+
+    function openLastPlayer() {
+        const entry = root.lastEntry;
+        const window = HyprlandData.windowList.find(win => DesktopEntries.heuristicLookup(win.class)?.id === entry.id);
+        if (window)
+            Hyprland.dispatch(`hl.dsp.focus({ window = "address:${window.address}" })`);
+        else
+            LauncherSearch.launch(entry);
+        GlobalStates.mediaControlsOpen = false;
+    }
+
     function filterDuplicatePlayers(players) {
         let filtered = [];
         let used = new Set();
@@ -152,15 +180,18 @@ Scope {
                         ColumnLayout {
                             id: placeholderLayout
                             anchors.centerIn: parent
+                            spacing: 10
 
                             StyledText {
-                                text: Translation.tr("No active player")
+                                Layout.alignment: Qt.AlignHCenter
+                                text: Translation.tr("Nothing playing")
                                 font.pixelSize: Appearance.font.pixelSize.large
                             }
-                            StyledText {
-                                color: Appearance.colors.colSubtext
-                                text: Translation.tr("Make sure your player has MPRIS support\nor try turning off duplicate player filtering")
-                                font.pixelSize: Appearance.font.pixelSize.small
+                            DialogButton {
+                                Layout.alignment: Qt.AlignHCenter
+                                visible: !!root.lastEntry
+                                buttonText: Translation.tr("Open %1").arg(root.lastEntry?.name ?? "")
+                                onClicked: root.openLastPlayer()
                             }
                         }
                     }
@@ -173,17 +204,17 @@ Scope {
         target: "mediaControls"
 
         function toggle(): void {
-            mediaControlsLoader.active = !mediaControlsLoader.active;
-            if (mediaControlsLoader.active)
+            GlobalStates.mediaControlsOpen = !GlobalStates.mediaControlsOpen;
+            if (GlobalStates.mediaControlsOpen)
                 Notifications.timeoutAll();
         }
 
         function close(): void {
-            mediaControlsLoader.active = false;
+            GlobalStates.mediaControlsOpen = false;
         }
 
         function open(): void {
-            mediaControlsLoader.active = true;
+            GlobalStates.mediaControlsOpen = true;
             Notifications.timeoutAll();
         }
     }
