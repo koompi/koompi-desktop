@@ -65,7 +65,7 @@ qs_pid=$!
 trap 'kill "$qs_pid"; wait "$qs_pid"' EXIT
 await 40 up || { note started no; exit 0; }
 note started yes
-sleep 4
+await 10 dead "$LEFTOVER"
 note leftover_after_start "$(yesno alive "$LEFTOVER")"
 note foreign_after_start "$(yesno alive "$FOREIGN")"
 note pidfile_after_start "$(yesno test -e "$PIDFILE")"
