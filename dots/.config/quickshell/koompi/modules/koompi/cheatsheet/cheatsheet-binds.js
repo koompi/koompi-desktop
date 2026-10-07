@@ -27,6 +27,18 @@ const KEYS = {
 const DIRECTIONS = ["left", "right", "up", "down"];
 const DIGITS = "1234567890";
 const MARK = "\u0001";
+// Qt's and Windows' order, on every chord whatever order the bind lists them in
+const MODS = ["super", "ctrl", "alt", "shift", "caps", "mod2", "mod3", "mod5"];
+
+function byModOrder(mods) {
+    const rank = mod => {
+        const at = MODS.indexOf(String(mod).toLowerCase());
+        return at < 0 ? MODS.length : at;
+    };
+    return mods.map((mod, index) => ({ mod: mod, index: index }))
+        .sort((a, b) => rank(a.mod) - rank(b.mod) || a.index - b.index)
+        .map(o => o.mod);
+}
 
 function makeLabeler(overrides) {
     const table = Object.assign({}, KEYS);
@@ -190,7 +202,7 @@ function buildRows(binds, category, overrides) {
         const parts = splitDescription(bind.description || "");
         if (parts.text.length === 0 || parts.category !== category)
             continue;
-        entries.push({ id: bind.id, mods: bind.mods, key: bind.key, text: parts.text, dispatchable: bind.dispatchable });
+        entries.push({ id: bind.id, mods: byModOrder(bind.mods), key: bind.key, text: parts.text, dispatchable: bind.dispatchable });
     }
     const rows = new Map();
     for (const item of toItems(entries, label)) {

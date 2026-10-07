@@ -100,11 +100,11 @@ check("Window: the ten send-to-workspace chords are one range", same(chordsOf("W
 check("Window: focus is one row, arrows then brackets", same(chordsOf("Window", "Focus left/right/up/down"), ["Super + ←→↑↓", "Super + [/]"]), JSON.stringify(chordsOf("Window", "Focus left/right/up/down")));
 check("Window: move is one row of arrows", same(chordsOf("Window", "Move left/right/up/down"), ["Super + Shift + ←→↑↓"]), JSON.stringify(chordsOf("Window", "Move left/right/up/down")));
 check("Window: punctuation keys", same(chordsOf("Window", "Shrink split ratio"), ["Super + ;"]) && same(chordsOf("Window", "Grow split ratio"), ["Super + '"]));
-check("Window: Resize to 640x480 is not read as a family", same(chordsOf("Window", "Resize to 640x480"), ["Ctrl + Super + \\"]));
+check("Window: Resize to 640x480 is not read as a family", same(chordsOf("Window", "Resize to 640x480"), ["Super + Ctrl + \\"]));
 check("Utilities: Record region (no sound) once, two chords", same(chordsOf("Utilities", "Record region (no sound)"), ["Super + Shift + R", "Super + Alt + R"]), JSON.stringify(chordsOf("Utilities", "Record region (no sound)")));
 check("App: Terminal once, simplest chord first", same(chordsOf("App", "Terminal"), ["Super + Enter", "Super + T", "Ctrl + Alt + T"]), JSON.stringify(chordsOf("App", "Terminal")));
 check("App: the backtick and backslash widgets", same(chordsOf("App", "Terminal widget"), ["Super + `"]) && same(chordsOf("App", "System monitor widget"), ["Super + \\"]));
-check("Media: Next track once, the media key first", same(chordsOf("Media", "Next track"), ["Next", "Super + Shift + N", "Super + Shift + Alt + Forward"]), JSON.stringify(chordsOf("Media", "Next track")));
+check("Media: Next track once, the media key first", same(chordsOf("Media", "Next track"), ["Next", "Super + Shift + N", "Super + Alt + Shift + Forward"]), JSON.stringify(chordsOf("Media", "Next track")));
 check("Workspace: Focus 1–10 on Super+1–0", same(chordsOf("Workspace", "Focus 1–10"), ["Super + 1–0"]));
 // the wheel reads as it turns: wherever a row pairs it with PgUp/PgDn, up goes with up
 for (const category of categories) {
@@ -115,8 +115,8 @@ for (const category of categories) {
             keys.includes("Scroll ↑") === keys.includes("PgUp") && keys.includes("Scroll ↓") === keys.includes("PgDn"), keys.join(" | "));
     }
 }
-check("Workspace: Focus left keeps the arrow beside page and scroll keys", chordsOf("Workspace", "Focus left").includes("Ctrl + Super + ←") && chordsOf("Workspace", "Focus left").includes("Super + PgUp"));
-check("Shell: the nine bar popups are one row", same(chordsOf("Shell", "Bar popup 1–9 (1 agent usage, 2 battery, 3 pomodoro, 4 clock)"), ["Ctrl + Super + 1–9"]));
+check("Workspace: Focus left keeps the arrow beside page and scroll keys", chordsOf("Workspace", "Focus left").includes("Super + Ctrl + ←") && chordsOf("Workspace", "Focus left").includes("Super + PgUp"));
+check("Shell: the nine bar popups are one row", same(chordsOf("Shell", "Bar popup 1–9 (1 agent usage, 2 battery, 3 pomodoro, 4 clock)"), ["Super + Ctrl + 1–9"]));
 check("Shell: Toggle search is Super alone", same(chordsOf("Shell", "Toggle search"), ["Super"]));
 check("Kiri: the AI key", same(chordsOf("Kiri", "Voice transcription (AI key)"), ["Super + Shift + AI"]));
 check("Media: the XF86 volume key is on the sheet", same(chordsOf("Media", "Volume up"), ["Vol +"]));
@@ -158,6 +158,33 @@ check("the star trails", same(keycaps(["Ctrl", star], false), ["Ctrl", star]));
 check("the star in the middle", same(keycaps(["Ctrl", star, "Shift"], false), ["Ctrl", star, "Shift"]));
 check("split buttons are one cap each", same(keycaps(["Ctrl", star, "Shift"], true), ["Ctrl", star, "Shift"]));
 check("no modifiers, no keycaps", same(keycaps([], false), []));
+
+// 6. one modifier order on every chord: Super (the star) first, then Ctrl, Alt, Shift,
+// whatever order the bind was typed in or the service lists them in
+const typed = (...mods) => buildRows([bind(0, "C: Open", "T", mods)], "C", { Super: star })[0].chords[0].mods;
+const ordered = [star, "Ctrl", "Alt", "Shift"];
+check("a bind typed CTRL SUPER ALT and one typed SUPER ALT CTRL give the same caps",
+    same(typed("Ctrl", "Super", "Alt"), [star, "Ctrl", "Alt"]) && same(typed("Super", "Alt", "Ctrl"), [star, "Ctrl", "Alt"]),
+    JSON.stringify([typed("Ctrl", "Super", "Alt"), typed("Super", "Alt", "Ctrl")]));
+check("all four modifiers, from any order", same(typed("Shift", "Alt", "Ctrl", "Super"), ordered) && same(typed("Alt", "Shift", "Super", "Ctrl"), ordered));
+check("the same chord typed two ways is one chord", (() => {
+    const r = rows([bind(0, "C: Open", "O", ["Ctrl", "Super"]), bind(1, "C: Open", "O", ["Super", "Ctrl"])]);
+    return r[0].chords.length === 1 && same(r[0].ids, [0, 1]);
+})());
+check("an unknown modifier keeps its place after the known ones", same(typed("Hyper", "Shift", "Super"), [star, "Shift", "Hyper"]));
+check("the keycaps of an ordered chord, joined", same(keycaps(typed("Shift", "Ctrl", "Super", "Alt"), false), [star, "Ctrl Alt Shift"]));
+check("the keycaps of an ordered chord, one each", same(keycaps(typed("Shift", "Ctrl", "Super", "Alt"), true), ordered));
+{
+    const wrong = [];
+    for (const category of categories)
+        for (const r of buildRows(shipped, category, { Super: star }))
+            for (const chord of r.chords) {
+                const place = chord.mods.map(mod => ordered.indexOf(mod));
+                if (place.includes(-1) || place.some((at, i) => i > 0 && at < place[i - 1]))
+                    wrong.push(`${r.text}: ${chord.mods.join(" ")}`);
+            }
+    check("no shipped chord has the star after another modifier or the modifiers out of order", wrong.length === 0, wrong.slice(0, 6).join("; "));
+}
 
 if (failed > 0) { console.error(`${failed} cheatsheet-binds check(s) failed`); process.exit(1); }
 console.log(`cheatsheet-binds: ${categories.length} categories, ${shipped.filter(b => b.description).length} described binds, all checks pass`);
