@@ -29,10 +29,13 @@ hl.bind("SUPER + SHIFT + ALT + Comma", hl.dsp.exec_cmd(notifications .. " showHi
 -- nothing until the bar grows a fifth popup.
 local bar = "qs -c $qsConfig ipc --any-display call bar"
 local popups = { "agent usage", "battery", "pomodoro", "clock" }
+-- every chord carries the whole list, so the cheatsheet shows them as one row
+local order = {}
+for i, name in ipairs(popups) do order[i] = i .. " " .. name end
+local popupList = " (" .. table.concat(order, ", ") .. ")"
 for n = 1, 9 do
-    local what = popups[n] and (" (" .. popups[n] .. ")") or " (none yet)"
     hl.bind("SUPER + CTRL + " .. n, hl.dsp.exec_cmd(bar .. " popup " .. n),
-        { description = "Shell: bar popup " .. n .. what })
+        { description = "Shell: bar popup " .. n .. popupList })
     -- keycode twin for layouts whose number row types other characters, as keybinds.lua does
     hl.bind("SUPER + CTRL + code:" .. (n + 9), hl.dsp.exec_cmd(bar .. " popup " .. n)) -- # [hidden]
 end
