@@ -426,6 +426,7 @@ If it does not fit one, the model is wrong and this document changes first.
 
 A new bind carries a `description` prefixed with its group, or it will not appear in the cheatsheet.
 Binds in a group that share a description are one cheatsheet row listing every chord, simplest first, so a second chord for an action reuses its description word for word.
+A description says what happens and never names its keys, because the sheet prints the keys beside it.
 The AI key sends Super and Shift itself and Hyprland sees `SUPER + SHIFT + code:201`, so the sheet prints that chord as `AI`, and `Alt + AI` with Alt; no other key drops its modifiers.
 A run of numbered or directional binds (`Workspace: Focus 1` to `10`, `Window: Focus Left` to `Down`) becomes one row only when each key is the number or direction its own description names.
 The sheet keeps every row inside its column: a long description wraps and a wide chord wraps, and the page scrolls, with no scrollbar, when the rows outgrow the panel.

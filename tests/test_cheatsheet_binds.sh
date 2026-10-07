@@ -118,8 +118,9 @@ for (const category of categories) {
 check("Workspace: Focus left keeps the arrow beside page and scroll keys", chordsOf("Workspace", "Focus left").includes("Super + Ctrl + ←") && chordsOf("Workspace", "Focus left").includes("Super + PgUp"));
 check("Shell: the nine bar popups are one row", same(chordsOf("Shell", "Bar popup 1–9 (1 agent usage, 2 battery, 3 pomodoro, 4 clock)"), ["Super + Ctrl + 1–9"]));
 check("Shell: Toggle search is Super alone", same(chordsOf("Shell", "Toggle search"), ["Super"]));
-check("Kiri: the AI key alone", same(chordsOf("Kiri", "Voice transcription (AI key)"), ["AI"]), JSON.stringify(chordsOf("Kiri", "Voice transcription (AI key)")));
-check("Kiri: the AI key with Alt keeps the Alt", same(chordsOf("Kiri", "Khmer dictation (AI key + Alt)"), ["Alt + AI"]), JSON.stringify(chordsOf("Kiri", "Khmer dictation (AI key + Alt)")));
+check("Kiri: the AI key alone", same(chordsOf("Kiri", "Voice transcription"), ["AI"]), JSON.stringify(chordsOf("Kiri", "Voice transcription")));
+check("Kiri: the two Khmer dictation binds are one row, the AI key with Alt first", same(chordsOf("Kiri", "Khmer dictation"), ["Alt + AI", "Super + Shift + K"]), JSON.stringify(chordsOf("Kiri", "Khmer dictation")));
+check("Kiri: Cancel dictation", same(chordsOf("Kiri", "Cancel dictation"), ["Super + Esc"]), JSON.stringify(chordsOf("Kiri", "Cancel dictation")));
 check("Media: the XF86 volume key is on the sheet", same(chordsOf("Media", "Volume up"), ["Vol +"]));
 
 // 4. the merge on small inputs
@@ -229,6 +230,8 @@ check("keys that share a cap are told apart by a space, not a slash", same(
     check("every shipped bind that is described has a group", ungrouped.length === 0, ungrouped.join("; "));
     const zap = shipped.filter(b => /zap/i.test(b.description)).map(b => b.description);
     check("no description says zap", zap.length === 0, zap.join("; "));
+    const naming = shipped.filter(b => /\((AI key|Super|Alt|Ctrl|Shift)/.test(b.description)).map(b => b.description);
+    check("no description names its own keys in brackets", naming.length === 0, naming.join("; "));
 }
 check("Print and Super+Shift+S are one row, they open the same snip", same(chordsOf("Utilities", "Screen snip"), ["PrtSc", "Super + Shift + S"]), JSON.stringify(chordsOf("Utilities", "Screen snip")));
 check("the two whole-screen screenshots differ in the notification", chordsOf("Utilities", "Screenshot the whole screen, save and copy it, with a notification").join() === "Shift + PrtSc"
