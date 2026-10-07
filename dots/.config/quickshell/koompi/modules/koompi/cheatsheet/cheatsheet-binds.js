@@ -40,6 +40,15 @@ function byModOrder(mods) {
         .map(o => o.mod);
 }
 
+// the AI key presses Super and Shift itself, so a chord on it shows only what is added
+const SENDS = { "code:201": ["super", "shift"] };
+
+function withoutSent(mods, key) {
+    const k = String(key).toLowerCase();
+    const sent = Object.prototype.hasOwnProperty.call(SENDS, k) ? SENDS[k] : [];
+    return mods.filter(mod => !sent.includes(String(mod).toLowerCase()));
+}
+
 function makeLabeler(overrides) {
     const table = Object.assign({}, KEYS);
     for (const name of Object.keys(overrides || {}))
@@ -223,7 +232,7 @@ function buildRows(binds, category, overrides) {
         const parts = splitDescription(bind.description || "");
         if (parts.text.length === 0 || parts.category !== category)
             continue;
-        entries.push({ id: bind.id, mods: byModOrder(bind.mods), key: bind.key, text: parts.text, dispatchable: bind.dispatchable });
+        entries.push({ id: bind.id, mods: byModOrder(withoutSent(bind.mods, bind.key)), key: bind.key, text: parts.text, dispatchable: bind.dispatchable });
     }
     const rows = new Map();
     for (const item of toItems(entries, label)) {

@@ -118,7 +118,8 @@ for (const category of categories) {
 check("Workspace: Focus left keeps the arrow beside page and scroll keys", chordsOf("Workspace", "Focus left").includes("Super + Ctrl + ←") && chordsOf("Workspace", "Focus left").includes("Super + PgUp"));
 check("Shell: the nine bar popups are one row", same(chordsOf("Shell", "Bar popup 1–9 (1 agent usage, 2 battery, 3 pomodoro, 4 clock)"), ["Super + Ctrl + 1–9"]));
 check("Shell: Toggle search is Super alone", same(chordsOf("Shell", "Toggle search"), ["Super"]));
-check("Kiri: the AI key", same(chordsOf("Kiri", "Voice transcription (AI key)"), ["Super + Shift + AI"]));
+check("Kiri: the AI key alone", same(chordsOf("Kiri", "Voice transcription (AI key)"), ["AI"]), JSON.stringify(chordsOf("Kiri", "Voice transcription (AI key)")));
+check("Kiri: the AI key with Alt keeps the Alt", same(chordsOf("Kiri", "Khmer dictation (AI key + Alt)"), ["Alt + AI"]), JSON.stringify(chordsOf("Kiri", "Khmer dictation (AI key + Alt)")));
 check("Media: the XF86 volume key is on the sheet", same(chordsOf("Media", "Volume up"), ["Vol +"]));
 
 // 4. the merge on small inputs
@@ -203,7 +204,24 @@ check("keys that share a cap are told apart by a space, not a slash", same(
     check("no shipped chord joins keys with a slash", joined.length === 0, joined.join("; "));
 }
 
-// 8. descriptions in words, every one in a group
+// 8. the AI key sends Super and Shift itself, so a chord on it shows only what is added
+{
+    const ai = (...mods) => buildRows([bind(0, "C: Dictate", "code:201", mods)], "C", { Super: star })[0].chords[0].mods;
+    check("the AI key shows neither the Super nor the Shift it sends", same(ai("Super", "Shift"), []) && same(ai("Shift", "Super"), []), JSON.stringify(ai("Super", "Shift")));
+    check("the AI key keeps what is added to it", same(ai("Super", "Shift", "Alt"), ["Alt"]) && same(ai("Ctrl", "Super", "Shift"), ["Ctrl"]) && same(ai("Super", "Shift", "Ctrl", "Alt"), ["Ctrl", "Alt"]));
+    check("each of the two goes whether or not the other is there", same(ai("Super"), []) && same(ai("Shift"), []) && same(ai("Shift", "Alt"), ["Alt"]));
+    check("the key is matched as Hyprland spells it, in any case", same(buildRows([bind(0, "C: Dictate", "CODE:201", ["Super", "Shift"])], "C", {})[0].chords[0].mods, []));
+    const others = buildRows([bind(0, "C: Open", "K", ["Super", "Shift"]), bind(1, "C: Close", "code:202", ["Super", "Shift"])], "C", { Super: star }).map(r => r.chords[0].mods);
+    check("every other key keeps its modifiers", same(others, [[star, "Shift"], [star, "Shift"]]), JSON.stringify(others));
+    const stray = [];
+    for (const category of categories)
+        for (const r of buildRows(shipped, category, { Super: star }))
+            for (const chord of r.chords)
+                if (chord.key === "AI" && chord.mods.some(mod => mod === star || mod === "Shift")) stray.push(`${r.text}: ${chord.mods.join(" ")} AI`);
+    check("no shipped AI-key chord shows the Super or Shift it sends", stray.length === 0, stray.join("; "));
+}
+
+// 9. descriptions in words, every one in a group
 {
     const shorthand = shipped.filter(b => /^Utilities:/.test(b.description) && /(>>|&|\s\+\s)/.test(b.description)).map(b => b.description);
     check("no Utilities description uses >>, & or + as shorthand", shorthand.length === 0, shorthand.join("; "));
