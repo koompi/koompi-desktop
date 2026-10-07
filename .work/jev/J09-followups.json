@@ -1,0 +1,65 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "j09": "J09 (Qt apps on Wayland, xcb allowlist for dolphin/okular/konsole/ark in koompi-launch) is verified by the lead: rebased on dev, test_qt_platform_launch.sh, test_qt_platform_nested.sh and test_nested_hyprland_quiet.sh pass under heavy.sh; renders show Dolphin's menus in the bar on xcb and none on Wayland. Its comments break the contract (9-line narrative headers) and go back to the worker either way.",
+    "shell_pin": "The shell is started with QT_QPA_PLATFORM=wayland (strict, no xcb fallback) because a shell on xcb maps no layer surfaces, and a session older than J09 still exports xcb until the next login. Every app the shell starts inherits the strict value: Search, the Launchpad and the dock all go through koompi-launch, which only overrides it for the four allowlisted apps. A key bind starts apps with the session value wayland;xcb.",
+    "qt5_wayland": "qt5-wayland is installed on the founder's host but is not in KOOMPI's current Arch dependencies (only sdata/dist-arch/previous_dependencies.conf). On a fresh install a Qt5 app started from Search, the Launchpad or the dock aborts with no wayland plugin, while the same app started from a key falls back to xcb. qt6-wayland is a dependency.",
+    "xcb_leak": "koompi-launch exports QT_QPA_PLATFORM=xcb for the four apps, so everything they start inherits xcb: every program in a Konsole tab, and every app Dolphin opens (Gwenview, Kate, Okular, Ark). Qt's QGuiApplication reads a -platform argv option that overrides QT_QPA_PLATFORM and is not inherited. With argv, apps Dolphin opens run on Wayland, including Okular and Ark, which then show no bar menu when opened from Dolphin; with env they run on xcb, which costs non-allowlisted apps their Wayland path (fractional scaling, Wayland text input). Before J09 the whole session was xcb, so env is no regression. Phase 4 (J37 appmenu bridge) deletes the allowlist.",
+    "autostart_finding": "Found by the lead on the live seat. execs.lua:33 runs 'systemctl --user start hyprland-session.target && systemctl --user start xdg-desktop-autostart.target'. xdg-desktop-autostart.target has RefuseManualStart=yes and StopWhenUnneeded=yes, so the second start is refused on every machine: this boot it never ran (no timestamps), fcitx5 is not running, and the founder's own login items (~/.config/autostart: fcitx5, a Chrome app) never start. The PKGBUILD comment saying 'the session already starts xdg-desktop-autostart.target, so packages are the whole fix' for Khmer input is false. systemd.special(7): a session opts in with Wants=xdg-desktop-autostart.target.",
+    "session_target_finding": "hyprland-session.target exists only on the founder's host (~/.config/systemd/user, hand-made 2026-06-17, no package owns it) and has never been in the repo. On a fresh KOOMPI install the start fails, graphical-session.target never activates, so hypridle (idle lock), koompi-crash-watch, touch-gestures, migrate-notify and the portals that need graphical-session.target never start. Shipping the unit in dots/.config/systemd/user is a bug fix, not a decision.",
+    "autostart_entries": "With XDG_CURRENT_DESKTOP=KOOMPI:Hyprland the generator's conditions would run: the founder's Chrome app and fcitx5, the system org.fcitx.Fcitx5, nm-applet (NotShowIn KDE;GNOME: a NetworkManager tray icon next to the shell's own network panel) and geoclue-demo-agent (NotShowIn GNOME; commit b63a85283 deliberately moved it to start on demand from Weather, which is off by default). gnome-keyring pkcs11/secrets and the Plasma session restore are filtered out by OnlyShowIn.",
+    "khmer": "kb_layout is 'us,kh', so Khmer typing through the xkb layout works on Wayland and X11 alike. The fcitx5-m17n path never ran because fcitx5 never started; it is unverified on either platform.",
+    "identity_block": "Bar ActiveWindow.qml: with no window the identity reads 'Desktop' over 'Workspace N', and the block is sized to the app name's width by design (titles are volatile and used to walk the menubar), so the second line renders as 'Works…' on every empty workspace (J09 renders, 1920x1200). The centre of the bar already shows which workspace is active. J13 owns ActiveWindow.qml and is next after J09.",
+    "slots": "Five workers running (J04 round 4, J10, J12, J14, J16); one slot is free. Waiting: J07 (lazy surfaces, the hub Phase 2 builds on; long heavy-lock measurement runs), J09 round 2 (comment pass plus whatever is decided here, J09's files, small), J42 (session target and autostart, new), J13 (after J09 merges), then J08, J15, J41, J28, J29."
+  },
+  "questions": {
+    "J09_shell_launch_platform": {
+      "type": "choice",
+      "instructions": "Apps the shell starts inherit the strict QT_QPA_PLATFORM=wayland. What should change?",
+      "criteria": {
+        "launch_rewrites_bare_wayland": "koompi-launch rewrites an inherited bare 'wayland' to 'wayland;xcb' for apps not on the allowlist. Strongest case: one choke point fixes Search, the Launchpad and the dock, and a Qt5 app on a fresh install falls back to xcb instead of aborting; the shell's own pin is untouched. Cost: a user who deliberately runs QT_QPA_PLATFORM=wayland koompi-launch loses the strictness.",
+        "launcher_passes_env": "LauncherSearch.launch passes environment QT_QPA_PLATFORM=wayland;xcb. Strongest case: the shell states its intent where it launches. Cost: covers only that function, another job's file.",
+        "leave": "Leave it. Strongest case: Qt6 apps behave the same either way. Cost: a Qt5 app without qt5-wayland fails from the main launch paths on fresh installs.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J09_xcb_leak": {
+      "type": "choice",
+      "instructions": "The four allowlisted apps pass QT_QPA_PLATFORM=xcb to everything they start. What should koompi-launch do?",
+      "criteria": {
+        "keep_env": "Keep the environment variable. Strongest case: no regression from before J09, apps opened from Dolphin keep bar menus when allowlisted, and Phase 4 deletes the allowlist. Cost: Konsole's programs and every app Dolphin opens stay on xcb until then.",
+        "argv_platform": "Pass -platform xcb on argv when the command's basename is one of the four binaries, keep the variable only for wrappers (flatpak). Strongest case: nothing leaks; Konsole and Dolphin children run on Wayland. Cost: Okular and Ark opened from Dolphin lose their bar menu; argv rewriting in koompi-launch.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J42_autostart_scope": {
+      "type": "choice",
+      "instructions": "The repo will ship hyprland-session.target. What should it do about XDG autostart?",
+      "criteria": {
+        "autostart_hide_duplicates": "hyprland-session.target Wants=xdg-desktop-autostart.target; dots ship Hidden=true overrides in ~/.config/autostart for nm-applet (the shell has its own network panel) and geoclue-demo-agent (b63a85283: Weather starts it on demand); the refused systemctl start is removed from execs.lua. Strongest case: login items work as on every desktop (macOS Login Items), fcitx5 starts, and KOOMPI's earlier decisions hold. Cost: the founder's Chrome app starts at login for the first time on this seat.",
+        "autostart_all": "Same, without the two overrides. Strongest case: least KOOMPI-specific config. Cost: a second network tray icon and the GeoClue agent at every login, undoing b63a85283.",
+        "fcitx_only": "No XDG autostart; execs.lua starts fcitx5 directly and the refused start is removed. Strongest case: nothing new appears on the founder's seat. Cost: login items that apps register never run, on every KOOMPI machine.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J13_empty_desktop_identity": {
+      "type": "choice",
+      "instructions": "On an empty workspace the bar's identity reads 'Desktop' over an elided 'Works…'. What should J13 do?",
+      "criteria": {
+        "desktop_only": "With no window, show 'Desktop' alone with no second line; the workspace is already shown in the centre of the bar. Strongest case: like macOS showing 'Finder', nothing elided, one line of change. Cost: the workspace number is no longer repeated at the left.",
+        "widen_for_desktop": "With no window, size the block to fit 'Workspace N'. Strongest case: keeps today's information. Cost: the block's width changes between empty and occupied workspaces.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "next_free_slot": {
+      "type": "choice",
+      "instructions": "One worker slot is free. Which job takes it?",
+      "criteria": {
+        "j09_round2": "Resume J09 for its comment pass and the decisions above. Strongest case: the worker has the context and the branch, the round is small, and J13 waits on J09's merge.",
+        "j42_session_target": "Start J42. Strongest case: a fresh install today has no idle lock and no portals, and the founder's login items never run.",
+        "j07_lazy_surfaces": "Start J07. Strongest case: Phase 2 builds on its component and it is the longest job.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

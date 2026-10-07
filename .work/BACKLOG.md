@@ -55,6 +55,8 @@ Live seat damage from test harnesses, fixed 2026-10-07 (`e6d563717`): private bu
 
 Live seat findings outside any job: hot corners are dead because `fakeScreenRounding` is 0 there (J08 fixes the coupling; the live config is the founder's).
 
+At the next authorised deploy: J42 replaces the hand-made `~/.config/systemd/user/hyprland-session.target`, and the founder's Chrome app and fcitx5 start at login for the first time; the kdeconnectd D-Bus override in `~/.local/share/dbus-1/services/org.kde.kdeconnect.service` is redundant after J09 and its comment is stale (founder's file, not the repo's).
+
 ## Swarm, from 2026-10-07 (founder: "identify the leftover work and assign a subagent swarm")
 
 Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet workers at once; every nested compositor and full suite runs under `.work/tools/heavy.sh` (flock on `/tmp/koompi-heavy.lock`); the harness tools lock themselves. Specs J17-J32 and J36-J41 are written and reviewed.
@@ -62,16 +64,16 @@ Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet wor
 | Job | Work | Depends on | State |
 | --- | --- | --- | --- |
 | J04 | Cheatsheet keys, rows, layout, 1366 clamp | | round 3 verified (panel clear of edges and bar); round 4 running: Elements tiles fit at 1366x768 (`J04_elements_fit fit_tiles_now p=1.0`), wheel labels corrected and wheel binds swapped to match Page Up/Down (`J04_wheel_direction swap_wheel_binds p=0.94`, Hyprland 0.56.2 `onAxisEvent`: positive delta is `mouse_down`), one modifier order, `[ ]` label, Utilities copy |
-| J09 | Qt on Wayland, xcb allowlist | | running |
+| J09 | Qt on Wayland, xcb allowlist | | round 1 verified by the lead (three tests pass under heavy.sh, renders seen), held unmerged for round 2: contract comment pass, and `koompi-launch` rewrites an inherited bare `wayland` to `wayland;xcb` (`J09_shell_launch_platform launch_rewrites_bare_wayland p=0.96`). Env vs argv for the four xcb apps escalated to the founder (`J09_xcb_leak argv_platform p=0.51 ESCALATE: keep_env=0.47`); env stays meanwhile |
 | J10 | Motion and Reduce Motion | | running; scope added: one owner for `animations:enabled` with Game mode, which resets the key and reads its own state from it (J32 extends the owner to blur) |
 | J12 | Clipboard watcher, memd on demand | | running |
 | J14 | Three identity mockups | | running |
 | J16 | Refresh rate per monitor in Displays | | running |
 | J07 | Lazy surfaces (the hub: Phase 2 and most Phase 3 build on it) | J04 for the cheatsheet root only | next free slot; converts the cheatsheet last, after J04 merges |
 | J08 | Screen corners | | queued |
-| J15 | `test_update_now_runs.sh` flake | | queued (holds the heavy lock for its load runs) |
+| J15 | `test_update_now_runs.sh` flake, and the KWin start-up wedge J09 found (nested Hyprland with no output) | | queued (holds the heavy lock for its load runs); owns the nested start-up in the three nested tests and `hyprshot.sh` |
 | J11 | Settings in the running shell | J07 | queued |
-| J13 | Launch feedback | J09 | queued |
+| J13 | Launch feedback | J09 | queued; adds the empty-desktop identity (`J13_empty_desktop_identity desktop_only p=0.91`) and the nested "Desktop" identity question |
 | J17-J24 | Phase 2: Alt+Tab, dynamic workspaces, overview, Control Center, Notification Center, bar order and contrast, blended Search, one assistant | all J07; J19 after J18; J21 after J20; J22 after J20, J21, J13; J23 after J04; J24 merges after J23 | specs reviewed; their navigation.md section committed (`0009c9de8`); J21's kernel-toast sender filled in (KDE oom_notifier, "Linux Kernel") |
 | J25-J32 | Phase 3: session menu, Settings names and search, launchpad folders, wallpaper gallery, widget overlay labels, single-window gaps, glyph tuning, Reduce Transparency | J25, J27: J07. J26: J11, and Jev on its proposed names before dispatch. J28, J29: none. J30: J09. J31, J32: J10 | specs reviewed by the lead |
 | J33-J35 | Icon plate, koompi-icons, cursor | the founder's pick from J14 | waiting |
@@ -79,5 +81,7 @@ Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet wor
 | J39 | Settings > Shortcuts key names | J04 | spec reviewed |
 | J40 | Translations for the campaign's strings | everything else | spec reviewed; Khmer (`km_KH.json`) is a founder call, raised in its report |
 | J41 | Crash watch announces only this session's crashes (nested tests run with their own `XDG_RUNTIME_DIR`) | | queued, small |
+| J42 | The session target ships with KOOMPI and login items start: `xdg-desktop-autostart.target` refuses the manual start in `execs.lua:33`, and `hyprland-session.target` exists only on the founder's host, so a fresh install gets no `graphical-session.target` (no hypridle, crash watch, portals) and fcitx5 never starts anywhere | | queued, high; `J42_autostart_scope autostart_hide_duplicates p=0.98` |
+| J43 | Restored and pinned apps match the running app by desktop entry (J09 open points 2, 3) | J09 | queued |
 
-Founder-only: the pick from J14's mockups; authorising deployment to the live seat and the re-measurement; pushing `dev` and any merge to `main`.
+Founder-only: the four xcb apps' children (`J09_xcb_leak` ESCALATE, asked 2026-10-07); the pick from J14's mockups; authorising deployment to the live seat and the re-measurement; pushing `dev` and any merge to `main`.

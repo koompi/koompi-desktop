@@ -22,3 +22,19 @@ Files owned: `tests/test_update_now_runs.sh`; `modules/koompi/bar/UpdatesPopup.q
 - The cause in one paragraph with the log lines behind it.
 - The tally before and after.
 - Full suite: 0 failed.
+
+## Lead notes at dispatch (2026-10-07)
+
+- J09 found a start-up wedge in the harness: KWin sometimes never finishes its dmabuf feedback, so the nested Hyprland has no output.
+  - The symptoms are `qt.qpa.wayland: There are no outputs - creating placeholder screen`, grim's `no wl_output`, and nothing mapping.
+  - J09 saw four of these in about 35 sessions, before and after the heavy lock.
+  - `test_search_window_focus.sh` failed once that way in J09's full-suite run.
+  - Your symptom (no client after 60 s although the shadow `koompi` ran) fits a session with no output.
+  - Check the kept logs for it first.
+- Fix it where nested sessions start:
+  - `tests/test_update_now_runs.sh`, `tests/test_search_window_focus.sh` and `tests/test_qt_platform_nested.sh` (J09's retry loop at `:131-136`, which is a workaround, not the fix).
+  - `.work/tools/hyprshot.sh`, which has no guard and printed `no images` once.
+  - These files become yours for this.
+  - If the cause is shared, fix it once and say where.
+  - Remove J09's retry once the root fix holds.
+- Proof stays as written: 20 runs, three at a time, 0 failures, for the update test and for one other nested test.
