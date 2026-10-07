@@ -35,15 +35,16 @@ RippleButton {
     property string cliphistRawString: entry?.rawValue ?? ""
     property bool blurImage: entry?.blurImage ?? false
 
-    // Rows out of the command tree carry three fields no other provider sets
+    // Rows out of the command tree carry two fields no other provider sets
     // (services/commandTree/CommandResult.qml). Read through a var so the
     // lookup stays dynamic on every row that has none of them.
     readonly property var commandFields: root.entry
     readonly property string itemGroup: root.commandFields?.group ?? ""
     readonly property string itemState: root.commandFields?.stateText ?? ""
-    // Set on the first row of each group in the action scope's grouped view, so
-    // a heading costs no extra row and the arrow keys still only meet leaves.
-    readonly property string itemHeading: root.commandFields?.heading ?? ""
+    // Set on the first row of each group (the action scope's grouped view, the
+    // recent apps), so a heading costs no extra row and the arrow keys still
+    // only meet results.
+    readonly property string itemHeading: root.entry?.heading ?? ""
     readonly property real headingHeight: root.itemHeading === "" ? 0 : headingText.implicitHeight + root.buttonVerticalPadding * 2
     
     visible: root.entryShown

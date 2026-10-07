@@ -7,6 +7,8 @@ QtObject {
 
     // General stuff
     property string type: ""
+    // drawn above this row; set on the first row of a group
+    property string heading: ""
     property var fontType: LauncherSearchResult.FontType.Normal
     property string name: ""
     property string rawValue: ""
