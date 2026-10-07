@@ -440,10 +440,10 @@ Item {
     }
 
     component SystemButtonRow: Item {
-        implicitHeight: Math.max(uptimeContainer.implicitHeight, systemButtonsRow.implicitHeight)
+        implicitHeight: Math.max(dateContainer.implicitHeight, systemButtonsRow.implicitHeight)
 
         Rectangle {
-            id: uptimeContainer
+            id: dateContainer
             anchors {
                 top: parent.top
                 bottom: parent.bottom
@@ -451,11 +451,11 @@ Item {
             }
             color: Appearance.colors.colLayer1
             radius: height / 2
-            implicitWidth: uptimeRow.implicitWidth + 24
-            implicitHeight: uptimeRow.implicitHeight + 8
-            
+            implicitWidth: dateRow.implicitWidth + 24
+            implicitHeight: dateRow.implicitHeight + 8
+
             Row {
-                id: uptimeRow
+                id: dateRow
                 anchors.centerIn: parent
                 spacing: Appearance.spacing.normal
                 CustomIcon {
@@ -469,10 +469,11 @@ Item {
                 }
                 StyledText {
                     anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(implicitWidth, Math.max(0, systemButtonsRow.x - Appearance.spacing.small - 24 - distroIcon.width - dateRow.spacing))
+                    elide: Text.ElideRight
                     font.pixelSize: Appearance.font.pixelSize.normal
                     color: Appearance.colors.colOnLayer0
-                    text: Translation.tr("Up %1").arg(DateTime.uptime)
-                    textFormat: Text.MarkdownText
+                    text: DateTime.fullDate
                 }
             }
         }
@@ -493,17 +494,6 @@ Item {
                 onClicked: Persistent.states.sidebar.pinned = !Persistent.states.sidebar.pinned
                 StyledToolTip {
                     text: Translation.tr("Pin the panel open and tile windows beside it")
-                }
-            }
-            QuickToggleButton {
-                toggled: false
-                buttonIcon: "restart_alt"
-                onClicked: {
-                    Quickshell.execDetached(["hyprctl", "reload"])
-                    Quickshell.reload(true);
-                }
-                StyledToolTip {
-                    text: Translation.tr("Reload Hyprland & Quickshell")
                 }
             }
             QuickToggleButton {

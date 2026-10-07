@@ -23,13 +23,12 @@ Singleton {
     property string shortDate: Qt.locale().toString(clock.date, Config.options?.time.shortDateFormat ?? "dd/MM")
     property string date: Qt.locale().toString(clock.date, Config.options?.time.dateWithYearFormat ?? "dd/MM/yyyy")
     property string longDate: Qt.locale().toString(clock.date, Config.options?.time.dateFormat ?? "dddd, dd/MM")
+    property string fullDate: Qt.locale().toString(clock.date, "dddd d MMMM")
     property string collapsedCalendarFormat: Qt.locale().toString(clock.date, "dddd, MMMM dd")
     property string uptime: "0h, 0m"
 
     Timer {
-        // Uptime is rendered at minute resolution, so reading /proc/uptime every
-        // three seconds threw away 19 of every 20 wakeups. Both consumers (the
-        // right sidebar and the clock popup) are hidden most of the time anyway.
+        // minute resolution; the clock popup is the only reader and is hidden most of the time
         interval: 60000
         running: PowerSaving.awake
         triggeredOnStart: true
