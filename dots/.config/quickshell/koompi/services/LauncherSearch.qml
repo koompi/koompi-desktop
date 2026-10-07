@@ -188,7 +188,7 @@ Singleton {
             iconName: AppSearch.guessIcon(window.class),
             iconType: LauncherSearchResult.IconType.System,
             execute: () => {
-                Hyprland.dispatch(`focuswindow address:${window.address}`);
+                Hyprland.dispatch(`hl.dsp.focus({ window = "address:${window.address}" })`);
             }
         }));
     }
