@@ -64,10 +64,9 @@ grep -q 'root.keyGate.admit(model' "$SHELL_ROOT/services/ai/Requester.qml" \
     || fail "Requester.makeRequest does not pass through KeyGate.admit"
 echo "ok   source: both strategies wrap the bearer in \${KEY:+...}, the compactor passes the model, the send path goes through KeyGate"
 
-if ! command -v qs > /dev/null 2>&1; then
-    echo "skip: quickshell (qs) not installed, static checks only"
-    exit 0
-fi
+for tool in qs kwin_wayland dbus-run-session; do
+    command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, static checks only"; exit 0; }
+done
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -473,21 +472,25 @@ CONFIG_JSON='{"ai":{"memory":{"enable":false},"extraModels":[
 run_probe() {
     local label="$1" expect_remote="$2" expect_endpoint="$3" states="${4:-}"
     local xdg="$WORK/xdg-$label"
-    mkdir -p "$xdg/config/koompi" "$xdg/state/quickshell" "$xdg/cache" "$xdg/runtime" "$xdg/litert"
+    mkdir -p "$xdg/config/koompi" "$xdg/state/quickshell" "$xdg/cache" "$xdg/runtime" "$xdg/litert" "$xdg/home"
+    chmod 700 "$xdg/runtime"
     printf '%s\n' "$CONFIG_JSON" > "$xdg/config/koompi/config.json"
     : > "$xdg/curl.log"
     [[ -z "$states" ]] || printf '%s\n' "$states" > "$xdg/state/quickshell/states.json"
     echo "--- states.json: ${states:-(none)}"
     local out
-    # XDG_RUNTIME_DIR is where the request script goes, so the live shell's is left
-    # alone; the compositor socket is reached by absolute path instead
+    printf '#!/usr/bin/env bash\ncd %q && timeout 60 qs -p remote_default_probe.qml > %q 2>&1\n' "$WORK/shell" "$xdg/qs.out" > "$xdg/inner.sh"
+    chmod +x "$xdg/inner.sh"
     # fixed signature: Persistent writes states.json at startup only when it differs from the stored one
-    out="$(cd "$WORK/shell" && PATH="$WORK/bin:$PATH" PROBE_EXPECT_REMOTE="$expect_remote" PROBE_EXPECT_ENDPOINT="$expect_endpoint" \
+    env -u WAYLAND_DISPLAY -u DISPLAY \
+        PATH="$WORK/bin:$PATH" PROBE_EXPECT_REMOTE="$expect_remote" PROBE_EXPECT_ENDPOINT="$expect_endpoint" \
         PROBE_MODE="${PROBE_MODE:-}" PROBE_KEYRING_LOCKED="${PROBE_KEYRING_LOCKED:-}" PROBE_KEYRING_DELAY="${PROBE_KEYRING_DELAY:-0}" \
         CURL_LOG="$xdg/curl.log" LITERT_LM_DIR="$xdg/litert" HYPRLAND_INSTANCE_SIGNATURE="probe-$label" \
-        WAYLAND_DISPLAY="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/${WAYLAND_DISPLAY:-wayland-1}" XDG_RUNTIME_DIR="$xdg/runtime" \
+        QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 HOME="$xdg/home" XDG_RUNTIME_DIR="$xdg/runtime" \
         XDG_CONFIG_HOME="$xdg/config" XDG_STATE_HOME="$xdg/state" XDG_CACHE_HOME="$xdg/cache" \
-        timeout 60 qs -p remote_default_probe.qml 2>&1)"
+        timeout 120 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 800 \
+            --no-lockscreen --no-global-shortcuts --exit-with-session "$xdg/inner.sh" > "$xdg/kwin.log" 2>&1
+    out="$(cat "$xdg/qs.out" 2>/dev/null)"
     echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | sed -n 's/^ *\(DEBUG\|WARN\) qml: //p' | grep -E '^(PASS|FAIL|PROBE|engine message|AUTH_TEMPLATE|\[AI\] ai.extraModels)' || true
     if grep -qE 'ReferenceError|TypeError' <<< "$out"; then
         echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -E 'ReferenceError|TypeError' >&2

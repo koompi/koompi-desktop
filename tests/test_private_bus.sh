@@ -36,6 +36,12 @@ done
 $offenders"
 echo "ok   static: every kwin_wayland in tests/ has a private bus, its own runtime dir and HOME, and no live display"
 
+offenders="$(grep -nE --exclude="$(basename -- "${BASH_SOURCE[0]}")" '/run/user/' "$ROOT"/tests/*.sh \
+    | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)"
+[[ -z "$offenders" ]] || fail "a test reaches into the live session's runtime dir:
+$offenders"
+echo "ok   static: no test reaches into /run/user"
+
 for tool in dbus-run-session dbus-send; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, activation not checked"; exit 0; }
 done
