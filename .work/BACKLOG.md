@@ -41,7 +41,7 @@ Measurements behind them: `/tmp/surfaces.tsv` (per-surface PSS, headless), `/tmp
 
 | Job | Title | Files owned | Wave | State |
 | --- | --- | --- | --- | --- |
-| J07 | Lazy surfaces | `panelFamilies/*`, new `modules/common/LazySurface.qml`, root files of launchpad, cheatsheet, polkit, screenTranslator, mediaControls, overview, sidebarRight, sessionScreen, tour, screensaver, sidebarLeft | A | next free slot |
+| J07 | Lazy surfaces | `panelFamilies/*`, new `modules/common/LazySurface.qml`, root files of launchpad, cheatsheet, polkit, screenTranslator, mediaControls, overview, sidebarRight, sessionScreen, tour, screensaver, sidebarLeft | A | stopped at the base step; see the swarm table |
 | J09 | Qt on Wayland, xcb allowlist | `hypr/hyprland/env.lua`, `dots/.local/bin/koompi-launch`, rules keyed on Qt X11 classes, kdeconnectd override | A | running |
 | J08 | Screen corners | `modules/koompi/screenCorners/*` | B | queued |
 | J10 | Motion and Reduce Motion | `modules/common/Appearance.qml`, `hypr/hyprland/general.lua` (animations), `Config.qml` (one option), the appearance settings page | B | running |
@@ -56,6 +56,9 @@ Live seat damage from test harnesses, fixed 2026-10-07 (`e6d563717`): private bu
 Live seat findings outside any job: hot corners are dead because `fakeScreenRounding` is 0 there (J08 fixes the coupling; the live config is the founder's).
 
 At the next authorised deploy: J42 replaces the hand-made `~/.config/systemd/user/hyprland-session.target`, and the founder's Chrome app and fcitx5 start at login for the first time; the kdeconnectd D-Bus override in `~/.local/share/dbus-1/services/org.kde.kdeconnect.service` is redundant after J09 and its comment is stale (founder's file, not the repo's).
+The seat's `~/.config/autostart/fcitx5.desktop` (2026-07-26, `Exec=fcitx5`) duplicates the system `org.fcitx.Fcitx5.desktop`, so login would start two units for one daemon; propose hiding the user copy at deploy (the founder's file).
+Its `discord.desktop` points at a missing binary and the generator skips it.
+Login items take effect at the next login, not at deploy: the running target does not re-read `Wants=`.
 
 ## Swarm, from 2026-10-07 (founder: "identify the leftover work and assign a subagent swarm")
 
@@ -70,7 +73,7 @@ Queue: `queue_order breakage_then_hub p=0.71 (jev-1.13.0)`: J42, J07, J13, J15, 
 | J12 | Clipboard watcher, memd on demand | | running |
 | J14 | Three identity mockups | | running |
 | J16 | Refresh rate per monitor in Displays | | round 1 merged (`5027d05ae`); round 2 queued: rules keyed by display description and kept while unplugged (`J16_persist_scope desc_keyed_merge p=0.99`), whole-hertz labels unless ambiguous (`J16_rate_labels round_unless_ambiguous p=0.68`), keep-or-revert countdown (`J16_confirm_revert confirm_or_revert p=1.0`; a deploy blocker for the rate row), errors on the page, CLI usage, comments. Its queue position escalated (`J16_round2_position after_j42 p=0.53 ESCALATE: end_of_queue=0.4`); end of the queue until the founder says otherwise |
-| J07 | Lazy surfaces (the hub: Phase 2 and most Phase 3 build on it) | J04 for the cheatsheet root only | second in the queue, after J42; converts the cheatsheet last, after J04 merges |
+| J07 | Lazy surfaces (the hub: Phase 2 and most Phase 3 build on it) | J04 for the cheatsheet root only | dispatched 2026-10-08, stopped at contract step 4: the worktree-isolation check refused the compound `checkout -B` ("too complex to verify that it stays inside the worktree"), no edits; worktree auto-cleaned. Waits for the founder's call on the base step. Converts the cheatsheet last, after J04 merges |
 | J08 | Screen corners | | queued |
 | J15 | `test_update_now_runs.sh` flake, and the KWin start-up wedge J09 found (nested Hyprland with no output) | | queued (holds the heavy lock for its load runs); owns the nested start-up in the three nested tests and `hyprshot.sh` |
 | J11 | Settings in the running shell | J07 | queued |
@@ -82,7 +85,7 @@ Queue: `queue_order breakage_then_hub p=0.71 (jev-1.13.0)`: J42, J07, J13, J15, 
 | J39 | Settings > Shortcuts key names | J04 | spec reviewed |
 | J40 | Translations for the campaign's strings | everything else | spec reviewed; Khmer (`km_KH.json`) is a founder call, raised in its report |
 | J41 | Crash watch announces only this session's crashes (nested tests run with their own `XDG_RUNTIME_DIR`) | | queued, small |
-| J42 | The session target ships with KOOMPI and login items start: `xdg-desktop-autostart.target` refuses the manual start in `execs.lua:33`, and `hyprland-session.target` exists only on the founder's host, so a fresh install gets no `graphical-session.target` (no hypridle, crash watch, portals) and fcitx5 never starts anywhere | | running; `J42_autostart_scope autostart_hide_duplicates p=0.98` |
+| J42 | The session target ships with KOOMPI and login items start: `xdg-desktop-autostart.target` refuses the manual start in `execs.lua:33`, and `hyprland-session.target` exists only on the founder's host, so a fresh install gets no `graphical-session.target` (no hypridle, crash watch, portals) and fcitx5 never starts anywhere | | round 1 stopped at contract step 4 (the classifier refused `checkout -B` as irreversible local destruction), nothing committed, worktree auto-cleaned; its findings and round 2 are in the job file: PKGBUILD comment only, KDE Connect hidden (`J42_kdeconnect_login hide_kdeconnect p=0.73`), a migration for package-route users. Waits for the founder's call on the base step. `J42_autostart_scope autostart_hide_duplicates p=0.98` |
 | J43 | Restored and pinned apps match the running app by desktop entry (J09 open points 2, 3) | J09 | queued |
 
-Founder-only: the four xcb apps' children (`J09_xcb_leak` ESCALATE, asked 2026-10-07); the pick from J14's mockups; authorising deployment to the live seat and the re-measurement; pushing `dev` and any merge to `main`.
+Founder-only: how new workers get onto `dev` (the permission checks refused contract step 4 for J42 and J07, asked 2026-10-08); the four xcb apps' children (`J09_xcb_leak` ESCALATE, asked 2026-10-07); the pick from J14's mockups; authorising deployment to the live seat and the re-measurement; pushing `dev` and any merge to `main`.
