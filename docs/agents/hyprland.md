@@ -37,13 +37,19 @@ what is in it wins over `hyprland/` and `custom/`, and removing a line hands the
 whatever those say.
 
 Game mode and Reduce Motion both need `animations:enabled` off, so neither writes it.
-`services/HyprlandModes.qml` is the one writer. A mode is a flag there, its `holds` table names
-the options a mode forces and which modes want each, and an option is held while any mode that
-wants it is on and reset the moment none does. Turning one mode off therefore never undoes
-another, and a mode's own toggle reads its own flag, never the shared option. Game mode has no
-other store: it reads itself back from that file at start. An update mirrors `hyprland/` and so
-puts the file back to its stub, which ends Game mode; Reduce Motion lives in `config.json`, and the
-shell writes its hold back when it next starts.
+`services/HyprlandModes.qml` is the one writer.
+A mode is a flag there, its `holds` table names the options a mode forces and which modes want each, and an option is held while any mode that wants it is on and reset the moment none does.
+Turning one mode off therefore never undoes another, and a mode's own toggle reads its own flag, never the shared option.
+Game mode has no other store: it reads itself back from that file at start.
+Reduce Motion lives in `config.json`, and the shell writes its hold when it starts.
+
+The file survives an update.
+`sdata/install/files.sh` and `koompi-migrate` both mirror `hyprland/`, and both leave the file alone once it exists (`SYNC_KEEP_PATHS` in the first, an `--exclude` on the hyprland pair in the second), writing the shipped stub only where it is missing.
+`tests/test_hypr_overrides_survive_update.sh` runs both routes against a home that holds Game mode.
+
+`HyprlandConfig` runs the script as a `Process` with argv, one run at a time: what is asked for while one runs is merged into the next run, the last word on a key winning.
+A run that exits non-zero is logged with the script's stderr, and once the runs have drained `HyprlandModes` re-reads the file, so what it believes is applied is what is there.
+The script needs no virtual environment, and exits non-zero with the reason on stderr when it cannot write.
 
 A new mode (Reduce Transparency will hold `decoration:blur:enabled`) is one flag and one `by`
 entry in `HyprlandModes.qml`. `tests/test_hypr_modes.sh` fails when a held option is named in any
