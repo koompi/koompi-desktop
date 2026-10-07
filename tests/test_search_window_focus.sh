@@ -40,7 +40,7 @@ done
 
 cat > "$HOME_DIR/.config/hypr/hyprland.lua" <<'LUA'
 hl.monitor({ output = "", mode = "1280x800", position = "auto", scale = 1 })
-hl.config({ misc = { disable_watchdog_warning = true } })
+hl.config({ misc = { disable_watchdog_warning = true }, ecosystem = { no_update_news = true, no_donation_nag = true } })
 LUA
 
 # the daemon's wire format is shell-services/shelld/PROTOCOL.md: a hello, then state

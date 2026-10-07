@@ -39,7 +39,7 @@ LUA
 grep -v 'custom\.' "$hypr_src/hyprland.lua" > "$home/.config/hypr/hyprland.lua"
 w=${size%x*}; h=${size#*x}
 printf 'hl.monitor({ output = "", mode = "%sx%s", position = "auto", scale = 1 })\n' "$w" "$h" >> "$home/.config/hypr/hyprland.lua"
-echo 'hl.config({ misc = { disable_watchdog_warning = true } })' >> "$home/.config/hypr/hyprland.lua"
+echo 'hl.config({ misc = { disable_watchdog_warning = true }, ecosystem = { no_update_news = true, no_donation_nag = true } })' >> "$home/.config/hypr/hyprland.lua"
 ln -s "$repo/dots/.config/quickshell/koompi" "$home/.config/quickshell/koompi"
 mkdir -p "$home/.local/share"
 [[ -d $HOME/.local/share/fonts ]] && ln -s "$HOME/.local/share/fonts" "$home/.local/share/fonts"

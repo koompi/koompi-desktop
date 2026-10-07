@@ -45,7 +45,7 @@ chmod +x "$WORK/bin"/*
 
 cat > "$WORK/home/.config/hypr/hyprland.lua" <<'LUA'
 hl.monitor({ output = "", mode = "1280x800", position = "auto", scale = 1 })
-hl.config({ misc = { disable_watchdog_warning = true } })
+hl.config({ misc = { disable_watchdog_warning = true }, ecosystem = { no_update_news = true, no_donation_nag = true } })
 LUA
 
 cat > "$WORK/shell/update_probe.qml" <<'QML'
