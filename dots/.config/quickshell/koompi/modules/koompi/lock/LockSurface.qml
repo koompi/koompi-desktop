@@ -415,7 +415,7 @@ MouseArea {
                         }
                         // A reader that is actually sampling says so.
                         SequentialAnimation on opacity {
-                            running: root.context.fingerprintState === LockContext.FingerprintEnum.Scanning
+                            running: root.context.fingerprintState === LockContext.FingerprintEnum.Scanning && !Appearance.reduceMotion
                             loops: Animation.Infinite
                             alwaysRunToEnd: true
                             NumberAnimation {

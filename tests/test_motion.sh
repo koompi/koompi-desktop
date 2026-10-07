@@ -13,6 +13,10 @@
 #   Looks.transition's animations is then 0 ms (a fade or a colour: 100 ms at most), its
 #   slider velocity jumps, and WStackView's slide and the bar panels' close follow it.
 #   The dots of ThinkingIndicator pulse with it off and hold still with it on.
+#   Loops: every `loops: Animation.Infinite` block in the shell is read out of the source,
+#   and one whose duration is 0 with Reduce Motion on (a ladder step but snap, a spatial
+#   role, a mirror of one) must have a `running` that checks reduceMotion. The scan proves
+#   itself on fixtures before it reads the tree.
 #   Runtime: a real Behavior on x with the elementMove role is still in flight at
 #   50 ms, and has landed after 40 ms with Reduce Motion on.
 #   Surfaces: the real SidebarDrawer (the right panel's drawer pages) and the real
@@ -39,13 +43,113 @@ if borrowed="$(grep -rnE 'interval:[^/]*(animationDuration|transition\.duration)
     fail "a Timer takes its interval from the duration ladder, where every step but snap is 0 with Reduce Motion on: $borrowed"
 fi
 
+# every `loops: Animation.Infinite` block is read: a duration that is 0 with Reduce Motion on (a ladder step
+# but snap, a spatial role, a mirror of one) is only allowed if the block's `running` checks reduceMotion
+scan_loops() {
+    python3 -I - "$1" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+ZERO = re.compile(
+    r"animationDuration\.(?!snap\b)\w+"
+    r"|transition\.duration\.(?!snap\b)\w+"
+    r"|Appearance\.animation\.(?!elementMoveFast\b)\w+\.duration"
+    r"|animationCurves\.(?!expressiveEffectsDuration\b)\w*Duration"
+)
+LOOP = re.compile(r"loops:\s*(?:Animation\.Infinite|-1)\b")
+
+
+def blocks(text):
+    spans, stack, i, n = [], [], 0, len(text)
+    while i < n:
+        if text.startswith("//", i):
+            i = text.find("\n", i)
+            if i < 0:
+                break
+        elif text.startswith("/*", i):
+            i = text.find("*/", i + 2)
+            if i < 0:
+                break
+            i += 2
+        elif text[i] in "\"'`":
+            quote = text[i]
+            i += 1
+            while i < n and text[i] != quote:
+                i += 2 if text[i] == "\\" else 1
+            i += 1
+        else:
+            if text[i] == "{":
+                stack.append(i)
+            elif text[i] == "}" and stack:
+                spans.append((stack.pop(), i))
+            i += 1
+    return spans
+
+
+def risky(text):
+    spans = blocks(text)
+    hits = []
+    for m in LOOP.finditer(text):
+        around = [s for s in spans if s[0] < m.start() < s[1]]
+        if not around:
+            continue
+        start, end = min(around, key=lambda s: s[1] - s[0])
+        body = text[start:end]
+        running = re.search(r"running:\s*([^\n]*)", body)
+        if running and "reduceMotion" in running.group(1):
+            continue
+        for expr in re.findall(r"duration:\s*([^\n;]*)", body):
+            found = ZERO.search(expr.split("//")[0])
+            if found:
+                hits.append((text.count("\n", 0, m.start()) + 1, found.group(0)))
+                break
+    return hits
+
+
+LOOPING = "Item { SequentialAnimation on opacity { running: on; loops: Animation.Infinite\n NumberAnimation { duration: %s } } }"
+for expr, want in [
+    ("Appearance.animation.elementMove.duration", True),
+    ("Appearance.animationDuration.slow", True),
+    ("Looks.transition.duration.fast", True),
+    ("Appearance.animationCurves.workspaceSlideDuration", True),
+    ("Appearance.animation.elementMoveFast.duration", False),
+    ("Appearance.animationDuration.snap", False),
+    ("700", False),
+]:
+    if bool(risky(LOOPING % expr)) != want:
+        print(f"the loop scan broke on '{expr}': wanted {want}")
+        sys.exit(2)
+if risky((LOOPING % "Appearance.animation.elementMove.duration").replace("running: on;", "running: on && !Appearance.reduceMotion;")):
+    print("the loop scan broke: a loop whose running checks reduceMotion was flagged")
+    sys.exit(2)
+
+root = Path(sys.argv[1])
+bad = []
+for path in sorted(root.rglob("*.qml")):
+    text = path.read_text(errors="replace")
+    if "loops:" not in text:
+        continue
+    for line, expr in risky(text):
+        bad.append(f"{path.relative_to(root)}:{line}: loops forever on {expr}, 0 ms with Reduce Motion on, and its running does not check reduceMotion")
+if bad:
+    print("\n".join(bad))
+    sys.exit(1)
+PY
+}
+if command -v python3 > /dev/null 2>&1; then
+    looping="$(scan_loops "$SHELL_ROOT" 2>&1)" || fail "a looping animation can run at 0 ms with Reduce Motion on: $looping"
+else
+    echo "skip: python3 not installed, no scan of looping animations"
+fi
+
 grep -qE 'property bool reduceMotion: false' "$SHELL_ROOT/modules/common/Config.qml" \
     || fail "Config.qml has no appearance.reduceMotion defaulting to false"
 grep -q 'Config.options.appearance.reduceMotion' "$APPEARANCE" \
     || fail "Appearance.qml does not read appearance.reduceMotion"
 grep -rq 'Config.options.appearance.reduceMotion' "$SHELL_ROOT/modules/settings" \
     || fail "no Settings page writes appearance.reduceMotion"
-(( failed )) || echo "ok   source: roles [${roles% }] and curves [${curves% }] read from Appearance.qml, appearance.reduceMotion in Config, Appearance and Settings"
+(( failed )) || echo "ok   source: roles [${roles% }] and curves [${curves% }] read from Appearance.qml, appearance.reduceMotion in Config, Appearance and Settings, no Timer on the ladder, no looping animation that is 0 ms with Reduce Motion on"
 
 for tool in kwin_wayland qs dbus-run-session; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, static checks only"; exit "$failed"; }

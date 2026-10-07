@@ -345,7 +345,8 @@ The right sidebar arrives and leaves through Hyprland's layer leaves, and its dr
 `appearance.reduceMotion` (Settings, Quick, off by default) stops every spatial move in the shell, leaves fades at 100 ms, and turns Hyprland's animations off.
 Hyprland's half goes through `services/HyprlandModes.qml`, which also owns Game mode's hold on the same option, so neither can undo the other.
 The waffle panel family shares the ladder, so Reduce Motion reaches it the same way: with it on, every step of the ladder but `snap` is 0, and `Looks.transition`, `WStackView` and the bar panels' close follow.
-A step is therefore never a timer interval, so a Timer that needs a number writes it (`tests/test_motion.sh` fails on one that borrows a step), and a loop built from steps stops under Reduce Motion, as `ThinkingIndicator` does.
+A step is therefore never a timer interval, so a Timer that needs a number writes it (`tests/test_motion.sh` fails on one that borrows a step).
+A loop whose duration can reach 0 stops under Reduce Motion, as `ThinkingIndicator` and the lock screen's fingerprint pulse do: `tests/test_motion.sh` reads every `loops: Animation.Infinite` in the shell and fails on one that borrows a step or a spatial role without a `running` that checks `reduceMotion`.
 
 ## The tour is a utility surface, not a role
 
