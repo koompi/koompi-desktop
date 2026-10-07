@@ -238,7 +238,7 @@ done
 
 # The empty query's recent apps: one heading above them, not a label on each.
 RECENT="$WORK/recent"
-mkdir -p "$RECENT/data/applications" "$RECENT/state/quickshell/user" "$RECENT/config" "$RECENT/cache" "$RECENT/rt"
+mkdir -p "$RECENT/data/applications" "$RECENT/state/quickshell/user" "$RECENT/config" "$RECENT/cache"
 for app in alpha bravo charlie delta; do
     printf '[Desktop Entry]\nType=Application\nName=%s\nExec=%s\n' "${app^}" "$app" > "$RECENT/data/applications/$app.desktop"
 done
@@ -298,7 +298,7 @@ QML
 
 out="$(cd "$WORK/shell" && env -u HYPRLAND_INSTANCE_SIGNATURE PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" \
     XDG_CONFIG_HOME="$RECENT/config" XDG_STATE_HOME="$RECENT/state" XDG_CACHE_HOME="$RECENT/cache" \
-    XDG_DATA_HOME="$RECENT/data" XDG_DATA_DIRS="$RECENT/data" XDG_RUNTIME_DIR="$RECENT/rt" \
+    XDG_DATA_HOME="$RECENT/data" XDG_DATA_DIRS="$RECENT/data" \
     timeout 60 qs -p recent_probe.qml 2>&1)"
 plain="${out//$'\e'\[*([0-9;])m/}"
 printf -- '--- recent apps ---\n'
