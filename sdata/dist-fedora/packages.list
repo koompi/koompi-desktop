@@ -127,7 +127,7 @@ qalculate
 libqalculate
 wlogout
 ffmpeg-free                     # switchwall.sh, Audio.qml's ffplay, koompi-quicklook
-easyeffects                     # the sidebar toggle starts it, and again at login if it was left on
+easyeffects                     # the sidebar toggle; it starts at login unless the user turned it off
 
 # --- compositor and shell ----------------------------------------------------
 hyprland                        # copr: sdegler/hyprland - 0.56, vs 0.49 in solopasha

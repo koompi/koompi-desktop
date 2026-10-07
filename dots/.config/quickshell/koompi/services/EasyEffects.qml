@@ -8,8 +8,8 @@ pragma ComponentBehavior: Bound
 
 /**
  * Whether EasyEffects is installed and running, and the sidebar toggle that
- * starts and stops it. The toggle's last state is kept in states.json and
- * restored at login.
+ * starts and stops it. The toggle's last state is kept in states.json, and
+ * login starts it unless the user turned it off.
  */
 Singleton {
     id: root

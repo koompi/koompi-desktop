@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# EasyEffects starts at login only if its sidebar toggle was left on; the toggle's state lives in states.json
+# EasyEffects starts at login unless the user turned its sidebar toggle off; the toggle's state lives in states.json
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -106,19 +106,16 @@ note started yes
 
 case "$SCENARIO" in
 fresh)
-    sleep 10
-    note login_starts "$(starts)"
-    ;;
-flip)
+    await 12 starts_is 1
     sleep 6
     note login_starts "$(starts)"
+    note login_alive "$(yesno alive)"
+    ;;
+flip)
+    await 12 starts_is 1
+    sleep 4
+    note login_starts "$(starts)"
     note login_state "$(state)"
-    ipc eeprobe toggle
-    await 8 starts_is 1
-    await 8 state_is true
-    note on_starts "$(starts)"
-    note on_args "$(yesno grep -qx 'started --hide-window --service-mode' "$EE_LOG")"
-    note on_state "$(state)"
     ipc eeprobe toggle
     await 8 dead
     await 8 state_is false
@@ -127,14 +124,20 @@ flip)
     ipc eeprobe toggle
     await 8 starts_is 2
     await 8 state_is true
-    note again_starts "$(starts)"
-    note again_state "$(state)"
+    note on_starts "$(starts)"
+    note on_args "$(yesno grep -qx 'started --hide-window --service-mode' "$EE_LOG")"
+    note on_state "$(state)"
     ;;
 lefton)
-    await 10 starts_is 1
+    await 12 starts_is 1
     sleep 6
     note login_starts "$(starts)"
     note login_alive "$(yesno alive)"
+    ;;
+storedoff)
+    sleep 10
+    note login_starts "$(starts)"
+    note login_state "$(state)"
     ;;
 notinstalled)
     sleep 12
@@ -182,21 +185,20 @@ PROBE="$WORK/shell/easyeffects_probe.qml"
 
 run_session fresh fresh fresh "" "$SHELL_ROOT" "sidebarLeft close" "$FULL_PATH"
 expect fresh started yes "the shell never came up"
-expect fresh login_starts 0 "a fresh profile's login started easyeffects"
-echo "ok   shell: a fresh profile's login starts nothing"
+expect fresh login_starts 1 "a fresh profile's login did not start easyeffects exactly once"
+expect fresh login_alive yes "easyeffects is not running after a fresh profile's login"
+echo "ok   shell: a fresh profile's login starts easyeffects once"
 
 run_session flip flip flip "" "$PROBE" "eeprobe ping" "$FULL_PATH"
 expect flip started yes "the probe shell never came up"
-expect flip login_starts 0 "the service started easyeffects at login with the toggle never turned on"
-expect flip login_state false "a fresh profile does not start with the toggle off"
-expect flip on_starts 1 "turning the toggle on did not start easyeffects"
-expect flip on_args yes "easyeffects was not started hidden, in service mode"
-expect flip on_state true "turning the toggle on was not stored in states.json"
+expect flip login_starts 1 "a fresh profile's login did not start easyeffects exactly once"
+expect flip login_state true "a fresh profile does not start with the toggle on"
 expect flip off_alive no "turning the toggle off left easyeffects running"
 expect flip off_state false "turning the toggle off was not stored in states.json"
-expect flip again_starts 2 "turning the toggle on again did not start easyeffects"
-expect flip again_state true "turning the toggle on again was not stored in states.json"
-echo "ok   probe: the toggle stores on, off and on again in states.json"
+expect flip on_starts 2 "turning the toggle on again did not start easyeffects"
+expect flip on_args yes "easyeffects was not started hidden, in service mode"
+expect flip on_state true "turning the toggle on again was not stored in states.json"
+echo "ok   probe: the toggle stores off and on in states.json"
 
 run_session lefton lefton flip "" "$SHELL_ROOT" "sidebarLeft close" "$FULL_PATH"
 expect lefton started yes "the shell never came up"
@@ -204,9 +206,15 @@ expect lefton login_starts 1 "a login with the toggle left on did not start easy
 expect lefton login_alive yes "easyeffects is not running after a login with the toggle left on"
 echo "ok   shell: a login after the toggle was left on starts easyeffects once"
 
-run_session notinstalled notinstalled ni '{"easyEffects": {"enabled": true}}' "$SHELL_ROOT" "sidebarLeft close" "$WORK/farm:$WORK/bin-noee"
+run_session storedoff storedoff off '{"easyEffects": {"enabled": false}}' "$SHELL_ROOT" "sidebarLeft close" "$FULL_PATH"
+expect storedoff started yes "the shell never came up"
+expect storedoff login_starts 0 "a login with the toggle turned off started easyeffects"
+expect storedoff login_state false "a stored off was overwritten at login"
+echo "ok   shell: a login after the toggle was turned off starts nothing"
+
+run_session notinstalled notinstalled ni "" "$SHELL_ROOT" "sidebarLeft close" "$WORK/farm:$WORK/bin-noee"
 expect notinstalled started yes "the shell never came up without easyeffects installed"
 expect notinstalled probed yes "the shell never looked for easyeffects"
-expect notinstalled flatpak_run no "a remembered on without easyeffects installed tried to start it"
-expect notinstalled state_after true "a remembered on was forgotten because easyeffects is not installed"
-echo "ok   shell: a remembered on with easyeffects not installed does nothing"
+expect notinstalled flatpak_run no "a login without easyeffects installed tried to start it"
+expect notinstalled state_after true "the default on was forgotten because easyeffects is not installed"
+echo "ok   shell: a login with easyeffects not installed does nothing"

@@ -91,7 +91,8 @@ Singleton {
             }
 
             property JsonObject easyEffects: JsonObject {
-                property bool enabled: false
+                // on until the user turns it off: the shipped easyeffects db denoises the mic and limits the output
+                property bool enabled: true
             }
 
             property JsonObject overlay: JsonObject {
