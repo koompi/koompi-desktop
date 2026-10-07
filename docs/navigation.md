@@ -30,9 +30,10 @@ One role is named for where it is going, not for what it is today.
 **Now** is the left sidebar, which is to become Quickwork's drawer: active tasks, approvals, recent artifacts, and task continuity.
 Until Quickwork exists, the left sidebar still holds the inherited AI and translator tabs, and those are the thing being replaced rather than the thing being specified.
 
-**Today** is the right sidebar, and it is built: a header carrying today's date, pin, settings and power, then two tabs.
-Today holds quick controls and grouped notifications; Personal holds the calendar, the to-do list and the timer.
-Only the selected tab exists, so the panel costs one tab's worth of widgets to open rather than all of them.
+**Today** is the right sidebar, and it is built: a header carrying today's date, pin, settings and power, then one column.
+Quick sliders and toggles come first, with an All controls row that opens the full grid as a drawer page.
+Under the Today heading sit the weather, today's calendar events and the grouped notifications.
+Under the Personal heading, Calendar, To Do and Timer are rows that open as drawer pages, so their widgets are built only while a page is open.
 
 ## Entry points
 
