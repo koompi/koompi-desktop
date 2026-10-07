@@ -37,6 +37,7 @@ Six workers share the founder's live 8-core machine (Jev: `swarm_concurrency six
   Both tools are safe: nothing they start can reach the live session.
   Delete only the exact paths your own runs printed, one by one. Never `rm` a glob in a shared temp location (`/tmp/*`, `~/.tmp/*`, `/tmp/hr.*`, `tmp.*`): other workers' live runs and the lead's kept evidence live there, and two workers have already wiped them that way.
 - Every private bus is `dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- ...` (no service directories). The stock config auto-starts the host's portals: the Hyprland one segfaults and the founder's desktop toasts a crash for each, and a private document portal on the real `XDG_RUNTIME_DIR` unmounts the live one. `tests/test_private_bus.sh` fails a test that skips it. Every headless session also gets its own `XDG_RUNTIME_DIR` (`mktemp -d`, `chmod 700`).
+- Every nested Hyprland config you write sets `ecosystem = { no_update_news = true, no_donation_nag = true }`. A second Hyprland start in one data home (a retried session) runs `hyprland-update-screen`, which segfaults there, and every coredump under uid 1000 is a crash toast on the founder's desktop. `tests/test_nested_hyprland_quiet.sh` fails a test that skips it. Never run a probe you expect to crash an app; if one must, say so in the report.
 - `qmlformat` exit codes and `qmllint` prove nothing on this tree (see the gotchas in AGENTS.md's vault); do not cite them.
 
 ## Landing

@@ -30,3 +30,10 @@ The shape that costs it, e.g. `modules/koompi/launchpad/Launchpad.qml:9-90`: a `
 ## Out of scope
 
 - ScreenCorners (J08), services and singletons, the bar.
+
+## Lead notes at dispatch (2026-10-07)
+
+- J04 is in its fourth round and edits the cheatsheet: `Cheatsheet.qml` (the panel clamp, `e48066fdd`) and the Elements page. Convert the cheatsheet last. Before you do, rebase onto `dev` once J04 has merged; the lead tells you when. If J04 has not merged by the time everything else is done, hand back without the cheatsheet and say so.
+- J10 (motion) is running and owns `Appearance.qml`, `general.lua`'s animations and Game mode's `animations:enabled`. Do not edit them; read the merged versions if you rebase after it lands.
+- Phase 2 (J17-J24) builds every new surface inside your component, and its specs tell those workers to read your merged `LazySurface.qml` and one converted surface first. Keep the component's API small and documented in its header comment: the open flag, `keepWarm`, and how a surface reaches its window from outside.
+- Every nested compositor and full-suite run goes through `.work/tools/heavy.sh` (the contract). `measure_surfaces.sh` and `hyprshot.sh` lock themselves.

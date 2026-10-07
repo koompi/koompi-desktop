@@ -57,7 +57,7 @@ Live seat findings outside any job: hot corners are dead because `fakeScreenRoun
 
 ## Swarm, from 2026-10-07 (founder: "identify the leftover work and assign a subagent swarm")
 
-Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet workers at once; every nested compositor and full suite runs under `.work/tools/heavy.sh` (flock on `/tmp/koompi-heavy.lock`); the harness tools lock themselves. Specs for J17-J24 are being written by a lead fork; J25-J32 and J36-J40 are written and reviewed.
+Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet workers at once; every nested compositor and full suite runs under `.work/tools/heavy.sh` (flock on `/tmp/koompi-heavy.lock`); the harness tools lock themselves. Specs J17-J32 and J36-J41 are written and reviewed.
 
 | Job | Work | Depends on | State |
 | --- | --- | --- | --- |
@@ -72,11 +72,12 @@ Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet wor
 | J15 | `test_update_now_runs.sh` flake | | queued (holds the heavy lock for its load runs) |
 | J11 | Settings in the running shell | J07 | queued |
 | J13 | Launch feedback | J09 | queued |
-| J17-J24 | Phase 2: Alt+Tab, dynamic workspaces, overview, Control Center, Notification Center, bar order and contrast, blended Search, one assistant | J07 | specs being written |
+| J17-J24 | Phase 2: Alt+Tab, dynamic workspaces, overview, Control Center, Notification Center, bar order and contrast, blended Search, one assistant | all J07; J19 after J18; J21 after J20; J22 after J20, J21, J13; J23 after J04; J24 merges after J23 | specs reviewed; their navigation.md section committed (`0009c9de8`); J21's kernel-toast sender filled in (KDE oom_notifier, "Linux Kernel") |
 | J25-J32 | Phase 3: session menu, Settings names and search, launchpad folders, wallpaper gallery, widget overlay labels, single-window gaps, glyph tuning, Reduce Transparency | J25, J27: J07. J26: J11, and Jev on its proposed names before dispatch. J28, J29: none. J30: J09. J31, J32: J10 | specs reviewed by the lead |
 | J33-J35 | Icon plate, koompi-icons, cursor | the founder's pick from J14 | waiting |
 | J36-J38 | Phase 4: content index, appmenu bridge, Now drawer | J36 stage A: none, stage B: J23. J37: J09, J13. J38: J24, J07 | specs reviewed; J36 and J37 stop after a design note for Jev |
 | J39 | Settings > Shortcuts key names | J04 | spec reviewed |
 | J40 | Translations for the campaign's strings | everything else | spec reviewed; Khmer (`km_KH.json`) is a founder call, raised in its report |
+| J41 | Crash watch announces only this session's crashes (nested tests run with their own `XDG_RUNTIME_DIR`) | | queued, small |
 
 Founder-only: the pick from J14's mockups; authorising deployment to the live seat and the re-measurement; pushing `dev` and any merge to `main`.
