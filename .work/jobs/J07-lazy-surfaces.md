@@ -37,3 +37,9 @@ The shape that costs it, e.g. `modules/koompi/launchpad/Launchpad.qml:9-90`: a `
 - J10 (motion) is running and owns `Appearance.qml`, `general.lua`'s animations and Game mode's `animations:enabled`. Do not edit them; read the merged versions if you rebase after it lands.
 - Phase 2 (J17-J24) builds every new surface inside your component, and its specs tell those workers to read your merged `LazySurface.qml` and one converted surface first. Keep the component's API small and documented in its header comment: the open flag, `keepWarm`, and how a surface reaches its window from outside.
 - Every nested compositor and full-suite run goes through `.work/tools/heavy.sh` (the contract). `measure_surfaces.sh` and `hyprshot.sh` lock themselves.
+
+## Lead notes (2026-10-08)
+
+- J04 has merged (`300f31357`): convert the cheatsheet with the rest, on a `dev` that has it.
+- J10 has merged (`e4fcae117`): read its `Appearance.qml` roles for any open or close you add.
+- `SidebarRight.qml:24-34`: a drawer requested over IPC on a closed sidebar opens without its page. `onLoaded` applies and clears `pendingDrawer`, then `showDrawer` sets it back to "". It predates you, but you rework this loading, so fix it and cover it in your test.
