@@ -1,6 +1,7 @@
 pragma Singleton
 pragma ComponentBehavior: Bound
 
+import qs
 import qs.modules.common
 import qs.modules.common.functions
 import QtQuick
@@ -20,6 +21,24 @@ Singleton {
         name: Fuzzy.prepare(`${a.replace(/^\s*\S+\s+/, "")}`),
         entry: a
     }))
+
+    property bool _stale: true
+    property bool _listed: false
+    property string _configuredDbPath: ""
+    readonly property string _dbPath: _configuredDbPath || FileUtils.trimFileProtocol(`${Directories.genericCache}/cliphist/db`)
+    // what reads entries: the search list, and Ctrl+V in the chat composer and the wallpaper picker
+    readonly property bool watching: GlobalStates.searchOpen || GlobalStates.sidebarLeftOpen || GlobalStates.wallpaperSelectorOpen
+    onWatchingChanged: if (watching && _stale) refresh()
+
+    function _dbPathFrom(config: string): string {
+        let path = "";
+        for (const line of config.split("\n")) {
+            const match = /^\s*db-path\s+(.+?)\s*$/.exec(line);
+            if (match) path = match[1];
+        }
+        return path;
+    }
+
     function fuzzyQuery(search: string): var {
         if (search.trim() === "") {
             return entries;
@@ -47,6 +66,11 @@ Singleton {
     }
 
     function refresh() {
+        if (readProc.running) {
+            readProc.rerun = true
+            return
+        }
+        root._stale = false
         readProc.buffer = []
         readProc.running = true
     }
@@ -123,22 +147,38 @@ Singleton {
     Connections {
         target: Quickshell
         function onClipboardTextChanged() {
-            delayedUpdateTimer.restart()
+            changedTimer.restart()
         }
     }
 
     Timer {
-        id: delayedUpdateTimer
-        interval: Config.options.hacks.arbitraryRaceConditionDelay
-        repeat: false
+        id: changedTimer
+        interval: 200
         onTriggered: {
-            root.refresh()
+            root._stale = true
+            if (root.watching) root.refresh()
         }
+    }
+
+    FileView {
+        id: cliphistConfig
+        path: FileUtils.trimFileProtocol(`${Directories.config}/cliphist/config`)
+        printErrors: false
+        onLoaded: root._configuredDbPath = root._dbPathFrom(cliphistConfig.text())
+    }
+
+    FileView {
+        // cliphist makes its cache dir on first run, and a watch cannot arm in a dir that is missing
+        path: root._listed ? root._dbPath : ""
+        preload: false
+        watchChanges: true
+        onFileChanged: changedTimer.restart()
     }
 
     Process {
         id: readProc
         property list<string> buffer: []
+        property bool rerun: false
 
         command: [root.cliphistBinary, "list"]
 
@@ -149,10 +189,16 @@ Singleton {
         }
 
         onExited: (exitCode, exitStatus) => {
+            root._listed = true
             if (exitCode === 0) {
                 root.entries = readProc.buffer
             } else {
                 console.error("[Cliphist] Failed to refresh with code", exitCode, "and status", exitStatus)
+                root._stale = true
+            }
+            if (readProc.rerun) {
+                readProc.rerun = false
+                root.refresh()
             }
         }
     }
