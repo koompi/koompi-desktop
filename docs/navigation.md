@@ -263,6 +263,7 @@ A window rule for a Qt app has to match its class on both platforms, because the
 ### Kiri
 
 Kiri's voice binds live in `dots/.config/hypr/custom/keybinds.lua`, which is user-owned and never overwritten by an update.
+The migration `sdata/migrations/*-custom-keybind-descriptions.sh` brings the descriptions of the shipped lines in an existing copy up to the current wording: it rewrites only a line that is still exactly as KOOMPI shipped it, after a backup under `~/.local/state/koompi/backups/`, and leaves an edited or deleted line alone.
 
 | Keys | Action |
 | --- | --- |
