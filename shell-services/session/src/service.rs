@@ -146,8 +146,8 @@ impl SessionService {
 
     /// Take a lock and hold it for as long as the returned value lives.
     ///
-    /// The replacement for `Idle.qml:53-58`, where the lock is a `sleep infinity`
-    /// subprocess and releasing it is a `pkill -f` on a pattern.
+    /// The replacement for `Idle.qml`, where the lock is a `sleep infinity`
+    /// subprocess and releasing it is killing the PID it recorded.
     pub async fn inhibit(&self, what: What, why: &str, mode: Mode) -> Result<Inhibitor> {
         if what.is_empty() {
             return Err(Error::Protocol("an inhibitor must block something".into()));

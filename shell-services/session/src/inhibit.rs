@@ -1,16 +1,16 @@
 //! Inhibitor locks as file descriptors, which is what they always were.
 //!
-//! `Idle.qml:53-58` keeps a `systemd-inhibit ... sleep infinity` process alive because
-//! QML cannot hold an fd, and `Idle.qml:20,24,34` then kills it by `pkill -f` on a
-//! pattern with a `[q]` in it so the pattern does not match its own command line.
+//! `Idle.qml` keeps a `systemd-inhibit ... sleep infinity` process alive because
+//! QML cannot hold an fd, and records its PID in `$XDG_RUNTIME_DIR/koompi-keep-awake.pid`
+//! so a later start or toggle-off can kill that process and nothing else.
 //! Here the lock is the fd, and closing it is releasing it, so both the process and
-//! the pattern go away.
+//! the PID file go away.
 
 use std::fmt;
 use std::os::fd::{AsRawFd, OwnedFd};
 
 /// The operations a lock can hold off. A set rather than a string: logind reports
-/// `BlockInhibited` as `sleep:idle:handle-lid-switch` while `Idle.qml:57` asks for
+/// `BlockInhibited` as `sleep:idle:handle-lid-switch` while `Idle.qml` asks for
 /// `idle:sleep:handle-lid-switch`, and those are the same lock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct What(u8);
@@ -207,7 +207,7 @@ mod tests {
     use super::*;
 
     /// The two spellings of the lock `Idle.qml` holds on this seat: what the QML asks
-    /// for at `Idle.qml:57`, and what logind's `BlockInhibited` reports back.
+    /// for in `Idle.qml`, and what logind's `BlockInhibited` reports back.
     #[test]
     fn the_two_spellings_of_the_shells_own_lock_are_one_set() {
         let asked = What::parse("idle:sleep:handle-lid-switch");

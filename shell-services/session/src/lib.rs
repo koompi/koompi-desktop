@@ -3,9 +3,9 @@
 //! the nine calls that change the machine.
 //!
 //! Three subprocesses go away. `SessionWarnings.qml:43-51` runs `busctl` and greps its
-//! output for `"(yes|challenge)"`; `Idle.qml:53-58` keeps a
-//! `systemd-inhibit ... sleep infinity` alive purely to hold an fd, and
-//! `Idle.qml:20,24,34` releases it with `pkill -f` on a pattern.
+//! output for `"(yes|challenge)"`; `Idle.qml` keeps a
+//! `systemd-inhibit ... sleep infinity` alive purely to hold an fd, and releases it by
+//! killing the PID it recorded.
 //!
 //! ## Reading is safe here and calling is not
 //!
@@ -68,7 +68,7 @@ use koompi_service::PollRate;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionConfig {
     /// The `who` every inhibitor this service takes is tagged with, and what
-    /// `systemd-inhibit --list` shows. `Idle.qml:57` uses `quickshell`.
+    /// `systemd-inhibit --list` shows. `Idle.qml` uses `quickshell`.
     pub who: String,
     /// The `why` for a `delay` inhibitor on `sleep`, held so a consumer can lock the
     /// screen before the machine goes down. `None` takes no lock at all.

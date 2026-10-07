@@ -1,7 +1,7 @@
 //! D16's proof, against the real logind on this seat: the lock is the fd.
 //!
-//! `Idle.qml:53-58` holds a lock by keeping `systemd-inhibit ... sleep infinity`
-//! alive and releases it with `pkill -f`. This takes the same kind of lock with no
+//! `Idle.qml` holds a lock by keeping `systemd-inhibit ... sleep infinity` alive and
+//! releases it by killing its recorded PID. This takes the same kind of lock with no
 //! subprocess and releases it by dropping a value.
 //!
 //! Ignored by default because it needs the system bus and a logind session. It takes
