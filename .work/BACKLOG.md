@@ -30,7 +30,7 @@ Suite on `dev` at `d0112f2e0` (J01, J02, J03 merged), lead run: 105 passed, 4 sk
 | J03 | Plain words: crash toast, media empty state, Recent labels | `dots/.local/bin/koompi-crash-watch`, `tests/test_crash_watch.sh`, `docs/agents/crash.md`, `modules/koompi/mediaControls/MediaControls.qml`, `services/LauncherSearch.qml`, `modules/koompi/overview/Search*.qml` | merged `ea0e71d92`, lead fix `d0112f2e0` |
 | J04 | Cheatsheet key names and duplicate rows | `modules/koompi/cheatsheet/*`, `services/HyprlandKeybinds.qml`, `dots/.config/hypr/hyprland/keybinds*.lua` (descriptions only) | rework: descriptions overflow columns, sheet clips at 1920x1200. Real-binds check (founder approved, lead ran hyprshot on `a728ad11a`): 162 described binds, 0 raw key names, no QML errors, no crash |
 | J05 | Settings: config-file banner and button | `settings.qml`, `modules/settings/QuickConfig.qml` | merged `aab3c5b5d` (lead: test bus config) |
-| J06 | External monitor refresh | `dots/.config/hypr/hyprland/general.lua` (monitor rule), its test | `highrr` measured harmful (would set the founder's HDMI to 1024x768@75); Jev D7 keep_preferred p=0.79; finishing: same-line why comment only |
+| J06 | External monitor refresh | `dots/.config/hypr/hyprland/general.lua` (monitor rule), its test | `highrr` measured harmful (would set the founder's HDMI to 1024x768@75); Jev D7 keep_preferred p=0.79; merged `d154e810a` (same-line why comment, `config ok`) |
 
 Contended: `docs/navigation.md` (J01, J02, different paragraphs). Translation JSON files belong to nobody in this phase.
 Moved out of Phase 0: the cursor theme. Adwaita is deliberate (`394153191`); it joins the Phase 3 identity decision.
@@ -42,7 +42,7 @@ Measurements behind them: `/tmp/surfaces.tsv` (per-surface PSS, headless), `/tmp
 | Job | Title | Files owned | Wave | State |
 | --- | --- | --- | --- | --- |
 | J07 | Lazy surfaces | `panelFamilies/*`, new `modules/common/LazySurface.qml`, root files of launchpad, cheatsheet, polkit, screenTranslator, mediaControls, overview, sidebarRight, sessionScreen, tour, screensaver, sidebarLeft | A | ready |
-| J09 | Qt on Wayland, xcb allowlist | `hypr/hyprland/env.lua`, `dots/.local/bin/koompi-launch`, rules keyed on Qt X11 classes, kdeconnectd override | A | ready |
+| J09 | Qt on Wayland, xcb allowlist | `hypr/hyprland/env.lua`, `dots/.local/bin/koompi-launch`, rules keyed on Qt X11 classes, kdeconnectd override | A | dispatched (first of Phase 1; J07 waits for J04, both touch the cheatsheet) |
 | J08 | Screen corners | `modules/koompi/screenCorners/*` | B | ready |
 | J10 | Motion and Reduce Motion | `modules/common/Appearance.qml`, `hypr/hyprland/general.lua` (animations), `Config.qml` (one option), the appearance settings page | B | ready |
 | J11 | Settings in the running shell | `settings.qml`, `dots/.local/bin/koompi-settings`, `panelFamilies/KoompiFamily.qml` (one loader) | C, after J07 | ready |
