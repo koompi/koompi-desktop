@@ -33,7 +33,7 @@ python3 -I -c 'import gi; gi.require_version("Gio", "2.0")' 2> /dev/null || { ec
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-mkdir -p "$WORK/shell" "$WORK/bin" "$WORK/data/applications" "$WORK/state" "$WORK/config" "$WORK/cache" "$WORK/rt"
+mkdir -p "$WORK/shell" "$WORK/bin" "$WORK/data/applications" "$WORK/state" "$WORK/config" "$WORK/cache" "$WORK/rt" "$WORK/home"
 chmod 700 "$WORK/rt"
 for entry in "$SHELL_ROOT"/*; do
     ln -s "$entry" "$WORK/shell/$(basename -- "$entry")"
@@ -163,7 +163,7 @@ chmod +x "$WORK/run-probe.sh"
 
 run_probe() { # $1: 1 when a fixture player is on the bus
     rm -f "$WORK/launch.log"
-    env -u HYPRLAND_INSTANCE_SIGNATURE WORK="$WORK" PROBE_PLAYER="$1" QT_QPA_PLATFORM=wayland \
+    env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY HOME="$WORK/home" WORK="$WORK" PROBE_PLAYER="$1" QT_QPA_PLATFORM=wayland \
         PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
         XDG_CONFIG_HOME="$WORK/config" XDG_STATE_HOME="$WORK/state" XDG_CACHE_HOME="$WORK/cache" \
         XDG_DATA_HOME="$WORK/data" XDG_RUNTIME_DIR="$WORK/rt" \

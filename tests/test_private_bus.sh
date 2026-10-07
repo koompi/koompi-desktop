@@ -19,11 +19,22 @@ offenders="$(grep -nE --exclude="$(basename -- "${BASH_SOURCE[0]}")" '(^|[^-[:al
 $offenders"
 echo "ok   static: every dbus-run-session in tests/ uses tests/private-bus.conf"
 
-offenders="$(grep -nE --exclude="$(basename -- "${BASH_SOURCE[0]}")" '(^|[^-[:alnum:]_/])kwin_wayland[[:space:]]+--' "$ROOT"/tests/*.sh \
-    | grep -v 'dbus-run-session --config-file=' || true)"
-[[ -z "$offenders" ]] || fail "a KWin on the live session bus and runtime dir (start it under dbus-run-session with its own XDG_RUNTIME_DIR):
+offenders=""
+for file in "$ROOT"/tests/*.sh; do
+    [[ "$(basename -- "$file")" == "$(basename -- "${BASH_SOURCE[0]}")" ]] && continue
+    # one logical command per line, so env assignments on continued lines count
+    while IFS= read -r launch; do
+        missing=""
+        [[ "$launch" == *'dbus-run-session --config-file='* ]] || missing+=" private bus,"
+        [[ "$launch" == *'XDG_RUNTIME_DIR='* ]] || missing+=" XDG_RUNTIME_DIR,"
+        [[ "$launch" =~ (^|[[:space:]])HOME= ]] || missing+=" HOME,"
+        [[ "$launch" == *'-u WAYLAND_DISPLAY'* && "$launch" == *'-u DISPLAY'* ]] || missing+=" env -u WAYLAND_DISPLAY -u DISPLAY,"
+        [[ -z "$missing" ]] || offenders+="$(basename -- "$file"):${missing%,}"$'\n'
+    done < <(sed -e ':a' -e '/\\$/N; s/\\\n//; ta' "$file" | grep -E '(^|[^-[:alnum:]_/])kwin_wayland[[:space:]]+--')
+done
+[[ -z "$offenders" ]] || fail "a KWin that can reach the live session (no own bus, runtime dir or HOME, or the live displays let through):
 $offenders"
-echo "ok   static: every kwin_wayland in tests/ runs on a private bus"
+echo "ok   static: every kwin_wayland in tests/ has a private bus, its own runtime dir and HOME, and no live display"
 
 for tool in dbus-run-session dbus-send; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, activation not checked"; exit 0; }

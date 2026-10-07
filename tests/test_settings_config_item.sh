@@ -22,7 +22,7 @@ fail() { printf 'FAIL: %s\n' "$1" >&2; failed=1; }
 
 WORK="$(mktemp -d)" || { echo "FAIL: mktemp -d failed" >&2; exit 1; }
 trap '(( failed )) && echo "kept $WORK" >&2 || rm -rf "$WORK"' EXIT
-mkdir -p "$WORK/shell" "$WORK/bin" "$WORK/run" "$WORK/xdg/config/koompi" "$WORK/xdg/state/quickshell/user" \
+mkdir -p "$WORK/shell" "$WORK/bin" "$WORK/run" "$WORK/home" "$WORK/xdg/config/koompi" "$WORK/xdg/state/quickshell/user" \
     "$WORK/xdg/cache" "$WORK/xdg/data"
 chmod 700 "$WORK/run"
 for entry in "$SHELL_ROOT"/*; do
@@ -140,7 +140,8 @@ qs -p "$WORK/shell/settings_probe.qml" > "$WORK/qs.log" 2>&1
 SH
 chmod +x "$WORK/inner.sh"
 
-PATH="$WORK/bin:$PATH" QT_NO_XDG_DESKTOP_PORTAL=1 KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland \
+env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
+    PATH="$WORK/bin:$PATH" QT_NO_XDG_DESKTOP_PORTAL=1 KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland HOME="$WORK/home" \
     XDG_RUNTIME_DIR="$WORK/run" XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" \
     XDG_CACHE_HOME="$WORK/xdg/cache" XDG_DATA_HOME="$WORK/xdg/data" KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
     timeout 120 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 800 \
