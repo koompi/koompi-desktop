@@ -280,10 +280,12 @@ chmod +x "$WORK/inner.sh"
 # probe that inherits it gets no layershell, so the bar never maps and every
 # assertion below fails on the very desktop this test ships with. execs.lua
 # launches the real shell with the same override.
-PATH="$WORK/bin:$PATH" KOOMPI_UPDATES_FORCE=12 KOOMPI_SHELLD="$WORK/bin/koompi-shelld" PROBE_OUT="$WORK/out" \
-    QT_QPA_PLATFORM=wayland \
+mkdir -p "$WORK/xdg/data" "$WORK/home" "$WORK/rt" && chmod 700 "$WORK/rt"
+env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
+    PATH="$WORK/bin:$PATH" KOOMPI_UPDATES_FORCE=12 KOOMPI_SHELLD="$WORK/bin/koompi-shelld" PROBE_OUT="$WORK/out" \
+    QT_QPA_PLATFORM=wayland HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" XDG_DATA_HOME="$WORK/xdg/data" \
     XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" XDG_CACHE_HOME="$WORK/xdg/cache" \
-    timeout 90 kwin_wayland --virtual --width 1280 --height 400 --no-lockscreen --no-global-shortcuts \
+    timeout 90 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 400 --no-lockscreen --no-global-shortcuts \
         --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
 out="$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/qs.log")"
 grep -E '^ DEBUG qml: (PASS|FAIL|PROBE)' <<< "$out" | sed 's/^ DEBUG qml: //'

@@ -19,6 +19,12 @@ offenders="$(grep -nE --exclude="$(basename -- "${BASH_SOURCE[0]}")" '(^|[^-[:al
 $offenders"
 echo "ok   static: every dbus-run-session in tests/ uses tests/private-bus.conf"
 
+offenders="$(grep -nE --exclude="$(basename -- "${BASH_SOURCE[0]}")" '(^|[^-[:alnum:]_/])kwin_wayland[[:space:]]+--' "$ROOT"/tests/*.sh \
+    | grep -v 'dbus-run-session --config-file=' || true)"
+[[ -z "$offenders" ]] || fail "a KWin on the live session bus and runtime dir (start it under dbus-run-session with its own XDG_RUNTIME_DIR):
+$offenders"
+echo "ok   static: every kwin_wayland in tests/ runs on a private bus"
+
 for tool in dbus-run-session dbus-send; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, activation not checked"; exit 0; }
 done

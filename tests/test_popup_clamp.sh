@@ -117,7 +117,8 @@ QML
 # vertical: 1 or 0; leaves the probe's PASS/FAIL lines on stdout
 run_case() {
     local vertical="$1" dir="$WORK/case-$1" out
-    mkdir -p "$dir/xdg/config/koompi" "$dir/xdg/state" "$dir/xdg/cache"
+    mkdir -p "$dir/xdg/config/koompi" "$dir/xdg/state" "$dir/xdg/cache" "$dir/xdg/data" "$dir/home" "$dir/rt"
+    chmod 700 "$dir/rt"
     if [[ "$vertical" == 1 ]]; then
         printf '{"bar": {"vertical": true}}\n' > "$dir/xdg/config/koompi/config.json"
     else
@@ -130,9 +131,11 @@ unset HYPRLAND_INSTANCE_SIGNATURE
 qs -p "$WORK/shell/clamp_probe.qml" > "$dir/qs.log" 2>&1
 SH
     chmod +x "$dir/inner.sh"
-    PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland PROBE_VERTICAL="$vertical" \
+    env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
+        PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland PROBE_VERTICAL="$vertical" \
+        HOME="$dir/home" XDG_RUNTIME_DIR="$dir/rt" XDG_DATA_HOME="$dir/xdg/data" \
         XDG_CONFIG_HOME="$dir/xdg/config" XDG_STATE_HOME="$dir/xdg/state" XDG_CACHE_HOME="$dir/xdg/cache" \
-        timeout 90 kwin_wayland --virtual --width 1280 --height 400 --no-lockscreen --no-global-shortcuts \
+        timeout 90 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 400 --no-lockscreen --no-global-shortcuts \
             --exit-with-session "$dir/inner.sh" > "$dir/kwin.log" 2>&1
     out="$(sed 's/\x1b\[[0-9;]*m//g' "$dir/qs.log")"
     grep -E '^ DEBUG qml: (PASS|FAIL|PROBE)' <<< "$out" | sed 's/^ DEBUG qml: //'
