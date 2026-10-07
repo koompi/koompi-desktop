@@ -67,7 +67,6 @@ hl.window_rule({match = {title = "^(KOOMPI Settings)$" },                    cen
 hl.window_rule({match = {title = ".*Shell conflicts.*" },                    float = true})
 hl.window_rule({match = {class = "^(Zotero)$" },                             float = true})
 hl.window_rule({match = {class = "^(Zotero)$" },                             size = {"(monitor_w*0.45)", "(monitor_h*0.45)"} })
--- xcb reports TelegramDesktop, wayland org.telegram.desktop
 -- initial_title as well: the reaction popup is a transient sharing the class
 local telegramClass = "^(org\\.telegram\\.desktop|TelegramDesktop)$"
 local telegramTitle = "^Telegram( \\([0-9]+\\))?$"

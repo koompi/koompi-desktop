@@ -276,7 +276,7 @@ wait
 SH
 chmod +x "$WORK/inner.sh"
 
-# QT_QPA_PLATFORM=wayland on purpose: a probe that inherits xcb gets no layershell and the bar never maps
+# pinned to wayland: a probe on xcb gets no layershell and the bar never maps
 mkdir -p "$WORK/xdg/data" "$WORK/home" "$WORK/rt" && chmod 700 "$WORK/rt"
 env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
     PATH="$WORK/bin:$PATH" KOOMPI_UPDATES_FORCE=12 KOOMPI_SHELLD="$WORK/bin/koompi-shelld" PROBE_OUT="$WORK/out" \

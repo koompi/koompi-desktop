@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
-# The repo's env.lua and rules.lua, loaded into a Hyprland nested in a headless KWin
-# (private bus, own HOME and runtime dir), with apps started the way a bind starts
-# them: hl.dsp.exec_cmd("koompi-launch ..."). hyprctl clients -j is the verdict:
-# okular, which has a menubar for the bar, is an XWayland client; kdeconnect-app,
-# which has none, is a Wayland one; and the kdialog rule floats the file dialog on
-# either platform, because its class is kdialog on xcb and org.kde.kdialog on wayland.
-# KWin sometimes never finishes its dmabuf feedback, so the nested Hyprland comes up
-# with no output and nothing can map; that session is started again, up to three times.
-# Nothing here reaches the running session.
+# nested hyprland: okular on xwayland, kdeconnect-app on wayland, kdialog floated on both
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -64,15 +56,12 @@ printf 'monitor\tready\n' >> "$WORK/readings"
 
 launch() { hyprctl dispatch "hl.dsp.exec_cmd(\"$1\")" > /dev/null 2>&1; }
 
-# class, xwayland, floating of the first client whose class contains $1
 window_of() {
     hyprctl clients -j 2> /dev/null | jq -r --arg a "$1" \
         '[.[] | select(.class | ascii_downcase | contains($a))][0] | select(. != null) | [.class, .xwayland, .floating] | @tsv'
 }
 
-# every app is a child of the nested Hyprland. They stop before its Xwayland does: an
-# xcb client that loses its X server while running can segfault at exit, and every
-# coredump of this user makes the live desktop post a crash toast.
+# an xcb app that outlives its x server can segfault, and every coredump toasts the live seat
 stop_apps() {
     local child
     for child in $(pgrep -P "$hypr_pid"); do
@@ -80,7 +69,6 @@ stop_apps() {
     done
 }
 
-# probe NAME COMMAND CLASS-FRAGMENT: start it, record its client, stop it
 probe() {
     local row=""
     launch "$2"
@@ -104,7 +92,6 @@ sleep 1
 SH
 chmod +x "$WORK/inner.sh"
 
-# field NAME N: tab-separated reading N of NAME (1 class, 2 xwayland, 3 floating)
 field() { awk -F'\t' -v k="$1" -v n="$(($2 + 1))" '$1 == k { print $n }' "$WORK/readings" 2> /dev/null; }
 
 run_session() {

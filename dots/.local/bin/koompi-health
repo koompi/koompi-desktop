@@ -163,8 +163,7 @@ if have busctl; then
         bad "nobody owns com.canonical.AppMenu.Registrar; Qt apps cannot publish a menu"
     fi
 fi
-# Qt exports its menubar over D-Bus only on X11: koompi-launch puts the apps in
-# its xcb_menu_apps list there, and the session default is wayland first.
+# wayland first; koompi-launch puts xcb_menu_apps on xcb for their menubar
 case "${QT_QPA_PLATFORM:-}" in
     'wayland;xcb') ok "QT_QPA_PLATFORM=wayland;xcb" ;;
     wayland) ok "QT_QPA_PLATFORM=wayland (the shell's own setting, inherited by what it starts)" ;;

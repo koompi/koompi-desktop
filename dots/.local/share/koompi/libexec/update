@@ -93,8 +93,7 @@ confirm() {
 }
 
 # Reload the running session so the update is visible without logging out.
-# QT_QPA_PLATFORM is pinned: a session older than the wayland default still
-# exports xcb, and a shell on xcb maps no layer surfaces. As in CTRL+SUPER+R.
+# wayland pin below: an older session still exports xcb, and a shell on xcb maps no layer surfaces
 reload_session() {
     if [[ "$NO_RELOAD" == true ]]; then
         info "not reloading; the update applies at your next login"

@@ -248,8 +248,7 @@ record_repo_path() {
 
 # Reloading Hyprland is cheap; the shell is restarted outright because Quickshell
 # does not reliably hot-reload a changed tree.
-# QT_QPA_PLATFORM is pinned: a session older than the wayland default still
-# exports xcb, and a shell on xcb maps no layer surfaces. As in CTRL+SUPER+R.
+# wayland pin below: an older session still exports xcb, and a shell on xcb maps no layer surfaces
 reload_session() {
     have hyprctl || return 0
     [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] || {
