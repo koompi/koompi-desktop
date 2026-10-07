@@ -169,6 +169,11 @@ grep -qx 'qs' "$T/killall-log" || fail "the shell was not reloaded on the kernel
 cp "$(command -v sleep)" "$T/hypr-bin"
 "$T/hypr-bin" 300 < /dev/null > /dev/null 2>&1 &
 FAKE_HYPR_PID=$!
+# the forked child is still bash until it execs; deleting first leaves no deleted exe to see
+for _ in $(seq 1 50); do
+    [[ "$(readlink "/proc/$FAKE_HYPR_PID/exe" 2>/dev/null)" == "$T/hypr-bin" ]] && break
+    sleep 0.1
+done
 rm -f "$T/hypr-bin"
 printf '%s\n' "$FAKE_HYPR_PID" > "$T/hypr-pid"
 printf '%s\n' 1.0.1-test > "$T/kernel"
