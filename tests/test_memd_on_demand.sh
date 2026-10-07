@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
-# J12 / audit F9: koompi-agent-memd starts when something first needs memory, not at
-# login. Reading any property of the MemoryService singleton used to start it (the
-# panel family does, to decide whether to build the memory browser), and in a fresh
-# profile it then downloaded an embedding model nobody had asked for.
-# The whole shell runs in a headless KWin on a private bus with a temp HOME and XDG
-# tree. ai.memory.binary points at a shadow script that appends to a marker file, so
-# the real daemon never runs here. Each run idles first and must show no marker, then
-# one trigger fires and the marker must appear: the left sidebar opening, the
-# Intelligence window opening, and a memory op from the memory browser.
+# koompi-agent-memd starts when the assistant is first used, not at login
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -37,7 +29,7 @@ note() { printf '%s\t%s\n' "$1" "$2" >> "$READINGS"; }
 yesno() { "$@" && echo yes || echo no; }
 marker() { [[ -s "$MEMD_MARKER" ]]; }
 up() { qs -p "$SHELL_ROOT" ipc call sidebarLeft close > /dev/null 2>&1; }
-await() { # await SECONDS COMMAND...
+await() {
     local n="$1" i
     shift
     for ((i = 0; i < n * 5; i++)); do "$@" && return 0; sleep 0.2; done
@@ -59,7 +51,7 @@ note triggered "$(yesno marker)"
 SH
 chmod +x "$WORK/inner.sh"
 
-run_shell() { # run_shell NAME IDLE_SECONDS "IPC TARGET FUNCTION"
+run_shell() {
     local name="$1"
     rm -rf "${WORK:?}/home" "${WORK:?}/xdg" "${WORK:?}/runtime"
     mkdir -p "$WORK/home" "$WORK/xdg/config/koompi" "$WORK/xdg/state/quickshell/user" "$WORK/xdg/cache" "$WORK/xdg/data" "$WORK/runtime"
@@ -81,7 +73,7 @@ run_shell() { # run_shell NAME IDLE_SECONDS "IPC TARGET FUNCTION"
 }
 
 reading() { awk -F'\t' -v k="$2" '$1 == k { print $2 }' "$WORK/readings.$1" 2> /dev/null; }
-expect() { # expect NAME KEY VALUE MESSAGE
+expect() {
     local got
     got="$(reading "$1" "$2")"
     [[ "$got" == "$3" ]] && return 0

@@ -1,12 +1,5 @@
 #!/usr/bin/env bash
-# J12 / audit F9: a copy costs one `cliphist store` and nothing else. The wl-paste
-# hooks used to start bash and a qs client per copy to tell the shell; now the shell
-# watches cliphist's database file itself and relists only while something that
-# reads the history is open, or on its next open.
-# Static: execs.lua runs `cliphist store` directly. Live: the real Cliphist singleton
-# runs under `qs -p` in a headless KWin on a private bus with a temp HOME and XDG
-# tree. A cliphist shim logs the subcommands the shell runs; every store comes from
-# outside the shell, and nothing calls the cliphistService IPC.
+# the shell watches cliphist's db: a store from outside shows on the next open and costs it nothing while closed
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -73,7 +66,7 @@ lists() { grep -c '^list$' "$CALLS_LOG" 2> /dev/null || true; }
 up() { qs -p "$PROBE" ipc show > /dev/null 2>&1; }
 listed() { (( $(lists) >= 1 )); }
 has() { [[ "$(ipc entries)" == *"$1"* ]]; }
-await() { # await SECONDS COMMAND...
+await() {
     local n="$1" i
     shift
     for ((i = 0; i < n * 5; i++)); do "$@" && return 0; sleep 0.2; done
@@ -130,7 +123,7 @@ fi
 SH
 chmod +x "$WORK/inner.sh"
 
-run_scenario() { # run_scenario MODE
+run_scenario() {
     local mode="$1"
     rm -rf "${WORK:?}/home" "${WORK:?}/xdg" "${WORK:?}/runtime"
     mkdir -p "$WORK/home" "$WORK/xdg/config/koompi" "$WORK/xdg/state/quickshell/user" "$WORK/xdg/cache" "$WORK/xdg/data" "$WORK/runtime"
@@ -153,7 +146,7 @@ run_scenario() { # run_scenario MODE
 }
 
 reading() { awk -F'\t' -v k="$2" '$1 == k { print $2 }' "$WORK/readings.$1" 2> /dev/null; }
-expect() { # expect MODE KEY VALUE MESSAGE
+expect() {
     local got
     got="$(reading "$1" "$2")"
     [[ "$got" == "$3" ]] && return 0
