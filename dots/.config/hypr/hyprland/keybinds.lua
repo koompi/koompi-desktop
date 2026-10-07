@@ -42,8 +42,8 @@ hl.bind("SUPER_L", hl.dsp.global("quickshell:workspaceNumber"),
 hl.bind("SUPER_R", hl.dsp.global("quickshell:workspaceNumber"),
     { ignore_mods = true, transparent = true, release = true }) -- # [hidden]
 hl.bind("SUPER + Tab", hl.dsp.global("quickshell:overviewWorkspacesToggle"), { description = "Shell: Toggle overview" })
-hl.bind("SUPER + V", hl.dsp.global("quickshell:overviewClipboardToggle"), { description = "Utilities: Clipboard history >> clipboard" })
-hl.bind("SUPER + Period", hl.dsp.global("quickshell:overviewEmojiToggle"), { description = "Utilities: Emoji >> clipboard" })
+hl.bind("SUPER + V", hl.dsp.global("quickshell:overviewClipboardToggle"), { description = "Utilities: Clipboard history" })
+hl.bind("SUPER + Period", hl.dsp.global("quickshell:overviewEmojiToggle"), { description = "Utilities: Emoji picker" })
 hl.bind("SUPER + A", hl.dsp.global("quickshell:sidebarLeftToggle"), { description = "Shell: Toggle left sidebar" })
 hl.bind("SUPER + ALT + A", hl.dsp.global("quickshell:sidebarLeftToggleDetach"), { description = "Shell: Detach left sidebar" })
 -- The full window grabs the keyboard exclusively, so without a chord that closes
@@ -124,7 +124,7 @@ hl.bind("SUPER + SHIFT + A", hl.dsp.global("quickshell:regionSearch"), { descrip
 hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd(qsIsAlive .. " || pidof slurp || " .. hyprScripts .. "/snip_to_search.sh")) -- # [hidden] fallback
 --# OCR
 hl.bind("SUPER + SHIFT + X", hl.dsp.global("quickshell:regionOcr"),
-    { description = "Utilities: Character recognition >> clipboard" })
+    { description = "Utilities: Copy text from the screen" })
 hl.bind("SUPER + SHIFT + T", hl.dsp.global("quickshell:screenTranslate"),
     { description = "Utilities: Translate screen content" })
 hl.bind("SUPER + SHIFT + X", hl.dsp.exec_cmd( -- # [hidden] fallback
@@ -133,7 +133,7 @@ hl.bind("SUPER + SHIFT + X", hl.dsp.exec_cmd( -- # [hidden] fallback
 ))
 --# Color picker
 hl.bind("SUPER + SHIFT + C", hl.dsp.exec_cmd("hyprpicker -a"),
-    { description = "Utilities: Pick color #RRGGBB >> clipboard" })
+    { description = "Utilities: Pick a color and copy its hex code" })
 --# Recording stuff
 hl.bind("SUPER + SHIFT + R", hl.dsp.global("quickshell:regionRecord"),
     { locked = true, description = "Utilities: Record region (no sound)" })
@@ -150,7 +150,7 @@ local grimhyprctl = "grim -o \"$(hyprctl activeworkspace -j | jq -r '.monitor')\
 -- Print opens the snip UI so you can drag a region or hit "Full screen", rather
 -- than silently grabbing everything. SHIFT + Print keeps the old one-shot grab.
 hl.bind("Print", hl.dsp.global("quickshell:regionScreenshot"),
-    { locked = true, description = "Utilities: Screenshot (region or full screen)" })
+    { locked = true, description = "Utilities: Screen snip" })
 hl.bind("Print", hl.dsp.exec_cmd(qsIsAlive .. " || (" ..
     "d=$(xdg-user-dir PICTURES)/Screenshots/\"$(date '+%Y-%m-%d')\" && mkdir -p \"$d\" && " ..
     "f=\"$d\"/Screenshot_\"$(date '+%Y-%m-%d_%H.%M.%S')\".png && " ..
@@ -160,11 +160,11 @@ hl.bind("SHIFT + Print", hl.dsp.exec_cmd(
     "d=$(xdg-user-dir PICTURES)/Screenshots/\"$(date '+%Y-%m-%d')\" && mkdir -p \"$d\" && " ..
     "f=\"$d\"/Screenshot_\"$(date '+%Y-%m-%d_%H.%M.%S')\".png && " ..
     grimhyprctl .. " \"$f\" && wl-copy < \"$f\" && notify-send 'Screenshot saved' \"$f\" -i \"$f\""
-), { locked = true, description = "Utilities: Screenshot whole screen >> file + clipboard" })
+), { locked = true, description = "Utilities: Screenshot the whole screen, save and copy it, with a notification" })
 hl.bind("CTRL + Print", hl.dsp.exec_cmd(
     "d=$(xdg-user-dir PICTURES)/Screenshots/\"$(date '+%Y-%m-%d')\" && mkdir -p \"$d\" && " ..
     grimhyprctl .. " \"$d\"/Screenshot_\"$(date '+%Y-%m-%d_%H.%M.%S')\".png"
-), { locked = true, non_consuming = true, description = "Utilities: Screenshot >> clipboard & file" })
+), { locked = true, non_consuming = true, description = "Utilities: Screenshot the whole screen, save and copy it, silently" })
 hl.bind("CTRL + Print", hl.dsp.exec_cmd(grimhyprctl .. " - | wl-copy"), { locked = true, non_consuming = true }) -- # [hidden] clipboard half of the bind above
 --# AI
 hl.bind("SUPER + SHIFT + ALT + mouse:273", hl.dsp.exec_cmd(hyprScripts .. "/ai/primary-buffer-query.sh"),
@@ -251,7 +251,7 @@ hl.bind("ALT + F4",
     end,
     { non_consuming = true }) -- # [hidden] a hint, not an action
 hl.bind("SUPER + Q", hl.dsp.window.close(), { description = "Window: Close" })
-hl.bind("SUPER + SHIFT + ALT + Q", hl.dsp.exec_cmd("hyprctl kill"), { description = "Window: Forcefully zap a window" })
+hl.bind("SUPER + SHIFT + ALT + Q", hl.dsp.exec_cmd("hyprctl kill"), { description = "Window: Force quit" })
 
 --# Window split ratio
 --#/# binde = SUPER, ;/',, -- Adjust split ratio

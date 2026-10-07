@@ -1,4 +1,4 @@
-hl.bind("CTRL+SUPER+ALT+Slash", hl.dsp.exec_cmd("xdg-open ~/.config/hypr/custom/keybinds.lua"), {description = "Edit user keybinds"} )
+hl.bind("CTRL+SUPER+ALT+Slash", hl.dsp.exec_cmd("xdg-open ~/.config/hypr/custom/keybinds.lua"), {description = "Shell: Edit user keybinds"} )
 
 -- Bare name on purpose: koompi-session prepends ~/.local/bin, so a hand-built kiri
 -- wins over the koompi-kiri package in /usr/bin.

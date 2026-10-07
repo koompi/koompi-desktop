@@ -167,7 +167,7 @@ They set their own flags rather than aliasing `searchOpen`, which is what makes 
 | `Super+arrows` | focus in direction |
 | `Super+Shift+arrows` | move in direction |
 | `Super+Q` | close |
-| `Super+Shift+Alt+Q` | force kill |
+| `Super+Shift+Alt+Q` | force quit |
 | `Super+D` | maximize |
 | `Super+F` | fullscreen |
 | `Super+Alt+F` | fullscreen spoof |
@@ -198,9 +198,9 @@ Number binds are duplicated on raw keycodes and on the keypad, because some layo
 
 | Keys | Action |
 | --- | --- |
-| `Print` | screenshot, region or full screen |
-| `Shift+Print` | whole screen to file and clipboard |
-| `Super+Shift+S` | region snip |
+| `Print` and `Super+Shift+S` | screen snip: drag a region, or take the whole screen from its toolbar |
+| `Shift+Print` | whole screen, saved to Pictures/Screenshots and copied, with a notification |
+| `Ctrl+Print` | the same, silently |
 | `Super+Shift+A` | region to image search |
 | `Super+Shift+X` | region to text, OCR |
 | `Super+Shift+T` | translate screen content |

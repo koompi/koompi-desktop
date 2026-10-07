@@ -199,6 +199,20 @@ check("keys that share a cap are told apart by a space, not a slash", same(
     check("no shipped chord joins keys with a slash", joined.length === 0, joined.join("; "));
 }
 
+// 8. descriptions in words, every one in a group
+{
+    const shorthand = shipped.filter(b => /^Utilities:/.test(b.description) && /(>>|&|\s\+\s)/.test(b.description)).map(b => b.description);
+    check("no Utilities description uses >>, & or + as shorthand", shorthand.length === 0, shorthand.join("; "));
+    const ungrouped = rowsOf("").map(r => r.text);
+    check("every shipped bind that is described has a group", ungrouped.length === 0, ungrouped.join("; "));
+    const zap = shipped.filter(b => /zap/i.test(b.description)).map(b => b.description);
+    check("no description says zap", zap.length === 0, zap.join("; "));
+}
+check("Print and Super+Shift+S are one row, they open the same snip", same(chordsOf("Utilities", "Screen snip"), ["PrtSc", "Super + Shift + S"]), JSON.stringify(chordsOf("Utilities", "Screen snip")));
+check("the two whole-screen screenshots differ in the notification", chordsOf("Utilities", "Screenshot the whole screen, save and copy it, with a notification").join() === "Shift + PrtSc"
+    && chordsOf("Utilities", "Screenshot the whole screen, save and copy it, silently").join() === "Ctrl + PrtSc");
+check("Force quit is one row", same(chordsOf("Window", "Force quit"), ["Super + Alt + Shift + Q"]), JSON.stringify(chordsOf("Window", "Force quit")));
+
 if (failed > 0) { console.error(`${failed} cheatsheet-binds check(s) failed`); process.exit(1); }
 console.log(`cheatsheet-binds: ${categories.length} categories, ${shipped.filter(b => b.description).length} described binds, all checks pass`);
 EOF
