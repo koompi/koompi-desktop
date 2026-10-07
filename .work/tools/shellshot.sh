@@ -50,6 +50,6 @@ w=${size%x*}; h=${size#*x}
 PATH="$work/bin:$PATH" KOOMPI_SHELLD="$work/bin/koompi-shelld" QT_QPA_PLATFORM=wayland \
     XDG_CONFIG_HOME="$work/xdg/config" XDG_STATE_HOME="$work/xdg/state" XDG_CACHE_HOME="$work/xdg/cache" \
     XDG_DATA_HOME="$work/xdg/data" KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
-    timeout 180 dbus-run-session kwin_wayland --virtual --width "$w" --height "$h" \
+    timeout 180 dbus-run-session --config-file="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/tests/private-bus.conf" -- kwin_wayland --virtual --width "$w" --height "$h" \
         --no-lockscreen --no-global-shortcuts --exit-with-session "$work/inner.sh" > "$out/kwin.log" 2>&1 || true
 ls "$out"/*.png 2>/dev/null || { echo "shellshot: no images; see $out/kwin.log and $out/qs.log" >&2; exit 1; }

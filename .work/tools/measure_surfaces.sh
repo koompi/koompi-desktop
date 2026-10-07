@@ -41,7 +41,7 @@ SH
     chmod +x "$work/inner.sh"
     PATH="$work/bin:$PATH" KOOMPI_SHELLD="$work/bin/koompi-shelld" QT_QPA_PLATFORM=wayland \
         XDG_CONFIG_HOME="$work/xdg/config" XDG_STATE_HOME="$work/xdg/state" XDG_CACHE_HOME="$work/xdg/cache" \
-        timeout 90 dbus-run-session kwin_wayland --virtual --width 1920 --height 1200 \
+        timeout 90 dbus-run-session --config-file="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/tests/private-bus.conf" -- kwin_wayland --virtual --width 1920 --height 1200 \
             --no-lockscreen --no-global-shortcuts --exit-with-session "$work/inner.sh" > "$work/kwin.log" 2>&1 || true
     pss=$(cat "$work/pss" 2>/dev/null || echo NA)
     printf '%s\t%s\n' "$label" "$pss" | tee -a "$out"

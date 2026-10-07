@@ -34,6 +34,7 @@ The main checkout is `/home/userx/workspace/koompi/koompi-desktop`; its `.work/`
   Steps: `ipc:<target> <fn>` (qs IPC inside the nested session), `hypr:<lua dispatch>` (e.g. `hypr:hl.dsp.exec_cmd("kitty")`), `run:<cmd>`, `sleep:<s>`, `shot:<name>`. Logs: `hyprland-run.log`, `qs.qslog` (`strings` it), `run.log`.
   Both tools are safe: nothing they start can reach the live session.
   Clean up only the temp dirs your own runs printed; never glob `/tmp/hr.*` or `/tmp/*-shots`, another worker's live run may own them.
+- Every private bus is `dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- ...` (no service directories). The stock config auto-starts the host's portals: the Hyprland one segfaults and the founder's desktop toasts a crash for each, and a private document portal on the real `XDG_RUNTIME_DIR` unmounts the live one. `tests/test_private_bus.sh` fails a test that skips it. Every headless session also gets its own `XDG_RUNTIME_DIR` (`mktemp -d`, `chmod 700`).
 - `qmlformat` exit codes and `qmllint` prove nothing on this tree (see the gotchas in AGENTS.md's vault); do not cite them.
 
 ## Landing

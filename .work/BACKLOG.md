@@ -49,4 +49,8 @@ Measurements behind them: `/tmp/surfaces.tsv` (per-surface PSS, headless), `/tmp
 | J12 | Clipboard watcher; memd on demand | `hypr/hyprland/execs.lua` (wl-paste lines), `services/Cliphist.qml`, `services/MemoryService.qml` | C | ready |
 | J13 | Launch feedback | `modules/koompi/bar/ActiveWindow.qml`, new launch service, `koompi-launch` (one call) | D, after J09 | ready |
 
+| J15 | `test_update_now_runs.sh` flakes under load | `tests/test_update_now_runs.sh` | after Phase 0 | ready |
+
+Live seat damage from test harnesses, fixed 2026-10-07 (`e6d563717`): private buses auto-started the host's portals; xdph segfaulted (crash toasts on the founder's desktop) and a private document portal unmounted the live `/run/user/1000/doc`. The lead restarted `xdg-document-portal.service`.
+
 Live seat findings outside any job: hot corners are dead because `fakeScreenRounding` is 0 there (J08 fixes the coupling; the live config is the founder's).

@@ -74,6 +74,6 @@ chmod +x "$work/inner.sh"
 env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
     HOME="$home" XDG_RUNTIME_DIR="$run" XDG_CONFIG_HOME="$home/.config" XDG_STATE_HOME="$home/.local/state" \
     XDG_CACHE_HOME="$home/.cache" PATH="$work/bin:$PATH" KOOMPI_SHELLD="$work/bin/koompi-shelld" \
-    timeout 240 dbus-run-session kwin_wayland --virtual --width "$((w + 200))" --height "$((h + 200))" \
+    timeout 240 dbus-run-session --config-file="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/tests/private-bus.conf" -- kwin_wayland --virtual --width "$((w + 200))" --height "$((h + 200))" \
         --no-lockscreen --no-global-shortcuts --exit-with-session "$work/inner.sh" > "$out/kwin.log" 2>&1 || true
 ls "$out"/*.png 2>/dev/null || { echo "hyprshot: no images; see $out/kwin.log and $out/hyprland.log" >&2; exit 1; }
