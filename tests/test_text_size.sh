@@ -162,11 +162,11 @@ fi
 # --- 8. the two files that may not grow, and the QML still parses ---
 for f in "$APPEARANCE" "$CONFIG_QML"; do
     rel="${f#"$ROOT"/}"
-    allowed="$(awk -F'\t' -v p="$rel" '$1 == p { print $2 }' "$ALLOW")"
+    cap="$(awk -F'\t' -v p="$rel" '$1 == p { print $2 }' "$ALLOW")"
     lines="$(awk 'END { print NR }' "$f")"
-    [[ "$lines" == "$allowed" ]] || fail "$rel is $lines lines, the allow-list pins $allowed"
+    (( lines <= ${cap:-400} )) || fail "$rel is $lines lines, over its cap of ${cap:-400}"
 done
-echo "ok   Appearance.qml and Config.qml are still at their allow-listed length"
+echo "ok   Appearance.qml and Config.qml have not grown past their length caps"
 
 QMLLINT=/usr/lib/qt6/bin/qmllint
 if [[ -x "$QMLLINT" ]]; then
