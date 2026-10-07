@@ -413,6 +413,8 @@ A new capability joins an existing role.
 If it does not fit one, the model is wrong and this document changes first.
 
 A new bind carries a `description` prefixed with its group, or it will not appear in the cheatsheet.
+Binds in a group that share a description are one cheatsheet row listing every chord, simplest first, so a second chord for an action reuses its description word for word.
+A run of numbered or directional binds (`Workspace: Focus 1` to `10`, `Window: Focus Left` to `Down`) becomes one row only when each key is the number or direction its own description names.
 
 A new panel registers with `GlobalFocusGrab` and gates `WlrLayershell.keyboardFocus` on its own open flag, both, not one.
 
