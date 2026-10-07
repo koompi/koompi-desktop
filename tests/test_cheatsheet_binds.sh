@@ -97,7 +97,7 @@ check("Window Move: both mouse buttons in one row", same(chordsOf("Window", "Mov
 check("Window: Send to workspace left is one row of three", chordsOf("Window", "Send to workspace left").length === 3);
 check("Window: Send to workspace right is one row of three", chordsOf("Window", "Send to workspace right").length === 3);
 check("Window: the ten send-to-workspace chords are one range", same(chordsOf("Window", "Send to workspace 1–10"), ["Super + Alt + 1–0"]), JSON.stringify(chordsOf("Window", "Send to workspace 1–10")));
-check("Window: focus is one row, arrows then brackets", same(chordsOf("Window", "Focus left/right/up/down"), ["Super + ←→↑↓", "Super + [/]"]), JSON.stringify(chordsOf("Window", "Focus left/right/up/down")));
+check("Window: focus is one row, arrows then brackets", same(chordsOf("Window", "Focus left/right/up/down"), ["Super + ←→↑↓", "Super + [ ]"]), JSON.stringify(chordsOf("Window", "Focus left/right/up/down")));
 check("Window: move is one row of arrows", same(chordsOf("Window", "Move left/right/up/down"), ["Super + Shift + ←→↑↓"]), JSON.stringify(chordsOf("Window", "Move left/right/up/down")));
 check("Window: punctuation keys", same(chordsOf("Window", "Shrink split ratio"), ["Super + ;"]) && same(chordsOf("Window", "Grow split ratio"), ["Super + '"]));
 check("Window: Resize to 640x480 is not read as a family", same(chordsOf("Window", "Resize to 640x480"), ["Super + Ctrl + \\"]));
@@ -184,6 +184,19 @@ check("the keycaps of an ordered chord, one each", same(keycaps(typed("Shift", "
                     wrong.push(`${r.text}: ${chord.mods.join(" ")}`);
             }
     check("no shipped chord has the star after another modifier or the modifiers out of order", wrong.length === 0, wrong.slice(0, 6).join("; "));
+}
+
+// 7. `/` is a key of its own, so no cap uses it to join keys
+check("keys that share a cap are told apart by a space, not a slash", same(
+    rows([bind(0, "C: Go 1", "1", ["Super"]), bind(1, "C: Go 2", "2", ["Super"]), bind(2, "C: Go 4", "4", ["Super"])]).map(r => [r.text, r.chords.map(show)]),
+    [["Go 1/2/4", ["Super + 1 2 4"]]]));
+{
+    const joined = [];
+    for (const category of categories)
+        for (const r of rowsOf(category))
+            for (const chord of r.chords)
+                if (chord.key.length > 1 && chord.key.includes("/")) joined.push(`${r.text}: ${chord.key}`);
+    check("no shipped chord joins keys with a slash", joined.length === 0, joined.join("; "));
 }
 
 if (failed > 0) { console.error(`${failed} cheatsheet-binds check(s) failed`); process.exit(1); }

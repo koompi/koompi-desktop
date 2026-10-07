@@ -108,20 +108,21 @@ function isFamily(members) {
     return new Set(members.map(m => m.family.value)).size >= 2 && members.every(m => m.family.literal);
 }
 
-function span(values, isNext) {
+function span(values, isNext, glue) {
     const run = values.length >= 3 && values.every((v, i) => i === 0 || isNext(values[i - 1], v));
-    return run ? values[0] + "–" + values[values.length - 1] : values.join("/");
+    return run ? values[0] + "–" + values[values.length - 1] : values.join(glue);
 }
 
-function joinArrows(labels) {
-    return labels.every(label => label.length === 1 && "←→↑↓".includes(label)) ? labels.join("") : labels.join("/");
+// `/` is a key of its own, so keys that share a cap are told apart by a space
+function joinKeys(labels) {
+    return labels.every(label => label.length === 1 && "←→↑↓".includes(label)) ? labels.join("") : labels.join(" ");
 }
 
 function familyText(members) {
     const first = members[0].family;
     const values = [...new Set(members.map(m => m.family.value))];
     if (first.type === "number")
-        return first.template.replace(MARK, span(values.sort((a, b) => a - b), (a, b) => b === a + 1));
+        return first.template.replace(MARK, span(values.sort((a, b) => a - b), (a, b) => b === a + 1, "/"));
     return first.template.replace(MARK, values.sort((a, b) => DIRECTIONS.indexOf(a) - DIRECTIONS.indexOf(b)).join("/"));
 }
 
@@ -138,7 +139,7 @@ function familyItems(members, label) {
     }
     return [...chords.values()].map(entries => {
         const keys = entries.map(e => e.key).sort((a, b) => rank(a) - rank(b));
-        const key = isNumber ? span(keys, (a, b) => rank(b) === rank(a) + 1) : joinArrows(keys.map(label));
+        const key = isNumber ? span(keys, (a, b) => rank(b) === rank(a) + 1, " ") : joinKeys(keys.map(label));
         return { text: text, entries: entries, key: key };
     });
 }
