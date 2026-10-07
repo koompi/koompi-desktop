@@ -10,13 +10,14 @@ StyledPopup {
     // a hover popup cannot hold a button
     clickToShow: true
 
-    // exec rules float the first window; the read keeps a failed run's transcript on screen
-    readonly property string runUpdate: "exec [float;center;size 70% 70%] bash -c '"
+    // lua dispatch: a legacy `exec [float]` string errors silently here
+    readonly property string runUpdate: "hl.dsp.exec_cmd([==[bash -c '"
         + 'for t in wezterm foot "kitty -1" alacritty konsole kgx uxterm xterm; do '
         + 'command -v "${t%% *}" >/dev/null 2>&1 || continue; '
         + 'exec koompi-launch --id koompi-update --terminal "${TERMINAL:-$t}" -- '
         + 'bash -c "koompi update; read -rsn1 -p \\"Done. Press any key to close.\\""; done; '
         + 'koompi-notify-send "No terminal installed" "Run koompi update from a shell"\''
+        + ']==], { float = true, center = true, size = "(monitor_w*0.7) (monitor_h*0.7)" })'
 
     ColumnLayout {
         anchors.centerIn: parent
@@ -46,6 +47,7 @@ StyledPopup {
             spacing: 6
 
             DialogButton {
+                objectName: "updateNow"
                 buttonText: Translation.tr("Update now")
                 colBackground: Appearance.colors.colPrimary
                 colBackgroundHover: Appearance.colors.colPrimaryHover
