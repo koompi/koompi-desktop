@@ -226,13 +226,21 @@ Column {
         }
 
         Repeater {
-            model: CheatsheetBinds.keycaps(chordLine.chord.mods, Config.options.cheatsheet.splitButtons)
-            delegate: KeyboardKey {
+            model: CheatsheetBinds.capRuns(chordLine.chord.mods, Config.options.cheatsheet.splitButtons)
+            delegate: Row {
+                id: run
                 required property var modelData
-                key: modelData
-                pixelSize: Config.options.cheatsheet.fontSize.key
+                spacing: chordLine.spacing
                 onImplicitWidthChanged: chordLine.measure()
                 Component.onCompleted: chordLine.measure()
+                Repeater {
+                    model: run.modelData
+                    delegate: KeyboardKey {
+                        required property var modelData
+                        key: modelData
+                        pixelSize: Config.options.cheatsheet.fontSize.key
+                    }
+                }
             }
         }
         Row {

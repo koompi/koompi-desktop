@@ -35,10 +35,10 @@ lua "$RECORDER" "$HYPR" hyprland.keybinds hyprland.keybinds_shell_extra custom.k
 
 # QML-flavoured JS: drop the pragma, expose the functions.
 sed '/^\.pragma /d' "$BINDS_JS" > "$WORK/binds.mjs"
-printf '\nexport { keyLabel, buildRows, keycaps };\n' >> "$WORK/binds.mjs"
+printf '\nexport { keyLabel, buildRows, keycaps, capRuns };\n' >> "$WORK/binds.mjs"
 
 cat > "$WORK/run.mjs" <<'EOF'
-import { keyLabel, buildRows, keycaps } from "./binds.mjs";
+import { keyLabel, buildRows, keycaps, capRuns } from "./binds.mjs";
 import fs from "node:fs";
 
 let failed = 0;
@@ -158,6 +158,10 @@ check("the star trails", same(keycaps(["Ctrl", star], false), ["Ctrl", star]));
 check("the star in the middle", same(keycaps(["Ctrl", star, "Shift"], false), ["Ctrl", star, "Shift"]));
 check("split buttons are one cap each", same(keycaps(["Ctrl", star, "Shift"], true), ["Ctrl", star, "Shift"]));
 check("no modifiers, no keycaps", same(keycaps([], false), []));
+
+check("the star keeps the cap after it when a chord wraps", same(capRuns([star, "Ctrl", "Alt"], false), [[star, "Ctrl Alt"]])
+    && same(capRuns([star], false), [[star]]) && same(capRuns(["Ctrl", "Alt"], false), [["Ctrl Alt"]]) && same(capRuns([], false), []));
+check("with one cap each the star still keeps the next one", same(capRuns([star, "Ctrl", "Alt", "Shift"], true), [[star, "Ctrl"], ["Alt"], ["Shift"]]));
 
 // 6. one modifier order on every chord: Super (the star) first, then Ctrl, Alt, Shift,
 // whatever order the bind was typed in or the service lists them in

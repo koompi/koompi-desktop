@@ -168,13 +168,17 @@ function toItems(entries, label) {
 
 // The modifier keycaps of a chord. A plane-16 mark (the KOOMPI star) is drawn by a
 // font that has no letters, so it gets a keycap to itself.
+function isMark(label) {
+    return label.length > 0 && label.codePointAt(0) >= 0x100000;
+}
+
 function keycaps(mods, split) {
     if (split)
         return mods;
     const caps = [];
     let run = [];
     for (const mod of mods) {
-        if (mod.length > 0 && mod.codePointAt(0) >= 0x100000) {
+        if (isMark(mod)) {
             if (run.length > 0) caps.push(run.join(" "));
             run = [];
             caps.push(mod);
@@ -184,6 +188,22 @@ function keycaps(mods, split) {
     }
     if (run.length > 0) caps.push(run.join(" "));
     return caps;
+}
+
+// The caps in runs that wrap together: the star keeps the cap after it, so a chord
+// that has to wrap never leaves the star alone on a line.
+function capRuns(mods, split) {
+    const caps = keycaps(mods, split);
+    const runs = [];
+    for (let i = 0; i < caps.length; i++) {
+        if (isMark(caps[i]) && i + 1 < caps.length) {
+            runs.push([caps[i], caps[i + 1]]);
+            i++;
+        } else {
+            runs.push([caps[i]]);
+        }
+    }
+    return runs;
 }
 
 function chordOf(item, label) {
