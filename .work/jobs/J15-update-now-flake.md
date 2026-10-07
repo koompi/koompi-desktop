@@ -38,3 +38,7 @@ Files owned: `tests/test_update_now_runs.sh`; `modules/koompi/bar/UpdatesPopup.q
   - If the cause is shared, fix it once and say where.
   - Remove J09's retry once the root fix holds.
 - Proof stays as written: 20 runs, three at a time, 0 failures, for the update test and for one other nested test.
+
+## More evidence (lead, 2026-10-08)
+
+- J12 saw `grim` answer `no wl_output` in 2 of 6 nested runs on its tree; both reruns passed and it found no cause. Same wedge as J09's.

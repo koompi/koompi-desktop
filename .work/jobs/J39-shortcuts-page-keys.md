@@ -31,3 +31,8 @@ Shared with: `cheatsheet-binds.js` stays J04's module. Import it; do not fork it
 ## Out of scope
 
 - Editing binds from Settings. The cheatsheet itself.
+
+## Lead note (2026-10-08, from J04 round 4)
+
+- J04 already changed `ShortcutsConfig.qml:17-18` so `mouse_up` reads "Scroll ↑" and `mouse_down` "Scroll ↓", matching the swapped wheel binds; keep that.
+- The AI key: Hyprland sees the Copilot key as `SUPER + SHIFT + code:201`, because the key sends Super and Shift itself. J04's round 5 shows it as the single cap "AI", and "Alt + AI" for the Alt bind; this page shows it the same way.

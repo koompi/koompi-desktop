@@ -34,3 +34,11 @@ In `tests/test_crash_watch.sh`, with its existing fixture-fed journal:
 ## Out of scope
 
 - Stopping the crashes themselves (the lead fixed the update-screen trigger in the nested harnesses). The toast's wording (J03).
+
+## Second item (lead, 2026-10-08, from J12): test shells stay off the session's polkit agent
+
+- Every shell a test starts loads `services/PolkitService.qml:43`, whose `PolkitAgent` registers with polkitd on the system bus. A private session bus does not cover the system bus.
+- In J12's runs the registration failed only because the live shell already holds it. A test shell that starts while the live shell is down or restarting can take the founder's authentication prompts and show them in a headless session nobody sees.
+- Do: keep test shells from registering. Find the mechanism and say why it is the right one. For example, the harness and the shell-launching tests could point `DBUS_SYSTEM_BUS_ADDRESS` at the test's private bus, if UPower, NetworkManager and logind readers degrade without errors that fail tests. A guard in `PolkitService.qml` is another option, if it cannot misfire in the real session.
+- Test, failing on `dev`: a shell started the way the tests start one makes no registration attempt on the real system bus, and `test_private_bus.sh` (or one new static check) keeps every shell-launching test and `.work/tools/{shellshot,hyprshot,measure_surfaces}.sh` on the guard.
+- Files owned for this item: the shell-launching tests' launch lines, `.work/tools/{shellshot,hyprshot,measure_surfaces}.sh`, and `services/PolkitService.qml` only if the guard lives there.
