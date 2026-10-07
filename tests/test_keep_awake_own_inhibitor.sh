@@ -37,7 +37,7 @@ chmod +x "$WORK/bin"/*
 cat > "$WORK/inner.sh" <<'SH'
 #!/usr/bin/env bash
 set -uo pipefail
-PIDFILE="$XDG_RUNTIME_DIR/quickshell/keep-awake.pid"
+PIDFILE="$XDG_RUNTIME_DIR/koompi-keep-awake.pid"
 note() { printf '%s\t%s\n' "$1" "$2" >> "$READINGS"; }
 yesno() { "$@" && echo yes || echo no; }
 alive() { kill -0 "$1" 2> /dev/null; }
@@ -56,7 +56,6 @@ start_fake() {
     printf -v "$2" '%s' "$!"
 }
 
-mkdir -p "$XDG_RUNTIME_DIR/quickshell"
 start_fake "$WORK/foreign.log" FOREIGN
 start_fake "$WORK/leftover.log" LEFTOVER
 printf '%s\n' "$LEFTOVER" > "$PIDFILE"

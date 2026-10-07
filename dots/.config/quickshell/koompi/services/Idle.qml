@@ -14,9 +14,9 @@ Singleton {
     property alias inhibit: idleInhibitor.enabled
     inhibit: false
 
-    // the inhibitor records its PID here; cleanup stops that PID, and only while it still matches the pattern
-    readonly property string inhibitorPidFile: `${Quickshell.env("XDG_RUNTIME_DIR")}/quickshell/keep-awake.pid`
-    // the [q] keeps the pattern from matching the wrapper that carries its text
+    // pid file: a restarted shell stops the inhibitor its predecessor left
+    readonly property string inhibitorPidFile: `${Quickshell.env("XDG_RUNTIME_DIR")}/koompi-keep-awake.pid`
+    // [q]: the wrapper's own cmdline carries this text and must not match it
     readonly property string inhibitorPattern: "who=[q]uickshell --why=Keep system awake"
 
     onInhibitChanged: {
@@ -59,6 +59,7 @@ Singleton {
         }
     }
 
+    // a recorded pid may have been reused: kill it only while its cmdline still matches
     readonly property string stopInhibitorScript: `pid=$(cat "$1" 2>/dev/null); [[ $pid =~ ^[0-9]+$ ]] && tr '\\0' ' ' 2>/dev/null < "/proc/$pid/cmdline" | grep -qE "$2" && kill "$pid"; rm -f "$1"`
 
     function stopInhibitor() {
