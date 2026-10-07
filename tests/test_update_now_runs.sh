@@ -149,7 +149,7 @@ env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY -u XDG_CURRENT_
     XDG_STATE_HOME="$WORK/xdg/state" XDG_CACHE_HOME="$WORK/xdg/cache" \
     PATH="$WORK/bin:$PATH" PROBE_OUT="$WORK" KOOMPI_UPDATES_FORCE=12 KOOMPI_SHELLD="$WORK/bin/koompi-shelld" \
     QT_QPA_PLATFORM=wayland \
-    timeout 200 dbus-run-session kwin_wayland --virtual --width 1480 --height 1000 --no-lockscreen \
+    timeout 200 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1480 --height 1000 --no-lockscreen \
         --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
 
 out="$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/qs.log" 2>/dev/null)"

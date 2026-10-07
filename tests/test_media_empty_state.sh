@@ -167,7 +167,7 @@ run_probe() { # $1: 1 when a fixture player is on the bus
         PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
         XDG_CONFIG_HOME="$WORK/config" XDG_STATE_HOME="$WORK/state" XDG_CACHE_HOME="$WORK/cache" \
         XDG_DATA_HOME="$WORK/data" XDG_RUNTIME_DIR="$WORK/rt" \
-        timeout 120 dbus-run-session -- kwin_wayland --virtual --width 1280 --height 800 \
+        timeout 120 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 800 \
             --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/run-probe.sh" > "$WORK/probe-$1.log" 2>&1
     cat -- "$WORK/probe-$1.log"
 }

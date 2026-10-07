@@ -56,7 +56,7 @@ opens_empty() {
         || { skip "no compositor; cannot check the $name startup payload"; return 0; }
     printf -- '--- %s startup payload\n' "$name"
     local got
-    got=$(dbus-run-session -- sh -c "sleep 5 | timeout 5 '$bin' 2> /dev/null | head -n 1")
+    got=$(dbus-run-session --config-file="$ROOT/tests/private-bus.conf" -- sh -c "sleep 5 | timeout 5 '$bin' 2> /dev/null | head -n 1")
     [[ $got == '{"items":[],"gen":1}' ]] \
         || fail "$name daemon opened with '$got', not the empty payload the shell waits for"
     ran=$((ran + 1))
