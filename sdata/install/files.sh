@@ -33,6 +33,11 @@ readonly SYNC_DIRS=(
     ".config/quickshell/koompi-quicklook"
 )
 
+# shell-written state inside a sync dir: left alone once present, the shipped stub only where missing
+readonly SYNC_KEEP_PATHS=(
+    ".config/hypr/hyprland/shellOverrides/main.lua"
+)
+
 # Older configs could persist both workspace flags as true, and the bar's number
 # branch wins that conflict, so app icons disappear even after a corrected default
 # ships. Fix the legacy state once, then leave the setting user-owned.
@@ -198,6 +203,9 @@ backup_existing() {
         for keep in "${KEEP_PATHS[@]}"; do
             [[ "$rel" == "$keep" ]] && continue 2
         done
+        for keep in "${SYNC_KEEP_PATHS[@]}"; do
+            [[ "$rel" == "$keep" ]] && continue 2
+        done
 
         source="$REPO_ROOT/dots/$rel"
         if cmp -s -- "$source" "$target"; then
@@ -298,10 +306,18 @@ install_files() {
 
     # A failed sync must stop the install with the stage cleaned up: carrying
     # on would reload a half-old desktop and describe it as fresh.
+    local path
+    local -a kept
     for rel in "${SYNC_DIRS[@]}"; do
         [[ -d "$stage/$rel" ]] || continue
+        kept=()
+        for path in "${SYNC_KEEP_PATHS[@]}"; do
+            [[ "$path" == "$rel"/* && -e "$HOME/$path" ]] || continue
+            info "keeping your $path"
+            kept+=("--exclude=/${path#"$rel"/}")
+        done
         info "sync  ~/$rel"
-        sync_tree "$stage/$rel" "$HOME/$rel" --delete "${excludes[@]}" \
+        sync_tree "$stage/$rel" "$HOME/$rel" --delete "${kept[@]}" "${excludes[@]}" \
             || { run rm -rf "$stage"; return 1; }
         run rm -rf "$stage/$rel"
     done

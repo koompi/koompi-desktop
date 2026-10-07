@@ -11,6 +11,8 @@
 #   ~/.config/hypr/custom/       user overrides
 #   ~/.config/hypr/monitors.lua, workspaces.conf   machine-local
 #   ~/.config/hypr/hyprlock.conf, hypridle.conf    machine-tuned
+#   ~/.config/hypr/hyprland/shellOverrides/main.lua  written by the shell (Game
+#                          mode, Reduce Motion); the shipped stub only where missing
 # `refresh <path>` is the one deliberate exception: it puts the packaged copy
 # of the single file you name back, after backing yours up.
 #
@@ -193,7 +195,9 @@ fi
 pairs=()
 [[ -n "$shell_src" ]] && pairs+=("$shell_src/|$XDG_CONFIG_HOME/quickshell/koompi/|")
 if [[ -n "$hypr_src" ]]; then
-    pairs+=("$hypr_src/hyprland/|$XDG_CONFIG_HOME/hypr/hyprland/|--exclude=colors.lua")
+    hypr_extra="--exclude=colors.lua"
+    [[ -e "$XDG_CONFIG_HOME/hypr/hyprland/shellOverrides/main.lua" ]] && hypr_extra+=" --exclude=/shellOverrides/main.lua"
+    pairs+=("$hypr_src/hyprland/|$XDG_CONFIG_HOME/hypr/hyprland/|$hypr_extra")
     [[ -f "$hypr_src/hyprland.lua" ]] && pairs+=("$hypr_src/hyprland.lua|$XDG_CONFIG_HOME/hypr/hyprland.lua|")
 fi
 
