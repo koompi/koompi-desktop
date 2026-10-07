@@ -42,3 +42,4 @@ Files owned: `tests/test_update_now_runs.sh`; `modules/koompi/bar/UpdatesPopup.q
 ## More evidence (lead, 2026-10-08)
 
 - J12 saw `grim` answer `no wl_output` in 2 of 6 nested runs on its tree; both reruns passed and it found no cause. Same wedge as J09's.
+- `test_motion.sh` failed once in six runs under heavy.sh on J10 round 3's tree (2026-10-08, first in a heavy batch; the failing check was lost to a truncated log), then passed five in a row. Its bounds are 260 ms per role and 300 ms per surface; synchronous Config and Persistent writes (`blockWrites`, 33 ms median) now stall the UI thread, so a probe step that writes a setting right before a timed animation can push it over.
