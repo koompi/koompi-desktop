@@ -29,6 +29,31 @@ If you're an agent asked to change Hyprland behavior for one user's machine, tha
 Kiri's voice binds are the concrete example already in the tree:
 `dots/.config/hypr/custom/keybinds.lua` — see `docs/navigation.md`'s Kiri section.
 
+## Options the shell holds
+
+`hyprland/shellOverrides/main.lua` is written by the shell, never by hand, through
+`services/HyprlandConfig.qml` and `scripts/hyprland/hyprconfigurator.py`. It is required last, so
+what is in it wins over `hyprland/` and `custom/`, and removing a line hands the option back to
+whatever those say.
+
+Game mode and Reduce Motion both need `animations:enabled` off, so neither writes it.
+`services/HyprlandModes.qml` is the one writer. A mode is a flag there, its `holds` table names
+the options a mode forces and which modes want each, and an option is held while any mode that
+wants it is on and reset the moment none does. Turning one mode off therefore never undoes
+another, and a mode's own toggle reads its own flag, never the shared option. Game mode has no
+other store: it reads itself back from that file at start. An update mirrors `hyprland/` and so
+puts the file back to its stub, which ends Game mode; Reduce Motion lives in `config.json`, and the
+shell writes its hold back when it next starts.
+
+A new mode (Reduce Transparency will hold `decoration:blur:enabled`) is one flag and one `by`
+entry in `HyprlandModes.qml`. `tests/test_hypr_modes.sh` fails when a held option is named in any
+other file of the shell.
+
+Motion has two halves. The shell's is the `animation` roles and the duration ladder in
+`modules/common/Appearance.qml`; Hyprland's is the leaves in `hyprland/general.lua`, where `speed`
+is in tenths of a second. `tests/test_motion.sh` and `tests/test_motion_hypr.sh` hold both to the
+budget in `docs/navigation.md`.
+
 ## Keybinds and the Super release-to-open mechanism
 
 Don't restate it here — see `docs/navigation.md`'s "Super on its own" section for the

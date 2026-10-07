@@ -51,6 +51,18 @@ Singleton {
         ])
     }
 
+    // one run of the script for both, so two edits to the file never race each other
+    function apply(sets: var, resets: var) {
+        let args = ""
+        for (const key in sets)
+            args += `--set "${key}" "${sets[key]}" `
+        for (const key of resets)
+            args += `--reset "${key}" `
+        Quickshell.execDetached(["bash", "-c", //
+            `${root.configuratorScriptPath} --file ${root.shellOverridesPath} ${args}` //
+        ])
+    }
+
     Connections {
         target: Hyprland
 

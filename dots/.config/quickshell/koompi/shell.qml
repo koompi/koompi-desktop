@@ -25,6 +25,7 @@ ShellRoot {
     Component.onCompleted: {
         MaterialThemeLoader.reapplyTheme()
         Hyprsunset.load()
+        HyprlandModes.load()
         DarkMode.load()
         FirstRunExperience.load()
         ConflictKiller.load()
