@@ -6,7 +6,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 
 /**
- * A nice wrapper for date and time strings.
+ * Keep awake: the idle inhibitor behind the sidebar switch, the bar indicator and `idle inhibit`.
  */
 Singleton {
     id: root
@@ -14,13 +14,13 @@ Singleton {
     property alias inhibit: idleInhibitor.enabled
     inhibit: false
 
-    // The [q] keeps the regex from matching the literal pattern text inside the
-    // bash wrapper's own cmdline below. Keeps exactly zero or one inhibitor
-    // alive across toggle-offs and shell reloads, which used to leak them.
+    // the inhibitor records its PID here; cleanup stops that PID, and only while it still matches the pattern
+    readonly property string inhibitorPidFile: `${Quickshell.env("XDG_RUNTIME_DIR")}/quickshell/keep-awake.pid`
+    // the [q] keeps the pattern from matching the wrapper that carries its text
     readonly property string inhibitorPattern: "who=[q]uickshell --why=Keep system awake"
 
     onInhibitChanged: {
-        if (!root.inhibit) Quickshell.execDetached(["pkill", "-f", root.inhibitorPattern]);
+        if (!root.inhibit) root.stopInhibitor();
     }
 
     Connections {
@@ -31,7 +31,7 @@ Singleton {
             } else {
                 Persistent.states.idle.inhibit = root.inhibit;
             }
-            if (!root.inhibit) Quickshell.execDetached(["pkill", "-f", root.inhibitorPattern]);
+            if (!root.inhibit) root.stopInhibitor();
         }
     }
 
@@ -59,6 +59,12 @@ Singleton {
         }
     }
 
+    readonly property string stopInhibitorScript: `pid=$(cat "$1" 2>/dev/null); [[ $pid =~ ^[0-9]+$ ]] && tr '\\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -qE "$2" && kill "$pid"; rm -f "$1"`
+
+    function stopInhibitor() {
+        Quickshell.execDetached(["bash", "-c", root.stopInhibitorScript, "bash", root.inhibitorPidFile, root.inhibitorPattern]);
+    }
+
     // The Wayland inhibitor below only works while its surface is mapped, which
     // is unreliable on Hyprland (the 1x1 window often never maps). Back it with a
     // systemd idle inhibitor, which hypridle honors directly.
@@ -68,8 +74,8 @@ Singleton {
     Process {
         running: root.inhibit
         command: ["bash", "-c",
-            "pkill -f 'who=[q]uickshell --why=Keep system awake'; " +
-            "exec systemd-inhibit --what=idle:sleep:handle-lid-switch --mode=block --who=quickshell --why='Keep system awake' sleep infinity"]
+            `${root.stopInhibitorScript}; echo $$ > "$1"; exec systemd-inhibit --what=idle:sleep:handle-lid-switch --mode=block --who=quickshell --why='Keep system awake' sleep infinity`,
+            "bash", root.inhibitorPidFile, root.inhibitorPattern]
     }
 
     IdleInhibitor {
