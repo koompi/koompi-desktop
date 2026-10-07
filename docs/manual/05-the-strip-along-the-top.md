@@ -50,7 +50,7 @@ A notification arrives as a card in the top right and goes away on its own.
 Nothing dismissed is lost.
 The right-hand panel keeps the history either way.
 
-Opening that panel marks everything read, so the unread count clears whether you looked at them or not.
+Opening that panel marks everything read once it has stayed open for a second, so a panel you open and close at once leaves the unread count alone.
 
 For a quiet hour:
 

@@ -37,10 +37,19 @@ Singleton {
     property bool workspaceShowNumbers: false
 
     onSidebarRightOpenChanged: {
-        if (GlobalStates.sidebarRightOpen) {
+        if (sidebarRightOpen) {
             Notifications.timeoutAll();
-            Notifications.markAllRead();
+            seenTimer.restart();
+        } else {
+            seenTimer.stop();
         }
+    }
+
+    // read = panel stayed open long enough to be seen
+    Timer {
+        id: seenTimer
+        interval: 1000
+        onTriggered: Notifications.markAllRead()
     }
 
     GlobalShortcut {

@@ -84,8 +84,9 @@ It is dismissed by its own button and by nothing else, so no existing click, dra
 `windows.workspaceHelp` turns it off, default true.
 
 This matters more for the right sidebar than the count suggests.
-Opening it runs `GlobalStates.onSidebarRightOpenChanged`, which times out every popup and zeroes the unread count, so an accidental open silently clears the unread badge.
-No notification is discarded by it: `Notifications.markAllRead()` only sets `unread` to zero, and `timeoutAll()` only takes notifications off the popup layer.
+Opening it runs `GlobalStates.onSidebarRightOpenChanged`, which times out every popup at once, so the toasts get out of the way.
+A notification counts as read once it has been seen, so the unread count is zeroed only after the panel has stayed open for one second; closing it sooner leaves the count and the badge as they were, and an accidental open costs nothing.
+No notification is discarded by either step: `Notifications.markAllRead()` only sets `unread` to zero, and `timeoutAll()` only takes notifications off the popup layer.
 
 ## Edges
 

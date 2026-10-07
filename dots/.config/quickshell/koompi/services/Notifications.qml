@@ -336,6 +336,10 @@ Singleton {
             GlobalStates.sidebarRightOpen = true;
             return "ok";
         }
+
+        function unreadCount(): int {
+            return root.unread;
+        }
     }
 
     function triggerListChange() {
