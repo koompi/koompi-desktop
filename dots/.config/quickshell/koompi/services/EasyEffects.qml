@@ -14,6 +14,11 @@ Singleton {
 
     property bool available: false
     property bool active: false
+    property bool _availabilityKnown: false
+    property bool _activeKnown: false
+    property bool _restored: false
+
+    function load() {}
 
     function fetchAvailability() {
         fetchAvailabilityProc.running = true
@@ -25,14 +30,30 @@ Singleton {
 
     function disable() {
         root.active = false
+        Persistent.states.easyEffects.enabled = false
         Quickshell.execDetached(["bash", "-c", "pkill easyeffects || flatpak pkill com.github.wwmm.easyeffects"])
         settleTimer.restart()
     }
 
     function enable() {
         root.active = true
+        Persistent.states.easyEffects.enabled = true
         Quickshell.execDetached(["bash", "-c", "easyeffects --hide-window --service-mode || flatpak run com.github.wwmm.easyeffects --hide-window --service-mode"])
         settleTimer.restart()
+    }
+
+    // the remembered toggle is read once, after the states file and both probes have answered
+    function _restoreOnce() {
+        if (root._restored || !Persistent.ready || !root._availabilityKnown || !root._activeKnown) return
+        root._restored = true
+        if (Persistent.states.easyEffects.enabled && root.available && !root.active) root.enable()
+    }
+
+    Connections {
+        target: Persistent
+        function onReadyChanged() {
+            root._restoreOnce()
+        }
     }
 
     // launch/kill is detached and can fail; read the real state back
@@ -57,6 +78,8 @@ Singleton {
         command: ["bash", "-c", "command -v easyeffects || flatpak info com.github.wwmm.easyeffects > /dev/null 2>&1"]
         onExited: (exitCode, exitStatus) => {
             root.available = exitCode === 0
+            root._availabilityKnown = true
+            root._restoreOnce()
         }
     }
 
@@ -66,6 +89,8 @@ Singleton {
         command: ["bash", "-c", "pidof easyeffects || flatpak ps | grep com.github.wwmm.easyeffects > /dev/null 2>&1"]
         onExited: (exitCode, exitStatus) => {
             root.active = exitCode === 0
+            root._activeKnown = true
+            root._restoreOnce()
         }
     }
 }

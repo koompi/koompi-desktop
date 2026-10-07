@@ -13,8 +13,8 @@ depends=(
   sound-theme-freedesktop
   libdbusmenu-gtk3
   playerctl
-  # The sidebar ships an EasyEffects toggle and execs.lua starts it in service
-  # mode at login. Both no-op when it is absent, which is a toggle that does
-  # nothing on a desktop that means to have equalization.
+  # The sidebar's EasyEffects toggle starts it in service mode, and again at
+  # login if it was left on. Without the package the toggle is hidden, so a
+  # desktop that means to have equalization could not turn it on.
   easyeffects
 )

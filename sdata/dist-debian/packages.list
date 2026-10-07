@@ -114,7 +114,7 @@ libqalculate-dev
 wlogout
 libnotify-bin                   # hyprshot notifies through notify-send
 ffmpeg                          # switchwall.sh, Audio.qml's ffplay, koompi-quicklook
-easyeffects                     # the sidebar toggle, started in service mode at login
+easyeffects                     # the sidebar toggle starts it, and again at login if it was left on
 
 # --- compositor and shell ----------------------------------------------------
 zig                             # builds the global-menu daemon. Absent on Debian 13, and Ubuntu's
