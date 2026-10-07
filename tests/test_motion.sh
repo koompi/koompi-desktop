@@ -8,6 +8,11 @@
 #   new role is held to the same budget without touching this test.
 #   Reduce Motion: with appearance.reduceMotion on, a spatial role takes 0 ms and the
 #   effects role (fades, colours) 100 ms or less; with it off they come back.
+#   The ladder and the waffle: every step of Appearance.animationDuration but snap is 0
+#   with Reduce Motion on, so no Timer may take its interval from the ladder; each of
+#   Looks.transition's animations is then 0 ms (a fade or a colour: 100 ms at most), its
+#   slider velocity jumps, and WStackView's slide and the bar panels' close follow it.
+#   The dots of ThinkingIndicator pulse with it off and hold still with it on.
 #   Runtime: a real Behavior on x with the elementMove role is still in flight at
 #   50 ms, and has landed after 40 ms with Reduce Motion on.
 #   Surfaces: the real SidebarDrawer (the right panel's drawer pages) and the real
@@ -27,6 +32,12 @@ fail() { printf 'FAIL: %s\n' "$1" >&2; failed=1; }
 roles="$(sed -n '/^    animation: QtObject {/,/^    }/p' "$APPEARANCE" | grep -oE 'property QtObject [A-Za-z]+' | awk '{print $3}' | tr '\n' ' ')"
 curves="$(sed -n '/^    animationCurves: QtObject {/,/^    }/p' "$APPEARANCE" | grep -oE 'list<real> [A-Za-z]+' | awk '{print $2}' | tr '\n' ' ')"
 [[ -n "$roles" && -n "$curves" ]] || { fail "found no animation roles or curves in Appearance.qml; the scan broke"; exit 1; }
+rungs="$(sed -n '/^    animationDuration: QtObject {/,/^    }/p' "$APPEARANCE" | grep -oE 'property int [A-Za-z]+' | awk '{print $3}' | tr '\n' ' ')"
+waffle="$(sed -n '/^    transition: QtObject {/,/^    }/p' "$SHELL_ROOT/modules/waffle/looks/Looks.qml" | grep -oE 'property Component [A-Za-z]+' | awk '{print $3}' | tr '\n' ' ')"
+[[ -n "$rungs" && -n "$waffle" ]] || { fail "found no ladder rungs or waffle transitions; the scan broke"; exit 1; }
+if borrowed="$(grep -rnE 'interval:[^/]*(animationDuration|transition\.duration)' "$SHELL_ROOT" --include='*.qml')"; then
+    fail "a Timer takes its interval from the duration ladder, where every step but snap is 0 with Reduce Motion on: $borrowed"
+fi
 
 grep -qE 'property bool reduceMotion: false' "$SHELL_ROOT/modules/common/Config.qml" \
     || fail "Config.qml has no appearance.reduceMotion defaulting to false"
@@ -59,12 +70,16 @@ import qs
 import qs.services
 import qs.modules.common
 import qs.modules.koompi.overview
+import qs.modules.koompi.sidebarLeft.aiChat
 import qs.modules.koompi.sidebarRight
+import qs.modules.waffle.looks
 
 ShellRoot {
     id: probe
     property var roles: Quickshell.env("PROBE_ROLES").split(" ").filter(r => r.length > 0)
     property var curves: Quickshell.env("PROBE_CURVES").split(" ").filter(c => c.length > 0)
+    property var rungs: Quickshell.env("PROBE_RUNGS").split(" ").filter(r => r.length > 0)
+    property var waffle: Quickshell.env("PROBE_WAFFLE").split(" ").filter(w => w.length > 0)
     property int failures: 0
     property int waited: 0
     property real wideWidth: 0
@@ -129,6 +144,54 @@ ShellRoot {
                 tag + "the direct spatial durations follow the roles");
             probe.verdict(Appearance.animationCurves.workspaceSlideDuration === 0, tag + "the wallpaper's workspace slide is mirrored off");
         }
+    }
+
+    function checkLadder(reduced) {
+        const tag = reduced ? "reduce motion on: " : "";
+        for (const name of probe.rungs) {
+            const ms = Appearance.animationDuration[name];
+            if (!reduced) probe.verdict(ms > 0, "the " + name + " step is " + ms + " ms");
+            else if (name === "snap") probe.verdict(ms > 0 && ms <= 100, tag + "snap keeps its step: " + ms + " ms");
+            else probe.verdict(ms === 0, tag + "the " + name + " step is " + ms + " ms, wants 0");
+        }
+        probe.verdict(Looks.transition.duration === Appearance.animationDuration, tag + "the waffle shares the shell's ladder");
+    }
+
+    function checkWaffle(reduced) {
+        const tag = reduced ? "reduce motion on: " : "";
+        for (const name of probe.waffle) {
+            const anim = Looks.transition[name].createObject(bare, {});
+            const ms = anim.duration;
+            anim.destroy();
+            if (!reduced) probe.verdict(ms > 0, "waffle " + name + " takes " + ms + " ms");
+            else if (name === "color" || name === "opacity") probe.verdict(ms > 0 && ms <= 100, tag + "waffle " + name + " is an effect: " + ms + " ms, wants a crossfade of at most 100");
+            else probe.verdict(ms === 0, tag + "waffle " + name + " is spatial: " + ms + " ms, wants 0");
+        }
+        probe.verdict(reduced ? Looks.transition.velocity >= 10000 : Looks.transition.velocity === 850, tag + "waffle sliders move at " + Looks.transition.velocity);
+        probe.verdict(stack.pushDuration === (reduced ? 0 : 200), tag + "a waffle page slides for " + stack.pushDuration + " ms");
+        probe.verdict(panel.closeAnimDuration === (reduced ? 0 : 150), tag + "a bar panel closes in " + panel.closeAnimDuration + " ms");
+    }
+
+    // the three dots of the thinking indicator, sampled for 800 ms
+    function checkThinking(reduced, done) {
+        const tag = reduced ? "reduce motion on: " : "";
+        const dots = Array.from(thinking.children[0].children).filter(c => c.radius !== undefined);
+        probe.verdict(dots.length === 3, tag + "the thinking indicator has " + dots.length + " dots, wants 3");
+        const seen = dots.map(d => [d.opacity]);
+        let taken = 0;
+        const poll = Qt.createQmlObject("import QtQuick; Timer { interval: 40; repeat: true }", probe);
+        poll.triggered.connect(() => {
+            dots.forEach((d, i) => seen[i].push(d.opacity));
+            if (++taken < 20) return;
+            poll.stop();
+            poll.destroy();
+            const spans = seen.map(list => Math.max(...list) - Math.min(...list));
+            const text = spans.map(s => s.toFixed(2)).join(" ");
+            if (reduced) probe.verdict(spans.every(s => s === 0), tag + "the thinking dots hold still: opacity spans " + text);
+            else probe.verdict(spans.some(s => s > 0.3), "the thinking dots pulse: opacity spans " + text);
+            done();
+        });
+        poll.start();
     }
 
     // the engine's own clock: each role's NumberAnimation, started on a bare item,
@@ -249,6 +312,16 @@ ShellRoot {
             Item {
                 id: bare
             }
+            ThinkingIndicator {
+                id: thinking
+            }
+            WStackView {
+                id: stack
+            }
+            WBarAttachedPanelContent {
+                id: panel
+                contentItem: Item {}
+            }
             Rectangle {
                 id: box
                 y: 5
@@ -291,20 +364,24 @@ ShellRoot {
             if (!Config.ready) return;
             running = false;
             probe.checkTokens(false);
-            probe.timeRoles(false, () => probe.runtime(false, () => probe.surfaces(300, () => {
+            probe.checkLadder(false);
+            probe.checkWaffle(false);
+            probe.checkThinking(false, () => probe.timeRoles(false, () => probe.runtime(false, () => probe.surfaces(300, () => {
                 if (!probe.setReduce(true)) { console.log("PROBE DONE"); Qt.quit(); return; }
                 probe.later(300, () => {
                     probe.checkTokens(true);
-                    probe.timeRoles(true, () => probe.runtime(true, () => probe.surfaces(60, () => {
+                    probe.checkLadder(true);
+                    probe.checkWaffle(true);
+                    probe.checkThinking(true, () => probe.timeRoles(true, () => probe.runtime(true, () => probe.surfaces(60, () => {
                         probe.setReduce(false);
                         probe.later(300, () => {
                             probe.verdict(Appearance.animation.elementMove.duration > 0, "with reduce motion off again elementMove moves: " + Appearance.animation.elementMove.duration + " ms");
                             console.log("PROBE DONE " + probe.failures);
                             Qt.quit();
                         });
-                    })));
+                    }))));
                 });
-            })));
+            }))));
         }
     }
 }
@@ -317,7 +394,7 @@ timeout 120 qs -p motion_probe.qml > "$WORK/qs.log" 2>&1
 SH
 chmod +x "$WORK/inner.sh"
 
-env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY PROBE_ROLES="$roles" PROBE_CURVES="$curves" \
+env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY PROBE_ROLES="$roles" PROBE_CURVES="$curves" PROBE_RUNGS="$rungs" PROBE_WAFFLE="$waffle" \
     PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
     HOME="$WORK/home" XDG_CONFIG_HOME="$WORK/config" XDG_STATE_HOME="$WORK/state" XDG_CACHE_HOME="$WORK/cache" \
     XDG_DATA_HOME="$WORK/data" XDG_RUNTIME_DIR="$WORK/rt" \
@@ -336,4 +413,4 @@ if loops="$(grep -E 'Binding loop' <<< "$out")"; then
     fail "a QML binding loop"
 fi
 (( failed )) && exit 1
-echo "ok   probe: every role inside the budget, Reduce Motion collapses spatial roles, the real drawer and search pill settle inside it"
+echo "ok   probe: every role inside the budget, Reduce Motion collapses spatial roles, the ladder and the waffle with them, the thinking dots hold still, the real drawer and search pill settle inside it"

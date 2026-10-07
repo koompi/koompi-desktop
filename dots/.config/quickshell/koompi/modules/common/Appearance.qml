@@ -278,16 +278,17 @@ Singleton {
     // The one duration ladder. Every animation in the shell picks a step here,
     // through an `animation` role below where one fits the intent. A duration
     // that is not on the ladder is a design decision, not a free number.
+    // With reduce motion on every step but snap is 0, so a step is never a timer interval.
     animationDuration: QtObject {
-        property int snap: 100 // hover and selection tracking
-        property int brisk: 120 // a small spatial move
-        property int quick: 150 // a panel leaves
-        property int fast: 200 // a panel arrives, the default effect
-        property int moderate: 250
-        property int normal: 300 // something changes size
-        property int deliberate: 350
-        property int slow: 400
-        property int slowest: 650 // a long spatial move
+        property int snap: 100 // hover and selection tracking, the one step reduce motion keeps
+        property int brisk: root.reduceMotion ? 0 : 120 // a small spatial move
+        property int quick: root.reduceMotion ? 0 : 150 // a panel leaves
+        property int fast: root.reduceMotion ? 0 : 200 // a panel arrives, the default effect
+        property int moderate: root.reduceMotion ? 0 : 250
+        property int normal: root.reduceMotion ? 0 : 300 // something changes size
+        property int deliberate: root.reduceMotion ? 0 : 350
+        property int slow: root.reduceMotion ? 0 : 400
+        property int slowest: root.reduceMotion ? 0 : 650 // a long spatial move
     }
 
     animationCurves: QtObject {
@@ -302,7 +303,7 @@ Singleton {
         readonly property list<real> standard: [0.2, 0, 0, 1, 1, 1]
         readonly property list<real> standardDecel: [0, 0, 0, 1, 1, 1]
         readonly property list<real> workspaceSlide: [0.25, 0.1, 0.25, 1, 1, 1] // mirror of hyprland/general.lua
-        readonly property real workspaceSlideDuration: root.reduceMotion ? 0 : root.animationDuration.normal // mirror of hyprland/general.lua
+        readonly property real workspaceSlideDuration: root.animationDuration.normal // mirror of hyprland/general.lua
         readonly property real expressiveFastSpatialDuration: root.animation.elementMoveSmall.duration
         readonly property real expressiveDefaultSpatialDuration: root.animation.elementMove.duration
         readonly property real expressiveEffectsDuration: root.animation.elementMoveFast.duration

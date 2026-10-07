@@ -29,7 +29,7 @@ Item {
     property int dotPhase: 0
 
     Timer {
-        interval: Appearance.animationDuration.slow
+        interval: 400
         repeat: true
         running: !root.completed
         onTriggered: root.dotPhase = (root.dotPhase + 1) % 4

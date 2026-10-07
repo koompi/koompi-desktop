@@ -5,7 +5,7 @@ import qs.modules.waffle.looks
 StackView {
     id: root
     property real moveDistance: 30
-    property int pushDuration: 200
+    property int pushDuration: Looks.transition.duration.fast
     property int fadeDuration: 80
     property list<real> bezierCurve: Looks.transition.easing.bezierCurve.easeIn
     property list<real> fadeBezierCurve: Looks.transition.easing.bezierCurve.easeInOut

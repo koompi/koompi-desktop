@@ -15,7 +15,7 @@ Item {
 
     required property Item contentItem
     property real visualMargin: 12
-    property int closeAnimDuration: 150
+    property int closeAnimDuration: Looks.transition.duration.quick
     property bool revealFromSides: false
     property bool revealFromLeft: true
 

@@ -28,14 +28,15 @@ Item {
             Rectangle {
                 id: dot
                 required property int index
+                property real pulse: 0.25
                 width: root.dotSize
                 height: root.dotSize
                 radius: width / 2
                 color: Appearance.colors.colPrimary
-                opacity: 0.25
+                opacity: Appearance.reduceMotion ? 0.6 : dot.pulse
 
-                SequentialAnimation on opacity {
-                    running: root.active
+                SequentialAnimation on pulse {
+                    running: root.active && !Appearance.reduceMotion
                     loops: Animation.Infinite
                     PauseAnimation { duration: dot.index * Appearance.animationDuration.snap }
                     NumberAnimation {
