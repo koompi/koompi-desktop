@@ -30,7 +30,7 @@ Suite on `dev` at `d0112f2e0` (J01, J02, J03 merged), lead run: 105 passed, 4 sk
 | J03 | Plain words: crash toast, media empty state, Recent labels | `dots/.local/bin/koompi-crash-watch`, `tests/test_crash_watch.sh`, `docs/agents/crash.md`, `modules/koompi/mediaControls/MediaControls.qml`, `services/LauncherSearch.qml`, `modules/koompi/overview/Search*.qml` | merged `ea0e71d92`, lead fix `d0112f2e0` |
 | J04 | Cheatsheet key names and duplicate rows | `modules/koompi/cheatsheet/*`, `services/HyprlandKeybinds.qml`, `dots/.config/hypr/hyprland/keybinds*.lua` (descriptions only) | rework: descriptions overflow columns, sheet clips at 1920x1200. Real-binds check (founder approved, lead ran hyprshot on `a728ad11a`): 162 described binds, 0 raw key names, no QML errors, no crash |
 | J05 | Settings: config-file banner and button | `settings.qml`, `modules/settings/QuickConfig.qml` | merged `aab3c5b5d` (lead: test bus config) |
-| J06 | External monitor refresh | `dots/.config/hypr/hyprland/general.lua` (monitor rule), its test | dispatched |
+| J06 | External monitor refresh | `dots/.config/hypr/hyprland/general.lua` (monitor rule), its test | `highrr` measured harmful (would set the founder's HDMI to 1024x768@75); Jev D7 keep_preferred p=0.79; finishing: same-line why comment only |
 
 Contended: `docs/navigation.md` (J01, J02, different paragraphs). Translation JSON files belong to nobody in this phase.
 Moved out of Phase 0: the cursor theme. Adwaita is deliberate (`394153191`); it joins the Phase 3 identity decision.
@@ -48,7 +48,8 @@ Measurements behind them: `/tmp/surfaces.tsv` (per-surface PSS, headless), `/tmp
 | J11 | Settings in the running shell | `settings.qml`, `dots/.local/bin/koompi-settings`, `panelFamilies/KoompiFamily.qml` (one loader) | C, after J07 | ready |
 | J12 | Clipboard watcher; memd on demand | `hypr/hyprland/execs.lua` (wl-paste lines), `services/Cliphist.qml`, `services/MemoryService.qml` | C | ready |
 | J13 | Launch feedback | `modules/koompi/bar/ActiveWindow.qml`, new launch service, `koompi-launch` (one call) | D, after J09 | ready |
-| J15 | `test_update_now_runs.sh` flakes under load | `tests/test_update_now_runs.sh` | after Phase 0 | ready |
+| J16 | Refresh rate per monitor in Settings > Displays (F8, D7) | `modules/settings/DisplaysConfig.qml`, `dots/.local/bin/koompi-displays`, its test | C | ready |
+| J15 | `test_update_now_runs.sh` flakes under load | `tests/test_update_now_runs.sh` | after Phase 0 | ready; evidence in `J15-evidence/` |
 
 Live seat damage from test harnesses, fixed 2026-10-07 (`e6d563717`): private buses auto-started the host's portals; xdph segfaulted (crash toasts on the founder's desktop) and a private document portal unmounted the live `/run/user/1000/doc`. The lead restarted `xdg-document-portal.service`.
 
