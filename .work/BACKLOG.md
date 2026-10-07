@@ -59,7 +59,8 @@ At the next authorised deploy: J42 replaces the hand-made `~/.config/systemd/use
 
 ## Swarm, from 2026-10-07 (founder: "identify the leftover work and assign a subagent swarm")
 
-Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet workers at once; every nested compositor and full suite runs under `.work/tools/heavy.sh` (flock on `/tmp/koompi-heavy.lock`); the harness tools lock themselves. Specs J17-J32 and J36-J41 are written and reviewed.
+Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet workers at once; every nested compositor and full suite runs under `.work/tools/heavy.sh` (flock on `/tmp/koompi-heavy.lock`); the harness tools lock themselves. Specs J17-J32 and J36-J43 are written and reviewed.
+Queue: `queue_order breakage_then_hub p=0.71 (jev-1.13.0)`: J42, J07, J13, J15, J43, J41, J08, J28, J29.
 
 | Job | Work | Depends on | State |
 | --- | --- | --- | --- |
@@ -69,7 +70,7 @@ Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet wor
 | J12 | Clipboard watcher, memd on demand | | running |
 | J14 | Three identity mockups | | running |
 | J16 | Refresh rate per monitor in Displays | | running |
-| J07 | Lazy surfaces (the hub: Phase 2 and most Phase 3 build on it) | J04 for the cheatsheet root only | next free slot; converts the cheatsheet last, after J04 merges |
+| J07 | Lazy surfaces (the hub: Phase 2 and most Phase 3 build on it) | J04 for the cheatsheet root only | second in the queue, after J42; converts the cheatsheet last, after J04 merges |
 | J08 | Screen corners | | queued |
 | J15 | `test_update_now_runs.sh` flake, and the KWin start-up wedge J09 found (nested Hyprland with no output) | | queued (holds the heavy lock for its load runs); owns the nested start-up in the three nested tests and `hyprshot.sh` |
 | J11 | Settings in the running shell | J07 | queued |
@@ -81,7 +82,7 @@ Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet wor
 | J39 | Settings > Shortcuts key names | J04 | spec reviewed |
 | J40 | Translations for the campaign's strings | everything else | spec reviewed; Khmer (`km_KH.json`) is a founder call, raised in its report |
 | J41 | Crash watch announces only this session's crashes (nested tests run with their own `XDG_RUNTIME_DIR`) | | queued, small |
-| J42 | The session target ships with KOOMPI and login items start: `xdg-desktop-autostart.target` refuses the manual start in `execs.lua:33`, and `hyprland-session.target` exists only on the founder's host, so a fresh install gets no `graphical-session.target` (no hypridle, crash watch, portals) and fcitx5 never starts anywhere | | queued, high; `J42_autostart_scope autostart_hide_duplicates p=0.98` |
+| J42 | The session target ships with KOOMPI and login items start: `xdg-desktop-autostart.target` refuses the manual start in `execs.lua:33`, and `hyprland-session.target` exists only on the founder's host, so a fresh install gets no `graphical-session.target` (no hypridle, crash watch, portals) and fcitx5 never starts anywhere | | next free slot; `J42_autostart_scope autostart_hide_duplicates p=0.98` |
 | J43 | Restored and pinned apps match the running app by desktop entry (J09 open points 2, 3) | J09 | queued |
 
 Founder-only: the four xcb apps' children (`J09_xcb_leak` ESCALATE, asked 2026-10-07); the pick from J14's mockups; authorising deployment to the live seat and the re-measurement; pushing `dev` and any merge to `main`.
