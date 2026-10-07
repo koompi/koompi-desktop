@@ -94,6 +94,7 @@ Founder-only: how new workers get onto `dev` (the permission checks refused cont
 ## State (2026-10-08, after the usage limit)
 
 - Merged since the limit: J10 round 1 (`e4fcae117`), J04 round 5 (`300f31357`), and the lead's isolation fixes (`49677fb3d`, `4d431e307`).
+- Full suite on merged `dev` (`2151ddf6e`): 119 passed, 4 skipped, 1 failed: `test_hypr_modes.sh`, which also failed 1 of 3 standalone reruns at the two "reduce motion on" steps (the first write never lands and is never retried). J10 round 2 owns the fix: find the cause and pass 20 runs in a row; until then it is the known `dev` flake.
 - J10 round 2 running: writes fail loudly, the configurator drops its venv shebang, updates keep `hyprland/shellOverrides/`, Reduce Motion reaches waffle.
 - J12 round 2 running: EasyEffects remembered toggle, comments, `Ai.qml`, the allowlist row; told its test must not see the host's easyeffects.
 - For J07: `SidebarRight.qml:24-34`, a drawer requested over IPC on a closed sidebar opens without its page (J10, old tree too). J04 has merged, so the cheatsheet can be converted.
