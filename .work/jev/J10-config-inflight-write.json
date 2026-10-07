@@ -1,0 +1,21 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "finding": "J10 traced test_hypr_modes.sh's flake (3 of 20 runs on dev) to Quickshell, not to its own code: when a FileView's JsonAdapter is edited while that FileView's own write is in flight, the finished write re-applies the file to the adapter (FileViewAdapter::onDataChanged -> JsonAdapter::deserializeAdapter, read in Quickshell's source). The edit is undone in memory, and the next write finds nothing changed, so it is lost on disk too.",
+    "measured": "Deterministic sweep on dev: an edit made 50-62 ms after Config's first load (the window of its startup write-back) is lost; at 48 ms or less, or 65 ms or more, it is kept. J10's test now waits for that startup write, so the test passes 20 of 20, but the shell itself is unchanged.",
+    "exposure": "Config.qml (config.json, written by every Settings page with no delay) and Persistent.qml (states.json: Keep awake, EasyEffects, the AI model, sidebar state) use the same pattern. Two edits inside one write's window lose the first: two quick Settings clicks, or code that changes two keys in sequence.",
+    "write_cost": "J10 measured a synchronous 16 KB write on ext4 at 1.41 ms. One frame at 60 Hz is 16.7 ms. KOOMPI targets low-end laptops, some with eMMC storage, where a write is slower; unmeasured there."
+  },
+  "questions": {
+    "J10_config_inflight_write": {
+      "type": "choice",
+      "instructions": "What should Config.qml and Persistent.qml do about edits lost during their own writes?",
+      "criteria": {
+        "block_writes": "Set blockWrites: true on both FileViews: a write finishes before the next edit can land. One line each. Strongest case: removes the race at its root for every setting and state, and the cost measured here is under a tenth of a frame. Cost: each write blocks the UI thread for its duration, more on slow storage.",
+        "skip_startup_writeback": "Stop the startup write-back only. Strongest case: removes the window J10 measured without changing write I/O. Cost: two quick edits later in the session can still lose one, and config.json stays incomplete until the first edit.",
+        "leave": "Leave it; the test avoids the window. Strongest case: no change. Cost: a known path where a user's setting silently does not stick.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}
