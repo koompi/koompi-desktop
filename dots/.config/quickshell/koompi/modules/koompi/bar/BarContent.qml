@@ -200,6 +200,7 @@ Item { // Bar content region
 
             RippleButton { // Right sidebar button
                 id: rightSidebarButton
+                objectName: "rightSidebarButton"
 
                 Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                 Layout.fillWidth: false
@@ -257,11 +258,6 @@ Item { // Bar content region
                     // Modes the user switched on and may have forgotten: keep
                     // awake, night light, dictation. Click turns the mode off.
                     ModeIndicators {
-                        Layout.fillHeight: true
-                        realSpacing: indicatorsRowLayout.realSpacing
-                        color: rightSidebarButton.colText
-                    }
-                    UpdateBadge { // Pending updates: count, click runs koompi update
                         Layout.fillHeight: true
                         realSpacing: indicatorsRowLayout.realSpacing
                         color: rightSidebarButton.colText
@@ -329,6 +325,8 @@ Item { // Bar content region
                     }
                 }
             }
+
+            UpdateBadge {} // outside the panel button: a click meant for it must not open updates
 
             BatteryIndicator {
                 visible: (root.useShortenedForm < 2 && Battery.available)

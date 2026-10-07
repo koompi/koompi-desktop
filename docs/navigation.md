@@ -56,7 +56,11 @@ The horizontal bar and the vertical bar are alternative bars, so a given session
 | Workspace hint | none | shown under the workspaces widget on a first run | none | none | no |
 | Screensaver | none | none | none | none | yes, called by hypridle at 120 s idle and closed on resume; any key or pointer motion on it also closes it, and the lock replaces it |
 | Bar popups: 1 agent usage, 2 battery, 3 pomodoro, 4 clock | `Super+Ctrl+1`..`4`, again or `Escape` to close | hover the widget | none | none | yes, `bar popup N`, `bar popupClose` |
-| Update badge | none | in the indicator cluster while updates are pending; click runs `koompi update`, middle-click rechecks | none | none | no |
+| Update badge | none | its own glyph, no count, left of the right-panel button while updates are pending; click opens the updates popup (count, last check, Update now, Check again), click again or outside closes it, middle-click rechecks | none | none | no |
+
+The update badge is deliberately not part of the right-panel button: it used to sit inside it, and a click aimed at the panel could start a system upgrade.
+It is its own item with its own hit area, shows a glyph and never a count, and the upgrade runs only from the popup's Update now button.
+A bar popup hangs under the widget it belongs to and is clamped to the screen the bar is on, so the clock at the far right gets a popup that ends at the screen edge instead of running off it.
 
 Getting to one bar button per sidebar took a change on 2026-07-30.
 Three bar sections were left-click toggles for a sidebar on top of the dedicated button inside that same section: the right section of the horizontal bar, and both the top and bottom sections of the vertical bar.

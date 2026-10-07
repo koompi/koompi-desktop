@@ -22,7 +22,8 @@ Singleton {
     property bool available: root.forced > 0
     property alias checking: checkUpdatesProc.running
     property int count: root.forced
-    
+    property var lastChecked: null
+
     readonly property bool updateAdvised: available && count > Config.options.updates.adviseUpdateThreshold
     readonly property bool updateStronglyAdvised: available && count > Config.options.updates.stronglyAdviseUpdateThreshold
 
@@ -88,8 +89,10 @@ Singleton {
         onExited: (exitCode, exitStatus) => {
             if (exitCode === 0) {
                 root.count = checkUpdatesCollector.text.split("\n").filter(line => line.trim().length > 0).length;
+                root.lastChecked = new Date();
             } else if (exitCode === 2) {
                 root.count = 0;
+                root.lastChecked = new Date();
             } else {
                 console.warn("[Updates] checkupdates failed with code", exitCode, "and status", exitStatus, "- keeping count", root.count);
             }

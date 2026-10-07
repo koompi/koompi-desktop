@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
-# J34: the update badge on the KOOMPI bar (O09) and bar popups by keyboard
-# (O34). Static: the lua parses, the bar files lint, BarContent stays under its
-# cap and carries the badge once, nine described chords name the IPC the bar
-# implements. Live: hyprctl lists the chords when the config is installed.
-# Headless: KWin's virtual backend hosts a nested shell (it speaks layer-shell,
-# cage does not) with KOOMPI_UPDATES_FORCE=12, the real `qs ipc call bar popup
-# 4` opens the clock popup, a second call closes it, and both windows are
-# grabbed to PNG. BAR_SHOT=<path> keeps the bar image (BAR_SHOT-popup.png the
-# popup); nothing here touches the live session.
+# J34: the update badge on the KOOMPI bar (O09) and bar popups by keyboard (O34).
+# J01: the badge is its own item beside the panel button and opens an updates
+# popup; the clock popup stays on a narrow screen. Headless: KWin's virtual
+# backend hosts a nested shell with KOOMPI_UPDATES_FORCE=12 and the probe
+# measures real geometry. BAR_SHOT=<path> keeps the bar image, with
+# BAR_SHOT-popup.png (clock) and BAR_SHOT-updates.png beside it.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -81,13 +78,13 @@ QMLLINT=/usr/lib/qt6/bin/qmllint
 if [[ -x "$QMLLINT" ]]; then
     LINT="$(mktemp -d)"
     ln -s "$SHELL_ROOT" "$LINT/qs"
-    for f in "$BAR"/{Bar,BarContent,UpdateBadge,StyledPopup,AgentUsagePopup,BatteryPopup,PomodoroPopup,ClockWidgetPopup}.qml "$SHELL_ROOT/services/Updates.qml"; do
+    for f in "$BAR"/{Bar,BarContent,UpdateBadge,UpdatesPopup,StyledPopup,AgentUsagePopup,BatteryPopup,PomodoroPopup,ClockWidgetPopup}.qml "$SHELL_ROOT/services/Updates.qml"; do
         out="$("$QMLLINT" -I "$LINT" -I /usr/lib/qt6/qml "$f" 2>&1)" \
             || { echo "$out" | head -20 >&2; fail "qmllint rejects ${f#"$SHELL_ROOT"/}"; }
         grep -qE '^Error' <<< "$out" && { echo "$out" | grep -A3 '^Error' >&2; fail "qmllint error in ${f#"$SHELL_ROOT"/}"; }
     done
     rm -rf "$LINT"
-    echo "ok   qmllint: 9 bar files parse without errors"
+    echo "ok   qmllint: 10 bar files parse without errors"
 else
     echo "skip: no Qt 6 qmllint at $QMLLINT"
 fi
@@ -129,7 +126,8 @@ ShellRoot {
     id: probe
     property string out: Quickshell.env("PROBE_OUT")
     property int ticks: 0
-    property bool sawOpen: false
+    property int stage: 0
+    property int mark: -1
 
     Bar { id: bar }
 
@@ -137,14 +135,26 @@ ShellRoot {
     // window; its item is the popup PanelWindow while open, null otherwise.
     function findPopup(obj, index) {
         if (obj.keyIndex !== undefined && obj.keyIndex === index) return obj;
-        for (const list of [obj.children, obj.data]) {
-            if (!list) continue;
-            for (let i = 0; i < list.length; i++) {
-                const found = probe.findPopup(list[i], index);
-                if (found) return found;
-            }
+        const list = obj.data;
+        for (let i = 0; list && i < list.length; i++) {
+            const found = probe.findPopup(list[i], index);
+            if (found) return found;
         }
         return null;
+    }
+
+    function findNamed(obj, name) {
+        if (obj.objectName === name) return obj;
+        const list = obj.data;
+        for (let i = 0; list && i < list.length; i++) {
+            const found = probe.findNamed(list[i], name);
+            if (found) return found;
+        }
+        return null;
+    }
+
+    function verdict(ok, text) {
+        console.log((ok ? "PASS " : "FAIL ") + text);
     }
 
     // A window's contentItem is Quickshell's proxy and cannot be grabbed, so
@@ -161,30 +171,90 @@ ShellRoot {
         if (!scheduled) { console.log("FAIL grabToImage refused " + name); next(); }
     }
 
-    // State-driven, not clock-driven: inner.sh sends `bar popup 4` once the
-    // instance answers ipc, and again a few seconds later.
+    function backgroundSpan(popupWindow) {
+        const children = popupWindow.contentItem.children;
+        const bg = children[children.length - 1];
+        const left = popupWindow.margins.left + bg.mapToItem(null, 0, 0).x;
+        return { left: left, right: left + bg.width };
+    }
+
+    function checkInside(label, popupWindow, screenWidth) {
+        const span = probe.backgroundSpan(popupWindow);
+        probe.verdict(span.left >= 0 && span.right <= screenWidth,
+            label + " background inside the screen: x " + span.left + ".." + span.right + " of " + screenWidth);
+    }
+
+    function checkBadge(win) {
+        const badge = probe.findNamed(win.contentItem, "updateBadge");
+        const panel = probe.findNamed(win.contentItem, "rightSidebarButton");
+        if (!badge || !panel) {
+            probe.verdict(false, "badge and panel button found: badge=" + !!badge + " panel=" + !!panel);
+            return;
+        }
+        const b = badge.mapToItem(null, 0, 0);
+        const p = panel.mapToItem(null, 0, 0);
+        const gap = p.x - (b.x + badge.width);
+        probe.verdict(badge.visible && badge.width >= 24 && badge.height >= 24, "badge lit with a hit area of " + badge.width + "x" + badge.height);
+        probe.verdict(gap >= 0 && gap <= 20, "badge sits left of the panel button, outside it: gap " + gap + "px (badge x " + b.x + ".." + (b.x + badge.width) + ", panel x " + p.x + ".." + (p.x + panel.width) + ")");
+        probe.verdict(typeof badge.middleClickAction === "function", "middle-click on the badge still checks again");
+    }
+
+    // state-driven: inner.sh sends `bar popup 4` twice, the probe clicks the badge twice
     Timer {
         interval: 500; running: true; repeat: true
         onTriggered: {
             probe.ticks++;
+            if (probe.ticks > 200) {
+                console.log("FAIL probe timed out in stage " + probe.stage);
+                Qt.quit();
+                return;
+            }
             const win = bar.focusedBarWindow();
-            const popup = win ? probe.findPopup(win.contentItem, 4) : null;
-            if (!probe.sawOpen) {
-                if (popup?.keyboardOpen && popup.item) {
-                    probe.sawOpen = true;
-                    console.log("PASS popup 4 keyboardOpen after ipc, window mapped");
-                    probe.grab(win, "bar.png", false, () => probe.grab(popup.item, "popup.png", true, () => {}));
-                } else if (probe.ticks > 80) {
-                    console.log("FAIL popup 4 never opened: win=" + !!win + " popup=" + !!popup + " keyboardOpen=" + popup?.keyboardOpen);
+            if (!win) return;
+            const clock = probe.findPopup(win.contentItem, 4);
+            const updates = probe.findNamed(win.contentItem, "updatesPopup");
+            const badge = probe.findNamed(win.contentItem, "updateBadge");
+
+            if (probe.stage === 0) {
+                if (clock?.keyboardOpen && clock.item) {
+                    probe.verdict(true, "popup 4 keyboardOpen after ipc, window mapped");
+                    probe.stage = 1;
+                    probe.mark = probe.ticks;
+                }
+            } else if (probe.stage === 1) {
+                if (probe.ticks - probe.mark < 2) return;
+                probe.stage = 99;
+                probe.checkBadge(win);
+                probe.checkInside("clock popup", clock.item, win.screen.width);
+                probe.grab(clock.item, "popup.png", true, () => probe.grab(win, "bar.png", false, () => { probe.stage = 2; }));
+            } else if (probe.stage === 2) {
+                if (!clock.keyboardOpen && !clock.item) {
+                    probe.verdict(true, "popup 4 closed by the second call");
+                    if (!badge) {
+                        probe.verdict(false, "no badge to click");
+                        Qt.quit();
+                        return;
+                    }
+                    badge.click();
+                    probe.stage = 3;
+                    probe.mark = -1;
+                }
+            } else if (probe.stage === 3) {
+                if (updates?.item && probe.mark < 0) probe.mark = probe.ticks;
+                if (probe.mark < 0 || probe.ticks - probe.mark < 2) return;
+                probe.stage = 99;
+                probe.verdict(updates.active, "badge click opened the updates popup");
+                probe.checkInside("updates popup", updates.item, win.screen.width);
+                probe.grab(updates.item, "updates.png", true, () => {
+                    badge.click();
+                    probe.stage = 4;
+                });
+            } else if (probe.stage === 4) {
+                if (!updates.active && !updates.item) {
+                    probe.verdict(true, "second badge click closed the updates popup");
+                    console.log("PROBE DONE");
                     Qt.quit();
                 }
-            } else if (!popup?.keyboardOpen && !popup?.item) {
-                console.log("PASS popup 4 closed by the second call");
-                console.log("PROBE DONE");
-                Qt.quit();
-            } else if (probe.ticks > 120) {
-                console.log("FAIL popup 4 never closed");
-                Qt.quit();
             }
         }
     }
@@ -200,7 +270,7 @@ qs -p "\$probe" > "$WORK/qs.log" 2>&1 &
 for _ in \$(seq 1 60); do qs -p "\$probe" ipc show > /dev/null 2>&1 && break; sleep 0.5; done
 sleep 3
 qs -p "\$probe" ipc call bar popup 4 > "$WORK/ipc.log" 2>&1
-sleep 4
+sleep 8
 qs -p "\$probe" ipc call bar popup 4 >> "$WORK/ipc.log" 2>&1
 wait
 SH
@@ -229,10 +299,12 @@ if loops="$(grep -E 'Binding loop' <<< "$out")"; then
 fi
 [[ -s "$WORK/out/bar.png" ]] || fail "no bar.png from the headless bar"
 [[ -s "$WORK/out/popup.png" ]] || fail "no popup.png from the keyboard-opened clock popup"
+[[ -s "$WORK/out/updates.png" ]] || fail "no updates.png from the badge-opened updates popup"
 if [[ -n "${BAR_SHOT:-}" ]]; then
     cp "$WORK/out/bar.png" "$BAR_SHOT"
     cp "$WORK/out/popup.png" "${BAR_SHOT%.png}-popup.png"
-    echo "     bar image at $BAR_SHOT, popup at ${BAR_SHOT%.png}-popup.png"
+    cp "$WORK/out/updates.png" "${BAR_SHOT%.png}-updates.png"
+    echo "     bar image at $BAR_SHOT, popups at ${BAR_SHOT%.png}-popup.png and ${BAR_SHOT%.png}-updates.png"
 fi
-(( failed )) || echo "ok   headless: bar rendered with 12 forced updates, bar popup 4 opened and closed over IPC"
+(( failed )) || echo "ok   headless: 12 forced updates, badge beside the panel button, popups inside the screen, clock popup over IPC, updates popup over clicks"
 exit $failed
