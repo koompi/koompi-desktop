@@ -332,6 +332,18 @@ A surface that is fullscreen but masked to a smaller item, like the cheatsheet, 
 The remaining gap is the one surface whose keyboard focus is set but not gated.
 The wallpaper selector and the left sidebar both ask for `OnDemand` unconditionally, which is currently harmless and will stop being harmless the moment either window outlives a single open.
 
+## Motion
+
+One budget for every surface, from decision D6 of the 2026-10-07 audit: a panel or popup arrives in 200 ms and leaves in 150, a small move takes 120, the workspace slide takes 300, and nothing overshoots.
+The shell's half is the `animation` roles and the duration ladder in `modules/common/Appearance.qml`, and Hyprland's half is the leaves in `hyprland/general.lua`.
+`tests/test_motion.sh` and `tests/test_motion_hypr.sh` hold both, so a surface that picks a role instead of a number is on the budget without a decision.
+
+Search is a layer Hyprland does not animate, so its motion is the shell's alone.
+The right sidebar arrives and leaves through Hyprland's layer leaves, and its drawer pages through the shell's.
+
+`appearance.reduceMotion` (Settings, Quick, off by default) stops every spatial move in the shell, leaves fades at 100 ms, and turns Hyprland's animations off.
+Hyprland's half goes through `services/HyprlandModes.qml`, which also owns Game mode's hold on the same option, so neither can undo the other.
+
 ## The tour is a utility surface, not a role
 
 `20260804-guided-tour` adds a guided walkthrough of the whole desktop, and it joins **no** role.
