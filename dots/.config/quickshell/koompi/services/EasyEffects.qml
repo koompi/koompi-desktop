@@ -7,7 +7,9 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 
 /**
- * Handles EasyEffects active state and presets.
+ * Whether EasyEffects is installed and running, and the sidebar toggle that
+ * starts and stops it. The toggle's last state is kept in states.json and
+ * restored at login.
  */
 Singleton {
     id: root
