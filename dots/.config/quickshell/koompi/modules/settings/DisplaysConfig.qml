@@ -15,6 +15,26 @@ ContentPage {
         const screens = [...Quickshell.screens];
         return (screens.find(s => s.name?.startsWith("eDP")) ?? screens[0])?.name ?? "";
     }
+    // absolute path: the session env may lack ~/.local/bin on PATH
+    readonly property string displaysTool: Quickshell.env("HOME") + "/.local/bin/koompi-displays"
+
+    function ratesAtCurrentSize(info) {
+        if (!info?.availableModes) return [];
+        const prefix = `${info.width}x${info.height}@`;
+        const seen = {};
+        for (const mode of info.availableModes) {
+            if (!mode.startsWith(prefix)) continue;
+            const rate = Math.round(parseFloat(mode.slice(prefix.length)) * 100) / 100;
+            if (rate > 0) seen[rate] = true;
+        }
+        return Object.keys(seen).map(Number).sort((a, b) => b - a);
+    }
+
+    function currentRateOf(rates, info) {
+        const now = info?.refreshRate ?? 0;
+        const nearest = [...rates].sort((a, b) => Math.abs(a - now) - Math.abs(b - now))[0];
+        return nearest !== undefined && Math.abs(nearest - now) < 0.05 ? nearest : null;
+    }
 
     Component.onCompleted: {
         Hyprsunset.fetchState();
@@ -64,6 +84,8 @@ ContentPage {
                 readonly property var screenInfo: monitorBlock.modelData
                 readonly property var hyprInfo: root.hyprMonitors[monitorBlock.screenInfo?.name ?? ""]
                 readonly property var brightnessMonitor: Brightness.getMonitorForScreen(monitorBlock.screenInfo)
+                readonly property var refreshRates: root.ratesAtCurrentSize(monitorBlock.hyprInfo)
+                readonly property var currentRate: root.currentRateOf(monitorBlock.refreshRates, monitorBlock.hyprInfo)
                 readonly property string relativePosition: {
                     const a = root.hyprMonitors[root.anchorName];
                     const m = monitorBlock.hyprInfo;
@@ -106,7 +128,7 @@ ContentPage {
                                 const width = monitorBlock.screenInfo?.width ?? 0;
                                 const height = monitorBlock.screenInfo?.height ?? 0;
                                 const refreshRate = monitorBlock.hyprInfo?.refreshRate;
-                                details.push(refreshRate !== undefined ? `${width}x${height}@${Math.round(refreshRate)}Hz` : `${width}x${height}`);
+                                details.push(refreshRate !== undefined ? `${width}x${height}@${Math.round(refreshRate * 100) / 100}Hz` : `${width}x${height}`);
                                 const scale = monitorBlock.hyprInfo?.scale;
                                 if (scale !== undefined)
                                     details.push(Translation.tr("Scale %1").arg(scale));
@@ -137,6 +159,18 @@ ContentPage {
                     text: Translation.tr("External monitor controlled via DDC/CI")
                 }
                 ContentSubsection {
+                    visible: monitorBlock.refreshRates.length > 1
+                    title: Translation.tr("Refresh rate")
+                    ConfigSelectionArray {
+                        currentValue: monitorBlock.currentRate
+                        options: monitorBlock.refreshRates.map(rate => ({ displayName: Translation.tr("%1 Hz").arg(rate), value: rate }))
+                        onSelected: newValue => {
+                            Quickshell.execDetached([root.displaysTool, "rate", monitorBlock.screenInfo?.name ?? "", String(newValue)]);
+                            monitorsRefreshTimer.restart();
+                        }
+                    }
+                }
+                ContentSubsection {
                     visible: monitorBlock.screenInfo?.name !== root.anchorName && [...Quickshell.screens].length > 1
                     title: Translation.tr("Position relative to %1").arg(root.anchorName)
                     ConfigSelectionArray {
@@ -148,8 +182,7 @@ ContentPage {
                             { displayName: Translation.tr("Below"), icon: "arrow_downward", value: "below" }
                         ]
                         onSelected: newValue => {
-                            // Absolute path: the session env may lack ~/.local/bin on PATH
-                            Quickshell.execDetached([Quickshell.env("HOME") + "/.local/bin/koompi-displays", "place", monitorBlock.screenInfo?.name ?? "", newValue]);
+                            Quickshell.execDetached([root.displaysTool, "place", monitorBlock.screenInfo?.name ?? "", newValue]);
                             monitorsRefreshTimer.restart();
                         }
                     }
