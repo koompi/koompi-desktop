@@ -48,10 +48,6 @@ Scope {
                     return;
                 window.targetScreen = Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0] ?? null;
                 MemoryService.load();
-                // Same release the sidebar performs. Without it the assistant is
-                // told it has no memory and the recalled block never reaches the
-                // prompt, however well the recall itself worked.
-                Ai.memoryWarmed = true;
             }
         }
 

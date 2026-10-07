@@ -244,22 +244,12 @@ Singleton {
         return `\n## What you remember\n${lines}\n`;
     }
 
-    // No MemoryService touch here on purpose. It used to warm the daemon as soon
-    // as this service loaded, which meant a Python venv and an embedding model
-    // loading at every login, before anyone opened the panel. SidebarLeft warms
-    // it when it first opens instead.
-    //
-    // Keep the short circuit first. Reading any property of MemoryService constructs the
-    // lazy singleton and starts the daemon, which is what this guard exists to avoid,
-    // and this binding evaluates at login because SidebarLeft is built eagerly.
-    property bool memoryWarmed: false
-
     // The whole memory section of the prompt. Empty (so no claim of memory at all)
     // unless the daemon is actually enabled and ready; otherwise the model would
     // promise to remember and silently fail.
     readonly property string memoryPromptBlock: {
         const memCfg = Config.options?.ai?.memory;
-        if (!memCfg?.enable || !root.memoryWarmed || !MemoryService.ready) return "";
+        if (!memCfg?.enable || !MemoryService.ready) return "";
         return "- You have long-term memory. When the user shares something durable and worth recalling later "
             + "(preferences, important facts, ongoing projects), call the `remember` function. "
             + "Don't remember trivial or one-off chatter.\n"

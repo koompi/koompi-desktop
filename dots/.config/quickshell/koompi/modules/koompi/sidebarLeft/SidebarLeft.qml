@@ -19,17 +19,12 @@ Scope { // Scope
         root.detach = !root.detach;
     }
 
-    // The AI panel lives in here and its memory daemon loads an embedding model,
-    // so it warms on the first Super+A rather than at login. Once only: the
-    // service restarts itself if the daemon dies.
+    // the memory daemon loads an embedding model, so it starts with the first open and not at login
     Connections {
         target: GlobalStates
         function onSidebarLeftOpenChanged() {
             if (!GlobalStates.sidebarLeftOpen) return;
             MemoryService.load();
-            // Releases Ai's memoryPromptBlock, which cannot read MemoryService
-            // until something has decided the daemon should exist.
-            Ai.memoryWarmed = true;
             // Every open, not once: litert-lm.socket unloads the engine after
             // 5min idle, so the list and the warm both have to be re-done.
             Ai.refreshLitertLmModels();
