@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs a shell tree in a headless KWin with a private bus and fresh XDG dirs, then plays steps:
+# Runs a shell tree in a headless KWin with a private bus, its own HOME and runtime dir, then plays steps:
 #   shellshot.sh SHELL_ROOT OUT_DIR [WIDTHxHEIGHT] -- STEP...
 # STEP is  ipc:<target> <fn> [args]  |  run:<command>  |  sleep:<s>  |  shot:<name>
 # Env passes through (KOOMPI_UPDATES_FORCE etc); SHELLSHOT_CONFIG=<json> replaces the seeded config.
@@ -15,7 +15,8 @@ shift
 mkdir -p "$out"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-mkdir -p "$work/xdg/config" "$work/xdg/state" "$work/xdg/cache" "$work/bin"
+mkdir -p "$work/xdg/config" "$work/xdg/state" "$work/xdg/cache" "$work/bin" "$work/home" "$work/rt"
+chmod 700 "$work/rt"
 mkdir -p "$work/xdg/data/applications"
 [[ -d $HOME/.local/share/fonts ]] && ln -s "$HOME/.local/share/fonts" "$work/xdg/data/fonts"
 ln -s "$(dirname -- "$root")/../fontconfig" "$work/xdg/config/fontconfig"
@@ -48,7 +49,8 @@ tools=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 chmod +x "$work/inner.sh"
 
 w=${size%x*}; h=${size#*x}
-PATH="$work/bin:$PATH" KOOMPI_SHELLD="$work/bin/koompi-shelld" QT_QPA_PLATFORM=wayland \
+env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
+    PATH="$work/bin:$PATH" KOOMPI_SHELLD="$work/bin/koompi-shelld" QT_QPA_PLATFORM=wayland HOME="$work/home" XDG_RUNTIME_DIR="$work/rt" \
     XDG_CONFIG_HOME="$work/xdg/config" XDG_STATE_HOME="$work/xdg/state" XDG_CACHE_HOME="$work/xdg/cache" \
     XDG_DATA_HOME="$work/xdg/data" KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
     timeout 180 dbus-run-session --config-file="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/tests/private-bus.conf" -- kwin_wayland --virtual --width "$w" --height "$h" \

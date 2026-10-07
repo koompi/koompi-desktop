@@ -15,7 +15,9 @@ run_variant() { # label, names to drop...
     local work tree pss
     work=$(mktemp -d)
     tree="$work/shell"
-    mkdir -p "$tree/panelFamilies" "$work/xdg/config/koompi" "$work/xdg/state/quickshell/user" "$work/xdg/cache" "$work/bin"
+    mkdir -p "$tree/panelFamilies" "$work/xdg/config/koompi" "$work/xdg/state/quickshell/user" "$work/xdg/cache" "$work/xdg/data" "$work/bin" "$work/home" "$work/rt"
+    chmod 700 "$work/rt"
+    if [[ -d $HOME/.local/share/fonts ]]; then ln -s "$HOME/.local/share/fonts" "$work/xdg/data/fonts"; fi
     for entry in "$root"/*; do
         [[ $(basename -- "$entry") == panelFamilies ]] && continue
         ln -s "$entry" "$tree/$(basename -- "$entry")"
@@ -40,8 +42,9 @@ kill -- -\$pid 2>/dev/null || kill \$pid
 sleep 1
 SH
     chmod +x "$work/inner.sh"
-    PATH="$work/bin:$PATH" KOOMPI_SHELLD="$work/bin/koompi-shelld" QT_QPA_PLATFORM=wayland \
-        XDG_CONFIG_HOME="$work/xdg/config" XDG_STATE_HOME="$work/xdg/state" XDG_CACHE_HOME="$work/xdg/cache" \
+    env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
+        PATH="$work/bin:$PATH" KOOMPI_SHELLD="$work/bin/koompi-shelld" QT_QPA_PLATFORM=wayland HOME="$work/home" XDG_RUNTIME_DIR="$work/rt" \
+        XDG_CONFIG_HOME="$work/xdg/config" XDG_STATE_HOME="$work/xdg/state" XDG_CACHE_HOME="$work/xdg/cache" XDG_DATA_HOME="$work/xdg/data" \
         timeout 90 dbus-run-session --config-file="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/tests/private-bus.conf" -- kwin_wayland --virtual --width 1920 --height 1200 \
             --no-lockscreen --no-global-shortcuts --exit-with-session "$work/inner.sh" > "$work/kwin.log" 2>&1 || true
     pss=$(cat "$work/pss" 2>/dev/null || echo NA)
