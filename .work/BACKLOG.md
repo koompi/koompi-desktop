@@ -90,3 +90,15 @@ Full suite on `dev` at `c78cbb1c0` (J09 merged, before J04 and J12), 2026-10-08:
 | J43 | Restored and pinned apps match the running app by desktop entry (J09 open points 2, 3) | J09 (merged) | queued, needs a new worker |
 
 Founder-only: how new workers get onto `dev` (the permission checks refused contract step 4 for J42 and J07, asked 2026-10-08); the four xcb apps' children (`J09_xcb_leak` ESCALATE, asked 2026-10-07); the pick from J14's mockups; authorising deployment to the live seat and the re-measurement; pushing `dev` and any merge to `main`.
+
+## State at the usage limit (2026-10-08)
+
+- J10 (motion, Reduce Motion, one owner for held Hyprland options): reviewed, renders seen, rebased onto `dev` (branch tip `7b08fbe79`); its tests were queued under heavy.sh (log `/home/userx/.tmp/j10-verify.log`); not merged. Round 2 to send after merge:
+  1. `HyprlandConfig.apply` fails loudly: a `Process` with argv (no `bash -c`), log a non-zero exit with stderr, and re-read the overrides file on failure so `applied` matches it.
+  2. `scripts/hyprland/hyprconfigurator.py` imports only the stdlib: shebang to `#!/usr/bin/env python3` (the venv shebang is the silent-failure source), and line 50's `'\{'` to `r'\{'`.
+  3. Updates keep `hyprland/shellOverrides/` (Game mode and the anti-flashbang shader live only there): exclude it from the `SYNC_DIRS` mirror and from `koompi-migrate`'s hyprland pair, seed the stub only when absent; test both routes.
+  4. Reduce Motion reaches the waffle family's `Looks.transition` tokens (give the Timers that borrow rungs their own intervals).
+- For J07: `SidebarRight.qml:24-34`, a drawer requested over IPC on a closed sidebar opens without its page (J10, old tree too).
+- For J20: in a headless shell the Internet tile reads "On" with the wifi-off glyph and Power Profile "On" with an X; check the tiles when their service is absent.
+- Lead fixes on disk, uncommitted, verification queued (log `/home/userx/.tmp/isolation2-verify.log`): `tests/test_ai_remote_default.sh` runs its probe in a headless KWin (it pointed `WAYLAND_DISPLAY` at the live `/run/user/1000/wayland-1`), `tests/test_private_bus.sh` fails any test reaching into `/run/user`, `.work/tools/hyprshot.sh` copies `hyprland/` instead of linking it into the repo. Commit once the log shows the AI test passing and `git status` clean under `dots/.config/hypr/hyprland`.
+- Still running at the limit: J04 round 5, J12 round 2 (both on `dev`-based worktrees).
