@@ -88,7 +88,11 @@ check_launches() {
     expect "$label: --id org.kde.kdeconnect.app" "$inherited" "$(launched_platform "$rt" "$inherited" --id org.kde.kdeconnect.app -- "$tmp/bin/platform_probe")"
     expect "$label: --id okular-nightly is not okular" "$inherited" "$(launched_platform "$rt" "$inherited" --id okular-nightly -- "$tmp/bin/platform_probe")"
     expect "$label: kdeconnect-app with no platform in the session" '<unset>' "$(launched_platform "$rt" - kdeconnect-app)"
-    expect "$label: the shell's own wayland pin is left alone" wayland "$(launched_platform "$rt" wayland kdeconnect-app)"
+    expect "$label: the shell's wayland pin gets the xcb fallback" 'wayland;xcb' "$(launched_platform "$rt" wayland kdeconnect-app)"
+    expect "$label: the shell's wayland pin and a menu app" xcb "$(launched_platform "$rt" wayland okular)"
+    expect "$label: xcb is left alone" xcb "$(launched_platform "$rt" xcb kdeconnect-app)"
+    expect "$label: wayland-egl is left alone" wayland-egl "$(launched_platform "$rt" wayland-egl kdeconnect-app)"
+    expect "$label: offscreen is left alone" offscreen "$(launched_platform "$rt" offscreen kdeconnect-app)"
 }
 
 before=$failed
@@ -97,7 +101,7 @@ before=$failed
 check_launches "$tmp/rt-manager" "systemd-run path"
 [[ "$(grep -c -- '--scope .*--slice=app.slice' "$tmp/sysd.log")" == "$(wc -l < "$tmp/launches")" ]] \
     || fail "the systemd-run path was not taken for every launch: $(wc -l < "$tmp/sysd.log") of $(wc -l < "$tmp/launches")"
-passed_since "$before" "koompi-launch via systemd-run: xcb for dolphin okular konsole ark, nothing else"
+passed_since "$before" "koompi-launch via systemd-run: xcb for dolphin okular konsole ark, a bare wayland becomes wayland;xcb, nothing else changes"
 
 before=$failed
 : > "$tmp/sysd.log"
