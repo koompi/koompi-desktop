@@ -71,9 +71,12 @@ Item {
         GlobalStates.cheatsheetOpen = false;
     }
 
+    onQueryChanged: columnsFlick.contentY = 0
+
     Connections {
         target: GlobalStates
         function onCheatsheetOpenChanged() {
+            columnsFlick.contentY = 0;
             if (!GlobalStates.cheatsheetOpen)
                 return;
             searchField.text = "";
@@ -88,6 +91,7 @@ Item {
 
         ToolbarTextField {
             id: searchField
+            objectName: "cheatsheetSearch"
             Layout.fillHeight: false
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: 360
@@ -103,27 +107,40 @@ Item {
             }
         }
 
-        Row {
+        StyledFlickable {
+            id: columnsFlick
+            objectName: "cheatsheetColumns"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 10
+            clip: true
+            contentWidth: width
+            contentHeight: columnsRow.implicitHeight
+            ScrollBar.vertical: null // house rule: scrollable surfaces show no scrollbar
 
-            Repeater {
-                model: root.categoryColumns.length
-                delegate: Column {
-                    id: categoryColumn
-                    required property int index
-                    width: (parent.width - parent.spacing * (root.categoryColumns.length - 1)) / root.categoryColumns.length
-                    spacing: 10
+            Row {
+                id: columnsRow
+                width: columnsFlick.width
+                spacing: 10
 
-                    Repeater {
-                        model: root.categoriesForColumn(categoryColumn.index)
-                        delegate: CheatsheetKeybindsCategory {
-                            required property var modelData
-                            categoryName: modelData
-                            matchIds: root.matchIds
-                            firstMatchId: root.firstMatch?.id ?? -1
-                            activate: root.activate
+                Repeater {
+                    model: root.categoryColumns.length
+                    delegate: Column {
+                        id: categoryColumn
+                        required property int index
+                        width: (parent.width - parent.spacing * (root.categoryColumns.length - 1)) / root.categoryColumns.length
+                        spacing: 10
+
+                        Repeater {
+                            model: root.categoriesForColumn(categoryColumn.index)
+                            delegate: CheatsheetKeybindsCategory {
+                                required property var modelData
+                                objectName: "cheatsheetCategory"
+                                width: categoryColumn.width
+                                categoryName: modelData
+                                matchIds: root.matchIds
+                                firstMatchId: root.firstMatch?.id ?? -1
+                                activate: root.activate
+                            }
                         }
                     }
                 }

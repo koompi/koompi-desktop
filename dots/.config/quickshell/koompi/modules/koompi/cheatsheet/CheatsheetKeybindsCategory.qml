@@ -18,9 +18,22 @@ Column {
     // The row Enter would run
     property int firstMatchId: -1
     required property var activate
-    property int maxBindWidth: 0
-    property real columnSpacing: 40
+    // each chord reports its one-line width, and its widest piece that cannot wrap
+    property var chordWidths: []
+    property real maxPieceWidth: 0
+    // chords wider than this share of the row wrap; the column fits the widest that stays under
+    property real chordShare: 0.6
+    property real rowPadding: 6
+    property real rowSpacing: 12
+    property real minDescriptionWidth: 60
     property real titleSpacing: 7
+    readonly property real chordWidth: {
+        const room = root.width - root.rowPadding * 2 - root.rowSpacing - root.minDescriptionWidth;
+        const limit = Math.min(room, (root.width - root.rowPadding * 2) * root.chordShare);
+        const fitting = root.chordWidths.filter(width => width <= limit);
+        return Math.max(0, Math.min(room, Math.max(root.maxPieceWidth, ...fitting)));
+    }
+    readonly property real descriptionWidth: Math.max(root.minDescriptionWidth, root.width - root.rowPadding * 2 - root.chordWidth - root.rowSpacing)
 
     // Excellent symbol explaination and source :
     // http://xahlee.info/comp/unicode_computing_symbols.html
@@ -97,11 +110,24 @@ Column {
         font.pixelSize: Appearance.font.pixelSize.title
     }
 
+    // one keycap and one line of text, to line the first chord up with its description
+    KeyboardKey {
+        id: capRuler
+        visible: false
+    }
+    StyledText {
+        id: lineRuler
+        visible: false
+        text: "Ag"
+        font.pixelSize: Config.options.cheatsheet.fontSize.comment || Appearance.font.pixelSize.smaller
+    }
+
     function shown(row) {
         return root.matchIds === null || row.ids.some(id => root.matchIds.includes(id));
     }
 
     Column {
+        width: root.width
         spacing: 4
         Repeater {
             id: repeater
@@ -123,9 +149,8 @@ Column {
         // Enter runs the first match, so the row that holds it runs that bind too
         readonly property int runId: primary ? root.firstMatchId : row.runId
         readonly property bool dispatchable: runId >= 0
-        property real horizontalPadding: 6
 
-        implicitWidth: bindContent.implicitWidth + horizontalPadding * 2
+        width: root.width
         implicitHeight: bindContent.implicitHeight + 4
         radius: Appearance.rounding.small
         color: primary ? Appearance.colors.colSecondaryContainer
@@ -142,14 +167,14 @@ Column {
 
         Row {
             id: bindContent
-            x: bindLine.horizontalPadding
+            x: root.rowPadding
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 16
+            spacing: root.rowSpacing
             Column {
-                width: root.maxBindWidth
+                objectName: "bindChords"
+                width: root.chordWidth
                 spacing: 4
                 Repeater {
-                    id: chordLines
                     model: bindLine.row.chords
                     delegate: ChordLine {
                         required property int index
@@ -160,26 +185,45 @@ Column {
                 }
             }
             Item {
-                y: Math.max(0, ((chordLines.itemAt(0)?.implicitHeight ?? 0) - implicitHeight) / 2)
-                implicitWidth: commentText.implicitWidth + root.columnSpacing
-                implicitHeight: commentText.implicitHeight
+                width: root.descriptionWidth
+                implicitHeight: commentText.y + commentText.implicitHeight
                 StyledText {
                     id: commentText
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.left: parent.left
-                    font.pixelSize: Config.options.cheatsheet.fontSize.comment || Appearance.font.pixelSize.smaller
+                    objectName: "bindDescription"
+                    y: Math.max(0, (capRuler.implicitHeight - lineRuler.implicitHeight) / 2)
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    font.pixelSize: lineRuler.font.pixelSize
                     text: bindLine.row.text
                 }
             }
         }
     }
 
-    component ChordLine: Row {
+    // plus, key and "or" travel together so none wraps alone
+    component ChordLine: Flow {
         id: chordLine
         required property var chord
         required property bool last
+        width: root.chordWidth
         spacing: 4
-        Component.onCompleted: root.maxBindWidth = Math.max(root.maxBindWidth, implicitWidth)
+
+        // a piece only has its width after it is made, so each calls this when it gets one
+        function measure() {
+            let pieces = 0;
+            let natural = 0;
+            for (let i = 0; i < children.length; i++) {
+                const piece = children[i];
+                if (piece.implicitWidth <= 0)
+                    continue;
+                pieces++;
+                natural += piece.implicitWidth;
+                root.maxPieceWidth = Math.max(root.maxPieceWidth, piece.implicitWidth);
+            }
+            const width = Math.ceil(natural + Math.max(0, pieces - 1) * spacing);
+            if (width > 0 && root.chordWidths.indexOf(width) < 0)
+                root.chordWidths = root.chordWidths.concat([width]);
+        }
 
         Repeater {
             model: CheatsheetBinds.keycaps(chordLine.chord.mods, Config.options.cheatsheet.splitButtons)
@@ -187,25 +231,32 @@ Column {
                 required property var modelData
                 key: modelData
                 pixelSize: Config.options.cheatsheet.fontSize.key
+                onImplicitWidthChanged: chordLine.measure()
+                Component.onCompleted: chordLine.measure()
             }
         }
-        StyledText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: chordLine.chord.key.length > 0 && chordLine.chord.mods.length > 0
-            text: "+"
-        }
-        KeyboardKey {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: chordLine.chord.key.length > 0
-            key: chordLine.chord.key
-            pixelSize: Config.options.cheatsheet.fontSize.key
-            color: Appearance.colors.colOnLayer0
-        }
-        StyledText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !chordLine.last
-            text: Translation.tr("or")
-            color: Appearance.colors.colSubtext
+        Row {
+            spacing: chordLine.spacing
+            onImplicitWidthChanged: chordLine.measure()
+            Component.onCompleted: chordLine.measure()
+            StyledText {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: chordLine.chord.key.length > 0 && chordLine.chord.mods.length > 0
+                text: "+"
+            }
+            KeyboardKey {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: chordLine.chord.key.length > 0
+                key: chordLine.chord.key
+                pixelSize: Config.options.cheatsheet.fontSize.key
+                color: Appearance.colors.colOnLayer0
+            }
+            StyledText {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: !chordLine.last
+                text: Translation.tr("or")
+                color: Appearance.colors.colSubtext
+            }
         }
     }
 }
