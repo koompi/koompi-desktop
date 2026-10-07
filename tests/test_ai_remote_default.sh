@@ -481,9 +481,10 @@ run_probe() {
     local out
     # XDG_RUNTIME_DIR is where the request script goes, so the live shell's is left
     # alone; the compositor socket is reached by absolute path instead
+    # fixed signature: Persistent writes states.json at startup only when it differs from the stored one
     out="$(cd "$WORK/shell" && PATH="$WORK/bin:$PATH" PROBE_EXPECT_REMOTE="$expect_remote" PROBE_EXPECT_ENDPOINT="$expect_endpoint" \
         PROBE_MODE="${PROBE_MODE:-}" PROBE_KEYRING_LOCKED="${PROBE_KEYRING_LOCKED:-}" PROBE_KEYRING_DELAY="${PROBE_KEYRING_DELAY:-0}" \
-        CURL_LOG="$xdg/curl.log" LITERT_LM_DIR="$xdg/litert" \
+        CURL_LOG="$xdg/curl.log" LITERT_LM_DIR="$xdg/litert" HYPRLAND_INSTANCE_SIGNATURE="probe-$label" \
         WAYLAND_DISPLAY="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/${WAYLAND_DISPLAY:-wayland-1}" XDG_RUNTIME_DIR="$xdg/runtime" \
         XDG_CONFIG_HOME="$xdg/config" XDG_STATE_HOME="$xdg/state" XDG_CACHE_HOME="$xdg/cache" \
         timeout 60 qs -p remote_default_probe.qml 2>&1)"
