@@ -26,7 +26,7 @@ Scope {
     // the finished frame. The hold is what makes this read as smooth: without
     // it the surface is dropped while its own animation is still moving, and a
     // cut out of motion looks like a jump however short it is.
-    readonly property int exitDuration: 350
+    readonly property int exitDuration: Appearance.animation.elementMoveExit.duration
     readonly property int exitHoldDuration: 120
 
     Timer {

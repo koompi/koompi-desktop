@@ -198,7 +198,7 @@ Item { // Wrapper
                 bottomMargin: 10
                 spacing: 2
                 KeyNavigation.up: searchBar
-                highlightMoveDuration: 100
+                highlightMoveDuration: Appearance.animation.elementMoveSmall.duration
 
                 onFocusChanged: {
                     if (focus)

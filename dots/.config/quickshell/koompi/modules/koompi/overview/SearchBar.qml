@@ -92,13 +92,8 @@ RowLayout {
         implicitWidth: (root.searchingText == "" && !root.expanded) ? Appearance.sizes.searchWidthCollapsed : Appearance.sizes.searchWidth
 
         Behavior on implicitWidth {
-            id: searchWidthBehavior
             enabled: root.animateWidth
-            NumberAnimation {
-                duration: Appearance.animationDuration.normal
-                easing.type: Appearance.animation.elementMove.type
-                easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
-            }
+            animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
         }
 
         onTextChanged: LauncherSearch.query = text

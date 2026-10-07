@@ -246,6 +246,18 @@ ContentPage {
                 Config.options.appearance.transparency.enable = checked;
             }
         }
+
+        ConfigSwitch {
+            buttonIcon: "motion_photos_off"
+            text: Translation.tr("Reduce motion")
+            checked: Config.options.appearance.reduceMotion
+            onCheckedChanged: {
+                Config.options.appearance.reduceMotion = checked;
+            }
+            StyledToolTip {
+                text: Translation.tr("Panels and controls stop sliding and fade quickly, and window animations turn off")
+            }
+        }
     }
 
     ContentSection {

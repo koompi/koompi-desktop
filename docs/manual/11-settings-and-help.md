@@ -14,6 +14,12 @@ koompi settings bluetooth
 koompi settings power
 ```
 
+## Less movement
+
+Settings, then Quick, then Reduce motion.
+With it on, panels, menus and buttons stop sliding and simply fade in a blink, and windows and desks appear without any animation.
+It is off by default.
+
 ## The list of every shortcut
 
 `Super+/`.

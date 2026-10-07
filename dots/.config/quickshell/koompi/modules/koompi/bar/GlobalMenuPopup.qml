@@ -250,6 +250,7 @@ PopupWindow {
             }
         }
         Behavior on scale {
+            enabled: !Appearance.reduceMotion
             NumberAnimation {
                 duration: Appearance.animationDuration.snap
                 easing.type: Easing.OutCubic

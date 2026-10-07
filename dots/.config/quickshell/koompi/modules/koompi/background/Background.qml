@@ -205,12 +205,14 @@ Variants {
         property real wallpaperImageX: bgRoot.screen.width > bgRoot.scaledWallpaperWidth ? (bgRoot.screen.width - bgRoot.scaledWallpaperWidth) / 2 : -bgRoot.parallaxTotalPixelsX * bgRoot.wallpaperFractionX
         property real wallpaperImageY: bgRoot.screen.height > bgRoot.scaledWallpaperHeight ? (bgRoot.screen.height - bgRoot.scaledWallpaperHeight) / 2 : -bgRoot.parallaxTotalPixelsY * bgRoot.wallpaperFractionY
         Behavior on wallpaperImageX {
+            enabled: !Appearance.reduceMotion
             NumberAnimation {
                 duration: Appearance.animationDuration.slowest
                 easing.type: Easing.OutCubic
             }
         }
         Behavior on wallpaperImageY {
+            enabled: !Appearance.reduceMotion
             NumberAnimation {
                 duration: Appearance.animationDuration.slowest
                 easing.type: Easing.OutCubic
@@ -324,11 +326,8 @@ Variants {
                     target: wallpaperPan
                     property: "x"
                     to: -wallpaperPan.currentCell.x
-                    // Mirrors the workspaces animation in hyprland/general.lua.
-                    // Hyprland animates whatever is left of the distance over
-                    // this same fixed duration, so a half finished swipe lands
-                    // with the windows rather than after them.
-                    duration: Appearance.animationDuration.slow
+                    // same duration and curve as the workspaces leaf in hyprland/general.lua, so a half finished swipe lands with the windows
+                    duration: Appearance.animationCurves.workspaceSlideDuration
                     easing.type: Easing.Bezier
                     easing.bezierCurve: Appearance.animationCurves.workspaceSlide
                     // Re-zero once still, or cell offsets walk off after a few

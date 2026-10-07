@@ -30,6 +30,7 @@ Rectangle {
 
     onShowChanged: {
         dialogBackgroundHeightAnimation.easing.bezierCurve = (show ? Appearance.animationCurves.emphasizedDecel : Appearance.animationCurves.emphasizedAccel)
+        dialogBackgroundHeightAnimation.duration = (show ? Appearance.animation.elementMoveEnter : Appearance.animation.elementMoveExit).duration
         dialogBackground.implicitHeight = show ? backgroundHeight : 0
     }
 
@@ -55,7 +56,7 @@ Rectangle {
         Behavior on implicitHeight {
             NumberAnimation {
                 id: dialogBackgroundHeightAnimation
-                duration: Appearance.animation.elementMoveFast.duration
+                duration: Appearance.animation.elementMoveEnter.duration
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: Appearance.animationCurves.emphasizedDecel
             }
