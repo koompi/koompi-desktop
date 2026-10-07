@@ -59,7 +59,7 @@ Singleton {
         }
     }
 
-    readonly property string stopInhibitorScript: `pid=$(cat "$1" 2>/dev/null); [[ $pid =~ ^[0-9]+$ ]] && tr '\\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -qE "$2" && kill "$pid"; rm -f "$1"`
+    readonly property string stopInhibitorScript: `pid=$(cat "$1" 2>/dev/null); [[ $pid =~ ^[0-9]+$ ]] && tr '\\0' ' ' 2>/dev/null < "/proc/$pid/cmdline" | grep -qE "$2" && kill "$pid"; rm -f "$1"`
 
     function stopInhibitor() {
         Quickshell.execDetached(["bash", "-c", root.stopInhibitorScript, "bash", root.inhibitorPidFile, root.inhibitorPattern]);
