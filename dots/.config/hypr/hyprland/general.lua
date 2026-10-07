@@ -148,18 +148,6 @@ hl.config({
     },
 })
 -- Curves
-hl.curve("expressiveFastSpatial", {
-    type = "bezier",
-    points = {{0.42, 1.67}, {0.21, 0.90}}
-})
-hl.curve("expressiveSlowSpatial", {
-    type = "bezier",
-    points = {{0.39, 1.29}, {0.35, 0.98}}
-})
-hl.curve("expressiveDefaultSpatial", {
-    type = "bezier",
-    points = {{0.38, 1.21}, {0.22, 1.00}}
-})
 hl.curve("emphasizedDecel", {
     type = "bezier",
     points = {{0.05, 0.7}, {0.1, 1}}
@@ -184,115 +172,35 @@ hl.curve("stall", {
     type = "bezier",
     points = {{1, -0.1}, {0.7, 0.85}}
 })
--- Long decel tail caps per-frame travel at 292px on 1920; easeOutExpo peaks at 554px
--- and that jump is the strobing. Mild start, not zero: on release Hyprland animates
--- the swipe remainder with this curve and a flat start stalls against the finger.
+-- peaks at 243px a frame at 60Hz on 1920 (easeOutExpo: 554px, strobes); mild start, a flat one stalls a swipe release
 hl.curve("workspaceSlide", {
     type = "bezier",
-    points = {{0.25, 0.1}, {0.05, 1.0}}
-})
--- Configs
--- windows
-hl.animation({
-    leaf = "windowsIn",
-    enabled = true,
-    speed = 3,
-    bezier = "emphasizedDecel",
-    style = "popin 80%"
-})
-hl.animation({
-    leaf = "fadeIn",
-    enabled = true,
-    speed = 3,
-    bezier = "emphasizedDecel"
-})
-hl.animation({
-    leaf = "windowsOut",
-    enabled = true,
-    speed = 2,
-    bezier = "emphasizedDecel",
-    style = "popin 90%"
-})
-hl.animation({
-    leaf = "fadeOut",
-    enabled = true,
-    speed = 2,
-    bezier = "emphasizedDecel"
-})
-hl.animation({
-    leaf = "windowsMove",
-    enabled = true,
-    speed = 3,
-    bezier = "emphasizedDecel",
-    style = "slide"
-})
-hl.animation({
-    leaf = "border",
-    enabled = true,
-    speed = 10,
-    bezier = "emphasizedDecel"
+    points = {{0.25, 0.1}, {0.25, 1}}
 })
 
--- layers
-hl.animation({
-    leaf = "layersIn",
-    enabled = true,
-    speed = 2.7,
-    bezier = "emphasizedDecel",
-    style = "popin 93%"
-})
-hl.animation({
-    leaf = "layersOut",
-    enabled = true,
-    speed = 2.4,
-    bezier = "menu_accel",
-    style = "popin 94%"
-})
--- fade
-hl.animation({
-    leaf = "fadeLayersIn",
-    enabled = true,
-    speed = 0.5,
-    bezier = "menu_decel"
-})
-hl.animation({
-    leaf = "fadeLayersOut",
-    enabled = true,
-    speed = 2.7,
-    bezier = "stall"
-})
--- 400ms, not 350: this curve has no dead tail to pad out, so the extra frames are
--- motion samples. Leave workspacesIn/Out inherited - overriding them desyncs the
--- two halves of a slide and opens a gap.
-hl.animation({
-    leaf = "workspaces",
-    enabled = true,
-    speed = 4,
-    bezier = "workspaceSlide",
-    style = "slide"
-})
--- specialWorkspace
-hl.animation({
-    leaf = "specialWorkspaceIn",
-    enabled = true,
-    speed = 2.8,
-    bezier = "emphasizedDecel",
-    style = "slidevert"
-})
-hl.animation({
-    leaf = "specialWorkspaceOut",
-    enabled = true,
-    speed = 1.2,
-    bezier = "emphasizedAccel",
-    style = "slidevert"
-})
--- zoom
-hl.animation({
-    leaf = "zoomFactor",
-    enabled = true,
-    speed = 3,
-    bezier = "standardDecel"
-})
+-- speed is in tenths of a second, and tests/test_motion_hypr.sh holds each leaf's budget.
+-- global goes first: leaves not named here (fadeDim, fadeSwitch, popups) inherit it.
+-- workspacesIn/Out stay inherited: overriding one desyncs a slide and opens a gap.
+for _, leaf in ipairs({
+    -- name, speed, curve, style
+    { "global", 2, "default" },
+    { "windowsIn", 2, "emphasizedDecel", "popin 80%" },
+    { "windowsOut", 1.5, "emphasizedDecel", "popin 90%" },
+    { "windowsMove", 2, "emphasizedDecel", "slide" },
+    { "fadeIn", 2, "emphasizedDecel" },
+    { "fadeOut", 1.5, "emphasizedDecel" },
+    { "border", 2, "emphasizedDecel" },
+    { "layersIn", 2, "emphasizedDecel", "popin 93%" },
+    { "layersOut", 1.5, "menu_accel", "popin 94%" },
+    { "fadeLayersIn", 0.5, "menu_decel" },
+    { "fadeLayersOut", 1.5, "stall" },
+    { "workspaces", 3, "workspaceSlide", "slide" },
+    { "specialWorkspaceIn", 2, "emphasizedDecel", "slidevert" },
+    { "specialWorkspaceOut", 1.2, "emphasizedAccel", "slidevert" },
+    { "zoomFactor", 2, "standardDecel" },
+}) do
+    hl.animation({ leaf = leaf[1], enabled = true, speed = leaf[2], bezier = leaf[3], style = leaf[4] })
+end
 
 -- read from drm, not a hard "eDP-1": a desktop with a touchscreen has no eDP,
 -- and a bound name that matches nothing logs an error at every reload
