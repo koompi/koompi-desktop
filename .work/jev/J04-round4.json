@@ -1,0 +1,32 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "elements_finding": "Verified by the lead in the round-3 render .work/shots/J04-r3-1366x768-elements.png, after the panel clamp Jev chose (J04_cheatsheet_1366 clamp_in_j04_now p=0.68). The earlier request described the cost only as 'the Elements page is clipped'. The render shows how much is lost: Hydrogen and Helium are 10 px slivers with only 'ogen' and 'Heli' readable, the whole first and last columns (Li..Fr, Ne..Og) are cut through the middle, and the actinide row (Th..Lr) is a 9 px sliver. 90 of 118 tiles are whole. At 1920x1200 all 118 are whole.",
+    "elements_fix": "The periodic table is drawn at a fixed 70 px per cell (1362x678). Inside the clamped 1366x768 panel the page has about 1306x560. Sizing the tiles from the space available (about 0.83 of today's size there, unchanged at 1920x1200) shows every tile whole with crisp text. J04's worker has the context and the layout test, which can assert every tile inside the panel.",
+    "wheel_finding": "Hyprland 0.56.2 src/managers/KeybindManager.cpp onAxisEvent: a vertical wheel event with delta > 0 fires 'mouse_down', otherwise 'mouse_up'. libinput and wl_pointer report a positive vertical value for scrolling down. The founder's mice scroll normally: natural_scroll is set only under input.touchpad (general.lua:321), and wheel binds fire only for wheel sources. So on 0.56.2 mouse_up is a physical scroll up. The cheatsheet's label table (from end-4) prints mouse_up as 'Scroll ↓'. The labels are wrong and will be corrected either way.",
+    "wheel_behaviour": "keybinds.lua binds SUPER+mouse_up to the workspace on the right and SUPER+mouse_down to the left (:370-376), and SUPER+SHIFT/ALT+mouse_down to send a window left (:296-303). The same rows bind Page_Up to left and Page_Down to right. With the 0.56.2 naming, a physical scroll up goes right while Page Up goes left: the wheel and the page keys disagree. They agreed under the older naming end-4 wrote for. Hyprland's own default config, GNOME and KDE all use scroll down for the next workspace. Today on the founder's seat, Super+scroll up moves right.",
+    "ownership": "J04 owns keybinds.lua descriptions and the cheatsheet files. Swapping the wheel binds changes behaviour on the founder's seat at the next deploy. The deploy itself needs the founder's word anyway.",
+    "audience": "1366x768 is common on budget laptops and classroom projectors, KOOMPI's market. A periodic table missing Hydrogen reads as broken to a student."
+  },
+  "questions": {
+    "J04_elements_fit": {
+      "type": "choice",
+      "instructions": "The Elements page at 1366x768 after the clamp: what should J04 round 4 do?",
+      "criteria": {
+        "fit_tiles_now": "Size the periodic table's tiles from the space the clamped panel leaves, never larger than today's 70 px, so all 118 tiles show whole at 1366x768 and nothing changes at 1920x1200. Assert it in test_cheatsheet_layout.sh. Strongest case: the visible defect is fixed by the worker with the context, in the same small file set.",
+        "scroll_elements": "Let the Elements page scroll vertically like the Keybinds page. Strongest case: tiles keep their size. Cost: a periodic table split across a scroll, and the outer columns are still cut horizontally.",
+        "keep_clipped": "Keep the round-3 clamp as is. Strongest case: Jev already chose it; the Elements page is not in the audit.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J04_wheel_direction": {
+      "type": "choice",
+      "instructions": "The Super+wheel workspace binds go the opposite way to the Page Up/Page Down binds in the same rows on Hyprland 0.56.2. What should change beyond correcting the cheatsheet labels?",
+      "criteria": {
+        "swap_wheel_binds": "Swap mouse_up and mouse_down in the wheel binds so scroll down goes right, like Page Down, Hyprland's default, GNOME and KDE. One commit in J04 round 4 that says why. Strongest case: restores what the binds were written to do, and the cheatsheet rows stop pairing Scroll down with Page Up. Cost: the founder's Super+scroll direction flips at the next deploy.",
+        "keep_behaviour_fix_labels": "Keep the binds and correct only the labels. Strongest case: no behaviour change on a seat the founder uses daily. Cost: the wheel and page keys stay opposed, and the cheatsheet shows Scroll up beside Page Down in one row.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

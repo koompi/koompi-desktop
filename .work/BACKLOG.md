@@ -57,26 +57,26 @@ Live seat findings outside any job: hot corners are dead because `fakeScreenRoun
 
 ## Swarm, from 2026-10-07 (founder: "identify the leftover work and assign a subagent swarm")
 
-Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet workers at once; every nested compositor and full suite runs under `.work/tools/heavy.sh` (flock on `/tmp/koompi-heavy.lock`); the harness tools lock themselves. Specs for J17-J32 and J36-J40 are being written by two lead forks.
+Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet workers at once; every nested compositor and full suite runs under `.work/tools/heavy.sh` (flock on `/tmp/koompi-heavy.lock`); the harness tools lock themselves. Specs for J17-J24 are being written by a lead fork; J25-J32 and J36-J40 are written and reviewed.
 
 | Job | Work | Depends on | State |
 | --- | --- | --- | --- |
-| J04 | Cheatsheet keys, rows, layout, 1366 clamp | | round 3 running |
+| J04 | Cheatsheet keys, rows, layout, 1366 clamp | | round 3 verified (panel clear of edges and bar); round 4 running: Elements tiles fit at 1366x768 (`J04_elements_fit fit_tiles_now p=1.0`), wheel labels corrected and wheel binds swapped to match Page Up/Down (`J04_wheel_direction swap_wheel_binds p=0.94`, Hyprland 0.56.2 `onAxisEvent`: positive delta is `mouse_down`), one modifier order, `[ ]` label, Utilities copy |
 | J09 | Qt on Wayland, xcb allowlist | | running |
-| J10 | Motion and Reduce Motion | | running |
+| J10 | Motion and Reduce Motion | | running; scope added: one owner for `animations:enabled` with Game mode, which resets the key and reads its own state from it (J32 extends the owner to blur) |
 | J12 | Clipboard watcher, memd on demand | | running |
 | J14 | Three identity mockups | | running |
 | J16 | Refresh rate per monitor in Displays | | running |
-| J07 | Lazy surfaces (the hub: Phase 2 and most Phase 3 build on it) | J04 | next slot |
+| J07 | Lazy surfaces (the hub: Phase 2 and most Phase 3 build on it) | J04 for the cheatsheet root only | next free slot; converts the cheatsheet last, after J04 merges |
 | J08 | Screen corners | | queued |
 | J15 | `test_update_now_runs.sh` flake | | queued (holds the heavy lock for its load runs) |
 | J11 | Settings in the running shell | J07 | queued |
 | J13 | Launch feedback | J09 | queued |
 | J17-J24 | Phase 2: Alt+Tab, dynamic workspaces, overview, Control Center, Notification Center, bar order and contrast, blended Search, one assistant | J07 | specs being written |
-| J25-J32 | Phase 3: session menu, Settings names and search, launchpad folders, wallpaper gallery, widget overlay labels, single-window gaps, glyph tuning, Reduce Transparency | J07, J10, J11 as each spec says | specs being written |
+| J25-J32 | Phase 3: session menu, Settings names and search, launchpad folders, wallpaper gallery, widget overlay labels, single-window gaps, glyph tuning, Reduce Transparency | J25, J27: J07. J26: J11, and Jev on its proposed names before dispatch. J28, J29: none. J30: J09. J31, J32: J10 | specs reviewed by the lead |
 | J33-J35 | Icon plate, koompi-icons, cursor | the founder's pick from J14 | waiting |
-| J36-J38 | Phase 4: content index, appmenu bridge, Now drawer | J23, J09, J24 | specs being written |
-| J39 | Settings > Shortcuts key names | J04 | spec being written |
-| J40 | Translations for the campaign's strings | everything else | spec being written |
+| J36-J38 | Phase 4: content index, appmenu bridge, Now drawer | J36 stage A: none, stage B: J23. J37: J09, J13. J38: J24, J07 | specs reviewed; J36 and J37 stop after a design note for Jev |
+| J39 | Settings > Shortcuts key names | J04 | spec reviewed |
+| J40 | Translations for the campaign's strings | everything else | spec reviewed; Khmer (`km_KH.json`) is a founder call, raised in its report |
 
 Founder-only: the pick from J14's mockups; authorising deployment to the live seat and the re-measurement; pushing `dev` and any merge to `main`.

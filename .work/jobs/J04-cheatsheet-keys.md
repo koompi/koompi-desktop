@@ -25,3 +25,9 @@ Live screenshot of `Super+/` on 2026-10-07:
 ## Out of scope
 
 - Reordering categories, the essentials-first layout, or making rows clickable (already done by J35).
+
+## Round 4 (lead, after the round-3 renders)
+
+- `J04_elements_fit fit_tiles_now p=1.0 (jev-1.13.0)`: at 1366x768 the clamp left Hydrogen, Helium and the actinide row as slivers and cut the outer columns. Size the tiles from the space the panel leaves.
+- `J04_wheel_direction swap_wheel_binds p=0.94 (jev-1.13.0)`: Hyprland 0.56.2 fires `mouse_down` for a positive (downward) wheel delta (`KeybindManager.cpp` `onAxisEvent`), so the end-4 label table is inverted and the wheel binds go the opposite way to the Page Up/Down binds in the same rows.
+- Request: `.work/jev/J04-round4.json`.
