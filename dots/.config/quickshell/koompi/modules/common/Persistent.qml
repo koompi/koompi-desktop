@@ -43,6 +43,8 @@ Singleton {
         path: root.filePath
 
         watchChanges: true
+        // an edit made while an async write is in flight is undone when it lands
+        blockWrites: true
         onFileChanged: fileReloadTimer.restart()
         onAdapterUpdated: fileWriteTimer.restart()
         onLoaded: root.ready = true

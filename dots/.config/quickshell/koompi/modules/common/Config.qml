@@ -11,7 +11,8 @@ Singleton {
     property alias options: configOptionsJsonAdapter
     property bool ready: false
     property int readWriteDelay: 50 // milliseconds
-    property bool blockWrites: false
+    // an edit made while an async write is in flight is undone when it lands
+    property bool blockWrites: true
 
     // The config file was re-read. Raised even when no value ended up different,
     // which is the only hint anything gets that a file named by a path in here
