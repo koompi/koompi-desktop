@@ -416,6 +416,7 @@ A new bind carries a `description` prefixed with its group, or it will not appea
 Binds in a group that share a description are one cheatsheet row listing every chord, simplest first, so a second chord for an action reuses its description word for word.
 A run of numbered or directional binds (`Workspace: Focus 1` to `10`, `Window: Focus Left` to `Down`) becomes one row only when each key is the number or direction its own description names.
 The sheet keeps every row inside its column: a long description wraps and a wide chord wraps, and the page scrolls, with no scrollbar, when the rows outgrow the panel.
+On a screen under about 1420x890 the panel stops short of the screen edges and the bar: the Keybinds page scrolls as before and the Elements page is clipped to fit.
 
 A new panel registers with `GlobalFocusGrab` and gates `WlrLayershell.keyboardFocus` on its own open flag, both, not one.
 

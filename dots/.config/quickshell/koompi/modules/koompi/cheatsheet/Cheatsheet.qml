@@ -90,6 +90,7 @@ Scope { // Scope
         }
         Rectangle {
             id: cheatsheetBackground
+            objectName: "cheatsheetPanel"
             anchors.centerIn: parent
             color: Appearance.colors.colLayer0
             border.width: 1
@@ -99,8 +100,13 @@ Scope { // Scope
             border.color: Window.active ? Appearance.colors.colPrimary : Appearance.colors.colLayer0Border
             radius: Appearance.rounding.windowRounding
             property real padding: 20
-            implicitWidth: cheatsheetColumnLayout.implicitWidth + padding * 2
-            implicitHeight: cheatsheetColumnLayout.implicitHeight + padding * 2
+            // the Elements page outgrows a laptop screen, so the panel stays clear of the edges and the bar
+            readonly property real barInset: Appearance.sizes.elevationMargin
+                + (Config.options.bar.vertical ? Appearance.sizes.verticalBarWidth : Appearance.sizes.barHeight)
+            implicitWidth: Math.min(cheatsheetColumnLayout.implicitWidth + padding * 2,
+                cheatsheetRoot.screen.width - 2 * (Config.options.bar.vertical ? barInset : Appearance.sizes.elevationMargin))
+            implicitHeight: Math.min(cheatsheetColumnLayout.implicitHeight + padding * 2,
+                cheatsheetRoot.screen.height - 2 * (Config.options.bar.vertical ? Appearance.sizes.elevationMargin : barInset))
 
             Keys.onPressed: event => { // Esc to close
                 if (event.key === Qt.Key_Escape) {
@@ -151,7 +157,8 @@ Scope { // Scope
 
             ColumnLayout { // Real content
                 id: cheatsheetColumnLayout
-                anchors.centerIn: parent
+                anchors.fill: parent
+                anchors.margins: cheatsheetBackground.padding
                 spacing: 10
 
                 Toolbar {

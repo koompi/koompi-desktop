@@ -52,6 +52,7 @@ ln -s "$REPO_ROOT/dots/.config/fontconfig" "$WORK/xdg/config/fontconfig"
 cat > "$WORK/shell/layout_probe.qml" <<'QML'
 import qs
 import qs.services
+import qs.modules.common
 import qs.modules.koompi.cheatsheet
 import Quickshell
 import QtQuick
@@ -110,6 +111,18 @@ ShellRoot {
     function box(item, flick) {
         const p = item.mapToItem(flick.contentItem, 0, 0);
         return { left: p.x, top: p.y, right: p.x + item.width, bottom: p.y + item.height };
+    }
+
+    // The panel itself, not only the page in it: on the screen, and below the bar.
+    function checkBackground(p) {
+        const panel = probe.find(p.win.contentItem, "cheatsheetPanel", [])[0];
+        const sw = p.win.screen.width;
+        const sh = p.win.screen.height;
+        const b = panel ? panel.mapToItem(null, 0, 0) : null;
+        probe.verdict(b !== null && b.x >= 0 && b.y >= Appearance.sizes.barHeight && b.x + panel.width <= sw && b.y + panel.height <= sh,
+            "the panel is on the screen and below the bar: " + (b === null ? "no panel" :
+                "x " + Math.round(b.x) + ".." + Math.round(b.x + panel.width) + " of " + sw
+                + ", y " + Math.round(b.y) + ".." + Math.round(b.y + panel.height) + " of " + sh + ", bar " + Appearance.sizes.barHeight));
     }
 
     function checkPanel(p) {
@@ -220,6 +233,7 @@ ShellRoot {
                 const settled = p.cats.length >= 8 && p.flick.contentHeight === probe.lastHeight;
                 probe.lastHeight = p.flick.contentHeight;
                 if (waited < 8 || !settled) return;
+                probe.checkBackground(p);
                 probe.checkPanel(p);
                 probe.checkColumns(p);
                 probe.checkScroll(p);
