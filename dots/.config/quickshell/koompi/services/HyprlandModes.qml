@@ -77,7 +77,17 @@ Singleton {
     onFlagsChanged: Qt.callLater(root.sync)
     onReadyChanged: Qt.callLater(root.sync)
 
+    // a write that did not land leaves `applied` ahead of the file: read what is really there
+    Connections {
+        target: HyprlandConfig
+
+        function onWriteFailed() {
+            overrides.reload();
+        }
+    }
+
     FileView {
+        id: overrides
         path: HyprlandConfig.shellOverridesPath
         onLoaded: root.adopt(text())
         onLoadFailed: error => {

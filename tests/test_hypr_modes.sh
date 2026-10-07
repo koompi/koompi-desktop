@@ -11,6 +11,11 @@
 #   reduce motion on, game mode off                  -> the Game mode toggle reads off
 #   a restart reads game mode back from the file, rewrites nothing that already
 #   agrees, and releases a hold no mode wants.
+# The bridge to the script (services/HyprlandConfig.qml) is held too: a config directory
+# with a space in it; a write that cannot land, a script that cannot start and a run that
+# hangs, each logged with its reason, the owner's record put back to what the file holds,
+# and the next change landing once the cause is gone; and a burst of writes that runs the
+# script one at a time, what arrives during a run merged into the one after it.
 # Last, the same sequences run against a real Hyprland nested in that KWin (update news
 # off, as every nested Hyprland here): the compositor itself reloads the file, and its
 # animations:enabled, gaps and rounding follow, back to the user's own values at the end.
@@ -42,7 +47,7 @@ done
 grep -q 'HyprlandModes.load()' "$SHELL_ROOT/shell.qml" || fail "shell.qml never loads HyprlandModes, so Reduce Motion would wait for a toggle to be built"
 (( failed )) || echo "ok   source: $(wc -w <<< "$keys") held options, each named only in HyprlandModes.qml; both Game mode toggles read its flag"
 
-for tool in kwin_wayland qs dbus-run-session python Hyprland hyprctl jq; do
+for tool in kwin_wayland qs dbus-run-session python3 Hyprland hyprctl jq; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, static checks only"; exit "$failed"; }
 done
 
@@ -50,9 +55,8 @@ WORK="$(mktemp -d)" || { fail "mktemp -d failed"; exit 1; }
 RUN=""
 trap 'rm -rf "$WORK"; [[ -n "$RUN" ]] && rm -rf "$RUN"' EXIT
 RUN="$(mktemp -d /tmp/hr.XXXXXX)" || { fail "mktemp -d for the runtime dir failed"; exit 1; }
-mkdir -p "$WORK/shell" "$WORK/bin" "$WORK/home" "$WORK/config/koompi" "$WORK/state/quickshell/user" "$WORK/cache" "$WORK/data" "$WORK/venv/bin"
+mkdir -p "$WORK/shell" "$WORK/bin" "$WORK/home" "$WORK/config/koompi" "$WORK/state/quickshell/user" "$WORK/cache" "$WORK/data"
 chmod 700 "$RUN"
-: > "$WORK/venv/bin/activate"
 for entry in "$SHELL_ROOT"/*; do
     ln -s "$entry" "$WORK/shell/$(basename -- "$entry")"
 done
@@ -89,7 +93,22 @@ ShellRoot {
         }
 
         function read(): string {
-            return (HyprlandModes.ready ? "ready" : "loading") + " game=" + (game.toggled ? "on" : "off") + " reduce=" + (Config.options.appearance.reduceMotion ? "on" : "off");
+            const held = Object.keys(HyprlandModes.applied).filter(key => HyprlandModes.applied[key]).sort().join(",");
+            return (HyprlandModes.ready ? "ready" : "loading") + " game=" + (game.toggled ? "on" : "off") + " reduce=" + (Config.options.appearance.reduceMotion ? "on" : "off") + " held=[" + held + "]";
+        }
+
+        function limit(ms: int): string {
+            HyprlandConfig.timeoutMs = ms;
+            return "ok";
+        }
+
+        function bridge(): string {
+            HyprlandConfig.set("probe:one", 1);
+            HyprlandConfig.setMany({ "probe:two": 2, "probe:name": "a b" });
+            HyprlandConfig.reset("probe:one");
+            HyprlandConfig.resetMany(["probe:gone"]);
+            HyprlandConfig.set("probe:three", 3);
+            return "queued";
         }
     }
 }
@@ -208,7 +227,103 @@ check "a restart that already agrees rewrites nothing" test "$(inode)" = "$befor
 check "and the hold is still there" has "$ANIM"
 stop_qs
 
-# --- 5. the real compositor: a nested Hyprland holds what the shell wrote ---
+# --- 5. the bridge: a path with a space in it, writes that do not land, writes in a burst ---
+real_scripts="$(readlink -f -- "$WORK/shell/scripts")"
+rm -- "$WORK/shell/scripts"
+cp -a -- "$real_scripts" "$WORK/shell/scripts"
+CONFIGURATOR="$WORK/shell/scripts/hyprland/hyprconfigurator.py"
+mv -- "$CONFIGURATOR" "$CONFIGURATOR.real"
+cat > "$CONFIGURATOR" <<'WRAP'
+#!/usr/bin/env bash
+printf 'start %s\n' "$*" >> "$RUNS"
+[[ -f "$RUNS.delay" ]] && sleep "$(< "$RUNS.delay")"
+"$0.real" "$@"
+rc=$?
+printf 'end %s\n' "$rc" >> "$RUNS"
+exit "$rc"
+WRAP
+chmod +x "$CONFIGURATOR"
+export RUNS="$WORK/runs.log"
+SPACED="$WORK/a dir with spaces"
+mkdir -p "$SPACED/config/koompi"
+printf '{"windows":{"workspaceHelp":false},"appearance":{"reduceMotion":true}}\n' > "$SPACED/config/koompi/config.json"
+OVR_HOME="$OVR"
+OVR="$SPACED/config/hypr/hyprland/shellOverrides/main.lua"
+export XDG_CONFIG_HOME="$SPACED/config"
+start_qs g
+check "a config directory with a space in its name still gets the write" until_ok 8 has "$ANIM"
+stop_qs
+export XDG_CONFIG_HOME="$WORK/config"
+OVR="$OVR_HOME"
+
+logged() { [[ "$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/qs-$1.log" | grep -c -- "$2")" -ge "$3" ]]; }
+if (( EUID == 0 )); then
+    echo "PASS skipped: root can write into any directory, so a write cannot be made to fail here" >> "$OUT"
+else
+    config ''
+    seed
+    start_qs h
+    chmod 555 "$(dirname -- "$OVR")"
+    modes reduceMotion on
+    check "a write that cannot land is logged with the script's own reason" until_ok 8 logged h 'HyprlandConfig.*exited 1.*Permission denied' 1
+    check "and nothing is marked applied that is not in the file" until_ok 8 reads 'held=[]'
+    modes gameMode
+    check "game mode that could not be written reads off again" until_ok 8 reads game=off
+    check "and that failure is logged too" until_ok 8 logged h 'HyprlandConfig.*exited 1' 2
+    chmod 755 "$(dirname -- "$OVR")"
+    modes reduceMotion off
+    modes reduceMotion on
+    check "once the directory is writable the next change lands" until_ok 8 has "$ANIM"
+    check "and the owner's record agrees with the file" reads 'held=[animations:enabled]'
+    stop_qs
+fi
+
+runs() { awk '{print $1}' "$RUNS" | tr '\n' ' '; }
+merged() { [[ "$(grep -c -e ' --set probe:two 2 --set probe:name a b --set probe:three 3 --reset probe:one --reset probe:gone$' "$RUNS")" == 1 ]]; }
+config ''
+rm -f "$OVR"
+echo 0.4 > "$RUNS.delay"
+start_qs i
+: > "$RUNS"
+modes bridge
+check "writes made in a burst land" until_ok 8 has 'hl.config({probe={three=3}})'
+sleep 1
+rm -f "$RUNS.delay"
+check "the one that was reset is gone" lacks 'hl.config({probe={one=1}})'
+check "and the rest are all there, a value with a space intact" test "$(grep -cF -e 'hl.config({probe={two=2}})' -e 'hl.config({probe={name="a b"}})' "$OVR")" = 2
+check "the script ran one at a time" test "$(runs)" = "start end start end "
+check "the first call ran on its own" grep -qx 'start --file .* --set probe:one 1' "$RUNS"
+check "and what came while it ran was merged into the one run after it" merged
+stop_qs
+
+chmod -x "$CONFIGURATOR"
+config ''
+seed
+start_qs j
+modes reduceMotion on
+check "a script that cannot start is logged" until_ok 8 logged j 'HyprlandConfig.*did not start' 1
+check "and nothing is marked applied that was never written" until_ok 8 reads 'held=[]'
+chmod +x "$CONFIGURATOR"
+modes reduceMotion off
+modes reduceMotion on
+check "once it can start the next change lands" until_ok 8 has "$ANIM"
+stop_qs
+
+config ''
+seed
+start_qs k
+modes limit 1500
+echo 5 > "$RUNS.delay"
+modes reduceMotion on
+check "a run that hangs is stopped and logged" until_ok 8 logged k 'HyprlandConfig.*still running after 1500 ms' 1
+check "and what it was asked for is not marked applied" until_ok 8 reads 'held=[]'
+rm -f "$RUNS.delay"
+modes reduceMotion off
+modes reduceMotion on
+check "and the next change runs" until_ok 8 has "$ANIM"
+stop_qs
+
+# --- 6. the real compositor: a nested Hyprland holds what the shell wrote ---
 mkdir -p "$WORK/config/hypr"
 cat > "$WORK/config/hypr/hyprland.lua" <<'LUA'
 hl.monitor({ output = "", mode = "1280x800", position = "auto", scale = 1 })
@@ -272,7 +387,7 @@ echo DONE >> "$OUT"
 DRIVE
 chmod +x "$WORK/drive.sh"
 
-env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY WORK="$WORK" ILLOGICAL_IMPULSE_VIRTUAL_ENV="$WORK/venv" \
+env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY -u ILLOGICAL_IMPULSE_VIRTUAL_ENV WORK="$WORK" \
     PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
     HOME="$WORK/home" XDG_CONFIG_HOME="$WORK/config" XDG_STATE_HOME="$WORK/state" XDG_CACHE_HOME="$WORK/cache" \
     XDG_DATA_HOME="$WORK/data" XDG_RUNTIME_DIR="$RUN" \
