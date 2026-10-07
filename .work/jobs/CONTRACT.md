@@ -19,12 +19,13 @@ The main checkout is `/home/userx/workspace/koompi/koompi-desktop`; its `.work/`
 - Comments: none by default. One short lowercase line only for a non-obvious why or an external constraint. Delete stale or narrative comments in lines you touch.
 - User-facing strings go through `Translation.tr(...)`. Do not edit `translations/*.json`.
 - Shell: `set -euo pipefail`, quote every expansion, `mktemp` for temp files.
+- Hyprland reads Lua here. Every dispatch, from QML (`Hyprland.dispatch`) or a script (`hyprctl dispatch`), uses the Lua form: `hl.dsp.exec_cmd(cmd, { float = true, ... })`, `hl.dsp.focus({ window = "address:0x..." })`, and so on (`/usr/share/hypr/stubs/hl.meta.lua` lists them). A legacy string like `exec [float] kitty` or `focuswindow address:...` returns an error and does nothing, silently from QML. Prove a dispatch works in the nested harness, never by its exit code alone.
 - Every behaviour change ships with the smallest test in `tests/` that fails without it. Prove it fails on the old code (stash or revert the fix, run, restore).
 - Docs that describe the behaviour you change (`docs/navigation.md`, `docs/manual/*`, `docs/agents/*`) change in the same commit.
 
 ## Checks you run
 
-- The tests you touched or added, then `NO_COLOR=1 ./tests/run.sh` once at the end. Baseline is 101 passed, 2 skipped, 1 failed (`test_update_guards.sh`, pre-existing unless your job is J06).
+- The tests you touched or added, then `NO_COLOR=1 env -u HYPRLAND_INSTANCE_SIGNATURE ./tests/run.sh` once at the end (with the signature set, `test_bar_keys.sh` reads the live compositor's binds; unset it for every test you run). Baseline on `dev` after J01: see `/home/userx/workspace/koompi/koompi-desktop/.work/BACKLOG.md`; name any failure and say whether it fails on `dev` too.
 - For any QML change: run the changed surface headless and look at it:
   `/home/userx/workspace/koompi/koompi-desktop/.work/tools/shellshot.sh dots/.config/quickshell/koompi /tmp/<job>-shots -- shot:before ...`
   then read the PNGs. Check `qs.log` in the out dir for `TypeError`, `ReferenceError`, `Binding loop`, `Cannot assign`.
@@ -32,6 +33,7 @@ The main checkout is `/home/userx/workspace/koompi/koompi-desktop`; its `.work/`
   `/home/userx/workspace/koompi/koompi-desktop/.work/tools/hyprshot.sh <your worktree root> /tmp/<job>-hypr 1920x1200 -- "ipc:search open" sleep:1 shot:search`
   Steps: `ipc:<target> <fn>` (qs IPC inside the nested session), `hypr:<lua dispatch>` (e.g. `hypr:hl.dsp.exec_cmd("kitty")`), `run:<cmd>`, `sleep:<s>`, `shot:<name>`. Logs: `hyprland-run.log`, `qs.qslog` (`strings` it), `run.log`.
   Both tools are safe: nothing they start can reach the live session.
+  Clean up only the temp dirs your own runs printed; never glob `/tmp/hr.*` or `/tmp/*-shots`, another worker's live run may own them.
 - `qmlformat` exit codes and `qmllint` prove nothing on this tree (see the gotchas in AGENTS.md's vault); do not cite them.
 
 ## Landing

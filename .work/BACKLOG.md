@@ -11,6 +11,11 @@ The previous campaign is in `archive/2026-08-25-maintainability-omarchy/`.
 
 Live shell at baseline: qs PSS 505 MB.
 
+Baseline fixes by the lead on `dev`:
+- `f989757a7`: `test_update_guards.sh` raced (deleted the fake Hyprland binary before the child exec'd); it failed under suite load only.
+- `68b5707f9`: `test_ai_remote_default.sh` passed only with a live `HYPRLAND_INSTANCE_SIGNATURE`; the probe now pins its own.
+Expected suite on `dev` after these: 0 failed. Run it with `env -u HYPRLAND_INSTANCE_SIGNATURE` (`test_bar_keys.sh` otherwise reads the live binds).
+
 ## Verification tools (lead's, not committed)
 
 - `.work/tools/shellshot.sh SHELL_ROOT OUT_DIR [WxH] -- STEP...` runs a shell tree in headless KWin with a private bus and fresh XDG dirs and screenshots it. Steps: `ipc:<target> <fn> [args]`, `run:<cmd>`, `sleep:<s>`, `shot:<name>`. Hyprland-only surfaces (search, overview, cheatsheet binds) do not render there.
@@ -20,12 +25,12 @@ Live shell at baseline: qs PSS 505 MB.
 
 | Job | Title | Files owned | State |
 | --- | --- | --- | --- |
-| J01 | Update badge out of the panel button; popup clamp | `modules/koompi/bar/{BarContent,UpdateBadge,StyledPopup}.qml`, new `UpdatesPopup.qml`, `tests/test_bar_keys.sh`, `docs/navigation.md` (update badge row) | ready |
-| J02 | Right panel header; read state | `modules/koompi/sidebarRight/SidebarRightContent.qml`, `GlobalStates.qml`, `services/Notifications.qml`, `docs/navigation.md` (sidebar paragraph) | ready |
-| J03 | Plain words: crash toast, media empty state, Recent labels | `dots/.local/bin/koompi-crash-watch`, `tests/test_crash_watch.sh`, `docs/agents/crash.md`, `modules/koompi/mediaControls/MediaControls.qml`, `services/LauncherSearch.qml`, `modules/koompi/overview/Search*.qml` | ready |
-| J04 | Cheatsheet key names and duplicate rows | `modules/koompi/cheatsheet/*`, `services/HyprlandKeybinds.qml`, `dots/.config/hypr/hyprland/keybinds*.lua` (descriptions only) | ready |
+| J01 | Update badge out of the panel button; popup clamp | `modules/koompi/bar/{BarContent,UpdateBadge,StyledPopup}.qml`, new `UpdatesPopup.qml`, `tests/test_bar_keys.sh`, `docs/navigation.md` (update badge row) | merged `d22c3a6dc`, lead fix `6a515b2c3` |
+| J02 | Right panel header; read state | `modules/koompi/sidebarRight/SidebarRightContent.qml`, `GlobalStates.qml`, `services/Notifications.qml`, `docs/navigation.md` (sidebar paragraph) | merged `6533e4863` |
+| J03 | Plain words: crash toast, media empty state, Recent labels | `dots/.local/bin/koompi-crash-watch`, `tests/test_crash_watch.sh`, `docs/agents/crash.md`, `modules/koompi/mediaControls/MediaControls.qml`, `services/LauncherSearch.qml`, `modules/koompi/overview/Search*.qml` | finishing (worker) |
+| J04 | Cheatsheet key names and duplicate rows | `modules/koompi/cheatsheet/*`, `services/HyprlandKeybinds.qml`, `dots/.config/hypr/hyprland/keybinds*.lua` (descriptions only) | dispatched |
 | J05 | Settings: config-file banner and button | `settings.qml`, `modules/settings/QuickConfig.qml` | ready |
-| J06 | External monitor refresh; the failing update test | `dots/.config/hypr/hyprland/general.lua` (monitor rule), `dots/.local/share/koompi/libexec/update*`, `tests/test_update_guards.sh` | ready |
+| J06 | External monitor refresh | `dots/.config/hypr/hyprland/general.lua` (monitor rule), its test | ready |
 
 Contended: `docs/navigation.md` (J01, J02, different paragraphs). Translation JSON files belong to nobody in this phase.
 Moved out of Phase 0: the cursor theme. Adwaita is deliberate (`394153191`); it joins the Phase 3 identity decision.
