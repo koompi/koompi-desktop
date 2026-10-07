@@ -35,7 +35,7 @@ for i, name in ipairs(popups) do order[i] = i .. " " .. name end
 local popupList = " (" .. table.concat(order, ", ") .. ")"
 for n = 1, 9 do
     hl.bind("SUPER + CTRL + " .. n, hl.dsp.exec_cmd(bar .. " popup " .. n),
-        { description = "Shell: bar popup " .. n .. popupList })
+        { description = "Shell: Bar popup " .. n .. popupList })
     -- keycode twin for layouts whose number row types other characters, as keybinds.lua does
     hl.bind("SUPER + CTRL + code:" .. (n + 9), hl.dsp.exec_cmd(bar .. " popup " .. n)) -- # [hidden]
 end

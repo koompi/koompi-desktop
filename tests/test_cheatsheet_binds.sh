@@ -107,7 +107,7 @@ check("App: the backtick and backslash widgets", same(chordsOf("App", "Terminal 
 check("Media: Next track once, the media key first", same(chordsOf("Media", "Next track"), ["Next", "Super + Shift + N", "Super + Shift + Alt + Forward"]), JSON.stringify(chordsOf("Media", "Next track")));
 check("Workspace: Focus 1–10 on Super+1–0", same(chordsOf("Workspace", "Focus 1–10"), ["Super + 1–0"]));
 check("Workspace: Focus left keeps the arrow beside page and scroll keys", chordsOf("Workspace", "Focus left").includes("Ctrl + Super + ←") && chordsOf("Workspace", "Focus left").includes("Super + PgUp"));
-check("Shell: the nine bar popups are one row", same(chordsOf("Shell", "bar popup 1–9 (1 agent usage, 2 battery, 3 pomodoro, 4 clock)"), ["Ctrl + Super + 1–9"]));
+check("Shell: the nine bar popups are one row", same(chordsOf("Shell", "Bar popup 1–9 (1 agent usage, 2 battery, 3 pomodoro, 4 clock)"), ["Ctrl + Super + 1–9"]));
 check("Shell: Toggle search is Super alone", same(chordsOf("Shell", "Toggle search"), ["Super"]));
 check("Kiri: the AI key", same(chordsOf("Kiri", "Voice transcription (AI key)"), ["Super + Shift + AI"]));
 check("Media: the XF86 volume key is on the sheet", same(chordsOf("Media", "Volume up"), ["Vol +"]));

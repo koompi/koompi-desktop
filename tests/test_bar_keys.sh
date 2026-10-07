@@ -38,7 +38,7 @@ hl = { bind = function(keys, _, opts) binds[#binds + 1] = { keys = keys, desc = 
 dofile(arg[1])
 local n = 0
 for _, b in ipairs(binds) do
-    if b.desc and b.desc:find("bar popup", 1, true) then
+    if b.desc and b.desc:find("Bar popup", 1, true) then
         n = n + 1
         assert(b.keys == "SUPER + CTRL + " .. n, "chord " .. n .. " is " .. b.keys)
     end
@@ -46,7 +46,7 @@ end
 print(n)
 LUA
 )" || fail "keybinds_shell_extra.lua did not run under a stub hl: $described"
-[[ "$described" == "9" ]] || fail "expected 9 described 'bar popup' chords, got: $described"
+[[ "$described" == "9" ]] || fail "expected 9 described 'Bar popup' chords, got: $described"
 for fn in 'popup(n: int): void' 'popupClose(): void'; do
     grep -qF "function $fn" "$BAR/Bar.qml" || fail "Bar.qml IpcHandler bar has no $fn"
 done
@@ -92,8 +92,8 @@ fi
 # --- live binds --------------------------------------------------------------
 if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] && hyprctl binds >/dev/null 2>&1; then
     if [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland/keybinds_shell_extra.lua" ]]; then
-        live="$(hyprctl binds | grep -c 'description: Shell: bar popup')"
-        (( live == 9 )) || fail "hyprctl binds lists $live 'bar popup' chords, expected 9 (hyprctl reload?)"
+        live="$(hyprctl binds | grep -ci 'description: Shell: bar popup')"
+        (( live == 9 )) || fail "hyprctl binds lists $live 'Bar popup' chords, expected 9 (hyprctl reload?)"
         echo "ok   hyprctl binds: 9 bar popup chords described"
     else
         echo "skip: keybinds_shell_extra.lua is not installed in the live config, hyprctl binds not checked"
