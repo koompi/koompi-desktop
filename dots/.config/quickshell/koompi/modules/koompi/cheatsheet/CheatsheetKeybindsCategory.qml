@@ -69,8 +69,8 @@ Column {
     })
 
     property var mouseSymbolMap: ({
-        "mouse_up": "󱕐",
-        "mouse_down": "󱕑",
+        "mouse_up": "󱕑",
+        "mouse_down": "󱕐",
         "mouse:272": "L󰍽",
         "mouse:273": "R󰍽",
     })
@@ -78,8 +78,8 @@ Column {
     // Only what needs translating or a symbol; every other key name is in cheatsheet-binds.js.
     property var keySubstitutions: Object.assign({
         "Super": "􀀀",
-        "mouse_up": Translation.tr("Scroll") + " ↓",
-        "mouse_down": Translation.tr("Scroll") + " ↑",
+        "mouse_up": Translation.tr("Scroll") + " ↑",
+        "mouse_down": Translation.tr("Scroll") + " ↓",
         "mouse:272": Translation.tr("Left click"),
         "mouse:273": Translation.tr("Right click"),
         "mouse:274": Translation.tr("Middle click"),

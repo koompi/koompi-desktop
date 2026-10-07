@@ -188,7 +188,7 @@ They set their own flags rather than aliasing `searchOpen`, which is what makes 
 | `Super+1..0` | focus workspace |
 | `Ctrl+Super+Left/Right` | focus workspace left/right |
 | `Super+PageUp/PageDown` | focus workspace left/right |
-| `Super+scroll` | focus workspace left/right |
+| `Super+scroll` | focus workspace left (scroll up) or right (scroll down) |
 | `Super+S` | scratchpad |
 | `Ctrl+Super+S` | special workspace |
 

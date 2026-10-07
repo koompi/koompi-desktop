@@ -12,8 +12,8 @@ const KEYS = {
     "print": "PrtSc",
     "mouse:272": "Left click", "mouse:273": "Right click", "mouse:274": "Middle click",
     "mouse:275": "Back", "mouse:276": "Forward",
-    // hyprland names the wheel by the opposite direction
-    "mouse_up": "Scroll ↓", "mouse_down": "Scroll ↑",
+    // hyprland 0.56 onAxisEvent: a positive delta, scrolling down, is mouse_down
+    "mouse_up": "Scroll ↑", "mouse_down": "Scroll ↓",
     "xf86audioraisevolume": "Vol +", "xf86audiolowervolume": "Vol -",
     "xf86audiomute": "Mute", "xf86audiomicmute": "Mic mute",
     "xf86audioplay": "Play", "xf86audiopause": "Pause",

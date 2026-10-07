@@ -67,7 +67,7 @@ const printed = {
     Page_Up: "PgUp", Page_Down: "PgDn", Left: "←", Right: "→", Up: "↑", Down: "↓",
     Return: "Enter", Escape: "Esc", Print: "PrtSc", Delete: "Del",
     "mouse:272": "Left click", "mouse:273": "Right click", "mouse:274": "Middle click",
-    "mouse:275": "Back", "mouse:276": "Forward", mouse_up: "Scroll ↓", mouse_down: "Scroll ↑",
+    "mouse:275": "Back", "mouse:276": "Forward", mouse_up: "Scroll ↑", mouse_down: "Scroll ↓",
     "code:201": "AI", SUPER_L: "", W: "W", F1: "F1", "1": "1",
 };
 for (const [raw, want] of Object.entries(printed))
@@ -106,6 +106,15 @@ check("App: Terminal once, simplest chord first", same(chordsOf("App", "Terminal
 check("App: the backtick and backslash widgets", same(chordsOf("App", "Terminal widget"), ["Super + `"]) && same(chordsOf("App", "System monitor widget"), ["Super + \\"]));
 check("Media: Next track once, the media key first", same(chordsOf("Media", "Next track"), ["Next", "Super + Shift + N", "Super + Shift + Alt + Forward"]), JSON.stringify(chordsOf("Media", "Next track")));
 check("Workspace: Focus 1–10 on Super+1–0", same(chordsOf("Workspace", "Focus 1–10"), ["Super + 1–0"]));
+// the wheel reads as it turns: wherever a row pairs it with PgUp/PgDn, up goes with up
+for (const category of categories) {
+    for (const r of rowsOf(category)) {
+        const keys = r.chords.map(chord => chord.key);
+        if (!keys.some(key => key.startsWith("Scroll")) || !keys.some(key => key.startsWith("Pg"))) continue;
+        check(`${category}: ${r.text}: the wheel goes the way the page keys do`,
+            keys.includes("Scroll ↑") === keys.includes("PgUp") && keys.includes("Scroll ↓") === keys.includes("PgDn"), keys.join(" | "));
+    }
+}
 check("Workspace: Focus left keeps the arrow beside page and scroll keys", chordsOf("Workspace", "Focus left").includes("Ctrl + Super + ←") && chordsOf("Workspace", "Focus left").includes("Super + PgUp"));
 check("Shell: the nine bar popups are one row", same(chordsOf("Shell", "Bar popup 1–9 (1 agent usage, 2 battery, 3 pomodoro, 4 clock)"), ["Ctrl + Super + 1–9"]));
 check("Shell: Toggle search is Super alone", same(chordsOf("Shell", "Toggle search"), ["Super"]));
