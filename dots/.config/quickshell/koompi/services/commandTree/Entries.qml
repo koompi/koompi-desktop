@@ -57,7 +57,7 @@ QtObject {
     // terminal shell actions already use (modules/common/Config.qml:273, the
     // same one LauncherSearch.qml hands a sudo command). The trailing read
     // keeps a failure on screen instead of closing the window over it, the way
-    // the update badge does (modules/koompi/bar/UpdateBadge.qml:26-32).
+    // the updates popup does (modules/koompi/bar/UpdatesPopup.qml runUpdate).
     function inTerminal(id, script) {
         Quickshell.execDetached(["koompi-launch", "--id", id, "--terminal", Config.options.apps.terminal, "--", "bash", "-c", `${script}; read -rsn1 -p 'Done. Press any key to close.'`]);
     }
@@ -210,8 +210,8 @@ QtObject {
             group: "system",
             icon: "system_update",
             keywords: "upgrade pacman packages system",
-            // services/Updates.qml:24 count; the command is the update badge's
-            // (modules/koompi/bar/UpdateBadge.qml:30-31), which is dots/.local/bin/koompi-update:4
+            // services/Updates.qml:24 count; the command is the updates popup's
+            // (modules/koompi/bar/UpdatesPopup.qml runUpdate), which is dots/.local/bin/koompi-update:4
             state: () => Updates.count > 0 ? String(Updates.count) : "",
             execute: () => root.inTerminal("koompi-update", "koompi update")
         }),
@@ -222,10 +222,10 @@ QtObject {
             icon: "sync",
             keywords: "refresh pacman checkupdates packages",
             // services/Updates.qml:22 available is `which checkupdates`
-            // (:73-77); without it refresh() returns having done nothing
+            // (:74-78); without it refresh() returns having done nothing
             when: () => Updates.available,
             state: () => Updates.checking ? Translation.tr("checking") : "",
-            // services/Updates.qml:48
+            // services/Updates.qml:49
             execute: () => Updates.refresh()
         }),
         ({
