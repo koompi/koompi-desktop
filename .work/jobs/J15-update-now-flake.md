@@ -9,7 +9,7 @@ Files owned: `tests/test_update_now_runs.sh`; `modules/koompi/bar/UpdatesPopup.q
 - In every failed run the shadow `koompi` recorded `update`, so the terminal started and ran its child; its window never reached `hyprctl clients`.
 - wezterm's GUI log is the same in failed and passing runs: one portal appearance warning at start, "Broken pipe" at teardown.
 - Failures came while two other workers ran nested sessions; six quiet runs in a row passed. The J01 worker saw it once inside a loaded suite run, before the private-bus change.
-- Kept dirs from two failures: `/home/userx/.tmp/tmp.bz4shtS0az` with `/tmp/hr.jZwbjN`, and `/home/userx/.tmp/tmp.ayxM9W6P7M` with `/tmp/hr.BJn5Mj`. Do not delete them until the report is written.
+- Kept runtime dirs from two failures: `/tmp/hr.jZwbjN` and `/tmp/hr.BJn5Mj` (wezterm and Hyprland logs). Their work dirs under `~/.tmp` were lost to a worker's glob `rm`. A third failure from a full-suite run is in `/home/userx/workspace/koompi/koompi-desktop/.work/J15-evidence/j06-suite-sample/`. Do not delete any of them.
 
 ## Do
 
