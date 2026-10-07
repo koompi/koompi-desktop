@@ -27,10 +27,8 @@ for entry in "$hypr_src"/*; do
     [[ $name == hyprland || $name == hyprland.lua || $name == custom ]] && continue
     ln -s "$entry" "$home/.config/hypr/$name"
 done
-for entry in "$hypr_src"/hyprland/*; do
-    [[ $(basename -- "$entry") == execs.lua ]] && continue
-    ln -s "$entry" "$home/.config/hypr/hyprland/$(basename -- "$entry")"
-done
+# copied, not linked: the shell writes shellOverrides and colors.lua, and a link writes into the repo
+cp -r -- "$hypr_src/hyprland/." "$home/.config/hypr/hyprland/"
 cat > "$home/.config/hypr/hyprland/execs.lua" <<'LUA'
 hl.on("hyprland.start", function()
     hl.exec_cmd("env QT_QPA_PLATFORM=wayland qs -c koompi")
