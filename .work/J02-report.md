@@ -1,142 +1,60 @@
-# J02 report — delete the dead vendored vaxis (AUDIT D1)
+# J02 report: right panel header, read state
 
-Branch `j02-delete-vaxis`, based on main `d552876a`.
-Files touched: `installer/zig-pkg/**` (55 files, 776 KB, deleted), `installer/build.zig.zon` (the line-3 comment only), this file.
-Nothing under `installer/src/`, `installer/build.zig`, or any other vendored directory was changed.
+Branch `worktree-agent-aba0d1bad7e7722ef`, two commits on `dev` (9635a8657):
 
-## Do 1: nothing imports `zig-pkg` or `vaxis`
+- `6855cde10` sidebar: lead the right panel with today's date, drop the reload button
+- `6533e4863` notifications: count as read after the panel has stayed open a second
 
-Before deletion, excluding the directory itself:
+Note: the worktree was cut from `main` (3f3ab9438), not `dev`, and had no `docs/design/`.
+I re-pointed the branch at `dev` with `git checkout -B <branch> dev` (tree was clean) before editing.
 
-```
-$ grep -rn 'zig-pkg\|vaxis' installer/ --include='*.zig' --include='*.zon' --include='build.zig' | grep -v '^installer/zig-pkg/'
-installer/build.zig:4:// direct ANSI, not libvaxis; see build.zig.zon.
-installer/build.zig.zon:3:// No dependencies: vaxis was imported but never actually wired to any rendering
-installer/src/main.zig:6://! hard-coded color, glyph, or brand string below `draw()`. No vaxis: rendering is direct
+## What changed
 
-$ grep -rn 'zig-pkg\|vaxis' .github/workflows/
-(no output, exit 1)
-```
+- `modules/koompi/sidebarRight/SidebarRightContent.qml` (`SystemButtonRow`, ~442-475): uptime text replaced by `DateTime.fullDate`; the `restart_alt` button (hyprctl reload + `Quickshell.reload`) removed; pin, settings, power kept; distro icon kept. The text is width-capped against `systemButtonsRow.x` and `elide: Text.ElideRight`, so a long locale cannot run under the button group. File 532 -> 522 lines (still on the length allowlist, only shrank).
+- `services/DateTime.qml:26`: new `fullDate` = `Qt.locale().toString(clock.date, "dddd d MMMM")`. The stale uptime comment ("both consumers: right sidebar and clock popup") rewritten to one line, since only the clock popup reads uptime now.
+- `GlobalStates.qml:39-53`: opening the panel still calls `Notifications.timeoutAll()` at once; `markAllRead` moved into a 1000 ms `seenTimer` (`restart()` on open, `stop()` on close).
+- `services/Notifications.qml:340`: read-only `unreadCount(): int` on the existing `notifications` IpcHandler.
+- `docs/navigation.md`: the "This matters more for the right sidebar" paragraph rewritten to the dwell rule; the Today role line now says the header carries the date, pin, settings and power.
+- `docs/manual/05-the-strip-along-the-top.md:53`: also said "opening that panel marks everything read"; rewritten to the dwell rule (not in the job file, but it described the changed behaviour).
 
-All three hits are `//` comments. No `@import`, no `.dependencies` entry (`build.zig.zon:18` is `.dependencies = .{}`), no path. The stop condition does not fire.
+## Test
 
-The same grep after deletion, same scope:
+`tests/test_notification_read_state.sh` (81 lines). Static: header uses `DateTime.fullDate`, contains no `DateTime.uptime` / `restart_alt` / `hyprctl`. Live: runs the whole shell (`qs -p`) in a headless `kwin_wayland --virtual` on a private `dbus-run-session` bus with private XDG dirs; `notify-send` delivers a real notification to the shell's own server; `sidebarRight open` + `close` back to back, wait 1.5 s, read `notifications unreadCount`; then open, wait 1.5 s, read, close, read. Skips with a `skip:` line if `kwin_wayland`, `qs`, `dbus-run-session` or `notify-send` is missing (static checks still run first). The inner script kills its `qs` on exit so the temp dir removes cleanly.
 
-```
-installer/src/main.zig:6://! hard-coded color, glyph, or brand string below `draw()`. No vaxis: rendering is direct
-installer/build.zig:4:// direct ANSI, not libvaxis; see build.zig.zon.
-```
+Fails without the fix (old `GlobalStates.qml` restored, getter kept, so the failure is the behaviour and not the missing getter):
 
-For the record, a repo-wide grep also finds prose mentions of "libvaxis" in `installer/README.md` (5 lines), `installer/docs/ui-ux.md` (4 lines) and `sdata/dist-arch/iso/koompi/packages.x86_64:33`. Those describe the TUI's original plan, are not code, and are outside the files this job owns; left as they are.
+    ok   source: header shows the date, no uptime, no reload button
+    arrived 1
+    quick_open_close 0
+    open_for_1500ms 0
+    after_close 0
+    FAIL: an open and close inside 300 ms cleared the unread count: unread is '0', wanted 1
 
-## Do 2: `git rm -r installer/zig-pkg`
+On pure `dev` (all four source files reverted) it fails at the first line: `FAIL: the panel header does not show DateTime.fullDate`.
 
-```
-$ git rm -r -q installer/zig-pkg && echo "git rm ok"
-git rm ok
-$ ls installer/zig-pkg
-ls: cannot access 'installer/zig-pkg': No such file or directory
-```
+Passes on the branch:
 
-## Do 3: `build.zig.zon:3`
+    ok   source: header shows the date, no uptime, no reload button
+    ok   probe: quick open and close keeps the unread count, 1.5 s open zeroes it
 
-Line 3 was a five-line history of why vaxis was dropped (pointing at `.work/P3-report.md`). Now one line:
+The quick open/close is two sequential `qs ipc call` processes; the reading is taken 1.5 s after the close, so a timer that was not stopped would also fail the test.
 
-```
--// No dependencies: vaxis was imported but never actually wired to any rendering
--// (confirmed dead import) and its only pinned version needs Zig >=0.16, which
--// breaks archinstall.zig/cidata.zig's pre-Writergate stdlib usage on this
--// toolchain. Rendering is direct ANSI (see main.zig) instead — no fetch, no
--// version coupling. See .work/P3-report.md for the full reasoning.
-+// No dependencies: rendering is direct ANSI (see main.zig), so nothing is fetched.
-```
+## Suite
 
-## Do 4: `zig build` and `zig build test`
+`NO_COLOR=1 ./tests/run.sh` on the committed tree: `102 passed, 3 skipped, 0 failed`.
+Skipped: `test_globalmenu.sh test_hypridle_logged.sh test_search_bench_parity.sh`.
+`test_update_guards.sh` passed here (the baseline had it failing); one more test than baseline is mine; the third skip is not from this change (a run of the suite before I had edited anything also showed 101 passed, 3 skipped, 0 failed).
 
-Per the lead's correction (a): this machine has `zig 0.16.0` and `installer/build.zig:14` uses `root_source_file`, which 0.16 removed from `Build.ExecutableOptions`. Both commands already fail on main; fixing `build.zig` is J06. What this job has to show is that the deletion changed nothing there.
+## Screenshots looked at (shellshot, 1920x1200, `qs.log` clean of TypeError / ReferenceError / Binding loop / Cannot assign)
 
-Before deletion (main `d552876a` + nothing):
+- `/tmp/j02-shots-before/before.png`: header `Up 0m`, pin, restart, settings, power.
+- `/tmp/j02-shots-after/after.png` and `crop2.png`: header `Wednesday 7 October` beside the distro icon, then pin, settings, power; no reload button; rest of the panel unchanged.
+- `/tmp/j02-shots-badge/strip.png` (crops of four shots): 1) notification toast plus bell badge in the bar; 2) after open and close at once: toast gone, bell badge still there; 3) after open for 1.5 s: panel open, bell badge gone; 4) closed again: no badge.
+- `/tmp/j02-shots-long/crop3.png`: a scratch copy with a 36-character date: text elides to `Wednesday 30 Septe...` and stops at the button group. My first version (width from `parent.width`) overflowed under the buttons with no ellipsis because `Row.implicitWidth` is built from child widths (a circular binding); fixed by capping against `systemButtonsRow.x` instead.
 
-```
-$ cd installer && zig build
-build.zig:14:10: error: no field named 'root_source_file' in struct 'Build.ExecutableOptions'
-        .root_source_file = b.path("src/main.zig"),
-         ^~~~~~~~~~~~~~~~
-/usr/lib/zig/std/Build.zig:770:31: note: struct declared here
-pub const ExecutableOptions = struct {
-                              ^~~~~~
-referenced by:
-    runBuild__anon_34225: /usr/lib/zig/std/Build.zig:2264:33
-    main: /usr/lib/zig/compiler/build_runner.zig:463:29
-    5 reference(s) hidden; use '-freference-trace=7' to see all references
-exit=2
+## Could not do / for the lead
 
-$ cd installer && zig build test
-(same error, runBuild__anon_34232)
-exit=2
-```
-
-After deletion:
-
-```
-$ cd installer && zig build
-build.zig:14:10: error: no field named 'root_source_file' in struct 'Build.ExecutableOptions'
-        .root_source_file = b.path("src/main.zig"),
-         ^~~~~~~~~~~~~~~~
-/usr/lib/zig/std/Build.zig:770:31: note: struct declared here
-pub const ExecutableOptions = struct {
-                              ^~~~~~
-referenced by:
-    runBuild__anon_34223: /usr/lib/zig/std/Build.zig:2264:33
-    main: /usr/lib/zig/compiler/build_runner.zig:463:29
-    5 reference(s) hidden; use '-freference-trace=7' to see all references
-exit=2
-
-$ cd installer && zig build test
-(same error, runBuild__anon_34223)
-exit=2
-```
-
-`diff` of the four captures with the `__anon_NNNNN` suffix stripped (it is a per-invocation counter, not a code identity):
-
-```
-build: identical
-test: identical
-```
-
-So Acceptance 3 as written ("exit 0, 4 tests passing") cannot be met on this toolchain by any change inside this job's owned files; it is replaced, per the lead, by "identical failure before and after". The failure is at `build.zig:14`, before the manifest or any package directory is consulted, so the deletion is not on the path that fails.
-
-## Acceptance 2: `git status --short`
-
-```
-$ git -c color.ui=never status --short | awk '{print $1}' | sort | uniq -c
-     55 D
-      1 M
-$ git -c color.ui=never status --short | grep -v 'installer/zig-pkg/'
- M installer/build.zig.zon
-```
-
-55 `D` lines, all under `installer/zig-pkg/vaxis-0.6.0-BWNV_HHwCQB451KS7A8SMykALblPmGwHnzSfiJHjN3_9/`, plus the one `.zon` edit. Matches the AUDIT row's "55 files, 776 KB".
-
-## Acceptance 4: `./tests/run.sh`
-
-Baseline per the lead's correction (b): main `d552876a` is 78 passed, 3 skipped, 0 failed (the job file's "56 or 57" predates later jobs landing).
-
-After deletion:
-
-```
-$ ./tests/run.sh; echo "exit=$?"
-...
-==> test_zig_build_abort.sh
-  ok test_zig_build_abort.sh
-
-78 passed, 3 skipped, 0 failed
-skipped: test_globalmenu.sh test_hypridle_logged.sh test_search_bench_parity.sh
-exit=0
-```
-
-Unchanged from baseline. J01 had not landed on this base, so no 79th test.
-
-## Stop conditions
-
-Step 1 showed no `@import` of vaxis anywhere, only comments. Deletion proceeded.
+- `tests/file-length-allow.txt` still lists `SidebarRightContent.qml` at 532; it is now 522. Not my file to edit; the ratchet row can be lowered.
+- `translations/*.json` still hold the now-unused `Up %1` and `Reload Hyprland & Quickshell` keys (contract: not edited).
+- Only the Latin locale was rendered (no `km_*` / other locale installed here); the long-string scratch copy stands in for a long locale. `fullDate` uses a fixed `dddd d MMMM` pattern, so day and month names follow the locale but their order does not.
+- Not run on the live desktop, by contract.

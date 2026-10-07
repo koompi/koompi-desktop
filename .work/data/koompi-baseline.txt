@@ -1,0 +1,240 @@
+==> test_abort_propagation.sh
+  ok test_abort_propagation.sh
+==> test_ai_approval_scope.sh
+  ok test_ai_approval_scope.sh
+==> test_ai_correction.sh
+  ok test_ai_correction.sh
+==> test_ai_e2e.sh
+  ok test_ai_e2e.sh
+==> test_ai_engine_split.sh
+  ok test_ai_engine_split.sh
+==> test_ai_model_picker.sh
+  ok test_ai_model_picker.sh
+==> test_ai_prompt_compose.sh
+  ok test_ai_prompt_compose.sh
+==> test_ai_remote_default.sh
+  ok test_ai_remote_default.sh
+==> test_ai_request_privacy.sh
+  ok test_ai_request_privacy.sh
+==> test_ai_threads.sh
+  ok test_ai_threads.sh
+==> test_ai_tool_call_stream.sh
+  ok test_ai_tool_call_stream.sh
+==> test_ai_tool_subset.sh
+  ok test_ai_tool_subset.sh
+==> test_ai_wire_format.sh
+  ok test_ai_wire_format.sh
+==> test_apps_abort_propagation.sh
+  ok test_apps_abort_propagation.sh
+==> test_app_slice.sh
+  ok test_app_slice.sh
+==> test_arch_deprecated_debug.sh
+  ok test_arch_deprecated_debug.sh
+==> test_arch_exact_packages.sh
+  ok test_arch_exact_packages.sh
+==> test_arch_local_dep_order.sh
+  ok test_arch_local_dep_order.sh
+==> test_bar_keys.sh
+  ok test_bar_keys.sh
+==> test_battery_health.sh
+  ok test_battery_health.sh
+==> test_bluetooth.sh
+  ok test_bluetooth.sh
+==> test_brightness.sh
+  ok test_brightness.sh
+==> test_cava_gating.sh
+  ok test_cava_gating.sh
+==> test_charge_limit.sh
+  ok test_charge_limit.sh
+==> test_cheatsheet_dispatch.sh
+  ok test_cheatsheet_dispatch.sh
+==> test_config_merge.sh
+  ok test_config_merge.sh
+==> test_crash_watch.sh
+  ok test_crash_watch.sh
+==> test_cursor_theme.sh
+  ok test_cursor_theme.sh
+==> test_displays_persist.sh
+  ok test_displays_persist.sh
+==> test_distro_recipes.sh
+  ok test_distro_recipes.sh
+==> test_factory_reset.sh
+  ok test_factory_reset.sh
+==> test_file_length.sh
+  ok test_file_length.sh
+==> test_fingerprint_setup.sh
+  ok test_fingerprint_setup.sh
+==> test_firewall_defaults.sh
+  ok test_firewall_defaults.sh
+==> test_first_run_wallpaper.sh
+  ok test_first_run_wallpaper.sh
+==> test_from_source_fetch.sh
+  ok test_from_source_fetch.sh
+==> test_globalmenu.sh
+  ok test_globalmenu.sh
+==> test_grub_quiet.sh
+  ok test_grub_quiet.sh
+==> test_hardware_quirks.sh
+  ok test_hardware_quirks.sh
+==> test_hibernation_setup.sh
+  ok test_hibernation_setup.sh
+==> test_hypridle_logged.sh
+      skip: live Lock check needs KOOMPI_TEST_LIVE_LOCK=1 (it locks the screen)
+  -- test_hypridle_logged.sh (skipped)
+==> test_hyprland_service.sh
+  ok test_hyprland_service.sh
+==> test_hyprlock_battery.sh
+  ok test_hyprlock_battery.sh
+==> test_ics_parse.sh
+  ok test_ics_parse.sh
+==> test_install_reloads_shell.sh
+  ok test_install_reloads_shell.sh
+==> test_iso_release_tag.sh
+  ok test_iso_release_tag.sh
+==> test_keep_awake_lid.sh
+  ok test_keep_awake_lid.sh
+==> test_keybind_descriptions.sh
+  ok test_keybind_descriptions.sh
+==> test_koompi_star_metrics.sh
+  ok test_koompi_star_metrics.sh
+==> test_lock_pam.sh
+  ok test_lock_pam.sh
+==> test_login_handoff.sh
+  ok test_login_handoff.sh
+==> test_logout_scope.sh
+  ok test_logout_scope.sh
+==> test_manual_references.sh
+  ok test_manual_references.sh
+==> test_microtex_prepare.sh
+  ok test_microtex_prepare.sh
+==> test_migrate_delivery.sh
+  ok test_migrate_delivery.sh
+==> test_migrate_pending_run.sh
+  ok test_migrate_pending_run.sh
+==> test_network_service.sh
+  ok test_network_service.sh
+==> test_notification_exec_hint.sh
+  ok test_notification_exec_hint.sh
+==> test_osd_cli.sh
+  ok test_osd_cli.sh
+==> test_packaged_tools.sh
+  ok test_packaged_tools.sh
+==> test_pkgbuild_excludes_artefacts.sh
+  ok test_pkgbuild_excludes_artefacts.sh
+==> test_portal_backends.sh
+  ok test_portal_backends.sh
+==> test_power_profile.sh
+  ok test_power_profile.sh
+==> test_qml_layering.sh
+  ok test_qml_layering.sh
+==> test_quick_toggles_migration.sh
+  ok test_quick_toggles_migration.sh
+==> test_reload_idempotent.sh
+  ok test_reload_idempotent.sh
+==> test_repo_build_set.sh
+  ok test_repo_build_set.sh
+==> test_run_sh_counts.sh
+  ok test_run_sh_counts.sh
+==> test_screensaver.sh
+  ok test_screensaver.sh
+==> test_search_bench_parity.sh
+      KOOMPI_SEARCH_BENCH is not set to 1 in this shell; skipping (this only tests a bench-enabled live qs, see services/SearchBench.qml)
+  -- test_search_bench_parity.sh (skipped)
+==> test_search_commands.sh
+  ok test_search_commands.sh
+==> test_search_providers.sh
+  ok test_search_providers.sh
+==> test_services_qml_bugs.sh
+  ok test_services_qml_bugs.sh
+==> test_session_entry_upgrade.sh
+  ok test_session_entry_upgrade.sh
+==> test_session_list.sh
+  ok test_session_list.sh
+==> test_session_restore.sh
+  ok test_session_restore.sh
+==> test_settings_knobs_read.sh
+  ok test_settings_knobs_read.sh
+==> test_shell_services.sh
+  ok test_shell_services.sh
+==> test_sidebar_drawer_binds.sh
+  ok test_sidebar_drawer_binds.sh
+==> test_snapshot_pre_update.sh
+  ok test_snapshot_pre_update.sh
+==> test_snap_zones.sh
+  ok test_snap_zones.sh
+==> test_solar_times.sh
+  ok test_solar_times.sh
+==> test_stacking_scratch.sh
+  ok test_stacking_scratch.sh
+==> test_sudo_keepalive.sh
+  ok test_sudo_keepalive.sh
+==> test_suspend_hook.sh
+  ok test_suspend_hook.sh
+==> test_swipe_plugin_rebuild.sh
+  ok test_swipe_plugin_rebuild.sh
+==> test_switchwall_noswitch.sh
+  ok test_switchwall_noswitch.sh
+==> test_sync_tree_status.sh
+  ok test_sync_tree_status.sh
+==> test_sysdefaults.sh
+  ok test_sysdefaults.sh
+==> test_text_size.sh
+  ok test_text_size.sh
+==> test_toggle_cli.sh
+  ok test_toggle_cli.sh
+==> test_touch_gestures.sh
+  ok test_touch_gestures.sh
+==> test_touch_output.sh
+  ok test_touch_output.sh
+==> test_tour_contract.sh
+  ok test_tour_contract.sh
+==> test_update_guards.sh
+FAIL: a deleted Hyprland exe must print the reboot line:   -> lock taken: /home/userx/.tmp/tmp.Uvkq0C8Va1/runtime/koompi-update.lock (pid 555379)
+     $ systemd-inhibit --what=sleep:idle:handle-lid-switch --mode=block --who=koompi-update --why=KOOMPI update in progress tail --pid=555379 -f /dev/null
+
+==> Updating KOOMPI OS packages
+  -> route: packaged (the desktop ships from pacman packages)
+  -> free space on /: 4.8 GiB (needs 2 GiB)
+     $ koompi-snapshot --pre-update
+     $ sudo pacman -Syu --noconfirm
+  -> paru found; refreshing AUR packages too
+     $ paru -Sua --noconfirm
+  -> firmware updates are available; apply them with 'koompi update --firmware'
+  ok packages up to date (route: packaged)
+dump-config-defaults: no such tree: /etc/xdg/quickshell/koompi
+  !! new defaults could not be dumped; skipping the config merge rather than guessing
+
+==> Reloading the running session
+     $ hyprctl reload
+  -> session lock: unlocked (logind LockedHint); restarting the shell
+     $ killall -w -q global-menu-daemon
+     $ killall -w -q qs
+     $ killall -w -q quickshell
+  ok shell restarted
+
+==> Done
+  KOOMPI is up to date (packaged route). koompi-health reports on the session.
+transcript: ~/.local/state/koompi/logs/update-20261007-160819.log
+  xx test_update_guards.sh
+==> test_update_pull_honesty.sh
+  ok test_update_pull_honesty.sh
+==> test_update_route.sh
+  ok test_update_route.sh
+==> test_update_transcript.sh
+  ok test_update_transcript.sh
+==> test_wallpaper_config_write.sh
+  ok test_wallpaper_config_write.sh
+==> test_wallpaper_decode.sh
+  ok test_wallpaper_decode.sh
+==> test_workspace_help_onscreen.sh
+  ok test_workspace_help_onscreen.sh
+==> test_workspace_icon_migration.sh
+  ok test_workspace_icon_migration.sh
+==> test_workspace_wallpaper_wrap.sh
+  ok test_workspace_wallpaper_wrap.sh
+==> test_zig_build_abort.sh
+  ok test_zig_build_abort.sh
+
+101 passed, 2 skipped, 1 failed
+skipped: test_hypridle_logged.sh test_search_bench_parity.sh
+failed: test_update_guards.sh
