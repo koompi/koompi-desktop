@@ -1,7 +1,7 @@
 -- MONITOR CONFIG
 hl.monitor({
     output = "",
-    mode = "preferred",
+    mode = "preferred", -- not highrr (refresh outranks size: 1024x768@75 over 1920x1080@74.97) or highres (largest mode, native or not)
     position = "auto",
     scale = "auto"
 })
