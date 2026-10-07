@@ -163,13 +163,14 @@ if have busctl; then
         bad "nobody owns com.canonical.AppMenu.Registrar; Qt apps cannot publish a menu"
     fi
 fi
-# Qt exports its menubar over D-Bus only on X11, so a wayland-first setting here
-# leaves every Qt app menuless no matter what the daemon does.
+# Qt exports its menubar over D-Bus only on X11: koompi-launch puts the apps in
+# its xcb_menu_apps list there, and the session default is wayland first.
 case "${QT_QPA_PLATFORM:-}" in
-    xcb) ok "QT_QPA_PLATFORM=xcb" ;;
-    "")  warn "QT_QPA_PLATFORM is unset; Qt apps default to Wayland and export no menu" ;;
-    wayland) ok "QT_QPA_PLATFORM=wayland (expected inside the shell itself)" ;;
-    *)   bad "QT_QPA_PLATFORM=$QT_QPA_PLATFORM starts on Wayland; Qt apps will export no menu" ;;
+    'wayland;xcb') ok "QT_QPA_PLATFORM=wayland;xcb" ;;
+    wayland) ok "QT_QPA_PLATFORM=wayland (the shell's own setting, inherited by what it starts)" ;;
+    xcb) warn "QT_QPA_PLATFORM=xcb is the old session default; log out and back in to put Qt apps on Wayland" ;;
+    "")  warn "QT_QPA_PLATFORM is unset (run inside the KOOMPI session)" ;;
+    *)   bad "QT_QPA_PLATFORM=$QT_QPA_PLATFORM; the session sets wayland;xcb" ;;
 esac
 
 section "Portals & secrets"

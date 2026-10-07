@@ -10,6 +10,8 @@ The KOOMPI star opens the left-hand panel, which holds the assistant.
 Next to it is the program you are in: its name, and underneath, what it has open.
 Click that name for the window's own actions.
 To the right of it, the program's menus - File, Edit, View - if it has them.
+Dolphin, Okular, Konsole and Ark put them there when you open them from Search, from the page of everything installed, or with their key.
+Some other programs keep theirs inside their own window instead.
 
 Scroll anywhere on the left half of the strip to change screen brightness.
 

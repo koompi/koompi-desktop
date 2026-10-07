@@ -253,6 +253,12 @@ Every app bind, and every launch from Search, the Launchpad and the dock, goes t
 That is what lets `systemd-oomd` kill one app under memory pressure instead of the whole session, because the session scope that holds Hyprland, the shell, hypridle and the wallpaper pipeline is never a candidate.
 A bind for something the session cannot lose keeps `hl.dsp.exec_cmd` and stays out of `app.slice`.
 
+`koompi-launch` also chooses the platform of the Qt apps it starts.
+Qt exports a menubar to the bar only on X11, so Dolphin, Okular, Konsole and Ark start with `QT_QPA_PLATFORM=xcb` and show their menus in the bar, and every other Qt app runs on Wayland with its menus inside its own window.
+The session default in `hyprland/env.lua` is `wayland;xcb`, and the list is `xcb_menu_apps` at the top of `koompi-launch`.
+An app started outside `koompi-launch`, from a terminal or by D-Bus activation, runs on the platform of whatever started it, usually Wayland, and then has no menu in the bar.
+A window rule for a Qt app has to match its class on both platforms, because the same app reports `kdialog` on xcb and `org.kde.kdialog` on Wayland.
+
 ### Kiri
 
 Kiri's voice binds live in `dots/.config/hypr/custom/keybinds.lua`, which is user-owned and never overwritten by an update.

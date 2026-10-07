@@ -56,3 +56,5 @@ Click it again to put the menu away.
 
 Just to the right of the name sit the program's own menus: File, Edit, View.
 They live in the top strip rather than inside the window.
+Dolphin, Okular, Konsole and Ark do this when you open them from Search, from the page of everything installed, or with their key.
+Some other programs keep their menus inside their own window instead.
