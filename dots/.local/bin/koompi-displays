@@ -143,11 +143,12 @@ cmd_expire() {
 }
 
 arm_pending() {
-    local record="$1" token="$$.$RANDOM$RANDOM" deadline now
+    local record="$1" target="$2" token="$$.$RANDOM$RANDOM" deadline now
     command -v setsid >/dev/null 2>&1 || { echo "koompi-displays: setsid (util-linux) is needed to guard the change" >&2; exit 1; }
     printf -v now '%(%s)T' -1
     deadline=$((now + CONFIRM_SECONDS))
-    jq -c --arg t "$token" --argjson d "$deadline" '{monitor, mode, x, y, scale, centi} + {token: $t, deadline: $d}' <<< "$record" > "$PENDING.new"
+    jq -c --arg t "$token" --argjson d "$deadline" --argjson n "$target" \
+        '{monitor, mode, x, y, scale, centi} + {target: $n, token: $t, deadline: $d}' <<< "$record" > "$PENDING.new"
     mv -- "$PENDING.new" "$PENDING"
     setsid -f bash "$SELF" _expire "$token" </dev/null >/dev/null 2>&1
 }
@@ -223,7 +224,7 @@ cmd_rate() {
 
     printf -v rate '%d.%02d' $((centi / 100)) $((centi % 100))
     read -r w h x y scale <<< "$(jq -r '"\(.w) \(.h) \(.x) \(.y) \(.scale)"' <<< "$row")"
-    arm_pending "$row"
+    arm_pending "$row" "$centi"
     if ! apply_mode "$mon" "${w}x${h}@${rate}" "$x" "$y" "$scale" || ! wait_for_rate "$mon" "$centi"; then
         undo_pending
         echo "koompi-displays: $mon did not switch to $rate Hz" >&2
@@ -233,9 +234,15 @@ cmd_rate() {
 }
 
 cmd_keep() {
-    local claim
+    local claim mon target
     need_state
     claim=$(claim_pending) || { echo "koompi-displays: no refresh-rate change is waiting; it already went back" >&2; exit 1; }
+    read -r mon target <<< "$(jq -r '"\(.monitor) \(.target)"' "$claim")"
+    if ! wait_for_rate "$mon" "$target"; then
+        restore_from "$claim" || true
+        echo "koompi-displays: $mon is no longer at the new refresh rate, nothing was saved" >&2
+        exit 1
+    fi
     if ! persist_layout; then
         restore_from "$claim" || true
         exit 1

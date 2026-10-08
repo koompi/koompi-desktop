@@ -168,6 +168,18 @@ end_case "keep that cannot read the monitors leaves monitors.lua alone"
 
 fresh
 printf -- '-- kept\n' > "$lua"
+run_displays rate HDMI-A-1 74.97
+jq '.[1].refreshRate = 60' "$tmp/state.json" > "$tmp/state.new" && mv "$tmp/state.new" "$tmp/state.json"
+run_displays keep
+status=$?
+(( status != 0 )) || fail "keep exited 0 although the monitor was no longer at the rate it was asked to keep"
+grep -q 'no longer at the new refresh rate' "$tmp/out" || fail "keep did not say the monitor had left the new rate: $(cat "$tmp/out")"
+[[ "$(lua_text)" == '-- kept' ]] || fail "keep saved a rate the monitor was not running: $(lua_text)"
+[[ ! -e "$pending" ]] || fail "keep left the record behind"
+end_case "keep after a config reload dropped the new rate saves nothing"
+
+fresh
+printf -- '-- kept\n' > "$lua"
 run_displays rate HDMI-A-1 75.03
 status=$?
 (( status != 0 )) || fail "rate HDMI-A-1 75.03 exited 0 although 1920x1080 has no 75.03 Hz mode"
