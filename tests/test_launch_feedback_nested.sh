@@ -276,8 +276,10 @@ grim "$WORK/shots/empty-desktop.png" 2>> "$WORK/grim.log"
 
 # name, bind script, window title it ends up with; the notice is a qs process of its own, so
 # the shell is asked from 0.3 s on and the screenshot is taken at the first answer
-scenario() {
-    local name=$1 bind=$2 title=$3 t0 early="" seen=-1 mapped=-1 cleared=-1 spent
+early="" seen=-1 mapped=-1 cleared=-1 t0=0
+attempt() {
+    local name=$1 bind=$2 title=$3
+    early="" seen=-1 mapped=-1 cleared=-1
     t0=$(now_ms)
     echo "$t0 dispatch $bind" >> "$WORK/trace"
     hyprctl dispatch 'hl.dsp.exec_cmd("'"$bind"'")' > /dev/null 2>&1
@@ -287,8 +289,6 @@ scenario() {
         if [[ -n $early ]]; then seen=$(($(now_ms) - t0)); break; fi
         (( $(now_ms) - t0 > 2500 )) && break
     done
-    reading "$name.early" "$early"
-    reading "$name.seen_ms" "$seen"
     grim "$WORK/shots/$name-0.3s.png" 2>> "$WORK/grim.log"
     for _ in $(seq 1 120); do
         if (( mapped < 0 )) && [[ $(clients | jq -r --arg t "$title" '[.[] | select(.title == $t)] | length') -gt 0 ]]; then mapped=$(($(now_ms) - t0)); fi
@@ -296,7 +296,22 @@ scenario() {
         if (( $(now_ms) - t0 > 20000 )); then break; fi
         sleep 0.1
     done
-    (( mapped >= 0 )) || diag "$name: no window after $(($(now_ms) - t0)) ms"
+}
+
+# a dialog that was started and never maps is the loaded nested compositor stalling, whatever the shell
+# did, so it is started once more; a second stall fails the scenario
+scenario() {
+    local name=$1 bind=$2 title=$3 try spent
+    for try in 1 2; do
+        attempt "$name" "$bind" "$title"
+        (( mapped >= 0 )) && break
+        diag "$name: no window after $(($(now_ms) - t0)) ms (try $try)"
+        echo "$name: try $try started the app and no window came" >> "$WORK/stalls"
+        close_probe_windows
+        end_registered
+    done
+    reading "$name.early" "$early"
+    reading "$name.seen_ms" "$seen"
     reading "$name.mapped_ms" "$mapped"
     reading "$name.cleared_ms" "$cleared"
     spent=$(($(now_ms) - t0))
@@ -319,7 +334,7 @@ field() { awk -F'\t' -v k="$1" '$1 == k { print $2 }' "$WORK/readings" 2> /dev/n
 run_session() {
     RUN="$(mktemp -d /tmp/hr.XXXXXX)"
     chmod 700 "$RUN"
-    rm -f "$WORK/readings" "$WORK/stop" "$WORK/pids" "$WORK/trace" "$WORK/logger.log" "$WORK/diag.txt" "$WORK/leaks"
+    rm -f "$WORK/readings" "$WORK/stop" "$WORK/pids" "$WORK/trace" "$WORK/logger.log" "$WORK/diag.txt" "$WORK/leaks" "$WORK/stalls"
     env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY -u QT_QPA_PLATFORM WORK="$WORK" \
         HOME="$HOME_DIR" XDG_RUNTIME_DIR="$RUN" XDG_CONFIG_HOME="$HOME_DIR/.config" \
         XDG_STATE_HOME="$HOME_DIR/.local/state" XDG_CACHE_HOME="$HOME_DIR/.cache" XDG_DATA_HOME="$HOME_DIR/.local/share" \
@@ -347,6 +362,7 @@ for attempt in 1 2 3; do
     echo "attempt $attempt: KWin gave the nested Hyprland no output, starting the session again" >&2
 done
 [[ "$(field monitor)" == ready ]] || { dump; fail "setup: the nested Hyprland never got an output from KWin, so no window can map"; exit 1; }
+[[ ! -s $WORK/stalls ]] || sed 's/^/note: the nested compositor stalled, so it was started again: /' "$WORK/stalls"
 
 if [[ -n "${SHOTS:-}" ]]; then
     mkdir -p "$SHOTS" && cp -- "$WORK"/shots/*.png "$SHOTS"/ 2> /dev/null
