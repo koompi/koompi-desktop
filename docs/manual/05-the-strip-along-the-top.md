@@ -8,7 +8,10 @@ The KOOMPI star opens the left-hand panel, which holds the assistant.
 `Super+A` does the same.
 
 Next to it is the program you are in: its name, and underneath, what it has open.
+With nothing open it reads Desktop, and nothing under it.
 Click that name for the window's own actions.
+When you start a program, its icon and name appear there at once with "Opening…" under them, and pulse until its window arrives.
+It gives up after eight seconds, so a program that never shows a window does not hold the strip.
 To the right of it, the program's menus - File, Edit, View - if it has them.
 Dolphin, Okular, Konsole and Ark put them there when you open them from Search, from the page of everything installed, or with their key.
 Some other programs keep theirs inside their own window instead.

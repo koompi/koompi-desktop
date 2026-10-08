@@ -32,8 +32,9 @@ Singleton {
         root.sweep();
     }
 
+    // a terminal app's window is the terminal's, which no entry of the app matches
     function begin(entry) {
-        if (!entry)
+        if (!entry || entry.runInTerminal)
             return;
         root.add({
             id: entry.id,

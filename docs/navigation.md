@@ -77,6 +77,17 @@ Each entry shows the bind that does the same thing, which is the only place the 
 It exists on the horizontal bar only, because the vertical bar shows no window identity to hang it off.
 `windows.actionsMenu` turns it off, default true.
 
+While an app is starting, the same identity answers for it, so Enter is never met with nothing.
+Its icon and name show over "Opening…" and pulse, from the moment of the launch until a window of that app maps or 8 s have passed, and then the identity is the focused window again.
+A window counts as the app's when it is the launched process, when its class resolves to the same desktop entry (`dolphin` on xcb and `org.kde.dolphin` on Wayland are one), when it carries the entry's `StartupWMClass`, or when its class is what was launched; it has to be a window that first showed up after the launch began, however late the shell heard of the launch.
+An app that raises the window it already has maps nothing, so the focus landing on a matching window ends the launch too.
+An app that runs in a terminal is not announced at all, because its window is the terminal's.
+Search, the Launchpad, the media controls and the dock tell the shell themselves, through `LauncherSearch.launch`.
+A key bind tells it through `koompi-launch`, which makes one background `qs ipc call launch begin` and never waits for it.
+While it shows, the focused window's menus and actions step aside, because they belong to the window being left, and the identity is not a click target.
+Reduce Motion holds the pulse as a dim state.
+With no window on the desktop the identity reads "Desktop" and nothing under it, because the bar's centre already shows the workspace.
+
 The snap preview takes no input path at all.
 `Super+drag` already moves a window, and `keybinds.lua` gives that same chord a second, `transparent` bind carrying `quickshell:snapPreviewDrag`, so the shell learns when a drag starts and ends without the drag itself changing.
 While one is running, pushing the pointer into a screen edge draws the rectangle the window will take, and releasing puts it there: a side gives a half, a corner a quarter, the top edge the whole usable area.

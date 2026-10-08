@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import Quickshell.Widgets
 
 Item { // Faux global menu: bold app name + window title
     id: root
@@ -21,12 +22,20 @@ Item { // Faux global menu: bold app name + window title
     property var biggestWindow: HyprlandData.biggestWindowForWorkspace(HyprlandData.monitors[root.monitor?.id]?.activeWorkspace.id)
 
     readonly property bool hasWindow: root.focusingThisMonitor && (root.activeWindow?.mapped ?? false)
+    readonly property var launch: root.focusingThisMonitor ? LaunchFeedback.current : null
+    readonly property bool launching: root.launch !== null
     /// Whether clicking the app identity opens the window's own actions. Only a
     /// real focused window has actions to offer; the fallback identity of the
     /// biggest window on an unfocused monitor is a label, not a target.
-    readonly property bool actionsAvailable: root.hasWindow && Config.options.windows.actionsMenu
+    readonly property bool actionsAvailable: root.hasWindow && !root.launching && Config.options.windows.actionsMenu
     readonly property string appClass: root.hasWindow ? (root.activeWindow?.class ?? "") : ((root.biggestWindow?.class) ?? "")
-    readonly property string windowTitle: root.hasWindow ? (root.activeWindow?.title ?? "") : ((root.biggestWindow?.title) ?? `${Translation.tr("Workspace")} ${monitor?.activeWorkspace?.id ?? 1}`)
+    readonly property string windowTitle: root.hasWindow ? (root.activeWindow?.title ?? "") : ((root.biggestWindow?.title) ?? "")
+    readonly property string nameText: root.launching ? root.launch.name : root.prettyName(root.appClass)
+    readonly property string titleText: root.launching ? Translation.tr("Opening…") : root.cleanTitle(root.windowTitle)
+    readonly property real identityOpacity: identityRow.opacity
+    readonly property bool pulsing: pulse.running
+    readonly property bool menuShown: globalMenu.visible
+    property real pulseLevel: 1
 
     function prettyName(s) {
         if (!s || s.length === 0)
@@ -72,7 +81,8 @@ Item { // Faux global menu: bold app name + window title
     /// The block is as wide as the app name and no wider: the window title is
     /// the volatile line, and sizing on it walked the menubar across the bar
     /// every time the title got longer. It elides to the name's width instead.
-    readonly property real identityWidth: Math.min(appName.implicitWidth, root.identityMaxWidth)
+    /// While "Opening…" shows the block fits it too: it is fixed text, not the volatile line.
+    readonly property real identityWidth: Math.min(Math.max(appName.implicitWidth, root.launching ? titleLine.implicitWidth : 0), root.identityMaxWidth)
 
     implicitWidth: rowLayout.implicitWidth
 
@@ -125,6 +135,15 @@ Item { // Faux global menu: bold app name + window title
                 id: identityRow
                 anchors.fill: parent
                 spacing: 6
+                // held dim, not looped, under Reduce Motion
+                opacity: root.launching ? (Appearance.reduceMotion ? 0.6 : root.pulseLevel) : 1
+
+                IconImage { // The app being started, until its window maps
+                    visible: root.launching
+                    Layout.alignment: Qt.AlignVCenter
+                    implicitSize: 24
+                    source: root.launching ? Quickshell.iconPath(root.launch.icon, "image-missing") : ""
+                }
 
                 ColumnLayout { // App name stacked over window title, as one bounded block
                     id: identityColumn
@@ -149,16 +168,17 @@ Item { // Faux global menu: bold app name + window title
                         // focused one is tellable apart at a glance.
                         color: root.focusingThisMonitor ? Appearance.colors.colOnLayer0 : Appearance.colors.colOnLayer1Inactive
                         elide: Text.ElideRight
-                        text: root.prettyName(root.appClass)
+                        text: root.nameText
                     }
 
                     StyledText { // Window title, dimmed
+                        id: titleLine
                         Layout.fillWidth: true
                         visible: text.length > 0
                         font.pixelSize: Appearance.font.pixelSize.smaller
                         color: root.focusingThisMonitor ? Appearance.colors.colSubtext : Appearance.colors.colOnLayer1Inactive
                         elide: Text.ElideRight
-                        text: root.cleanTitle(root.windowTitle)
+                        text: root.titleText
                     }
                 }
             }
@@ -167,7 +187,7 @@ Item { // Faux global menu: bold app name + window title
         GlobalMenu { // Inline File/Edit/View menu buttons, full bar height
             id: globalMenu
             Layout.fillHeight: true
-            visible: root.focusingThisMonitor && menuItems.length > 0
+            visible: root.focusingThisMonitor && menuItems.length > 0 && !root.launching
             // The titles read as a menubar continuing the app name, so they sit on
             // the app-name row with the window title running under both. Only the
             // labels move: the item still spans the bar, so each title keeps the
@@ -189,6 +209,34 @@ Item { // Faux global menu: bold app name + window title
     WindowActionsMenu { // Close, float, fullscreen, pin, move to workspace
         id: actionsMenu
         anchorItem: identityBlock
+    }
+
+    SequentialAnimation {
+        id: pulse
+        running: root.launching && !Appearance.reduceMotion
+        loops: Animation.Infinite
+        NumberAnimation {
+            target: root
+            property: "pulseLevel"
+            to: 0.55
+            duration: Appearance.animationDuration.slowest
+            easing.type: Easing.InOutSine
+        }
+        NumberAnimation {
+            target: root
+            property: "pulseLevel"
+            to: 1
+            duration: Appearance.animationDuration.slowest
+            easing.type: Easing.InOutSine
+        }
+    }
+
+    // both menus belong to the window being left
+    onLaunchingChanged: {
+        if (root.launching) {
+            globalMenu.closeMenu();
+            actionsMenu.closeMenu();
+        }
     }
 
     // The two menus sit side by side over the same window and each holds its
