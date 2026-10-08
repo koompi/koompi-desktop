@@ -42,6 +42,7 @@ body() { tail -n +3 "$lua"; }
 rule() {
     printf 'hl.monitor({\n    output = "%s",\n    mode = "%s",\n    position = "%s",\n    scale = %s' "$1" "$2" "$3" "$4"
     [[ -z ${5:-} ]] || printf ',\n    transform = %s' "$5"
+    [[ -z ${6:-} ]] || printf ',\n    mirror = "%s"' "$6"
     printf '\n})'
 }
 
@@ -108,7 +109,61 @@ fresh
 monitors '.[1].description = "WAM\u0007HDMI"'
 persist HDMI-A-1
 [[ "$(keys)" == '"desc:BOE 0x0CE0" "HDMI-A-1" ' ]] || fail "a description with a control character was written into the file: $(keys)"
-end_case "a description that is empty, shared or unprintable keeps the port"
+fresh
+monitors '.[0].description = "WAM HDMI"'
+persist HDMI-A-1
+[[ "$(keys)" == '"eDP-1" "desc:WAM HDMI 18250023" ' ]] || fail "a description that starts another one was saved by itself, so its rule would match both displays: $(keys)"
+end_case "a description that is empty, shared, unprintable or the start of another keeps the port"
+
+fresh
+monitors '.[1].mirrorOf = "0"'
+printf -- '-- old\n\n%s\n%s\n' "$(rule HDMI-A-1 1920x1080@75 1920x0 1 '' eDP-1)" "$(rule DP-9 1024x768@60 0x0 1 '' eDP-1)" > "$lua"
+persist eDP-1 60
+want="$(rule DP-9 1024x768@60 0x0 1 '' eDP-1)
+$(rule 'desc:BOE 0x0CE0' 1920x1200@60 0x0 1 0)
+$(rule 'desc:WAM HDMI 18250023' 1920x1080@60 1920x0 1.25 0 'desc:BOE 0x0CE0')"
+[[ "$(body)" == "$want" ]] || fail "a mirror the plain monitor list hides was not saved with its source by description, or its old port rule stayed, or an absent mirror lost its line: $(cat "$lua")"
+first="$(cat "$lua")"
+persist eDP-1 60
+[[ "$(cat "$lua")" == "$first" ]] || fail "saving a mirror twice wrote a different file: $(cat "$lua")"
+end_case "a mirror is saved with its source by description, and a second save changes nothing"
+
+fresh
+monitors '.[1].mirrorOf = "eDP-1"'
+persist eDP-1 60
+want="$(rule 'desc:BOE 0x0CE0' 1920x1200@60 0x0 1 0)
+$(rule 'desc:WAM HDMI 18250023' 1920x1080@60 1920x0 1.25 0 'desc:BOE 0x0CE0')"
+[[ "$(body)" == "$want" ]] || fail "a mirrorOf that is a port name was not followed to its source: $(cat "$lua")"
+end_case "mirrorOf as the source's name is followed too"
+
+fresh
+monitors '.[1].mirrorOf = "0" | .[0].description = .[1].description'
+persist eDP-1 60
+want="$(rule eDP-1 1920x1200@60 0x0 1 0)
+$(rule HDMI-A-1 1920x1080@60 1920x0 1.25 0 eDP-1)"
+[[ "$(body)" == "$want" ]] || fail "a source whose description is shared was not named by its port: $(cat "$lua")"
+end_case "a source with a shared description is named by its port"
+
+fresh
+monitors '.[1].mirrorOf = "7"'
+persist eDP-1 60
+want="$(rule 'desc:BOE 0x0CE0' 1920x1200@60 0x0 1 0)
+$(rule 'desc:WAM HDMI 18250023' 1920x1080@60 1920x0 1.25 0)"
+[[ "$(body)" == "$want" ]] || fail "a mirror of a monitor that is not listed was saved with a made-up source: $(cat "$lua")"
+end_case "a mirror whose source is not listed is saved without a mirror line"
+
+fresh
+monitors '.[1].disabled = true'
+printf -- '-- old\n\n%s\n' "$(rule 'desc:WAM HDMI 18250023' 1920x1080@60 1920x0 1.25 0)" > "$lua"
+persist eDP-1 60
+want="$(rule 'desc:WAM HDMI 18250023' 1920x1080@60 1920x0 1.25 0)
+$(rule 'desc:BOE 0x0CE0' 1920x1200@60 0x0 1 0)"
+[[ "$(body)" == "$want" ]] || fail "a disabled monitor was saved as an enabled one, or lost its old rule: $(cat "$lua")"
+fresh
+monitors '.[1].disabled = true'
+persist eDP-1 60
+[[ "$(keys)" == '"desc:BOE 0x0CE0" ' ]] || fail "a disabled monitor with no old rule got one: $(keys)"
+end_case "a disabled monitor keeps its old rule and gets none otherwise"
 
 (( failed )) && exit 1
-echo "ok   displays desc: rules follow the display, absent displays keep theirs, the same monitors write the same file"
+echo "ok   displays desc: rules follow the display, absent displays keep theirs, mirrors follow their source, the same monitors write the same file"
