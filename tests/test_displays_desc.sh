@@ -87,12 +87,13 @@ end_case "unplugged and plugged into another port: still one rule for the displa
 
 fresh
 monitors '.[1].description = "ACME \"Pro\" \\ 27" | .[1].transform = 1'
+luac_path="$(command -v luac || true)"
+[[ -z "$luac_path" ]] || ln -s "$luac_path" "$stub/luac"
 persist HDMI-A-1
+rm -f "$stub/luac"
 want="$(rule 'desc:ACME \"Pro\" \\ 27' 1920x1080@74.97 1920x0 1.25 1)"
 [[ "$(body | tail -n 7)" == "$want" ]] || fail "a quote and a backslash in a description are not escaped, or the rotation is not carried: $(cat "$lua")"
-if command -v luac > /dev/null 2>&1; then
-    luac -p "$lua" || fail "the file with a quote and a backslash in a description is not valid lua"
-fi
+[[ -z "$luac_path" ]] || "$luac_path" -p "$lua" || fail "the file with a quote and a backslash in a description is not valid lua"
 end_case "a quote and a backslash in a description are escaped, a rotation is carried"
 
 fresh
