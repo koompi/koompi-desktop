@@ -36,6 +36,7 @@ cp -a "$ROOT/sdata/dist-arch/koompi-shell" "$fake/sdata/dist-arch/"
 printf '#!/bin/sh\n' > "$T/koompi"
 install -Dm755 "$T/koompi" "$T/srcdir/koompi-cli-out/bin/koompi"
 mkdir -p "$T/pkg"
+# shellcheck disable=SC2034  # the sourced PKGBUILD's package() reads srcdir and pkgdir
 (
     set -e
     startdir="$fake/sdata/dist-arch/koompi-shell"
