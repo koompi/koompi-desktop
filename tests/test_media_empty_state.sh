@@ -17,10 +17,9 @@ fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 [[ -f "$MEDIA" ]] || fail "missing $MEDIA"
 grep -q 'Translation.tr("Nothing playing")' "$MEDIA" || fail "the empty panel does not say Nothing playing"
 grep -qE 'MPRIS support|duplicate player filtering|No active player' "$MEDIA" && fail "the MPRIS troubleshooting text is back in the empty panel"
-# Assigning the loader's active breaks its binding to GlobalStates.mediaControlsOpen,
-# and the shortcut and the bar button drive that.
-grep -qE 'mediaControlsLoader\.active[[:space:]]*=[^=]' "$MEDIA" && fail "an IPC handler assigns mediaControlsLoader.active, which breaks the shortcut"
-echo "ok   static: Nothing playing, no troubleshooting text, IPC drives GlobalStates"
+# the shortcut and the bar button drive GlobalStates.mediaControlsOpen, and the panel's window follows it
+grep -qE 'open: GlobalStates\.mediaControlsOpen' "$MEDIA" || fail "the media panel's window is not bound to GlobalStates.mediaControlsOpen, so the shortcut cannot open it"
+echo "ok   static: Nothing playing, no troubleshooting text, the window follows GlobalStates"
 
 if ! command -v qs > /dev/null 2>&1; then
     echo "skip: quickshell (qs) not installed, static checks only"

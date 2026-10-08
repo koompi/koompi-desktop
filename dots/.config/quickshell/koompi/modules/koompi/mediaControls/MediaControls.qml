@@ -14,6 +14,7 @@ import Quickshell.Hyprland
 
 Scope {
     id: root
+    readonly property bool built: surface.item !== null
     property bool visible: false
     readonly property MprisPlayer activePlayer: MprisController.activePlayer
     readonly property var realPlayers: MprisController.players
@@ -85,16 +86,12 @@ Scope {
     // cava moved to services/Cava.qml: the sidebar's player card draws the same
     // spectrum, and a process each would mean two of them whenever both are open.
 
-    Loader {
-        id: mediaControlsLoader
-        active: GlobalStates.mediaControlsOpen
-        onActiveChanged: {
-            if (!mediaControlsLoader.active && root.realPlayers.length === 0) {
-                GlobalStates.mediaControlsOpen = false;
-            }
-        }
+    LazySurface {
+        id: surface
+        open: GlobalStates.mediaControlsOpen
+        keepWarm: 0
 
-        sourceComponent: PanelWindow {
+        component: PanelWindow {
             id: panelWindow
             visible: true
 

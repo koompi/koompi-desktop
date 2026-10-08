@@ -13,29 +13,29 @@ import Quickshell.Hyprland
 
 Scope {
     id: root
+    readonly property bool built: surface.item !== null
     property var focusedScreen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name)
 
-    Loader {
-        id: sessionLoader
-        active: GlobalStates.sessionOpen
-        onActiveChanged: {
-            if (sessionLoader.active)
-                SessionWarnings.refresh();
-        }
-
-        Connections {
-            target: GlobalStates
-            function onScreenLockedChanged() {
-                if (GlobalStates.screenLocked) {
-                    GlobalStates.sessionOpen = false;
-                }
+    Connections {
+        target: GlobalStates
+        function onScreenLockedChanged() {
+            if (GlobalStates.screenLocked) {
+                GlobalStates.sessionOpen = false;
             }
         }
+    }
 
-        sourceComponent: PanelWindow { // Session menu
+    LazySurface {
+        id: surface
+        open: GlobalStates.sessionOpen
+        keepWarm: 0
+
+        component: PanelWindow { // Session menu
             id: sessionRoot
-            visible: sessionLoader.active
+            visible: GlobalStates.sessionOpen
             property string subtitle
+
+            Component.onCompleted: SessionWarnings.refresh()
 
             function hide() {
                 GlobalStates.sessionOpen = false;

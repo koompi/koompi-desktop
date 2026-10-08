@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import qs
+import qs.modules.common
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -11,6 +12,7 @@ import Quickshell.Io
 // Idle.inhibit on, hypridle never reaches the timeout, so nothing calls `open`.
 Scope {
     id: root
+    readonly property bool built: surface.item !== null
 
     function open() {
         // Nothing to show under a session lock: the compositor composites the
@@ -39,17 +41,17 @@ Scope {
         }
     }
 
-    // Built per open rather than kept mapped: between idles no surface of this
-    // layer exists, and the drift timer only runs while it is on screen. The
-    // few hundred ms a fresh surface costs are invisible after minutes of idle.
-    Variants {
-        model: Quickshell.screens
-        delegate: Loader {
-            id: surfaceLoader
-            required property var modelData
-            active: GlobalStates.screensaverOpen
-            sourceComponent: ScreensaverSurface {
-                screen: surfaceLoader.modelData
+    // per open: no surface between idles, and the drift timer runs only on screen
+    LazySurface {
+        id: surface
+        open: GlobalStates.screensaverOpen
+        keepWarm: 0
+
+        component: Variants {
+            model: Quickshell.screens
+            delegate: ScreensaverSurface {
+                required property var modelData
+                screen: modelData
                 onDismiss: root.close()
             }
         }
