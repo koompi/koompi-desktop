@@ -21,6 +21,12 @@ fail() { printf 'FAIL: %s\n' "$1" >&2; failed=1; }
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
+# koompi-launch tells the running shell what is opening; this must never be the live one
+mkdir -p "$tmp/bin"
+printf '#!/usr/bin/env bash\nexit 255\n' > "$tmp/bin/qs"
+chmod +x "$tmp/bin/qs"
+export PATH="$tmp/bin:$PATH"
+
 cat > "$tmp/argdump" <<'EOF'
 #!/usr/bin/env bash
 {

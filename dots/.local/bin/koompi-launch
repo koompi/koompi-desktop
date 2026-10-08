@@ -7,8 +7,8 @@ xcb_menu_apps=(org.kde.dolphin dolphin org.kde.okular okular org.kde.konsole kon
 
 usage() {
     cat <<'USAGE'
-Usage: koompi-launch [--id ID] [--cwd DIR] [--terminal CMD] [--] COMMAND [ARG...]
-       koompi-launch [--id ID] [--cwd DIR] [--terminal CMD] [--] APP.desktop [FILE|URL...]
+Usage: koompi-launch [--id ID] [--cwd DIR] [--terminal CMD] [--registered] [--] COMMAND [ARG...]
+       koompi-launch [--id ID] [--cwd DIR] [--terminal CMD] [--registered] [--] APP.desktop [FILE|URL...]
 
 Runs COMMAND as a transient app-ID-<random>.scope in the user manager's
 app.slice, with this environment and working directory. Without a user
@@ -17,10 +17,13 @@ The apps in xcb_menu_apps, at the top of this script, also get
 QT_QPA_PLATFORM=xcb: Qt exports a menubar to the bar only on X11.
 Any other app that inherits QT_QPA_PLATFORM=wayland, the shell's own pin, gets
 wayland;xcb, so a Qt app with no Wayland plugin still starts.
+Before it starts, one background call tells the running shell what is opening,
+so its bar can say so until the window maps; the launch never waits for it.
 
   --id ID          scope name; defaults to the desktop-entry id or COMMAND's basename
   --cwd DIR        working directory; overrides the entry's Path=
   --terminal CMD   run inside terminal CMD (word-split): CMD -e COMMAND...
+  --registered     the caller already told the shell, so this call stays quiet
 
 APP.desktop is found in $XDG_DATA_HOME/applications and $XDG_DATA_DIRS, or
 given as a path. Its Exec line is expanded per the Desktop Entry spec
@@ -222,7 +225,38 @@ xcb_menu_app() {
     return 1
 }
 
-id='' cwd='' terminal=''
+note() {
+    logger -t koompi-launch -- "$1" 2>/dev/null || true
+}
+
+# the program that will own the window; launch_first_available.sh picks its own at run time, so ask it the way it asks
+program_of() {
+    local candidate word
+    REPLY=${1##*/}
+    [[ $REPLY == launch_first_available.sh ]] || return 0
+    shift
+    for candidate in "$@"; do
+        word=${candidate%% *}
+        if [[ -n $word ]] && command -v -- "$word" >/dev/null 2>&1; then
+            REPLY=$word
+            return 0
+        fi
+    done
+}
+
+# qs exits 255 when no shell runs; a shell without the handler answers "Target not found." and exits 0
+tell_shell() {
+    local answer rc=0
+    answer=$(timeout 3 qs -c koompi ipc --any-display call launch begin -- "$1" "$2" "$3" 2>&1) || rc=$?
+    case $rc in
+        0) [[ $answer == ok || $answer == ignored ]] || note "launch notice for $1: the shell answered '$answer'" ;;
+        255) ;;
+        124) note "launch notice for $1: no answer from the shell in 3 s" ;;
+        *) note "launch notice for $1: qs exit $rc: $answer" ;;
+    esac
+}
+
+id='' cwd='' terminal='' registered=0
 while (($#)); do
     case $1 in
         --id)
@@ -245,6 +279,9 @@ while (($#)); do
             shift 2 ;;
         --terminal=*)
             terminal=${1#--terminal=}
+            shift ;;
+        --registered)
+            registered=1
             shift ;;
         -h | --help)
             usage
@@ -291,6 +328,12 @@ if xcb_menu_app "$id" "$1"; then
     export QT_QPA_PLATFORM=xcb
 elif [[ ${QT_QPA_PLATFORM-} == wayland ]]; then
     export QT_QPA_PLATFORM='wayland;xcb'
+fi
+
+# a terminal app's window is the terminal's, which no entry of the app matches
+if ((registered == 0)) && [[ -z $terminal ]] && command -v qs >/dev/null 2>&1; then
+    program_of "$@"
+    (tell_shell "$id" "$REPLY" "$$" </dev/null >/dev/null 2>&1 &)
 fi
 
 if [[ -n $cwd ]]; then

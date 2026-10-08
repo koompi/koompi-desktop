@@ -257,6 +257,11 @@ Every app bind, and every launch from Search, the Launchpad, the dock and a rest
 That is what lets `systemd-oomd` kill one app under memory pressure instead of the whole session, because the session scope that holds Hyprland, the shell, hypridle and the wallpaper pipeline is never a candidate.
 A bind for something the session cannot lose keeps `hl.dsp.exec_cmd` and stays out of `app.slice`.
 
+`koompi-launch` also tells the running shell what is opening, in one background call before it starts the app, so the bar's app identity can say "Opening" until the window maps.
+The call names the launch id, the program that will own the window (for `launch_first_available.sh`, the candidate it will pick) and the pid, which `exec` keeps.
+A shell surface that already told the shell passes `--registered`, and a launch inside a terminal says nothing, because its window is the terminal's.
+No shell running is silent, and any other failure is a line in the journal under `koompi-launch`.
+
 `koompi-launch` also chooses the platform of the Qt apps it starts.
 Qt exports a menubar to the bar only on X11, so Dolphin, Okular, Konsole and Ark start with `QT_QPA_PLATFORM=xcb` and show their menus in the bar, and every other Qt app runs on Wayland with its menus inside its own window.
 The session default in `hyprland/env.lua` is `wayland;xcb`, and the list is `xcb_menu_apps` at the top of `koompi-launch`.

@@ -240,11 +240,12 @@ Singleton {
 
     // DesktopEntry.execute() cannot be wrapped; koompi-launch puts the app in app.slice for oomd
     function launch(entry, command = entry.command) {
-        const argv = ["koompi-launch", "--id", entry.id];
+        const argv = ["koompi-launch", "--registered", "--id", entry.id];
         if (entry.workingDirectory)
             argv.push("--cwd", entry.workingDirectory);
         if (entry.runInTerminal)
             argv.push("--terminal", Config.options.apps.terminal);
+        LaunchFeedback.begin(entry);
         Quickshell.execDetached([...argv, "--", ...command]);
     }
 
@@ -258,8 +259,7 @@ Singleton {
             iconType: LauncherSearchResult.IconType.System,
             verb: Translation.tr("Open"),
             execute: () => {
-                // Shared with the Launchpad, so what is reached for here also
-                // orders that grid, and comes back as a recent result below.
+                // orders the Launchpad and fills Recent
                 LaunchpadUsage.record(entry.id);
                 root.launch(entry);
             },
