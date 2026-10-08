@@ -94,7 +94,8 @@ ShellRoot {
         const d = GlobalFocusGrab.dismissable, p = GlobalFocusGrab.persistent, got = GlobalFocusGrab.grabbedWindows;
         const inside = d.some(w => probe.oldWalk(w?.contentItem));
         const unfocusable = d.every(w => !w?.focusable);
-        const want = (unfocusable || inside) ? [...d, ...p] : [...d];
+        // the grab keeps only windows; a window pushed a moment ago can read back undefined once
+        const want = ((unfocusable || inside) ? [...d, ...p] : [...d]).filter(w => w);
         const same = want.length === got.length && want.every((w, i) => w === got[i]);
         const s = probe.st;
         s.samples++;
