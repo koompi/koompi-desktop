@@ -9,107 +9,114 @@ import Quickshell.Hyprland
 
 Scope {
     id: root
+    readonly property bool built: surface.item !== null
     property int sidebarWidth: Appearance.sizes.sidebarWidthRight
 
     readonly property bool pinned: Persistent.states.sidebar.pinned
 
-    // Held until the content exists: opening from a closed sidebar creates the
-    // Loader's item in the same call, but keepRightSidebarLoaded makes that order
-    // vary, so the page is applied from onLoaded as well.
+    // a drawer asked for before the content exists; the content takes it as it is built
     property string pendingDrawer: ""
+    readonly property var content: surface.item?.content ?? null
 
-    function showDrawer(page: string): void {
-        const content = sidebarContentLoader.item;
-        if (content && content.drawer === page) {
-            content.drawer = "";
-            panelWindow.hide();
-            return;
-        }
-        root.pendingDrawer = page;
-        GlobalStates.sidebarRightOpen = true;
-        if (sidebarContentLoader.item) {
-            sidebarContentLoader.item.drawer = root.pendingDrawer;
-            root.pendingDrawer = "";
-        }
+    function takePendingDrawer(): string {
+        const page = root.pendingDrawer;
+        root.pendingDrawer = "";
+        return page;
     }
 
-    PanelWindow {
-        id: panelWindow
-        visible: GlobalStates.sidebarRightOpen || root.pinned
+    function hide(): void {
+        if (root.pinned)
+            return;
+        GlobalStates.sidebarRightOpen = false;
+    }
 
-        function hide() {
-            if (root.pinned)
-                return;
-            GlobalStates.sidebarRightOpen = false;
+    function showDrawer(page: string): void {
+        const content = root.content;
+        if (content && content.drawer === page) {
+            content.drawer = "";
+            root.hide();
+            return;
         }
+        if (content)
+            content.drawer = page;
+        else
+            root.pendingDrawer = page;
+        GlobalStates.sidebarRightOpen = true;
+    }
 
-        // Reserve up to the panel's visible edge, not the whole window: the left
-        // elevationMargin is shadow room, and reserving it too doubles the gap.
-        exclusiveZone: root.pinned ? sidebarWidth - Appearance.sizes.elevationMargin : 0
-        implicitWidth: sidebarWidth
-        WlrLayershell.namespace: "quickshell:sidebarRight"
-        WlrLayershell.keyboardFocus: GlobalStates.sidebarRightOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-        color: "transparent"
+    onPinnedChanged: {
+        if (root.pinned)
+            GlobalStates.sidebarRightOpen = true;
+    }
 
-        anchors {
-            top: true
-            right: true
-            bottom: true
-        }
+    LazySurface {
+        id: surface
+        open: GlobalStates.sidebarRightOpen || root.pinned || Config?.options.sidebar.keepRightSidebarLoaded
 
-        // A pinned panel is not dismissable, so clicking away leaves it alone.
-        function updateDismissable() {
-            if (panelWindow.visible && !root.pinned) {
-                GlobalFocusGrab.addDismissable(panelWindow);
-            } else {
-                GlobalFocusGrab.removeDismissable(panelWindow);
-            }
-        }
-        onVisibleChanged: updateDismissable()
-        Connections {
-            target: root
-            function onPinnedChanged() {
-                panelWindow.updateDismissable();
-                if (root.pinned)
-                    GlobalStates.sidebarRightOpen = true;
-            }
-        }
-        Connections {
-            target: GlobalFocusGrab
-            function onDismissed() {
-                panelWindow.hide();
-            }
-        }
+        component: PanelWindow {
+            id: panelWindow
+            visible: GlobalStates.sidebarRightOpen || root.pinned
+            property alias content: sidebarContentLoader.item
 
-        Loader {
-            id: sidebarContentLoader
-            active: GlobalStates.sidebarRightOpen || root.pinned || Config?.options.sidebar.keepRightSidebarLoaded
+            // Reserve up to the panel's visible edge, not the whole window: the left
+            // elevationMargin is shadow room, and reserving it too doubles the gap.
+            exclusiveZone: root.pinned ? root.sidebarWidth - Appearance.sizes.elevationMargin : 0
+            implicitWidth: root.sidebarWidth
+            WlrLayershell.namespace: "quickshell:sidebarRight"
+            WlrLayershell.keyboardFocus: GlobalStates.sidebarRightOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+            color: "transparent"
+
             anchors {
-                fill: parent
-                margins: Appearance.sizes.hyprlandGapsOut
-                leftMargin: Appearance.sizes.elevationMargin
+                top: true
+                right: true
+                bottom: true
             }
-            width: sidebarWidth - Appearance.sizes.hyprlandGapsOut - Appearance.sizes.elevationMargin
-            height: parent.height - Appearance.sizes.hyprlandGapsOut * 2
 
-            focus: GlobalStates.sidebarRightOpen
-            Keys.onPressed: event => {
-                if (event.key === Qt.Key_Escape) {
-                    if (sidebarContentLoader.item?.drawer.length > 0) {
-                        sidebarContentLoader.item.drawer = "";
-                        return;
+            // A pinned panel is not dismissable, so clicking away leaves it alone.
+            function updateDismissable() {
+                if (panelWindow.visible && !root.pinned) {
+                    GlobalFocusGrab.addDismissable(panelWindow);
+                } else {
+                    GlobalFocusGrab.removeDismissable(panelWindow);
+                }
+            }
+            onVisibleChanged: updateDismissable()
+            Connections {
+                target: root
+                function onPinnedChanged() {
+                    panelWindow.updateDismissable();
+                }
+            }
+            Connections {
+                target: GlobalFocusGrab
+                function onDismissed() {
+                    root.hide();
+                }
+            }
+
+            // a Loader sizes the content before its bindings run; bare anchors log a binding loop on implicitHeight
+            Loader {
+                id: sidebarContentLoader
+                anchors {
+                    fill: parent
+                    margins: Appearance.sizes.hyprlandGapsOut
+                    leftMargin: Appearance.sizes.elevationMargin
+                }
+
+                focus: GlobalStates.sidebarRightOpen
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_Escape) {
+                        if (sidebarContentLoader.item?.drawer.length > 0) {
+                            sidebarContentLoader.item.drawer = "";
+                            return;
+                        }
+                        root.hide();
                     }
-                    panelWindow.hide();
                 }
-            }
 
-            sourceComponent: SidebarRightContent {}
+                sourceComponent: SidebarRightContent {}
 
-            onLoaded: {
-                if (root.pendingDrawer.length > 0) {
-                    item.drawer = root.pendingDrawer;
-                    root.pendingDrawer = "";
-                }
+                onLoaded: item.drawer = root.takePendingDrawer()
             }
         }
     }
