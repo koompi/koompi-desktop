@@ -228,14 +228,12 @@ grep -q 'KOOMPI is up to date' <<<"$out" && fail "an update with a failed migrat
 rm -f "$T/migrate-fails"
 
 mkdir -p "$T/empty"
-out="$(PATH="$T/empty" "$BASH" -c 'source "$1"; run_migrations' _ "$ROOT/dots/.local/share/koompi/libexec/update-lib.sh" 2>&1)"
-rc=$?
-[[ $rc -eq 1 ]] || fail "a missing koompi-migrate must fail the update's migration step (rc=$rc): $out"
-grep -q 'koompi-migrate is not on PATH' <<<"$out" || fail "a missing koompi-migrate is not reported: $out"
-out="$(PATH="$T/empty" "$BASH" -c 'source "$1"; sync_code_trees' _ "$ROOT/dots/.local/share/koompi/libexec/update-lib.sh" 2>&1)"
-rc=$?
-[[ $rc -eq 1 ]] || fail "a missing koompi-migrate must fail the update's code-tree sync (rc=$rc): $out"
-grep -q 'koompi-migrate is not on PATH' <<<"$out" || fail "a missing koompi-migrate is not reported by the sync: $out"
+for fn in run_migrations sync_code_trees; do
+    out="$("$BASH" -c 'source "$1"; PATH="$3"; "$2"' _ "$ROOT/dots/.local/share/koompi/libexec/update-lib.sh" "$fn" "$T/empty" 2>&1)"
+    rc=$?
+    [[ $rc -eq 1 ]] || fail "a missing koompi-migrate must fail $fn (rc=$rc): $out"
+    grep -q 'koompi-migrate is not on PATH' <<<"$out" || fail "a missing koompi-migrate is not reported by $fn: $out"
+done
 
 if command -v rsync > /dev/null 2>&1; then
     mkdir -p "$T/skel/.config/hypr/hyprland" "$T/migs" "$T/home/.config/hypr/hyprland"
