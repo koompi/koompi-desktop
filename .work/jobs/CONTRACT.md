@@ -8,7 +8,7 @@ The main checkout is `/home/userx/workspace/koompi/koompi-desktop`; its `.work/`
 1. Read `/home/userx/workspace/koompi/koompi-desktop/AGENTS.md`, `UPSTREAM.md`, `docs/navigation.md`, `docs/conventions.md`, and `/home/userx/workspace/koompi/koompi-desktop/.claude/skills/koompi/SKILL.md`.
 2. Read the audit section your job cites in `docs/design/ux-audit-2026-10-07.md`.
 3. Read every file you will change and everything that calls it.
-4. Your worktree may be cut from `main`. Before anything else: `git checkout -B "$(git branch --show-current)" dev` (clean tree), then confirm `git log --oneline -1` matches `git log --oneline -1 dev`.
+4. Your worktree is cut from the main checkout's `HEAD`, which is `dev` (`worktree.baseRef: head`). Before anything else, confirm `git log --oneline -1` shows the base commit your dispatch prompt names. If it does not, stop and report both lines; do not move, reset or recreate the branch.
 5. `git submodule update --init` in your worktree: `modules/common/widgets/shapes` is a submodule and the shell will not load without it.
 
 ## Rules
