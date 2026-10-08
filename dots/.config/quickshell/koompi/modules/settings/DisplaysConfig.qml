@@ -69,6 +69,13 @@ ContentPage {
         return message.charAt(0).toUpperCase() + message.slice(1);
     }
 
+    // read now so the pills match the monitor, and again once a rewritten monitors.lua has been applied
+    function refreshMonitors() {
+        monitorsProc.running = false;
+        monitorsProc.running = true;
+        monitorsRefreshTimer.restart();
+    }
+
     function commandFinished(row, verb, code, out, err) {
         root.busy--;
         if (code !== 0)
@@ -79,7 +86,7 @@ ContentPage {
         } else if (verb === "keep" || verb === "revert") {
             root.pending = null;
         }
-        monitorsRefreshTimer.restart();
+        root.refreshMonitors();
     }
 
     Component.onCompleted: {

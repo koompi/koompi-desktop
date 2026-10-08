@@ -54,9 +54,18 @@ ShellRoot {
     property int step: 0
     property int stepStarted: 0
     property string rateError: ""
+    property int pendingEnded: 0
     readonly property string flags: Quickshell.env("PROBE_DIR")
     readonly property string cannotSave: flags + "/luac.fail"
     readonly property string ignored: flags + "/state.json.ignore"
+
+    Connections {
+        target: page
+        function onPendingChanged() {
+            if (page.pending === null)
+                probe.pendingEnded = probe.ticks;
+        }
+    }
 
     FloatingWindow {
         visible: true
@@ -192,6 +201,8 @@ ShellRoot {
     function checkTimedOut() {
         probe.verdict(!probe.waits(), "with no answer the bar goes away by itself");
         probe.verdict(probe.rateRow().array.currentValue === 74.97, "and 74.97 is the selected rate again");
+        const lag = probe.ticks - probe.pendingEnded;
+        probe.verdict(lag <= 3, "the pill followed the monitor within 3 ticks of the question ending, took " + lag);
         probe.touch(probe.ignored);
     }
 
