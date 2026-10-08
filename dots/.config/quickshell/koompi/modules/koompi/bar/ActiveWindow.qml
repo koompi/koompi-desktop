@@ -79,11 +79,7 @@ Item { // Faux global menu: bold app name + window title
     /// the layout that sizes it.
     readonly property real identityMaxWidth: Math.max(160, Math.round((root.QsWindow.window?.screen?.width ?? 1920) * 0.18))
 
-    /// The block is as wide as the app name and no wider: the window title is
-    /// the volatile line, and sizing on it walked the menubar across the bar
-    /// every time the title got longer. It elides to the name's width instead.
-    /// While "Opening…" shows the block fits it too: it is fixed text, not the volatile line.
-    /// Whole pixels, because a layout rounds a column to the nearest one and a fraction under a half cut the name short.
+    // the name's width, not the title's, which moves the menubar; whole pixels, or a fractional scale cuts the name short
     readonly property real identityWidth: Math.min(Math.ceil(Math.max(appName.implicitWidth, root.launching ? titleLine.implicitWidth : 0)), root.identityMaxWidth)
 
     implicitWidth: rowLayout.implicitWidth
