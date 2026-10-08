@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-# The session opts into XDG autostart. hyprland-session.target ships in dots/ and
-# wants xdg-desktop-autostart.target, which refuses a manual start, so nothing in the
-# tree may start it by hand. Three login items KOOMPI does not want are hidden by
-# same-named overrides in ~/.config/autostart that survive an update, and existing
-# homes get all four files from a migration. Offline: the systemd generator writes
-# into temp dirs and nothing here talks to a user manager.
+# login items start only if the session target wants xdg-desktop-autostart.target, which refuses a manual start
 set -uo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -27,7 +22,6 @@ unit_values() {
 }
 has_value() { unit_values "$1" "$2" | grep -qxF -- "$3"; }
 
-# --- the session target ---
 [[ -f "$TARGET" ]] || fail "dots/.config/systemd/user/hyprland-session.target is not shipped; a fresh install cannot start it, so graphical-session.target never activates and hypridle, the crash watcher and the portals never start"
 has_value "$TARGET" BindsTo graphical-session.target || fail "the session target does not bind graphical-session.target"
 has_value "$TARGET" Wants graphical-session-pre.target || fail "the session target does not want graphical-session-pre.target"
@@ -56,7 +50,6 @@ hand_start="$(git -C "$ROOT" grep --no-color -nIE 'systemctl[^&|;]*(start|restar
 $hand_start"
 echo "ok   static: nothing in the tree starts xdg-desktop-autostart.target by hand"
 
-# --- the overrides that hide three login items ---
 for f in "$AUTOSTART"/*; do
     [[ -e "$f" ]] || continue
     printf '%s\n' "${HIDDEN[@]/%/.desktop}" | grep -qxF -- "${f##*/}" \
@@ -71,7 +64,6 @@ for name in "${HIDDEN[@]}"; do
 done
 echo "ok   static: ${#HIDDEN[@]} overrides, each a complete entry with Hidden=true"
 
-# --- the install route: written once, an edit survives an update ---
 if ! command -v rsync > /dev/null 2>&1; then
     echo "skip: rsync not installed; the install route was not run"
 else
@@ -123,17 +115,16 @@ else
     echo "ok   setup: a deleted override comes back, which is why the docs say to edit it"
 fi
 
-# --- the generator: what the user manager would start at login ---
 if [[ ! -x "$GENERATOR" ]]; then
     echo "skip: $GENERATOR is not installed; the login items were not generated"
 else
-    generate() { # <XDG_CONFIG_HOME> <system dir> <out dir>
+    generate() {
         mkdir -p "$1" "$3/normal" "$3/early" "$3/late" "$3/home"
         env -i PATH="$PATH" HOME="$3/home" XDG_CONFIG_HOME="$1" XDG_CONFIG_DIRS="$2" \
             "$GENERATOR" "$3/normal" "$3/early" "$3/late" > "$3/generator.log" 2>&1 \
             || fail "the generator failed: $(cat "$3/generator.log")"
     }
-    generated() { # <out dir>: the desktop files that got a unit
+    generated() {
         find "$1" -name 'app-*@autostart.service' -type f -exec sed -n 's|^SourcePath=.*/||p' {} + | LC_ALL=C sort
     }
 
@@ -181,7 +172,6 @@ else
     fi
 fi
 
-# --- the migration: existing homes get the target and the overrides ---
 shopt -s nullglob
 found=("$ROOT"/sdata/migrations/*-session-target-autostart.sh)
 shopt -u nullglob
