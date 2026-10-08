@@ -105,6 +105,8 @@ Scope {
                 else
                     GlobalFocusGrab.removePersistent(tourWindow);
             }
+            // released with the flag, before visible can turn false
+            Component.onDestruction: GlobalFocusGrab.removePersistent(tourWindow)
 
             StyledRectangularShadow {
                 target: card
