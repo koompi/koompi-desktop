@@ -4,7 +4,7 @@
 # STEP: ipc:<target> <fn> [args] | hypr:<lua dispatch expr> | run:<cmd> | sleep:<s> | shot:<name>
 # execs.lua is replaced by a launcher for the shell alone: the real one talks to the user's systemd and PipeWire.
 set -euo pipefail
-[[ -n ${KOOMPI_HEAVY_LOCKED:-} ]] || KOOMPI_HEAVY_LOCKED=1 exec flock /tmp/koompi-heavy.lock "${BASH_SOURCE[0]}" "$@"
+[[ -n ${KOOMPI_HEAVY_LOCKED:-} ]] || exec "$(dirname -- "${BASH_SOURCE[0]}")/heavy.sh" "${BASH_SOURCE[0]}" "$@"
 
 repo=$(realpath "$1"); out=$(realpath -m "$2"); shift 2
 size=1920x1200
@@ -66,6 +66,8 @@ chmod +x "$work/bin/koompi-shelld"
             *) echo "hyprshot: unknown step $step" >&2; exit 2 ;;
         esac
     done
+    # an app still open when the nested compositor exits can crash, and every crash under this uid toasts the live desktop
+    printf 'hyprctl -j clients 2>/dev/null | jq -r ".[] | select(.pid > 0) | .pid" | xargs -r kill -TERM 2>/dev/null\nsleep 1\n'
     printf 'echo "display=$WAYLAND_DISPLAY sig=$HYPRLAND_INSTANCE_SIGNATURE" >> %q\ncp "$XDG_RUNTIME_DIR"/hypr/*/hyprland.log %q 2>/dev/null\ncp "$XDG_RUNTIME_DIR"/quickshell/by-id/*/log.qslog %q 2>/dev/null\nhyprctl dispatch "hl.dsp.exit()" >/dev/null 2>&1\nsleep 1\n' "$out/run.log" "$out/hyprland-run.log" "$out/qs.qslog"
 } > "$work/inner.sh"
 chmod +x "$work/inner.sh"

@@ -3,7 +3,7 @@
 #   measure_surfaces.sh SHELL_ROOT OUT.tsv [LOADER_NAME...]
 # No names: full shell, resident-only (Bar Background NotificationPopup OnScreenDisplay Lock), then each loader alone removed.
 set -euo pipefail
-[[ -n ${KOOMPI_HEAVY_LOCKED:-} ]] || KOOMPI_HEAVY_LOCKED=1 exec flock /tmp/koompi-heavy.lock "${BASH_SOURCE[0]}" "$@"
+[[ -n ${KOOMPI_HEAVY_LOCKED:-} ]] || exec "$(dirname -- "${BASH_SOURCE[0]}")/heavy.sh" "${BASH_SOURCE[0]}" "$@"
 
 root=$(realpath "$1"); out=$(realpath -m "$2"); shift 2
 family="$root/panelFamilies/KoompiFamily.qml"
