@@ -75,10 +75,10 @@ printf '[Desktop Entry]\nType=Application\nName=One\nExec=%s/app-one %%U\n' "$tm
 launch probe-one.desktop
 waits_for "$QSLOG" || fail "an entry's launch sent no notice"
 want="-c koompi ipc --any-display call launch begin -- probe-one app-one"
-[[ "$(cat "$QSLOG")" == "$want"* ]] || fail "the entry's notice is '$(cat "$QSLOG")', want '$want <pid> <ms>'"
+[[ "$(cat "$QSLOG" 2> /dev/null)" == "$want"* ]] || fail "the entry's notice is '$(cat "$QSLOG" 2> /dev/null)', want '$want <pid> <ms>'"
 
 # 3. a wrapper that picks its program at run time: the notice names the one it picks
-program_noticed() { awk '{ print $(NF - 2) }' "$QSLOG"; }
+program_noticed() { awk '{ print $(NF - 2) }' "$QSLOG" 2> /dev/null; }
 for candidates in "no-such-app-x|app-two -1|app-three" "no-such-app-x||app-three" "app-one|app-two"; do
     reset
     IFS='|' read -r -a args <<< "$candidates"
