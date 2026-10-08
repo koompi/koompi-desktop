@@ -9,6 +9,12 @@
 # once with the program found by what its Exec runs and the window by StartupWMClass, once
 # with a window only the launched pid can claim. SHOTS=<dir> keeps the screenshots:
 # the empty desktop, the first answer, and 3 s after the bind.
+#
+# Nothing outlives the session. Each app registers its pid and start time in $WORK/pids; after
+# every launch and before the session ends its window is closed the way a user closes it and
+# whatever registered is ended by pid; a launch still on its way finds $WORK/stop and does
+# nothing. Whatever still carries the session's private runtime dir once KWin has returned is a
+# leak: it is named, ended by pid, and fails the test.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -16,7 +22,7 @@ REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 failed=0
 fail() { printf 'FAIL: %s\n' "$1" >&2; failed=$((failed + 1)); }
 
-for tool in Hyprland hyprctl kwin_wayland dbus-run-session jq qs grim kdialog; do
+for tool in Hyprland hyprctl kwin_wayland dbus-run-session jq qs grim kdialog pidof; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, nested Hyprland not run"; exit 0; }
 done
 SHELLD="${KOOMPI_SHELLD_BIN:-}"
@@ -25,13 +31,77 @@ for candidate in "$HOME/.local/bin/koompi-shelld" "$REPO_ROOT/shell-services/tar
     SHELLD="$candidate"
 done
 [[ -x "$SHELLD" ]] || { echo "skip: no built koompi-shelld, the bar has no window list to follow"; exit 0; }
+REAL_PIDOF="$(command -v pidof)"
 
 WORK="$(mktemp -d)"
 RUN="$WORK/no-session-yet"
-trap '(( failed )) && echo "kept $WORK" >&2 || rm -rf "$WORK" "$RUN"' EXIT
 HOME_DIR="$WORK/home"
 mkdir -p "$HOME_DIR/.config/hypr" "$HOME_DIR/.config/quickshell" "$HOME_DIR/.config/koompi" "$HOME_DIR/.local/state/quickshell/user" \
     "$HOME_DIR/.local/share/applications" "$HOME_DIR/.cache" "$WORK/bin" "$WORK/shots"
+
+# bookkeeping shared by the session's own script and this one: $WORK/pids is "pid starttime" per
+# registered process, and a pid only counts while its start time is still the registered one
+cat > "$WORK/lib.sh" <<'SH'
+proc_fields() {
+    local stat rest f
+    [[ -r /proc/$1/stat ]] || return 1
+    stat=$(< "/proc/$1/stat") || return 1
+    rest=${stat##*) }
+    read -ra f <<< "$rest"
+    printf '%s %s\n' "${f[0]}" "${f[19]}"
+}
+is_running() {
+    local state
+    read -r state _ < <(proc_fields "$1") || return 1
+    [[ $state != Z && $state != X ]]
+}
+registered_alive() {
+    local pid start state now
+    [[ -r $WORK/pids ]] || return 0
+    while read -r pid start; do
+        read -r state now < <(proc_fields "$pid") || continue
+        [[ $now == "$start" && $state != Z && $state != X ]] && printf '%s\n' "$pid"
+    done < "$WORK/pids"
+}
+end_registered() {
+    local pids sig
+    for sig in TERM KILL; do
+        mapfile -t pids < <(registered_alive)
+        (( ${#pids[@]} )) || return 0
+        kill -"$sig" "${pids[@]}" 2> /dev/null
+        for _ in 1 2 3 4 5 6; do
+            sleep 0.5
+            mapfile -t pids < <(registered_alive)
+            (( ${#pids[@]} )) || return 0
+        done
+    done
+    return 1
+}
+SH
+# shellcheck disable=SC1091
+. "$WORK/lib.sh"
+
+# every process of the session carries its private runtime dir in its environment
+session_pids() {
+    grep -lzxF "XDG_RUNTIME_DIR=$RUN" /proc/[0-9]*/environ 2> /dev/null | sed -e 's|^/proc/||' -e 's|/environ$||'
+}
+reap_session() {
+    local pids pid
+    end_registered
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        mapfile -t pids < <(session_pids)
+        (( ${#pids[@]} )) || return 0
+        sleep 0.5
+    done
+    for pid in "${pids[@]}"; do
+        fail "LEAK: pid $pid ($(cat "/proc/$pid/comm" 2> /dev/null)) outlived the nested session: $(tr '\0' ' ' 2> /dev/null < "/proc/$pid/cmdline" | cut -c1-160)"
+    done
+    kill -TERM "${pids[@]}" 2> /dev/null
+    sleep 1
+    mapfile -t pids < <(session_pids)
+    (( ${#pids[@]} == 0 )) || kill -KILL "${pids[@]}" 2> /dev/null
+}
+trap 'reap_session; if (( failed )); then echo "kept $WORK" >&2; else rm -rf "$WORK" "$RUN"; fi' EXIT
 
 HYPR_SRC="$REPO_ROOT/dots/.config/hypr"
 for entry in "$HYPR_SRC"/*; do
@@ -64,15 +134,41 @@ cat > "$WORK/bin/koompi-shelld" <<SH
 export DBUS_SYSTEM_BUS_ADDRESS=unix:path=$WORK/no-system-bus
 jq -c --unbuffered 'if .cmd == "subscribe" then .services |= map(select(. == "hyprland")) else . end' | "$SHELLD"
 SH
-printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/logger"
-# the shell's ConflictKiller asks pidof for the host's kded6, mako and dunst, and a dialog then covers the bar
-printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/pidof"
+cat > "$WORK/bin/logger" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$WORK/logger.log"
+SH
+# The shell starts easyeffects and hyprsunset when pidof finds none, and opens a dialog over the bar
+# when it finds the host's kded6, mako or dunst. The first two count as running and the last three
+# as not, whatever the host runs; anything else is asked of the real pidof.
+cat > "$WORK/bin/pidof" <<SH
+#!/usr/bin/env bash
+case " \$* " in
+    *" easyeffects "* | *" hyprsunset "*) echo 1; exit 0 ;;
+    *" kded6 "* | *" mako "* | *" dunst "*) exit 1 ;;
+esac
+exec "$REAL_PIDOF" "\$@"
+SH
+cat > "$WORK/bin/pidreg" <<'SH'
+#!/usr/bin/env bash
+. "$WORK/lib.sh"
+for pid in "$@"; do
+    read -r _ start < <(proc_fields "$pid") && printf '%s %s\n' "$pid" "$start" >> "$WORK/pids"
+done
+SH
 
 # slow apps: sleep, then become a window client, as a heavy app does
 for app in slow-probe-app slow-probe-pid; do
-    printf '#!/usr/bin/env bash\nsleep 1.5\nexec kdialog --msgbox %s --title %s\n' "'$app'" "'$app title'" > "$WORK/bin/$app"
+    cat > "$WORK/bin/$app" <<SH
+#!/usr/bin/env bash
+[[ -e "\$WORK/stop" ]] && exit 0
+pidreg "\$\$"
+echo "\$(date +%s%3N) $app started" >> "\$WORK/trace"
+sleep 1.5
+[[ -e "\$WORK/stop" ]] && exit 0
+exec kdialog --msgbox '$app' --title '$app title'
+SH
 done
-chmod +x "$WORK/bin"/*
 # the entry the shell finds by what its Exec runs, and whose window it knows by StartupWMClass
 printf '[Desktop Entry]\nType=Application\nName=Slow Probe\nIcon=okular\nExec=slow-probe-app\nStartupWMClass=org.kde.kdialog\n' \
     > "$HOME_DIR/.local/share/applications/slow-probe.desktop"
@@ -80,21 +176,26 @@ printf '[Desktop Entry]\nType=Application\nName=Slow Probe\nIcon=okular\nExec=sl
 printf '[Desktop Entry]\nType=Application\nName=Slow Pid Probe\nIcon=btop\nExec=slow-probe-pid\n' \
     > "$HOME_DIR/.local/share/applications/slowpid.desktop"
 # a bind that starts the first program it finds, as keybinds.lua's app() does
-printf '#!/usr/bin/env bash\nexec koompi-launch --id fileManager "%s/scripts/launch_first_available.sh" no-such-app-x slow-probe-app\n' "$HYPR_SRC/hyprland" > "$WORK/bin/bind-first"
-printf '#!/usr/bin/env bash\nexec koompi-launch --id slowpid slow-probe-pid\n' > "$WORK/bin/bind-pid"
-chmod +x "$WORK/bin/bind-first" "$WORK/bin/bind-pid"
+cat > "$WORK/bin/bind-first" <<SH
+#!/usr/bin/env bash
+[[ -e "\$WORK/stop" ]] && exit 0
+echo "\$(date +%s%3N) bind-first" >> "\$WORK/trace"
+exec koompi-launch --id fileManager "$HYPR_SRC/hyprland/scripts/launch_first_available.sh" no-such-app-x slow-probe-app
+SH
+cat > "$WORK/bin/bind-pid" <<'SH'
+#!/usr/bin/env bash
+[[ -e "$WORK/stop" ]] && exit 0
+echo "$(date +%s%3N) bind-pid" >> "$WORK/trace"
+exec koompi-launch --id slowpid slow-probe-pid
+SH
+chmod +x "$WORK/bin"/*
 
 cat > "$WORK/inner.sh" <<'SH'
 #!/usr/bin/env bash
 set -uo pipefail
+. "$WORK/lib.sh"
 unset HYPRLAND_INSTANCE_SIGNATURE
 parent=$WAYLAND_DISPLAY
-Hyprland -c "$HOME/.config/hypr/hyprland.lua" > "$WORK/hyprland.log" 2>&1 &
-hypr_pid=$!
-for _ in $(seq 1 100); do sig=$(ls "$XDG_RUNTIME_DIR/hypr" 2> /dev/null | head -1); [[ -n $sig ]] && break; sleep 0.2; done
-export HYPRLAND_INSTANCE_SIGNATURE=$sig
-for _ in $(seq 1 100); do d=$(ls "$XDG_RUNTIME_DIR" | grep -E '^wayland-[0-9]+$' | grep -v "^$parent$" | head -1); [[ -n $d ]] && break; sleep 0.2; done
-export WAYLAND_DISPLAY=$d
 
 reading() { printf '%s\t%s\n' "$1" "$2" >> "$WORK/readings"; }
 now_ms() { echo $(($(date +%s%N) / 1000000)); }
@@ -107,17 +208,63 @@ status() {
 clients() { hyprctl clients -j 2> /dev/null; }
 probe_windows() { clients | jq -r '[.[] | select(.class == "org.kde.kdialog")] | length'; }
 
-finish() {
-    local child
-    for child in $(clients | jq -r '.[] | select(.class == "org.kde.kdialog") | .pid'); do kill "$child" 2> /dev/null; done
-    for child in $(pgrep -P "$hypr_pid"); do [[ $(cat "/proc/$child/comm" 2> /dev/null) == Xwayland ]] || kill "$child" 2> /dev/null; done
-    sleep 1
-    hyprctl dispatch 'hl.dsp.exit()' > /dev/null 2>&1
-    sleep 1
+# the way a user ends a dialog, then wait for it to go
+close_probe_windows() {
+    local addr
+    for addr in $(clients | jq -r '.[] | select(.class == "org.kde.kdialog") | .address'); do
+        hyprctl dispatch "hl.dsp.window.close({window = \"address:$addr\"})" > /dev/null 2>&1
+    done
+    for _ in $(seq 1 20); do [[ $(probe_windows) -eq 0 ]] && return 0; sleep 0.25; done
+    return 1
 }
 
+# what the compositor and the registered processes were doing when a window did not come
+diag() {
+    local pid
+    {
+        printf '=== %s\n' "$1"
+        printf 'clients: %s\n' "$(clients | jq -c '[.[] | {class, title, mapped, pid}]')"
+        printf 'launch status: [%s]\n' "$(status)"
+        echo '--- trace'
+        cat "$WORK/trace" 2> /dev/null
+        echo '--- logger'
+        cat "$WORK/logger.log" 2> /dev/null
+        echo '--- registered'
+        while read -r pid _; do
+            printf '%s state=%s wchan=%s cmd=%s\n' "$pid" "$(proc_fields "$pid")" "$(cat "/proc/$pid/wchan" 2> /dev/null)" "$(tr '\0' ' ' 2> /dev/null < "/proc/$pid/cmdline" | cut -c1-100)"
+        done < "$WORK/pids"
+    } >> "$WORK/diag.txt" 2>&1
+}
+
+# the shell goes before its compositor, and what is still there is ended by pid
+cleaned=0
+cleanup() {
+    (( cleaned )) && return 0
+    cleaned=1
+    : > "$WORK/stop"
+    close_probe_windows
+    end_registered || printf 'survived SIGKILL: %s\n' "$(registered_alive | tr '\n' ' ')" >> "$WORK/leaks"
+    qs -c koompi kill > /dev/null 2>&1
+    hyprctl dispatch 'hl.dsp.exit()' > /dev/null 2>&1
+    for _ in $(seq 1 20); do is_running "$hypr_pid" || break; sleep 0.25; done
+    if is_running "$hypr_pid"; then
+        kill "$hypr_pid" 2> /dev/null
+        sleep 1
+        kill -KILL "$hypr_pid" 2> /dev/null
+    fi
+    wait "$hypr_pid" 2> /dev/null
+}
+
+Hyprland -c "$HOME/.config/hypr/hyprland.lua" > "$WORK/hyprland.log" 2>&1 &
+hypr_pid=$!
+trap cleanup EXIT
+for _ in $(seq 1 100); do sig=$(ls "$XDG_RUNTIME_DIR/hypr" 2> /dev/null | head -1); [[ -n $sig ]] && break; sleep 0.2; done
+export HYPRLAND_INSTANCE_SIGNATURE=$sig
+for _ in $(seq 1 100); do d=$(ls "$XDG_RUNTIME_DIR" | grep -E '^wayland-[0-9]+$' | grep -v "^$parent$" | head -1); [[ -n $d ]] && break; sleep 0.2; done
+export WAYLAND_DISPLAY=$d
+
 for _ in $(seq 1 80); do [[ $(hyprctl monitors -j 2> /dev/null | jq length) -ge 1 ]] && break; sleep 0.5; done
-if [[ $(hyprctl monitors -j 2> /dev/null | jq length) -lt 1 ]]; then reading monitor missing; finish; exit 0; fi
+if [[ $(hyprctl monitors -j 2> /dev/null | jq length) -lt 1 ]]; then reading monitor missing; exit 0; fi
 reading monitor ready
 
 # the shell is up when its launch handler answers; the daemon's first snapshot follows
@@ -131,6 +278,7 @@ grim "$WORK/shots/empty-desktop.png" 2>> "$WORK/grim.log"
 scenario() {
     local name=$1 bind=$2 title=$3 t0 early="" seen=-1 mapped=-1 cleared=-1 spent
     t0=$(now_ms)
+    echo "$t0 dispatch $bind" >> "$WORK/trace"
     hyprctl dispatch 'hl.dsp.exec_cmd("'"$bind"'")' > /dev/null 2>&1
     sleep 0.3
     while :; do
@@ -147,6 +295,7 @@ scenario() {
         if (( $(now_ms) - t0 > 20000 )); then break; fi
         sleep 0.1
     done
+    (( mapped >= 0 )) || diag "$name: no window after $(($(now_ms) - t0)) ms"
     reading "$name.mapped_ms" "$mapped"
     reading "$name.cleared_ms" "$cleared"
     spent=$(($(now_ms) - t0))
@@ -154,13 +303,12 @@ scenario() {
     reading "$name.late" "$(status)"
     reading "$name.focus" "$(hyprctl activewindow -j 2> /dev/null | jq -r '.title // ""')"
     grim "$WORK/shots/$name-3s.png" 2>> "$WORK/grim.log"
-    for pid in $(clients | jq -r --arg t "$title" '.[] | select(.title == $t) | .pid'); do kill "$pid" 2> /dev/null; done
-    for _ in $(seq 1 40); do [[ $(probe_windows) -eq 0 ]] && break; sleep 0.25; done
+    close_probe_windows
+    end_registered
 }
 
 scenario slowprobe bind-first 'slow-probe-app title'
 scenario slowpid bind-pid 'slow-probe-pid title'
-finish
 SH
 chmod +x "$WORK/inner.sh"
 
@@ -169,19 +317,24 @@ field() { awk -F'\t' -v k="$1" '$1 == k { print $2 }' "$WORK/readings" 2> /dev/n
 run_session() {
     RUN="$(mktemp -d /tmp/hr.XXXXXX)"
     chmod 700 "$RUN"
-    rm -f "$WORK/readings"
+    rm -f "$WORK/readings" "$WORK/stop" "$WORK/pids" "$WORK/trace" "$WORK/logger.log" "$WORK/diag.txt" "$WORK/leaks"
     env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY -u QT_QPA_PLATFORM WORK="$WORK" \
         HOME="$HOME_DIR" XDG_RUNTIME_DIR="$RUN" XDG_CONFIG_HOME="$HOME_DIR/.config" \
         XDG_STATE_HOME="$HOME_DIR/.local/state" XDG_CACHE_HOME="$HOME_DIR/.cache" XDG_DATA_HOME="$HOME_DIR/.local/share" \
         PATH="$WORK/bin:$REPO_ROOT/dots/.local/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" \
         timeout 300 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 2120 --height 1400 \
             --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
+    reap_session
     rm -rf "$RUN"
 }
 
 dump() {
+    local file
     echo "--- readings ---" >&2
     cat -- "$WORK/readings" >&2 2> /dev/null
+    for file in diag.txt leaks; do
+        [[ -s $WORK/$file ]] && { echo "--- $file ---" >&2; cat -- "$WORK/$file" >&2; }
+    done
     echo "--- hyprland.log ---" >&2
     grep -vE '^\s*$' "$WORK/hyprland.log" 2> /dev/null | tail -15 >&2
 }
@@ -239,5 +392,6 @@ else
     echo "note: no ImageMagick or tesseract here, so the bar's pixels were not read"
 fi
 
+[[ ! -s $WORK/leaks ]] || fail "a process survived SIGKILL: $(cat "$WORK/leaks")"
 (( failed == 0 )) || { dump; exit 1; }
-echo "ok   nested Hyprland: a key bind's launch is announced, and ended by its window, found by StartupWMClass and by pid"
+echo "ok   nested Hyprland: a key bind's launch is announced, and ended by its window, found by StartupWMClass and by pid; nothing outlived the session"

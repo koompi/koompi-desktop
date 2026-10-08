@@ -27,8 +27,29 @@ done
 
 WORK="$(mktemp -d)" || { fail "mktemp -d failed"; exit 1; }
 RUN="$WORK/no-session-yet"
-trap '(( failed )) && echo "kept $WORK" >&2 || rm -rf "$WORK" "$RUN"' EXIT
 HOME_DIR="$WORK/home"
+
+# every process of the session carries its private runtime dir in its environment, so what is
+# still running once KWin has returned is found by that, named, ended by pid, and fails the test
+session_pids() {
+    grep -lzxF "XDG_RUNTIME_DIR=$RUN" /proc/[0-9]*/environ 2> /dev/null | sed -e 's|^/proc/||' -e 's|/environ$||'
+}
+reap_session() {
+    local pids pid
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        mapfile -t pids < <(session_pids)
+        (( ${#pids[@]} )) || return 0
+        sleep 0.5
+    done
+    for pid in "${pids[@]}"; do
+        fail "LEAK: pid $pid ($(cat "/proc/$pid/comm" 2> /dev/null)) outlived the nested session: $(tr '\0' ' ' 2> /dev/null < "/proc/$pid/cmdline" | cut -c1-160)"
+    done
+    kill -TERM "${pids[@]}" 2> /dev/null
+    sleep 1
+    mapfile -t pids < <(session_pids)
+    (( ${#pids[@]} == 0 )) || kill -KILL "${pids[@]}" 2> /dev/null
+}
+trap 'reap_session; if (( failed )); then echo "kept $WORK" >&2; else rm -rf "$WORK" "$RUN"; fi' EXIT
 mkdir -p "$WORK/shell" "$WORK/bin" "$HOME_DIR/.config/hypr" "$HOME_DIR/.config/koompi" "$HOME_DIR/.local/state/quickshell/user" \
     "$HOME_DIR/.local/share/applications" "$HOME_DIR/.cache" "$WORK/sysdata"
 for entry in "$SHELL_ROOT"/*; do
@@ -40,9 +61,10 @@ hl.config({ misc = { disable_watchdog_warning = true }, ecosystem = { no_update_
 LUA
 echo greeted > "$HOME_DIR/.local/state/quickshell/user/first_run.txt"
 echo '{"windows": {"workspaceHelp": false}, "language": {"ui": "en_US"}}' > "$HOME_DIR/.config/koompi/config.json"
-# daemons that stay up and say nothing, so a fixture is not wiped by a restart
+# daemons that stay up and say nothing, so a fixture is not wiped by a restart, and end when the
+# shell that holds their stdin does
 mkdir -p "$HOME_DIR/.local/bin"
-printf '#!/usr/bin/env bash\nexec sleep 300\n' > "$WORK/bin/koompi-shelld"
+printf '#!/usr/bin/env bash\nexec cat > /dev/null\n' > "$WORK/bin/koompi-shelld"
 cp "$WORK/bin/koompi-shelld" "$HOME_DIR/.local/bin/koompi-global-menu-daemon"
 chmod +x "$WORK/bin/koompi-shelld" "$HOME_DIR/.local/bin/koompi-global-menu-daemon"
 
@@ -270,7 +292,23 @@ cat > "$WORK/inner.sh" <<'SH'
 set -uo pipefail
 unset HYPRLAND_INSTANCE_SIGNATURE
 parent=$WAYLAND_DISPLAY
+
+running() { local s; read -r _ _ s _ 2> /dev/null < "/proc/$1/stat" && [[ $s != Z ]]; }
+# the compositor is asked to leave, and ended by pid if it does not
+cleanup() {
+    hyprctl dispatch 'hl.dsp.exit()' > /dev/null 2>&1
+    for _ in $(seq 1 20); do running "$hypr_pid" || break; sleep 0.25; done
+    if running "$hypr_pid"; then
+        kill "$hypr_pid" 2> /dev/null
+        sleep 1
+        kill -KILL "$hypr_pid" 2> /dev/null
+    fi
+    wait "$hypr_pid" 2> /dev/null
+}
+
 Hyprland -c "$HOME/.config/hypr/hyprland.lua" > "$WORK/hyprland.log" 2>&1 &
+hypr_pid=$!
+trap cleanup EXIT
 for _ in $(seq 1 100); do sig=$(ls "$XDG_RUNTIME_DIR/hypr" 2> /dev/null | head -1); [[ -n $sig ]] && break; sleep 0.2; done
 export HYPRLAND_INSTANCE_SIGNATURE=$sig
 for _ in $(seq 1 100); do d=$(ls "$XDG_RUNTIME_DIR" | grep -E '^wayland-[0-9]+$' | grep -v "^$parent$" | head -1); [[ -n $d ]] && break; sleep 0.2; done
@@ -283,8 +321,6 @@ if [[ $(hyprctl monitors -j 2> /dev/null | jq length) -ge 1 ]]; then
 else
     echo missing > "$WORK/monitor"
 fi
-hyprctl dispatch 'hl.dsp.exit()' > /dev/null 2>&1
-sleep 1
 SH
 chmod +x "$WORK/inner.sh"
 
@@ -298,6 +334,7 @@ run_session() {
         PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" \
         timeout 200 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1480 --height 1000 \
             --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
+    reap_session
     rm -rf "$RUN"
 }
 
