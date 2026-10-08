@@ -17,6 +17,18 @@ TESTS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # a test that pins only HOME writes into whatever these name when the caller exports them
 unset XDG_CONFIG_HOME XDG_STATE_HOME XDG_DATA_HOME XDG_CACHE_HOME KOOMPI_STATE_DIR
 
+# the real easyeffects aborts in a nested test session and each abort toasts the live desktop; a test that wants one puts its own first on PATH
+scratch="$(mktemp -d)" || { echo "run.sh: mktemp -d failed" >&2; exit 1; }
+trap 'rm -rf "${scratch:?}"' EXIT
+mkdir "$scratch/bin"
+cat > "$scratch/bin/easyeffects" <<STUB
+#!/usr/bin/env bash
+printf '%s\t%s\n' "\${KOOMPI_RUNSH_TEST:-?}" "\$*" >> "$scratch/easyeffects.calls"
+exit 0
+STUB
+chmod +x "$scratch/bin/easyeffects"
+export PATH="$scratch/bin:$PATH"
+
 if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
     C_RED=$'\e[31m'; C_GREEN=$'\e[32m'; C_YELLOW=$'\e[33m'; C_BOLD=$'\e[1m'; C_RST=$'\e[0m'
 else
@@ -36,7 +48,7 @@ for test in "$TESTS_DIR"/test_*.sh; do
 
     # Invoked through bash rather than executed, so a test that arrived without
     # its executable bit is still run instead of being reported as a failure.
-    output="$(bash "$test" 2>&1 < /dev/null)"
+    output="$(KOOMPI_RUNSH_TEST="$name" bash "$test" 2>&1 < /dev/null)"
     rc=$?
     if (( rc != 0 )); then
         printf '%s\n' "$output"
@@ -53,6 +65,11 @@ for test in "$TESTS_DIR"/test_*.sh; do
         passed=$((passed + 1))
     fi
 done
+
+if [[ -s "$scratch/easyeffects.calls" ]]; then
+    printf '\neasyeffects was started by (count, test, arguments):\n'
+    sort "$scratch/easyeffects.calls" | uniq -c | sed 's/^/  /'
+fi
 
 printf '\n%s%d passed, %d skipped, %d failed%s\n' "${C_BOLD}" "$passed" "$skipped" "$failed" "${C_RST}"
 (( skipped == 0 )) || printf 'skipped: %s\n' "${skips[*]}" >&2
