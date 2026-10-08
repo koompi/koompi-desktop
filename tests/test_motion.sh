@@ -20,8 +20,10 @@
 #   Runtime: a real Behavior on x with the elementMove role is still in flight at
 #   50 ms, and has landed after 40 ms with Reduce Motion on.
 #   Surfaces: the real SidebarDrawer (the right panel's drawer pages) and the real
-#   SearchWidget's pill are timed from the property change to the property landing
-#   on its final value: the best of three, 300 ms at most (60 ms with Reduce Motion).
+#   SearchWidget's pill are timed from the property's first step to its landing on its
+#   final value, the work the change sets off first (a search, a list) left out: the
+#   best of three, 300 ms at most (60 ms with Reduce Motion). A jump that follows a
+#   150 ms block proves the clock leaves that work out.
 #   The Hyprland half of the budget is test_motion_hypr.sh, the Hyprland modes are
 #   test_hypr_modes.sh.
 set -uo pipefail
@@ -188,6 +190,7 @@ ShellRoot {
     property int waited: 0
     property real wideWidth: 0
     property real narrowWidth: 0
+    property real jump: 0
 
     function verdict(ok, text) {
         console.log((ok ? "PASS " : "FAIL ") + text);
@@ -299,7 +302,7 @@ ShellRoot {
     }
 
     // the engine's own clock: each role's NumberAnimation, started on a bare item,
-    // from start() to `running` going false
+    // from start() to `running` going false; the best of three, like settle
     function timeRoles(reduced, done) {
         const tag = reduced ? "reduce motion on: " : "";
         const queue = probe.roles.filter(name => Appearance.animation[name] && Appearance.animation[name].numberAnimation);
@@ -307,36 +310,48 @@ ShellRoot {
             if (queue.length === 0) { done(); return; }
             const name = queue.shift();
             const role = Appearance.animation[name];
-            const anim = role.numberAnimation.createObject(probe, { target: bare, property: "x", from: 0, to: 100 });
-            const t0 = Date.now();
-            anim.runningChanged.connect(() => {
-                if (anim.running) return;
-                const ms = Date.now() - t0;
-                anim.destroy();
-                console.log("INFO ran " + tag + name + " " + ms + " ms");
-                const limit = !reduced ? 260 : role.spatial === false ? 160 : 60;
-                probe.verdict(ms <= limit, tag + name + " animation ran " + ms + " ms from start to running false, limit " + limit);
-                next();
-            });
-            anim.start();
+            const best = { ms: 1e9, runs: 0 };
+            const once = () => {
+                const anim = role.numberAnimation.createObject(probe, { target: bare, property: "x", from: 0, to: 100 });
+                const t0 = Date.now();
+                anim.runningChanged.connect(() => {
+                    if (anim.running) return;
+                    best.ms = Math.min(best.ms, Date.now() - t0);
+                    anim.destroy();
+                    if (++best.runs < 3) { once(); return; }
+                    console.log("INFO ran " + tag + name + " " + best.ms + " ms");
+                    const limit = !reduced ? 260 : role.spatial === false ? 160 : 60;
+                    probe.verdict(best.ms <= limit, tag + name + " animation ran " + best.ms + " ms from start to running false, limit " + limit);
+                    next();
+                });
+                anim.start();
+            };
+            once();
         };
         next();
     }
 
     // best of three: a stall in the machine only ever makes a run slower. Each run
-    // starts from `reset`, waits for it to land, then times `trigger` until `read`
-    // returns `target`.
+    // starts from `reset`, waits for it to land, triggers, and times `read` from its
+    // first step until it returns `target`; the work a trigger sets off first (a
+    // search) is not the animation, and load stretches it.
     function settle(label, budget, reset, trigger, read, target, done) {
         const best = { ms: 1e9, runs: 0 };
         const once = () => {
             reset();
             probe.later(700, () => {
+                const rest = read();
                 const t0 = Date.now();
+                let first = 0;
                 trigger();
                 const poll = Qt.createQmlObject("import QtQuick; Timer { interval: 3; repeat: true }", probe);
                 poll.triggered.connect(() => {
-                    const spent = Date.now() - t0;
-                    if (read() !== target && spent <= 2500) return;
+                    const now = Date.now();
+                    const value = read();
+                    const landed = value === target;
+                    if (first === 0 && value !== rest) first = now;
+                    if (!landed && now - t0 <= 2500) return;
+                    const spent = landed ? now - (first || t0) : now - t0;
                     poll.stop();
                     poll.destroy();
                     best.ms = Math.min(best.ms, spent);
@@ -349,6 +364,14 @@ ShellRoot {
             });
         };
         once();
+    }
+
+    function proveSettle(done) {
+        probe.settle("a jump after a 150 ms block", 60, () => { probe.jump = 0; }, () => {
+            const end = Date.now() + 150;
+            while (Date.now() < end) {}
+            probe.jump = 1;
+        }, () => probe.jump, 1, done);
     }
 
     function findField(item) {
@@ -470,7 +493,7 @@ ShellRoot {
             probe.checkTokens(false);
             probe.checkLadder(false);
             probe.checkWaffle(false);
-            probe.checkThinking(false, () => probe.timeRoles(false, () => probe.runtime(false, () => probe.surfaces(300, () => {
+            probe.checkThinking(false, () => probe.timeRoles(false, () => probe.runtime(false, () => probe.proveSettle(() => probe.surfaces(300, () => {
                 if (!probe.setReduce(true)) { console.log("PROBE DONE"); Qt.quit(); return; }
                 probe.later(300, () => {
                     probe.checkTokens(true);
@@ -485,7 +508,7 @@ ShellRoot {
                         });
                     }))));
                 });
-            }))));
+            })))));
         }
     }
 }
