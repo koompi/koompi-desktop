@@ -318,6 +318,14 @@ Mouse buttons are not exempt.
 
 One surface, one owner of its open state, one focus grab, and keyboard focus only while open.
 
+A closed surface does not exist.
+`LazySurface` in `modules/common/` builds a surface's window the moment its open flag turns on and releases it `keepWarm` after the flag turns off, two minutes unless the surface says otherwise, so open, close, open inside that time is one instance.
+The `IpcHandler`, the `GlobalShortcut`s and the state stay in the always-built `Scope` beside it, which is why keys and IPC still work with no window, and code outside the window reaches it as `surface.item`, never by an id inside it.
+A window built while its flag is already on never saw the flag change, so what it does when opened it also does from `Component.onCompleted`.
+The Launchpad, Search, Overview, the cheatsheet, both sidebars, the media controls, the session menu, the screensaver, the tour, the polkit prompt and the screen translator are built this way.
+Each of them but the polkit prompt reports `built`, whether its `LazySurface` holds an instance, and `tests/test_lazy_surfaces.sh` reads it while the surface is closed, open and just closed.
+The polkit prompt is left out of that test because its agent registers on the system bus.
+
 The shared mechanism is the `GlobalFocusGrab` singleton in `services/`.
 A surface calls `addDismissable` when it becomes visible and `removeDismissable` when it stops, and closes itself on the singleton's `dismissed` signal.
 A surface that should be inside the grab but must not be closed by a click outside, such as the bar and the on-screen keyboard, registers with `addPersistent` instead.
@@ -358,7 +366,8 @@ The snap preview and the first-run workspace hint are absent for the same reason
 A surface that is fullscreen but masked to a smaller item, like the cheatsheet, is the case that does need the grab: outside the mask the click reaches the window beneath, and the grab is the only thing that notices.
 
 The remaining gap is the one surface whose keyboard focus is set but not gated.
-The wallpaper selector and the left sidebar both ask for `OnDemand` unconditionally, which is currently harmless and will stop being harmless the moment either window outlives a single open.
+The wallpaper selector and the left sidebar both ask for `OnDemand` unconditionally, which is currently harmless and will stop being harmless the moment either window stays mapped beyond a single open.
+A warm `LazySurface` window is built but not mapped, because a layer window that is not visible has no surface, so it does not count.
 
 ## Motion
 
@@ -464,6 +473,7 @@ The sheet keeps every row inside its column: a long description wraps and a wide
 On a screen under about 1420x890 the panel stops short of the screen edges and the bar: the Keybinds page scrolls as before and the Elements page makes its tiles smaller (down to 66x56 at 1366x768) so the whole table stays in view.
 
 A new panel registers with `GlobalFocusGrab` and gates `WlrLayershell.keyboardFocus` on its own open flag, both, not one.
+Its window is built through `LazySurface`, so it does not exist while it is closed.
 
 A surface gets exactly one keyboard entry point.
 Extra ways in belong to pointer and gesture, and each of those needs a reason to exist beyond being possible.
