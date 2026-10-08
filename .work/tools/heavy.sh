@@ -3,6 +3,8 @@
 set -euo pipefail
 [[ $# -gt 0 ]] || { echo "usage: heavy.sh CMD..." >&2; exit 2; }
 [[ -n ${KOOMPI_HEAVY_LOCKED:-} ]] && exec "$@"
+# the lead pauses the swarm's heavy runs (on battery) by creating this file; waiting happens outside the lock
+while [[ -e /tmp/koompi-heavy.pause ]]; do sleep 10; done
 export KOOMPI_HEAVY_LOCKED=1
 # one waiter per worktree on the shared lock so one worker's batch cannot crowd out the rest; -o so a child the run leaves behind cannot keep holding it
 tree=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
