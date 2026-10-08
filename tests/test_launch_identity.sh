@@ -16,7 +16,8 @@
 #   Dimming: the icon and the name dim and pulse, never below the opacity that keeps their text at
 #   4.5:1 on the dark and the light palette, and the Opening line is never dimmed.
 #   Relaunch: focus that was on the app's window before the launch began does not end the launch,
-#   however late its notice reaches the shell, and the app's next window does.
+#   however late its notice reaches the shell, and the app's next window does. So with an app started
+#   again just before the shell hears that the first one's window has closed.
 #   Several at once: the bar shows the newest launch, each ends at its own window in any order, one
 #   that never maps blocks no other and ends at its own ttl, and the shell keeps the eight newest.
 set -uo pipefail
@@ -269,7 +270,38 @@ ShellRoot {
                     probe.show([open, second], second);
                     probe.after(() => {
                         probe.verdict(!identity.launching && identity.titleText === "Second window", "relaunch: its own window does: '" + identity.titleText + "'");
-                        probe.several();
+                        probe.closed();
+                    });
+                });
+            });
+        });
+    }
+
+    // the app is started again a moment before the shell hears that the window of the first start has closed
+    function closed() {
+        LaunchFeedback.pending = [];
+        const first = probe.win("0xf1", "ProbeWindowClass", "First window");
+        probe.show([], null);
+        probe.after(() => {
+            LaunchFeedback.begin(DesktopEntries.byId("probe-app"));
+            probe.show([first], null);
+            probe.after(() => {
+                probe.show([first], first);
+                probe.after(() => {
+                    probe.verdict(!identity.launching, "closed: the first launch ended at its window");
+                    LaunchFeedback.add({ id: "probe-app", entryId: "probe-app", name: "Probe App", icon: "probe-icon", program: "probe-app-bin", startupClass: "ProbeWindowClass", startedAt: Date.now() - 60 });
+                    probe.after(() => {
+                        probe.verdict(identity.launching && identity.nameText === "Probe App", "closed: the app started again shows Opening: '" + identity.nameText + "'");
+                        probe.show([], null);
+                        probe.after(() => {
+                            probe.verdict(identity.launching && identity.nameText === "Probe App", "closed: hearing that the first window has closed does not end it: '" + identity.nameText + "'");
+                            const next = probe.win("0xf2", "ProbeWindowClass", "Next window");
+                            probe.show([next], next);
+                            probe.after(() => {
+                                probe.verdict(!identity.launching && identity.titleText === "Next window", "closed: its own window does: '" + identity.titleText + "'");
+                                probe.several();
+                            });
+                        });
                     });
                 });
             });
