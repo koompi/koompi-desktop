@@ -16,6 +16,8 @@ ContentPage {
     property int busy: 0
     property real clock: Date.now() / 1000
     readonly property int secondsLeft: root.pending ? Math.max(0, Math.ceil(root.pending.deadline - root.clock)) : 0
+    // groups stay enabled so the running rate keeps its selected look; clicks are ignored instead
+    readonly property bool locked: root.pending !== null || root.busy > 0
     readonly property string anchorName: {
         const screens = [...Quickshell.screens];
         return (screens.find(s => s.name?.startsWith("eDP")) ?? screens[0])?.name ?? "";
@@ -244,11 +246,10 @@ ContentPage {
                     visible: monitorBlock.refreshRates.length > 1
                     title: Translation.tr("Refresh rate")
                     ConfigSelectionArray {
-                        enabled: root.pending === null && root.busy === 0
-                        currentValue: monitorBlock.currentRate
+                        currentValue: monitorBlock.waiting ? root.pending.rate : monitorBlock.currentRate
                         options: monitorBlock.refreshRates.map(rate => ({ displayName: root.rateLabel(rate, monitorBlock.refreshRates), value: rate }))
                         onSelected: newValue => {
-                            if (newValue !== monitorBlock.currentRate)
+                            if (!root.locked && newValue !== monitorBlock.currentRate)
                                 root.run(`${monitorBlock.monitorName}/rate`, ["rate", monitorBlock.monitorName, String(newValue)]);
                         }
                     }
@@ -278,7 +279,6 @@ ContentPage {
                     visible: monitorBlock.monitorName !== root.anchorName && [...Quickshell.screens].length > 1
                     title: Translation.tr("Position relative to %1").arg(root.anchorName)
                     ConfigSelectionArray {
-                        enabled: root.pending === null && root.busy === 0
                         currentValue: monitorBlock.relativePosition
                         options: [
                             { displayName: Translation.tr("Left of"), icon: "arrow_back", value: "left" },
@@ -287,7 +287,8 @@ ContentPage {
                             { displayName: Translation.tr("Below"), icon: "arrow_downward", value: "below" }
                         ]
                         onSelected: newValue => {
-                            root.run(`${monitorBlock.monitorName}/place`, ["place", monitorBlock.monitorName, newValue]);
+                            if (!root.locked)
+                                root.run(`${monitorBlock.monitorName}/place`, ["place", monitorBlock.monitorName, newValue]);
                         }
                     }
                     RowError { text: root.failure?.row === `${monitorBlock.monitorName}/place` ? root.failure.message : "" }

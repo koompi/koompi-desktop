@@ -32,7 +32,12 @@ cat > "$WORK/bin/luac" <<SH
 exec $(command -v luac || command -v true) "\$@"
 SH
 chmod +x "$WORK/bin"/*
-ln -s "$REPO_ROOT/dots/.local/bin/koompi-displays" "$WORK/home/.local/bin/koompi-displays"
+cat > "$WORK/home/.local/bin/koompi-displays" <<SH
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$WORK/tool.log"
+exec "$REPO_ROOT/dots/.local/bin/koompi-displays" "\$@"
+SH
+chmod +x "$WORK/home/.local/bin/koompi-displays"
 
 cat > "$WORK/shell/rate_probe.qml" <<'QML'
 //@ pragma UseQApplication
@@ -95,6 +100,18 @@ ShellRoot {
 
     function rateRow() { return probe.row("Virtual-1", Translation.tr("Refresh rate")); }
 
+    function placeRow() { return probe.row("Virtual-1", Translation.tr("Position relative to %1").arg(page.anchorName)); }
+
+    function pills(group) {
+        const found = [];
+        probe.walk(group.array, x => { if (String(x).startsWith("SelectionGroupButton")) found.push(x); });
+        return found;
+    }
+
+    function pill(group, text) { return probe.pills(group).find(x => x.buttonText === text); }
+
+    function toggledText(group) { return probe.pills(group).filter(x => x.toggled).map(x => x.buttonText).join(","); }
+
     function bar() { return probe.find(probe.block("Virtual-1"), "NoticeBox"); }
 
     function details(name) {
@@ -148,15 +165,27 @@ ShellRoot {
         probe.verdict(notice.text.includes(Translation.tr("Keep this refresh rate?")), "the bar asks Keep this refresh rate?, got " + JSON.stringify(notice.text));
         probe.verdict(page.secondsLeft > 0 && page.secondsLeft <= 8, "it counts down from the seconds the tool gave, got " + page.secondsLeft);
         probe.verdict(notice.text.includes("75 Hz now") && notice.text.includes("back to 60 Hz"), "it names the rate now and the rate it goes back to");
-        probe.verdict(probe.rateRow().array.enabled === false && probe.row("Virtual-1", Translation.tr("Position relative to %1").arg(page.anchorName)).array.enabled === false,
-            "the rate and position buttons are off while it waits");
-        probe.find(notice, "RippleButtonWithIcon", x => x.mainText === Translation.tr("Keep")).clicked();
+        const rate = probe.rateRow();
+        const place = probe.placeRow();
+        probe.verdict(rate.array.enabled && place.array.enabled && probe.pills(rate).every(x => x.enabled) && probe.pills(place).every(x => x.enabled),
+            "both groups and every pill in them stay enabled while it waits");
+        probe.verdict(probe.toggledText(rate) === "75 Hz", "the toggled rate pill is the new rate, got " + JSON.stringify(probe.toggledText(rate)));
+        probe.verdict(probe.toggledText(place) === "Right of", "the toggled position pill is Right of, got " + JSON.stringify(probe.toggledText(place)));
+        probe.pill(rate, "60 Hz").clicked();
+        probe.pill(place, "Left of").clicked();
+        probe.verdict(page.busy === 0, "a click on another rate and on another position starts no tool call");
+    }
+
+    function checkIgnored() {
+        probe.verdict(page.busy === 0 && page.failure === null && page.pending !== null, "and nothing came of them: no failure, the question is still up");
+        probe.verdict(probe.toggledText(probe.rateRow()) === "75 Hz" && probe.toggledText(probe.placeRow()) === "Right of", "and the same pills are toggled");
+        probe.find(probe.bar(), "RippleButtonWithIcon", x => x.mainText === Translation.tr("Keep")).clicked();
     }
 
     function checkKept() {
         probe.verdict(!probe.waits(), "Keep closes the bar");
         probe.verdict(probe.details("Virtual-1").includes("@75Hz"), "the line above the rows says @75Hz, got " + JSON.stringify(probe.details("Virtual-1")));
-        probe.verdict(probe.rateRow().array.enabled === true, "the buttons are back");
+        probe.verdict(probe.toggledText(probe.rateRow()) === "75 Hz", "75 Hz is still the toggled pill");
         probe.rateRow().array.selected(59.94);
     }
 
@@ -191,12 +220,13 @@ ShellRoot {
     readonly property var steps: [
         { until: () => probe.loaded(), run: () => probe.checkRows() },
         { until: () => probe.waits(), run: () => probe.checkBar() },
+        { until: probe.delayed(6), run: () => probe.checkIgnored() },
         { until: () => probe.settled(74.97), run: () => probe.checkKept() },
         { until: () => probe.waits(), run: () => {} },
         { until: () => probe.settled(74.97), run: () => probe.checkTimedOut(), max: 120 },
         { until: probe.delayed(6), run: () => probe.rateRow().array.selected(60) },
         { until: probe.failed("Virtual-1/rate"), run: () => probe.checkRateError() },
-        { until: probe.delayed(6), run: () => probe.row("Virtual-1", Translation.tr("Position relative to %1").arg(page.anchorName)).array.selected("left") },
+        { until: probe.delayed(6), run: () => probe.placeRow().array.selected("left") },
         { until: probe.failed("Virtual-1/place"), run: () => probe.checkPlaceError() },
         { until: probe.delayed(6), run: () => probe.rateRow().array.selected(59.94) },
         { until: () => probe.waits(), run: () => { probe.touch(probe.flags + "/closed"); console.log("PROBE DONE"); Qt.quit(); } }
@@ -256,6 +286,8 @@ for _ in $(seq 1 60); do [[ "$(hdmi_rate)" == 74.97 && ! -e "$WORK/run/koompi-di
 [[ ! -e "$WORK/run/koompi-displays/pending" ]] || fail "a change is still waiting 15 s after Settings closed"
 lag="$(( $(stat -c %Y "$WORK/state.json") - $(stat -c %Y "$WORK/closed") ))"
 (( lag < 4 )) || fail "the old rate came back ${lag} s after Settings closed, which is the 8 s timer and not the window closing"
+calls=$'rate Virtual-1 74.97\nkeep\nrate Virtual-1 59.94\nrevert\nrate Virtual-1 60\nplace Virtual-1 left\nrate Virtual-1 59.94\nrevert'
+[[ "$(cat "$WORK/tool.log" 2> /dev/null)" == "$calls" ]] || fail "the page ran other tool calls than these, in this order: $(tr '\n' '|' < "$WORK/tool.log" 2> /dev/null)"
 
 if (( failed )); then
     echo "--- probe output ---" >&2
