@@ -64,6 +64,18 @@ The slug is lowercase words joined by hyphens, and says what the script fixes.
   `FAILED <name>`.
   Exit non-zero on a real failure, not on "nothing to do".
 
+## Where they come from
+
+`koompi-migrate` reads every source the machine has, and a name found in more than one is one migration:
+
+- `/usr/share/koompi/migrations`, where the `koompi-shell` package installs `sdata/migrations`.
+- The checkout `./setup` recorded in `~/.local/state/koompi/repo-path`, the file `koompi update` reads to find the checkout it pulls.
+- The checkout the running copy sits in, when it is run from a clone.
+
+A packaged machine whose `koompi update` falls back to a checkout (the `[koompi]` repo is not published yet) has the first two.
+`KOOMPI_MIGRATE_MIGRATIONS_DIR` replaces all of them; the tests use it.
+A staged package tree (`makepkg`'s `pkgdir`) works as it stands, because the copy in its `bin/` also looks in `../share/koompi/migrations` and `../lib/koompi`.
+
 ## How they reach the user
 
 `koompi-migrate run` applies every pending migration in order and writes the marker

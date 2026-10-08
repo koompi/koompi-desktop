@@ -57,7 +57,9 @@ you never changed are brought up to the packaged ones (backed up first as
 config.json.bak-<timestamp>), using the snapshot saved by the last update.
 
 --pending lists point-fix migrations (sdata/migrations/) not yet applied for
-this user; exits 0 if any are pending, 1 if none.
+this user; exits 0 if any are pending, 1 if none. They are read from the
+checkout this copy runs from, the checkout ./setup recorded in
+~/.local/state/koompi/repo-path, and /usr/share/koompi/migrations.
 
 run applies every pending migration in order, recording completion per user
 under ~/.local/state/koompi/migrations/. A failing migration stops the run
@@ -77,38 +79,43 @@ into this checkout (refuses elsewhere). See docs/agents/migrations.md.
 USAGE
 }
 
-migrations_dir() {
+# every source this machine has: a packaged machine that updates from a checkout has two
+migration_sources() {
+    local repo dir
     if [[ -n "${KOOMPI_MIGRATE_MIGRATIONS_DIR:-}" ]]; then
         printf '%s\n' "$KOOMPI_MIGRATE_MIGRATIONS_DIR"
         return 0
     fi
-    if [[ -d /usr/share/koompi/migrations ]]; then
-        printf '%s\n' /usr/share/koompi/migrations
-        return 0
-    fi
-    local repo_root
-    repo_root="$(cd -- "$(dirname -- "$SELF")/../../.." 2>/dev/null && pwd)" || return 1
-    [[ -d "$repo_root/sdata/migrations" ]] || return 1
-    printf '%s\n' "$repo_root/sdata/migrations"
-}
-
-# Glob order sorts lexically, which is chronological for same-width unix timestamps.
-pending_migrations() {
-    local dir="$1" f name
-    [[ -d "$dir" ]] || return 0
-    for f in "$dir"/*.sh; do
-        [[ -e "$f" ]] || continue
-        name="$(basename -- "$f")"
-        [[ -e "$MIGRATIONS_MARKER_DIR/$name" ]] || printf '%s\n' "$name"
+    for repo in "$(cd -- "$(dirname -- "$SELF")/../../.." 2>/dev/null && pwd)" "$(cat -- "$STATE_DIR/repo-path" 2>/dev/null)"; do
+        if [[ -n "$repo" && -d "$repo/sdata/migrations" ]]; then printf '%s\n' "$repo/sdata/migrations"; fi
+    done
+    # the first is the relative twin of the second, so a staged package tree works as it stands
+    for dir in "$(dirname -- "$SELF")/../share/koompi/migrations" /usr/share/koompi/migrations; do
+        if [[ -d "$dir" ]]; then printf '%s\n' "$dir"; fi
     done
 }
 
-# The non-sync subcommands live next door, the way libexec/update sources
-# update-lib.sh: /usr/lib/koompi when packaged, ../share/koompi/libexec in the
-# dots tree. Fail loud rather than run with half the commands missing.
+# name<TAB>path for each migration this user has not run, oldest first (same-width unix timestamps sort
+# chronologically); a name found in more than one source is one migration, taken from the first
+pending_migrations() {
+    local dir f name
+    local -A seen=()
+    while IFS= read -r dir; do
+        for f in "$dir"/*.sh; do
+            [[ -e "$f" ]] || continue
+            name="${f##*/}"
+            [[ -z "${seen[$name]:-}" && ! -e "$MIGRATIONS_MARKER_DIR/$name" ]] || continue
+            seen[$name]=1
+            printf '%s\t%s\n' "$name" "$f"
+        done
+    done < <(migration_sources) | LC_ALL=C sort
+}
+
+# the non-sync subcommands live next door (dots tree, staged package tree, installed package); fail loud rather than run without them
 migrate_lib=""
 for candidate in \
     "$(dirname -- "$SELF")/../share/koompi/libexec/migrate-lib.sh" \
+    "$(dirname -- "$SELF")/../lib/koompi/migrate-lib.sh" \
     /usr/lib/koompi/migrate-lib.sh \
     "${XDG_DATA_HOME:-$HOME/.local/share}/koompi/libexec/migrate-lib.sh"; do
     [[ -f "$candidate" ]] && { migrate_lib="$candidate"; break; }
@@ -141,10 +148,9 @@ case "$mode" in
 esac
 
 if [[ "$mode" == pending ]]; then
-    dir="$(migrations_dir || true)"
-    mapfile -t pending < <(pending_migrations "$dir")
+    mapfile -t pending < <(pending_migrations)
     [[ ${#pending[@]} -gt 0 ]] || exit 1
-    printf '%s\n' "${pending[@]}"
+    printf '%s\n' "${pending[@]%%$'\t'*}"
     exit 0
 fi
 
@@ -157,16 +163,16 @@ if [[ "$mode" == run && "$arg" == --hold ]]; then
 fi
 
 if [[ "$mode" == run ]]; then
-    dir="$(migrations_dir || true)"
-    mapfile -t pending < <(pending_migrations "$dir")
+    mapfile -t pending < <(pending_migrations)
     if [[ ${#pending[@]} -eq 0 ]]; then
         echo "koompi-migrate: no pending migrations"
         exit 0
     fi
     mkdir -p "$MIGRATIONS_MARKER_DIR"
-    for name in "${pending[@]}"; do
+    for entry in "${pending[@]}"; do
+        name="${entry%%$'\t'*}"
         echo "koompi-migrate: running $name"
-        if bash -euo pipefail "$dir/$name"; then
+        if bash -euo pipefail "${entry#*$'\t'}"; then
             : > "$MIGRATIONS_MARKER_DIR/$name"
         else
             echo "koompi-migrate: FAILED $name; stopping, later migrations left pending" >&2

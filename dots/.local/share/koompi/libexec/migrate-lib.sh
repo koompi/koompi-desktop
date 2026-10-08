@@ -3,7 +3,7 @@
 # `notify`, `refresh`, `new`, and the Hyprland autoreload guard the sync uses.
 # Sourced by koompi-migrate (next to it in the dots tree, /usr/lib/koompi when
 # packaged); every variable it reads (SELF, HOME, SKEL, XDG_SYS, BACKUP_DIR,
-# migrations_dir, pending_migrations, die) comes from the caller.
+# pending_migrations, die) comes from the caller.
 
 notification_server_ready() {
     [[ "$(busctl --user call org.freedesktop.DBus /org/freedesktop/DBus \
@@ -30,9 +30,8 @@ terminal_argv() {
 }
 
 notify_pending() {
-    local dir pending n wait tries sender term=()
-    dir="$(migrations_dir || true)"
-    mapfile -t pending < <(pending_migrations "$dir")
+    local pending n wait tries sender term=()
+    mapfile -t pending < <(pending_migrations)
     [[ ${#pending[@]} -gt 0 ]] || exit 0
     n=${#pending[@]}
     # graphical-session.target is reached before the shell owns
