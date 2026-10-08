@@ -1,7 +1,7 @@
 # Worker contract, every job
 
 You are a Sonnet worker in your own git worktree of `koompi/koompi-desktop`, cut from `dev`.
-The main checkout is `/home/userx/workspace/koompi/koompi-desktop`; its `.work/` is gitignored, so read job files and tools by that absolute path.
+The main checkout is `/home/userx/workspace/koompi/koompi-desktop`. Its `.work/` is gitignored, but the lead force-adds the campaign's files, so your worktree holds a copy as old as your base; read job files and tools by the main checkout's absolute path, which is current. Repo-wide greps should exclude `.work/`.
 
 ## Before you edit
 
