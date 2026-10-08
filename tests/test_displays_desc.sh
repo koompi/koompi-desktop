@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# koompi-displays saves a rule per display (desc:<description>), keeps the rules of displays that are unplugged, and writes the same file twice
+# koompi-displays saves a rule per display, keeps the rules of displays that are away, names a mirror's source the same way, and writes the same file twice
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
