@@ -42,10 +42,12 @@ ShellRoot {
     property int drops: 0
     property bool unitOpen: false
     property int unitWarm: 1500
+    property bool bornOpen: true
 
     Launchpad { id: launchpad } Cheatsheet { id: cheatsheet } ScreenTranslator { id: translator } MediaControls { id: media }
     SearchPanel { id: search } OverviewPanel { id: grid } SidebarRight { id: right } SessionScreen { id: session } Tour { id: tour }
     Screensaver { id: saver } SidebarLeft { id: left }
+    LazySurface { id: born; open: probe.bornOpen; keepWarm: 1500; component: QtObject {} }
     LazySurface {
         id: unit
         open: probe.unitOpen
@@ -60,8 +62,11 @@ ShellRoot {
         target: "probe"
         function built(name: string): int { const b = probe.surfaces[name]?.built; return typeof b === "boolean" ? Number(b) : -1; }
         function flag(name: string, on: bool): void { GlobalStates[name] = on; }
+        function isOn(name: string): int { return GlobalStates[name] ? 1 : 0; }
+        function pin(on: bool): void { Persistent.states.sidebar.pinned = on; }
         function openSearch(): void { search.open(); }
         function drawer(): string { return right.content?.drawer ?? "no content"; }
+        function bornState(open: bool): string { probe.bornOpen = open; return String(born.item !== null); }
         function unitState(open: bool, warm: int): string {
             probe.unitWarm = warm;
             probe.unitOpen = open;
@@ -91,7 +96,9 @@ call sidebarRight close; sleep 0.3; call sidebarRight drawer todo; sleep 0.3
 check "a drawer asked for on a warm closed sidebar opens its page" "$(call probe drawer)" todo
 call sidebarRight drawer todo; sleep 0.3
 check "the same drawer again closes it" "$(call probe drawer)" ""
-call sidebarRight close
+call sidebarRight close; sleep 0.3; call probe pin true; sleep 0.5
+check "pinning the right sidebar opens it" "$(call probe isOn sidebarRightOpen)" 1
+call probe pin false; call sidebarRight close
 
 # a warm surface stays built after the close, a per-open one is dropped
 while IFS='|' read -r name open close after; do
@@ -111,6 +118,10 @@ saver|screensaver open|screensaver close|0
 media|mediaControls open|mediaControls close|0
 tour|probe flag tourOpen true|probe flag tourOpen false|0
 ROWS
+
+check "a surface open when it is created is built" "$(call probe bornState true)" true
+check "it stays warm after its first close" "$(call probe bornState false)" true
+sleep 2; check "and is released after keepWarm" "$(call probe bornState false)" false
 
 state() { call probe unitState "$@"; }
 check "LazySurface builds on open" "$(state true 1500)" "1 0 true"
