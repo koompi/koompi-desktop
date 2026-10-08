@@ -29,6 +29,14 @@ If you're an agent asked to change Hyprland behavior for one user's machine, tha
 Kiri's voice binds are the concrete example already in the tree:
 `dots/.config/hypr/custom/keybinds.lua` — see `docs/navigation.md`'s Kiri section.
 
+## Session start-up and login items
+
+`hyprland/execs.lua` imports the Wayland environment into the systemd user manager, then runs `systemctl --user start hyprland-session.target`.
+The target ships in `dots/.config/systemd/user/`: `./setup` merges it into `~/.config/systemd/user/` and `/etc/skel` seeds new users with it.
+The user manager reads that directory, so the first start loads it with no enable and no reload.
+It binds `graphical-session.target`, which hypridle, the crash watcher, touch gestures, the migration notice and the portals hang off, and it wants `xdg-desktop-autostart.target`, which starts every login item.
+`xdg-desktop-autostart.target` refuses a manual start, so a script must never `systemctl --user start` it; `tests/test_session_autostart.sh` fails on that.
+
 ## Options the shell holds
 
 `hyprland/shellOverrides/main.lua` is written by the shell, never by hand, through

@@ -23,9 +23,8 @@ hl.on("hyprland.start", function ()
     hl.exec_cmd("wl-paste --type text --watch cliphist store")
     hl.exec_cmd("wl-paste --type image --watch cliphist store")
 
-    -- Portals need an activated graphical-session.target, and the portal has to
-    -- find the compositor, so import the Wayland env before starting it.
-    hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE && systemctl --user start hyprland-session.target && systemctl --user start xdg-desktop-autostart.target")
+    -- import the env first (portals, unit conditions); the target pulls in graphical-session and the login items
+    hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE && systemctl --user start hyprland-session.target")
 
     -- Cursor
     hl.exec_cmd("hyprctl setcursor Adwaita 24")

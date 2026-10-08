@@ -1,0 +1,7 @@
+[Unit]
+Description=Hyprland compositor session
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target
+# login items: xdg-desktop-autostart.target refuses a manual start, so the session wants it
+Wants=xdg-desktop-autostart.target
