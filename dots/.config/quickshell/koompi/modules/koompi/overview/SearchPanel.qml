@@ -10,23 +10,28 @@ import Quickshell.Wayland
 // flag, so opening or closing the workspace grid never moves this window.
 Scope {
     id: root
+    readonly property bool built: surface.item !== null
 
     // Both surfaces keep the quickshell:overview layer namespace: the no_anim
     // layer rule that stops a full-screen layer from animating is written
     // against that name in hyprland/rules.lua.
     readonly property string layerNamespace: "quickshell:overview"
 
+    // null while the window is released
+    readonly property var widget: surface.item?.widget ?? null
+
     function open() {
-        searchWidget.cancelSearch();
+        LauncherSearch.query = "";
         GlobalStates.searchOpen = true;
-        searchWidget.focusSearchInput();
+        root.widget?.cancelSearch();
+        root.widget?.focusSearchInput();
     }
 
     function openWithQuery(query) {
-        searchWidget.setSearchingText(query);
-        searchWidget.focusFirstItem();
         GlobalStates.searchOpen = true;
-        searchWidget.focusSearchInput();
+        root.widget?.setSearchingText(query);
+        root.widget?.focusFirstItem();
+        root.widget?.focusSearchInput();
     }
 
     function close() {
@@ -43,7 +48,7 @@ Scope {
     // Clipboard and emoji are search modes. A mode toggles only itself, so
     // pressing the other one rewrites the query instead of closing the window.
     function toggleMode(prefix) {
-        if (GlobalStates.searchOpen && searchWidget.searchingText.startsWith(prefix)) {
+        if (GlobalStates.searchOpen && LauncherSearch.query.startsWith(prefix)) {
             root.close();
             return;
         }
@@ -58,62 +63,68 @@ Scope {
         root.toggleMode(Config.options.search.prefix.emojis);
     }
 
-    PanelWindow {
-        id: searchWindow
-        visible: GlobalStates.searchOpen
+    LazySurface {
+        id: surface
+        open: GlobalStates.searchOpen
 
-        WlrLayershell.namespace: root.layerNamespace
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: GlobalStates.searchOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-        color: "transparent"
-
-        mask: Region {
-            item: GlobalStates.searchOpen ? searchLayout : null
-        }
-
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
-        }
-
-        onVisibleChanged: {
-            if (searchWindow.visible) {
-                GlobalFocusGrab.addDismissable(searchWindow);
-            } else {
-                GlobalFocusGrab.removeDismissable(searchWindow);
-                searchWidget.disableExpandAnimation();
-            }
-        }
-
-        Connections {
-            target: GlobalFocusGrab
-            function onDismissed() {
-                root.close();
-            }
-        }
-
-        implicitWidth: searchLayout.implicitWidth
-        implicitHeight: searchLayout.implicitHeight
-
-        Column {
-            id: searchLayout
+        component: PanelWindow {
+            id: searchWindow
             visible: GlobalStates.searchOpen
-            anchors {
-                horizontalCenter: parent.horizontalCenter
-                top: parent.top
+            property alias widget: searchWidget
+
+            WlrLayershell.namespace: root.layerNamespace
+            WlrLayershell.layer: WlrLayer.Top
+            WlrLayershell.keyboardFocus: GlobalStates.searchOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+            color: "transparent"
+
+            mask: Region {
+                item: GlobalStates.searchOpen ? searchLayout : null
             }
 
-            Keys.onPressed: event => {
-                if (event.key === Qt.Key_Escape) {
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
+            }
+
+            onVisibleChanged: {
+                if (searchWindow.visible) {
+                    GlobalFocusGrab.addDismissable(searchWindow);
+                } else {
+                    GlobalFocusGrab.removeDismissable(searchWindow);
+                    searchWidget.disableExpandAnimation();
+                }
+            }
+
+            Connections {
+                target: GlobalFocusGrab
+                function onDismissed() {
                     root.close();
                 }
             }
 
-            SearchWidget {
-                id: searchWidget
-                anchors.horizontalCenter: parent.horizontalCenter
+            implicitWidth: searchLayout.implicitWidth
+            implicitHeight: searchLayout.implicitHeight
+
+            Column {
+                id: searchLayout
+                visible: GlobalStates.searchOpen
+                anchors {
+                    horizontalCenter: parent.horizontalCenter
+                    top: parent.top
+                }
+
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_Escape) {
+                        root.close();
+                    }
+                }
+
+                SearchWidget {
+                    id: searchWidget
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
             }
         }
     }

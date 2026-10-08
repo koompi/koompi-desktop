@@ -10,6 +10,7 @@ import Quickshell.Wayland
 // panel's flag, so search opening or closing never moves this window.
 Scope {
     id: root
+    readonly property bool built: surface.item !== null
 
     // Shares the search surface's layer namespace; see SearchPanel.qml.
     readonly property string layerNamespace: "quickshell:overview"
@@ -22,64 +23,69 @@ Scope {
         GlobalStates.overviewOpen = !GlobalStates.overviewOpen;
     }
 
-    PanelWindow {
-        id: overviewWindow
-        visible: GlobalStates.overviewOpen
+    LazySurface {
+        id: surface
+        open: GlobalStates.overviewOpen
 
-        WlrLayershell.namespace: root.layerNamespace
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: GlobalStates.overviewOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-        color: "transparent"
-
-        mask: Region {
-            item: GlobalStates.overviewOpen ? overviewLayout : null
-        }
-
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
-        }
-
-        onVisibleChanged: {
-            if (overviewWindow.visible) {
-                GlobalFocusGrab.addDismissable(overviewWindow);
-            } else {
-                GlobalFocusGrab.removeDismissable(overviewWindow);
-            }
-        }
-
-        Connections {
-            target: GlobalFocusGrab
-            function onDismissed() {
-                root.close();
-            }
-        }
-
-        implicitWidth: overviewLayout.implicitWidth
-        implicitHeight: overviewLayout.implicitHeight
-
-        Column {
-            id: overviewLayout
+        component: PanelWindow {
+            id: overviewWindow
             visible: GlobalStates.overviewOpen
-            anchors {
-                horizontalCenter: parent.horizontalCenter
-                top: parent.top
+
+            WlrLayershell.namespace: root.layerNamespace
+            WlrLayershell.layer: WlrLayer.Top
+            WlrLayershell.keyboardFocus: GlobalStates.overviewOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+            color: "transparent"
+
+            mask: Region {
+                item: GlobalStates.overviewOpen ? overviewLayout : null
             }
 
-            Keys.onPressed: event => {
-                if (event.key === Qt.Key_Escape) {
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
+            }
+
+            onVisibleChanged: {
+                if (overviewWindow.visible) {
+                    GlobalFocusGrab.addDismissable(overviewWindow);
+                } else {
+                    GlobalFocusGrab.removeDismissable(overviewWindow);
+                }
+            }
+
+            Connections {
+                target: GlobalFocusGrab
+                function onDismissed() {
                     root.close();
                 }
             }
 
-            Loader {
-                id: overviewLoader
-                anchors.horizontalCenter: parent.horizontalCenter
-                active: GlobalStates.overviewOpen && (Config?.options.overview.enable ?? true)
-                sourceComponent: OverviewWidget {
-                    screen: overviewWindow.screen
+            implicitWidth: overviewLayout.implicitWidth
+            implicitHeight: overviewLayout.implicitHeight
+
+            Column {
+                id: overviewLayout
+                visible: GlobalStates.overviewOpen
+                anchors {
+                    horizontalCenter: parent.horizontalCenter
+                    top: parent.top
+                }
+
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_Escape) {
+                        root.close();
+                    }
+                }
+
+                Loader {
+                    id: overviewLoader
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    active: GlobalStates.overviewOpen && (Config?.options.overview.enable ?? true)
+                    sourceComponent: OverviewWidget {
+                        screen: overviewWindow.screen
+                    }
                 }
             }
         }
