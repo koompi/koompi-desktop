@@ -276,8 +276,6 @@ sleep 6
 reading idle "$(status)"
 grim "$WORK/shots/empty-desktop.png" 2>> "$WORK/grim.log"
 
-# name, bind script, window title it ends up with; the notice is a qs process of its own, so
-# the shell is asked from 0.3 s on and the screenshot is taken at the first answer
 # name, bind script, window title it ends up with, and whether to close the windows already open once
 # the shell has the launch; the notice is a qs process of its own, so the shell is asked from 0.3 s on
 # and the screenshot is taken at the first answer
