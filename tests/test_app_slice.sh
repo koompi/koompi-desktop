@@ -137,13 +137,17 @@ else
 fi
 
 # 8. the shell's launch paths use it: no DesktopEntry.execute() left at the
-#    Search, Launchpad and dock call sites, and every App: bind goes through app()
+#    Search, Launchpad, dock and waffle call sites, and every App: bind goes through app()
 for qml in services/LauncherSearch.qml modules/koompi/launchpad/LaunchpadContent.qml modules/koompi/dock/DockAppButton.qml; do
     file="$SHELL_ROOT/$qml"
     if grep -nE '(entry|desktopEntry|action)\??\.execute\(\)' "$file"; then
         fail "$qml still calls DesktopEntry.execute(), which cannot reach app.slice"
     fi
 done
+# a LauncherSearchResult row's execute already is LauncherSearch.launch; these four receivers hold one, or the button that runs it
+offenders="$(grep -rnE '\.execute\(' --include='*.qml' "$SHELL_ROOT/modules/waffle" | grep -vE '(root\.entry|resultPreview\.entry|modelData|resultList\.currentItem\?)\.execute\(')"
+[[ -z $offenders ]] || fail "waffle calls execute() on something that may be a DesktopEntry, which cannot reach app.slice; use LauncherSearch.launch(entry), or add a LauncherSearchResult receiver to this list:
+$offenders"
 grep -q 'koompi-launch' "$SHELL_ROOT/services/LauncherSearch.qml" || fail "LauncherSearch.qml no longer launches through koompi-launch"
 grep -q 'LauncherSearch.launch(' "$SHELL_ROOT/modules/koompi/launchpad/LaunchpadContent.qml" || fail "LaunchpadContent.qml does not use LauncherSearch.launch"
 grep -q 'LauncherSearch.launch(' "$SHELL_ROOT/modules/koompi/dock/DockAppButton.qml" || fail "DockAppButton.qml does not use LauncherSearch.launch"

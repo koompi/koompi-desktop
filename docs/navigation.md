@@ -266,7 +266,7 @@ The `XF86Audio*` and `XF86MonBrightness*` keys carry the same actions and are ma
 App binds are the one group that may grow, because they name what the user installed rather than what the shell owns.
 Anything opened as a scratchpad panel rather than a normal window is a shell surface and belongs to a role above.
 
-Every app bind, and every launch from Search, the Launchpad, the dock and a restored session, goes through `koompi-launch`, which starts the app as its own `app-<id>-<n>.scope` in the user manager's `app.slice` with the session environment intact.
+Every app bind, and every launch from Search, the Launchpad, the dock, the waffle start menu and taskbar, and a restored session, goes through `koompi-launch`, which starts the app as its own `app-<id>-<n>.scope` in the user manager's `app.slice` with the session environment intact.
 That is what lets `systemd-oomd` kill one app under memory pressure instead of the whole session, because the session scope that holds Hyprland, the shell, hypridle and the wallpaper pipeline is never a candidate.
 A bind for something the session cannot lose keeps `hl.dsp.exec_cmd` and stays out of `app.slice`.
 
@@ -278,7 +278,7 @@ No shell running is silent, and any other failure is a line in the journal under
 `koompi-launch` also chooses the platform of the Qt apps it starts.
 Qt exports a menubar to the bar only on X11, so Dolphin, Okular, Konsole and Ark start with `QT_QPA_PLATFORM=xcb` and show their menus in the bar, and every other Qt app runs on Wayland with its menus inside its own window.
 The session default in `hyprland/env.lua` is `wayland;xcb`, and the list is `xcb_menu_apps` at the top of `koompi-launch`.
-The shell itself runs with `QT_QPA_PLATFORM=wayland` and passes it to what it starts, so `koompi-launch` turns an inherited bare `wayland` into `wayland;xcb`, and a Qt app without a Wayland plugin still starts from Search, the Launchpad, the dock and a restored session.
+The shell itself runs with `QT_QPA_PLATFORM=wayland` and passes it to what it starts, so `koompi-launch` turns an inherited bare `wayland` into `wayland;xcb`, and a Qt app without a Wayland plugin still starts from Search, the Launchpad, the dock, the waffle start menu and taskbar, and a restored session.
 An app started outside `koompi-launch`, from a terminal or by D-Bus activation, runs on the platform of whatever started it, usually Wayland, and then has no menu in the bar.
 A window rule for a Qt app has to match its class on both platforms, because the same app reports `kdialog` on xcb and `org.kde.kdialog` on Wayland.
 The dock and a restored session match a window to its app by desktop entry, not by class.

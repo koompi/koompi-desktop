@@ -47,14 +47,14 @@ AppButton {
             root.hoverPreviewRequested()
         } else if (root.appEntry.toplevels.length === 1) {
             root.appEntry.toplevels[0].activate()
-        } else {
-            root.desktopEntry.execute()
+        } else if (root.desktopEntry) {
+            LauncherSearch.launch(root.desktopEntry)
         }
     }
 
     middleClickAction: () => {
         if (root.desktopEntry) {
-            desktopEntry.execute()
+            LauncherSearch.launch(root.desktopEntry)
         }
     }
 
@@ -105,7 +105,7 @@ AppButton {
                 iconName: action.icon,
                 text: action.name,
                 action: () => {
-                    action.execute()
+                    LauncherSearch.launch(root.desktopEntry, action.command)
                 }
             })).concat({ type: "separator" }) : []),
             {
@@ -114,7 +114,7 @@ AppButton {
                 monochromeIcon: false,
                 action: () => {
                     if (root.desktopEntry) {
-                        root.desktopEntry.execute()
+                        LauncherSearch.launch(root.desktopEntry)
                     }
                 }
             },
