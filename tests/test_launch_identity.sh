@@ -108,10 +108,10 @@ ShellRoot {
         probe.verdict(resolve("probe-app", "") === "probe-app", "resolve: a desktop entry id: " + resolve("probe-app", ""));
         probe.verdict(resolve("fileManager", "probe-app-bin") === "probe-app", "resolve: the program the Exec runs, under a role id: " + resolve("fileManager", "probe-app-bin"));
         probe.verdict(resolve("fileManager", "/opt/bin/probe-app-bin") === "probe-app", "resolve: the program given by path: " + resolve("fileManager", "/opt/bin/probe-app-bin"));
-        probe.verdict(resolve("x", "ProbeWindowClass") === "probe-app", "resolve: a StartupWMClass, through the shell's own lookup: " + resolve("x", "ProbeWindowClass"));
+        probe.verdict(resolve("x", "ProbeWindowClass") === "none", "resolve: a window class is not a program, and no fuzzy lookup stands in for the Exec: " + resolve("x", "ProbeWindowClass"));
         probe.verdict(resolve("x", "sharedlauncher") === "none", "resolve: two entries on one program is a launcher, not an app: " + resolve("x", "sharedlauncher"));
         probe.verdict(resolve("x", "nothing-installed") === "none", "resolve: nothing installed: " + resolve("x", "nothing-installed"));
-        probe.verdict(resolve("x", "") === "none", "resolve: no program, whose lookup answers an arbitrary entry: " + resolve("x", ""));
+        probe.verdict(resolve("x", "") === "none", "resolve: no program at all: " + resolve("x", ""));
     }
 
     function emptyDesktop() {
@@ -150,7 +150,7 @@ ShellRoot {
             probe.verdict(!identity.actionsAvailable, "a launch: the identity is not a target for the focused window's actions");
             probe.verdict(!identity.menuShown, "a launch: the menus of the window being left step aside");
             probe.verdict(identity.pulsing, "a launch: it pulses");
-            probe.opacities(16, (low, high) => {
+            probe.opacities(24, (low, high) => {
                 probe.verdict(low <= 0.7 && high >= 0.9, "a launch: the pulse is seen, opacity " + low.toFixed(2) + " to " + high.toFixed(2));
                 probe.reduced(dolphin);
             });

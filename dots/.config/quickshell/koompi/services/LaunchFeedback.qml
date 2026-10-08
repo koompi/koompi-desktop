@@ -47,9 +47,7 @@ Singleton {
     }
 
     function resolve(launchId, program) {
-        return DesktopEntries.byId(launchId)
-            ?? LaunchMatch.entryForProgram(program, DesktopEntries.applications.values)
-            ?? (program ? DesktopEntries.heuristicLookup(program) : null);
+        return DesktopEntries.byId(launchId) ?? LaunchMatch.entryForProgram(program, DesktopEntries.applications.values);
     }
 
     function sweep() {

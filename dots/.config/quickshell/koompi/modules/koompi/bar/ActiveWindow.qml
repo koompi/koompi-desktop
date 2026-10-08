@@ -234,6 +234,7 @@ Item { // Faux global menu: bold app name + window title
     // both menus belong to the window being left
     onLaunchingChanged: {
         if (root.launching) {
+            root.pulseLevel = 1;
             globalMenu.closeMenu();
             actionsMenu.closeMenu();
         }
