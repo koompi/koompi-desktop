@@ -91,6 +91,7 @@ import qs
 import qs.services
 import qs.modules.common
 import qs.modules.koompi.bar
+import "services/launch-match.js" as LaunchMatch
 
 ShellRoot {
     id: probe
@@ -120,6 +121,12 @@ ShellRoot {
 
     function after(fn) {
         probe.later(150, fn);
+    }
+
+    // what the shell has seen outlives a scenario, and a claim left by one would hide a fault in the next
+    function fresh() {
+        LaunchFeedback.pending = [];
+        LaunchFeedback.seen = LaunchMatch.noneSeen();
     }
 
     // the opacity of the name as drawn, sampled, and the lowest the Opening line ever had
@@ -257,7 +264,7 @@ ShellRoot {
     // the app's window has been up and focused for a while when a key bind starts the app again, and
     // the notice reaches the shell 100 ms after the bind: that focus is older than the launch
     function relaunch() {
-        LaunchFeedback.pending = [];
+        probe.fresh();
         const open = probe.win("0xe1", "ProbeWindowClass", "Open window");
         probe.show([open], null);
         probe.after(() => {
@@ -279,7 +286,7 @@ ShellRoot {
 
     // the app is started again a moment before the shell hears that the window of the first start has closed
     function closed() {
-        LaunchFeedback.pending = [];
+        probe.fresh();
         const first = probe.win("0xf1", "ProbeWindowClass", "First window");
         probe.show([], null);
         probe.after(() => {
