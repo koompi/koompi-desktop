@@ -1,51 +1,37 @@
 {
   "project": "koompi-desktop",
   "state": {
-    "j16": "J16 (refresh rate per monitor in Settings > Displays, D7) is verified by the lead: koompi-displays rate refuses unlisted rates, hot-applies, reads the compositor back for 2.4 s and only then saves monitors.lua; the page shows a Refresh rate row of pills (74.97 Hz / 60 Hz / 59.94 Hz) only when a monitor lists more than one rate at its resolution. It is mergeable as is; these are follow-ups.",
-    "persist_today": "persist_layout (shared by place and rate) rewrites ~/.config/hypr/monitors.lua from the monitors connected right now, keyed by port name (output = \"HDMI-A-1\"). A rule for a monitor that is unplugged at that moment is dropped, so a laptop user who sets 75 Hz on the office monitor, changes anything at home, and comes back gets the monitor's default mode and position again. Port keys also mean any display plugged into that port inherits the rule: a classroom projector on HDMI-A-1 is asked for 1920x1080@74.97 at scale 1.25.",
-    "monitor_identity": "Hyprland reports a description per monitor: the founder's are 'BOE 0x0CE0' (eDP-1, the panel) and 'WAM HDMI 18250023' (HDMI-A-1, with a serial). Hyprland monitor rules accept a desc: selector (hyprlang monitor=desc:...); the Lua form output = \"desc:...\" is expected to match the same way, to be verified in the nested harness. macOS and Windows remember display settings per display, not per port.",
-    "labels": "Pills show the exact rate to two decimals: '74.97 Hz', '60 Hz', '59.94 Hz'. Windows 11 lists exact decimals; people buy a '75 Hz monitor'. Rounding is safe only when no two listed rates round to the same integer (60 and 59.94 do).",
-    "safety": "koompi-displays checks only that the compositor reports the new rate, then saves at once. A rate the EDID lists but the cable, adapter or projector cannot carry leaves a black screen, and the saved rule brings it back at every login. Windows, macOS (for resolution), GNOME and KDE all ask 'Keep these display settings?' and revert after 15 to 20 s without an answer.",
-    "errors": "The page runs koompi-displays with execDetached and ignores its exit status: a refused or failed switch silently snaps the pill back. This gets fixed in any case.",
-    "cli": "cli/src/main.zig:19 usage lists only 'display place', so 'koompi help display' omits rate. Fixed in any case.",
-    "queue": "Queue after the running six: J42, J07, J13, J15, J43, J41, J08, J28, J29 (queue_order breakage_then_hub). The J16 worker has the context; nothing is deployed until the founder says so."
+    "j16_round2": "J16 round 2 (refresh rate per monitor in Settings > Displays) is verified in code review: koompi-displays rate switches and arms a guard; keep saves only a rate the monitor still runs; revert, or 15 s without an answer (a setsid timer that outlives Settings), puts the old mode back; saved rules are keyed desc:<monitor description> so they follow a display across ports. Renders at 1920x1200 and 1366x768, one and two monitors, dark and light.",
+    "confirm_look": "While the Keep this refresh rate? question shows (up to 15 s), the page disables the Refresh rate and Position selection groups (enabled: false). The shared selection button only changes its toggled look when disabled: the selected pill (the new 75 Hz, and the current Right of) drops from primary fill with white text to a washed-out pill that is nearly unreadable in the light palette and dim in the dark one, while the unselected pills (60 Hz, 59.94 Hz, Left of, Above, Below) keep their normal enabled look. So during the question nothing reads as selected, the running rate looks unavailable, and the other options look clickable though clicks do nothing. These two lines are the only disabled selection groups in the tree. The question box under the row names the new and old rates and has Keep and Revert. macOS and Windows show the same question as a modal dialog over unchanged controls.",
+    "desc_rule_fields": "Hyprland applies only the last matching monitor rule, and a desc: rule is a separate rule from a port rule (measured in nested Hyprland 0.56.2: a user's own port rule kept its transform when monitors.lua added a same-named port rule, and lost it when the new rule was desc:-keyed). J16 therefore writes transform into every saved rule. mirror, vrr, bitdepth, cm and icc set in a user's own rule for that display are overridden once a desc: rule exists; hyprctl monitors -j reports only mirrorOf of those. KOOMPI ships vrr = 0 globally and no per-monitor rules; the founder's hypr/custom has no monitor rules; the Displays page sets none of these fields.",
+    "reselect": "Round 1 called the tool on every click, so clicking the already-selected rate saved the layout (a pin as a side effect). Round 2: clicking the selected rate does nothing; a terminal user can still run koompi display rate <monitor> <hz> then koompi display keep."
   },
   "questions": {
-    "J16_persist_scope": {
+    "J16_confirm_selection_look": {
       "type": "choice",
-      "instructions": "How should saved monitor rules be keyed and kept?",
+      "instructions": "How should the selection groups look and behave while the Keep this refresh rate? question is up?",
       "criteria": {
-        "desc_keyed_merge": "Key each saved rule by the monitor's description (desc:), and keep rules for monitors that are not connected. Strongest case: per-display memory like macOS and Windows; a projector on the same port never inherits another display's mode and scale; unplugging never loses a setting. Cost: merging with the old file, and proving desc: matching in Lua.",
-        "port_keyed_merge": "Keep port names, and keep rules for ports that are not connected. Strongest case: smaller change. Cost: any display on that port still inherits the rule.",
-        "leave": "Leave it as place always did. Cost: settings vanish after a change made while a monitor is unplugged.",
+        "keep_enabled_ignore_input": "Leave the groups enabled so the selected pill keeps its normal selected look on the rate now running, and have the page ignore clicks on them until the question is answered. Strongest case: two lines in J16's own page; what the user sees matches what runs, as with the modal dialogs on macOS and Windows. Cost: a click on another pill during the question does nothing, with the question box right below as the only explanation.",
+        "fix_shared_disabled_style": "Keep them disabled and change the shared selection button so a disabled toggled pill stays recognisably selected and disabled unselected pills dim. Strongest case: disabled reads as disabled and the selection stays visible, for any future disabled group too. Cost: a shared widget changes for every selection group in the shell, with a wider render check.",
+        "leave_it": "Ship as is. Strongest case: the question box names the new rate and it lasts at most 15 s. Cost: every refresh-rate change shows the running rate as if unavailable and the others as clickable.",
         "need_more_facts": "Ask for more facts first."
       }
     },
-    "J16_rate_labels": {
+    "J16_desc_rule_fields": {
       "type": "choice",
-      "instructions": "How should the refresh-rate pills be labelled?",
+      "instructions": "A desc:-keyed saved rule overrides a user's own rule for that display wholesale. Which fields should the saved rule carry beyond mode, position and scale?",
       "criteria": {
-        "round_unless_ambiguous": "Whole hertz ('75 Hz', '60 Hz') unless two listed rates round to the same integer, then two decimals for those ('59.94 Hz'). Strongest case: matches what people bought, stays exact where it matters.",
-        "exact": "Always the exact rate to two decimals, as now. Strongest case: no hidden rounding, like Windows 11.",
+        "transform_only": "As built: transform only. Strongest case: it is the field the Displays page itself can leave wrong (a rotated screen un-rotated by the first save); no shipped config or the founder's sets the others. Cost: a user who hand-wrote mirror, vrr, bitdepth, cm or icc for that display loses it after the first Keep or Place, silently.",
+        "transform_and_mirror": "Also write mirror from hyprctl's mirrorOf (about five lines). Strongest case: a mirrored display stays mirrored, the one other field the compositor reports back. Cost: vrr, bitdepth, cm and icc are still dropped.",
         "need_more_facts": "Ask for more facts first."
       }
     },
-    "J16_confirm_revert": {
+    "J16_reselect_current_rate": {
       "type": "choice",
-      "instructions": "Should a refresh-rate change ask to be kept?",
+      "instructions": "What should clicking the already-selected refresh rate do?",
       "criteria": {
-        "confirm_or_revert": "After the switch, ask 'Keep this refresh rate?' with a 15 s countdown; save only on Keep, revert to the previous rate on Revert or timeout. Strongest case: every major desktop does it, and a black screen fixes itself.",
-        "apply_directly": "Keep applying and saving at once. Strongest case: one click. Cost: a rate the display cannot show leaves a black screen that survives reboot.",
-        "need_more_facts": "Ask for more facts first."
-      }
-    },
-    "J16_round2_position": {
-      "type": "choice",
-      "instructions": "J16 is merged as is; where does its follow-up round go in the queue?",
-      "criteria": {
-        "after_j42": "Right after J42, before J07. Strongest case: small, the worker has context, and it closes a black-screen risk before any deploy.",
-        "after_j07": "After J07. Strongest case: keeps the hub early.",
-        "end_of_queue": "At the end. Strongest case: nothing is deployed yet.",
+        "nothing": "As built: nothing. Strongest case: every settings UI treats re-clicking the current choice as a no-op; the round 1 pin was a side effect, and keep saves explicitly now.",
+        "pin_current": "Save the current rate to monitors.lua without a question. Strongest case: a user can make the running rate explicit in one click. Cost: a hidden behaviour that writes a file on a click that changes nothing visible.",
         "need_more_facts": "Ask for more facts first."
       }
     }
