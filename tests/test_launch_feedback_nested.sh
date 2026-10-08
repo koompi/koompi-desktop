@@ -65,6 +65,8 @@ export DBUS_SYSTEM_BUS_ADDRESS=unix:path=$WORK/no-system-bus
 jq -c --unbuffered 'if .cmd == "subscribe" then .services |= map(select(. == "hyprland")) else . end' | "$SHELLD"
 SH
 printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/logger"
+# the shell's ConflictKiller asks pidof for the host's kded6, mako and dunst, and a dialog then covers the bar
+printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/pidof"
 
 # slow apps: sleep, then become a window client, as a heavy app does
 for app in slow-probe-app slow-probe-pid; do

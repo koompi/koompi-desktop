@@ -11,6 +11,8 @@
 #   Reduce Motion: the pulse is a held dim state, not a loop.
 #   Entries: a launch from koompi-launch resolves by id and by the program the Exec runs, and
 #   not when two entries share one.
+#   Scale 1.25: the monitor is fractional, where a name was given a whole pixel fewer than its
+#   text, and lost two letters to the ellipsis ("Visual Studio Code" and "Probe App" here).
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,7 +35,7 @@ for entry in "$SHELL_ROOT"/*; do
     ln -s "$entry" "$WORK/shell/$(basename -- "$entry")"
 done
 cat > "$HOME_DIR/.config/hypr/hyprland.lua" <<'LUA'
-hl.monitor({ output = "", mode = "1280x800", position = "auto", scale = 1 })
+hl.monitor({ output = "", mode = "1280x800", position = "auto", scale = 1.25 })
 hl.config({ misc = { disable_watchdog_warning = true }, ecosystem = { no_update_news = true, no_donation_nag = true } })
 LUA
 echo greeted > "$HOME_DIR/.local/state/quickshell/user/first_run.txt"
@@ -118,6 +120,7 @@ ShellRoot {
         probe.show([], null);
         probe.after(() => {
             probe.verdict(identity.nameText === "Desktop", "no window: the name is Desktop: '" + identity.nameText + "'");
+            probe.verdict(!identity.nameElided, "no window: the name is not cut short at this scale");
             probe.verdict(identity.titleText === "", "no window: no second line: '" + identity.titleText + "'");
             probe.show([], ({}));
             probe.after(() => {
@@ -133,11 +136,31 @@ ShellRoot {
         GlobalMenuService.menuItems = [{ id: 1, label: "File", items: [] }];
         probe.after(() => {
             probe.verdict(identity.nameText === "Dolphin", "a focused window: its name: '" + identity.nameText + "'");
+            probe.verdict(!identity.nameElided, "a focused window: the name is not cut short at this scale");
             probe.verdict(identity.titleText === "Home", "a focused window: its title without the app's name: '" + identity.titleText + "'");
             probe.verdict(identity.menuShown, "a focused window: its menus show");
             probe.verdict(!identity.launching && !identity.pulsing && identity.identityOpacity === 1, "nothing launching: no pulse, full opacity");
-            probe.opening(dolphin);
+            probe.longNames(dolphin);
         });
+    }
+
+    function longNames(dolphin) {
+        const names = ["Visual Studio Code", "Okular", "Slow Probe"];
+        const next = () => {
+            const name = names.shift();
+            if (!name) {
+                LaunchFeedback.pending = [];
+                probe.after(() => probe.opening(dolphin));
+                return;
+            }
+            LaunchFeedback.pending = [];
+            LaunchFeedback.add({ id: "name", entryId: "name", name: name, icon: "probe-icon", program: "name" });
+            probe.after(() => {
+                probe.verdict(identity.nameText === name && !identity.nameElided, "a launch: '" + name + "' is whole at this scale: '" + identity.nameText + "'");
+                next();
+            });
+        };
+        next();
     }
 
     // no startupClass here, so the window below can only be matched by the entry lookup
@@ -145,7 +168,7 @@ ShellRoot {
         LaunchFeedback.add({ id: "probe-app", entryId: "probe-app", name: "Probe App", icon: "probe-icon", program: "probe-app-bin" });
         probe.after(() => {
             probe.verdict(identity.launching, "a launch: the identity says so");
-            probe.verdict(identity.nameText === "Probe App", "a launch: the app's name, not the focused window's: '" + identity.nameText + "'");
+            probe.verdict(identity.nameText === "Probe App" && !identity.nameElided, "a launch: the app's name, whole, not the focused window's: '" + identity.nameText + "'");
             probe.verdict(identity.titleText === "Opening…", "a launch: Opening... under it: '" + identity.titleText + "'");
             probe.verdict(!identity.actionsAvailable, "a launch: the identity is not a target for the focused window's actions");
             probe.verdict(!identity.menuShown, "a launch: the menus of the window being left step aside");

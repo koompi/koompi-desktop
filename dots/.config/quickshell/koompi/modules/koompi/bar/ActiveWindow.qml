@@ -35,6 +35,7 @@ Item { // Faux global menu: bold app name + window title
     readonly property real identityOpacity: identityRow.opacity
     readonly property bool pulsing: pulse.running
     readonly property bool menuShown: globalMenu.visible
+    readonly property bool nameElided: appName.truncated
     property real pulseLevel: 1
 
     function prettyName(s) {
@@ -82,7 +83,8 @@ Item { // Faux global menu: bold app name + window title
     /// the volatile line, and sizing on it walked the menubar across the bar
     /// every time the title got longer. It elides to the name's width instead.
     /// While "Opening…" shows the block fits it too: it is fixed text, not the volatile line.
-    readonly property real identityWidth: Math.min(Math.max(appName.implicitWidth, root.launching ? titleLine.implicitWidth : 0), root.identityMaxWidth)
+    /// Whole pixels, because a layout rounds a column to the nearest one and a fraction under a half cut the name short.
+    readonly property real identityWidth: Math.min(Math.ceil(Math.max(appName.implicitWidth, root.launching ? titleLine.implicitWidth : 0)), root.identityMaxWidth)
 
     implicitWidth: rowLayout.implicitWidth
 
