@@ -134,7 +134,7 @@ else
             || fail "the generator failed: $(cat "$3/generator.log")"
     }
     generated() { # <out dir>: the desktop files that got a unit
-        find "$1" -name 'app-*@autostart.service' -type f -exec sed -n 's|^SourcePath=.*/||p' {} + | sort
+        find "$1" -name 'app-*@autostart.service' -type f -exec sed -n 's|^SourcePath=.*/||p' {} + | LC_ALL=C sort
     }
 
     SYS="$T/system-xdg"
@@ -187,7 +187,7 @@ found=("$ROOT"/sdata/migrations/*-session-target-autostart.sh)
 shopt -u nullglob
 [[ ${#found[@]} -eq 1 ]] || fail "expected one session-target-autostart migration under sdata/migrations, found ${#found[@]}"
 MIGRATION="${found[0]}"
-[[ "$(stat -c %a "$MIGRATION")" == 644 ]] || fail "the migration is mode $(stat -c %a "$MIGRATION"), want 644"
+[[ ! -x "$MIGRATION" ]] || fail "the migration is executable; the runner calls bash on it, and docs/agents/migrations.md wants it without the bit"
 
 MH="$T/home-migrate"
 BACKUPS="$MH/.local/state/koompi/backups"

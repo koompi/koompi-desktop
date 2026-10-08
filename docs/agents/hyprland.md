@@ -33,7 +33,7 @@ Kiri's voice binds are the concrete example already in the tree:
 
 `hyprland/execs.lua` imports the Wayland environment into the systemd user manager, then runs `systemctl --user start hyprland-session.target`.
 The target ships in `dots/.config/systemd/user/`: `./setup` merges it into `~/.config/systemd/user/` and `/etc/skel` seeds new users with it.
-The user manager reads that directory, so the first start loads it with no enable and no reload.
+The user manager reads that directory and the target has no `[Install]` section, so nothing enables it: the first `start` loads it.
 It binds `graphical-session.target`, which hypridle, the crash watcher, touch gestures, the migration notice and the portals hang off, and it wants `xdg-desktop-autostart.target`, which starts every login item.
 `xdg-desktop-autostart.target` refuses a manual start, so a script must never `systemctl --user start` it; `tests/test_session_autostart.sh` fails on that.
 

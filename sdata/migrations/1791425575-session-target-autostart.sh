@@ -1,12 +1,11 @@
 # shellcheck shell=bash
-# /etc/skel seeds new users only and the sync carries neither file, so an existing home has no session target and no login-item overrides
+# skel seeds new users only and the sync skips systemd/user and autostart, so existing homes lack both
 config="${XDG_CONFIG_HOME:-$HOME/.config}"
 [[ -f "$config/hypr/hyprland/execs.lua" ]] || exit 0
 backups="${KOOMPI_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/koompi}/backups"
 tmp=""
 trap '[[ -z "$tmp" ]] || rm -f -- "$tmp"' EXIT
 
-# place <replace|keep> <path under the config dir>, the shipped content on stdin
 place() {
     local mode="$1" rel="$2" path="$config/$2" content backup=""
     content="$(cat)"
