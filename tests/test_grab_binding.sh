@@ -88,7 +88,9 @@ ShellRoot {
 
     function reset() { probe.st = { samples: 0, open: 0, inside: 0, outside: 0, unfocusable: 0, mismatches: 0, first: "" }; }
 
-    function verdict() {
+    function nameOf(w) { return w === bar ? "bar" : w === holder ? "holder" : w === ondemand ? "ondemand" : w === nofocus ? "nofocus" : String(w?.WlrLayershell?.namespace ?? w); }
+
+    function verdict(why) {
         const d = GlobalFocusGrab.dismissable, p = GlobalFocusGrab.persistent, got = GlobalFocusGrab.grabbedWindows;
         const inside = d.some(w => probe.oldWalk(w?.contentItem));
         const unfocusable = d.every(w => !w?.focusable);
@@ -102,7 +104,7 @@ ShellRoot {
         else s.outside++;
         if (!same) {
             s.mismatches++;
-            if (!s.first) s.first = `first: want ${want.length} got ${got.length} inside=${inside} unfocusable=${unfocusable}`;
+            if (!s.first) s.first = `first (${why}): want [${want.map(probe.nameOf)}] got [${Array.from(got).map(probe.nameOf)}] inside=${inside} unfocusable=${unfocusable}`;
         }
         return `${same ? "ok" : "MISMATCH"} inside=${inside} unfocusable=${unfocusable} want=${want.length} got=${got.length}`;
     }
@@ -111,16 +113,16 @@ ShellRoot {
     function matrix() {
         const saved = GlobalFocusGrab.dismissable;
         const cases = [{ n: "empty", l: [] }, { n: "unfocusable", l: [nofocus] }, { n: "focusable-hidden", l: [ondemand] }, { n: "mixed", l: [nofocus, ondemand] }];
-        const lines = cases.map(c => { GlobalFocusGrab.dismissable = c.l; return `${c.n}: ${probe.verdict()}`; });
+        const lines = cases.map(c => { GlobalFocusGrab.dismissable = c.l; return `${c.n}: ${probe.verdict("matrix")}`; });
         GlobalFocusGrab.dismissable = saved;
         return lines.join("; ");
     }
 
-    Timer { interval: 100; repeat: true; running: probe.sampling; onTriggered: probe.verdict() }
+    Timer { interval: 100; repeat: true; running: probe.sampling; onTriggered: probe.verdict("timer") }
     Connections {
         target: GlobalFocusGrab
         enabled: probe.sampling
-        function onGrabbedWindowsChanged() { probe.verdict(); }
+        function onGrabbedWindowsChanged() { probe.verdict("change"); }
     }
     Component.onCompleted: probe.reset()
 
@@ -129,7 +131,7 @@ ShellRoot {
         function ping(): int { return 1; }
         function reset(): void { probe.reset(); }
         function sampling(on: bool): void { probe.sampling = on; }
-        function verdict(): string { return probe.verdict(); }
+        function verdict(): string { return probe.verdict("ipc"); }
         function matrix(): string { return probe.matrix(); }
         function stats(): string {
             const s = probe.st;
@@ -252,8 +254,8 @@ dump() {
     echo "--- qs.log ---" >&2; grep -vE 'qmlscanner|^\s*$' "$WORK/qs.log" 2> /dev/null | tail -25 >&2
     echo "--- hyprland.log ---" >&2; tail -15 -- "$WORK/hyprland.log" >&2 2> /dev/null
 }
-field() { grep -E "$1" "$WORK/readings" | head -1 | sed -E "s/.* $2=([^ ]+).*/\1/"; }
-total() { grep -E '^STATS ' "$WORK/readings" | sed -E "s/.* $1=([0-9]+).*/\1/" | awk '{ s += $1 } END { print s + 0 }'; }
+field() { grep -E "$1" "$WORK/readings" | head -1 | sed -E 's/ first.*//' | sed -E "s/.* $2=([^ ]+).*/\1/"; }
+total() { grep -E '^STATS ' "$WORK/readings" | sed -E 's/ first.*//' | sed -E "s/.* $1=([0-9]+).*/\1/" | awk '{ s += $1 } END { print s + 0 }'; }
 
 grep -q '^done$' "$WORK/readings" 2> /dev/null || { dump; fail "setup: the probe session did not finish"; }
 grep -q '^setup' "$WORK/readings" && { dump; fail "setup: nested Hyprland never had an output"; }
