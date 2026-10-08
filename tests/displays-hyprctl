@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# hyprctl for the koompi-displays tests: prints HYPRCTL_STATE; eval logs to HYPRCTL_EVAL_LOG and moves the monitor to the nearest listed rate at that size, unless HYPRCTL_STATE.ignore exists
+state="${HYPRCTL_STATE:?}"
+if [[ $1 != eval ]]; then
+    cat "$state"
+    exit 0
+fi
+printf '%s\n' "$2" >> "${HYPRCTL_EVAL_LOG:?}"
+[[ ! -e "$state.ignore" ]] || exit 0
+re='output = "([^"]+)", mode = "([0-9]+)x([0-9]+)@([0-9.]+)", position = "(-?[0-9]+)x(-?[0-9]+)", scale = ([0-9.]+)'
+[[ $2 =~ $re ]] || exit 1
+jq --arg n "${BASH_REMATCH[1]}" --argjson w "${BASH_REMATCH[2]}" --argjson h "${BASH_REMATCH[3]}" \
+    --argjson r "${BASH_REMATCH[4]}" --argjson x "${BASH_REMATCH[5]}" --argjson y "${BASH_REMATCH[6]}" \
+    --argjson s "${BASH_REMATCH[7]}" '
+    map(if .name == $n then
+        ([.availableModes[] | capture("^(?<w>[0-9]+)x(?<h>[0-9]+)@(?<r>[0-9.]+)Hz$")
+          | select((.w | tonumber) == $w and (.h | tonumber) == $h) | (.r | tonumber)]
+         | min_by(. - $r | fabs)) as $got
+        | .width = $w | .height = $h | .x = $x | .y = $y | .scale = $s
+        | if $got == null then . else .refreshRate = $got end
+    else . end)' "$state" > "$state.new" && mv "$state.new" "$state"
