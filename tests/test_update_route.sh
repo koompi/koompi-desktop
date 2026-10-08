@@ -80,7 +80,11 @@ printf '#!/usr/bin/env bash\nexit 1\n' > "$T/bin/pidof"
 cat > "$T/bin/hyprctl" <<STUB
 #!/usr/bin/env bash
 printf 'hyprctl %s\\n' "\$*" >> "$T/hyprctl.log"
-[[ "\${1:-}" == -j ]] && echo '{"option": "misc:disable_autoreload", "bool": false, "set": false}'
+case "\${1:-}" in
+    -j) echo '{"option": "misc:disable_autoreload", "bool": false, "set": false}' ;;
+    keyword) echo "keyword can't work with non-legacy parsers. Use eval." ;;
+    eval) echo ok ;;
+esac
 exit 0
 STUB
 # recorders: whatever order reload_session takes, a shell restart lands here and not on the real shell
@@ -248,7 +252,7 @@ if command -v rsync > /dev/null 2>&1; then
         out="$(KOOMPI_MIGRATE_SKEL="$T/skel" KOOMPI_MIGRATE_XDG="$T/no-xdg" KOOMPI_MIGRATE_MIGRATIONS_DIR="$T/migs" \
             HYPRLAND_INSTANCE_SIGNATURE=test-session run_update --yes ${flag:+"$flag"})" || fail "the update with the real koompi-migrate failed: $out"
         [[ "$(cat "$T/home/.config/hypr/hyprland/general.lua")" == 'shipped = 2' ]] || fail "the real sync did not copy the Hyprland tree: $out"
-        expected=$'hyprctl -j getoption misc:disable_autoreload\nhyprctl keyword misc:disable_autoreload 1\nhyprctl keyword misc:disable_autoreload false'
+        expected=$'hyprctl -j getoption misc:disable_autoreload\nhyprctl eval hl.config({ misc = { disable_autoreload = true } })\nhyprctl eval hl.config({ misc = { disable_autoreload = false } })'
         [[ -n "$flag" ]] || expected+=$'\nhyprctl reload'
         [[ "$(cat "$T/hyprctl.log")" == "$expected" ]] \
             || fail "with the real koompi-migrate ${flag:-and no flag} Hyprland should reload once, last, and not under --no-reload: $(cat "$T/hyprctl.log")"

@@ -11,6 +11,9 @@ loaded by `hyprland.lua`) lets config live in Lua instead — `hl.config({...})`
 shell's dispatch calls were ported onto. Search `hyprland/lib/` before assuming a
 `hl.*` function doesn't exist; it likely does.
 
+A script changes an option in a live session with `hyprctl eval 'hl.config({ ... })'`, which exits non-zero on a Lua error.
+`hyprctl keyword` answers "keyword can't work with non-legacy parsers", exits 0 and changes nothing, so a script that trusts its exit status never notices.
+
 ## `custom/` vs `hyprland/`
 
 `dots/.config/hypr/hyprland.lua` is the entry point and `require`s both trees:
