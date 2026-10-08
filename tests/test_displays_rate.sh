@@ -31,7 +31,7 @@ want_back='hl.monitor({output = "HDMI-A-1", mode = "1920x1080@60", position = "1
 fresh() {
     cp "$REPO_ROOT/tests/displays-monitors.json" "$tmp/state.json"
     : > "$tmp/eval.log"
-    rm -rf "$lua" "$tmp/run/koompi-displays" "$tmp/state.json.ignore" "$stub/luac"
+    rm -rf "$lua" "$tmp/run/koompi-displays" "$tmp/state.json.ignore" "$tmp/state.json.broken" "$stub/luac"
 }
 run_displays() {
     env -i PATH="$stub" HOME="$tmp" XDG_CONFIG_HOME="$tmp/config" XDG_RUNTIME_DIR="$tmp/run" \
@@ -154,6 +154,17 @@ grep -q 'failed lua validation' "$tmp/out" || fail "a rejected file was not repo
 [[ "$(lua_text)" == '-- kept' ]] || fail "a rejected file replaced monitors.lua: $(lua_text)"
 hdmi_rate_is 60 || fail "a layout that could not be saved was left running at $(jq '.[1].refreshRate' "$tmp/state.json")"
 end_case "keep that cannot save puts the old rate back instead"
+
+fresh
+printf -- '-- kept\n' > "$lua"
+run_displays rate HDMI-A-1 74.97
+touch "$tmp/state.json.broken"
+run_displays keep
+status=$?
+(( status != 0 )) || fail "keep exited 0 although hyprctl could not list the monitors"
+[[ "$(lua_text)" == '-- kept' ]] || fail "keep wrote a layout it had not read: $(lua_text)"
+[[ "$(config_files)" == "monitors.lua " ]] || fail "keep left a temp file behind: $(config_files)"
+end_case "keep that cannot read the monitors leaves monitors.lua alone"
 
 fresh
 printf -- '-- kept\n' > "$lua"

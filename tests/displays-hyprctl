@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# hyprctl for the koompi-displays tests: prints HYPRCTL_STATE; eval logs to HYPRCTL_EVAL_LOG and moves the monitor to the nearest listed rate at that size, unless HYPRCTL_STATE.ignore exists
+# hyprctl for the koompi-displays tests: prints HYPRCTL_STATE (fails if .broken exists); eval logs to HYPRCTL_EVAL_LOG and moves the monitor to the nearest listed rate at that size, unless .ignore exists
 state="${HYPRCTL_STATE:?}"
 if [[ $1 != eval ]]; then
+    [[ ! -e "$state.broken" ]] || exit 1
     cat "$state"
     exit 0
 fi
