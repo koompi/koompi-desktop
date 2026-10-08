@@ -12,6 +12,7 @@ Singleton {
 
     property int ttl: 8000
     property var pending: []
+    property var seen: ({ first: {}, focus: "", focusSince: 0 })
     readonly property var current: root.pending.length > 0 ? root.pending[root.pending.length - 1] : null
 
     // heuristicLookup("") answers with an arbitrary entry
@@ -21,9 +22,14 @@ Singleton {
         return DesktopEntries.heuristicLookup(windowClass)?.id ?? "";
     }
 
+    function observe() {
+        root.seen = LaunchMatch.track(root.seen, HyprlandData.windowList, HyprlandData.activeWindow, Date.now());
+    }
+
     function add(spec) {
-        const launch = LaunchMatch.record(spec, HyprlandData.windowList, HyprlandData.activeWindow, Date.now());
-        root.pending = [...root.pending.slice(-7), launch];
+        root.observe();
+        root.pending = [...root.pending.slice(-7), LaunchMatch.record(spec, Date.now())];
+        root.sweep();
     }
 
     function begin(entry) {
@@ -46,7 +52,8 @@ Singleton {
     }
 
     function sweep() {
-        const waiting = LaunchMatch.settle(root.pending, HyprlandData.windowList, HyprlandData.activeWindow, root.entryOf, Date.now(), root.ttl);
+        root.observe();
+        const waiting = LaunchMatch.settle(root.pending, HyprlandData.windowList, HyprlandData.activeWindow, root.entryOf, Date.now(), root.ttl, root.seen);
         if (waiting.length !== root.pending.length)
             root.pending = waiting;
     }
@@ -65,13 +72,13 @@ Singleton {
         onTriggered: root.sweep()
     }
 
-    // koompi-launch calls begin for a key bind
+    // koompi-launch calls begin for a key bind; startedAt is its clock, in ms
     IpcHandler {
         target: "launch"
 
-        function begin(launchId: string, program: string, pid: int): string {
+        function begin(launchId: string, program: string, pid: int, startedAt: string): string {
             const entry = root.resolve(launchId, program);
-            if (!entry || LaunchMatch.pidMapped(pid, HyprlandData.windowList))
+            if (!entry)
                 return "ignored";
             root.add({
                 id: launchId,
@@ -80,7 +87,8 @@ Singleton {
                 icon: entry.icon,
                 startupClass: entry.startupClass,
                 program: program,
-                pid: pid
+                pid: pid,
+                startedAt: Number(startedAt)
             });
             return "ok";
         }

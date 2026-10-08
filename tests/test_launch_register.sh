@@ -53,14 +53,20 @@ reset() { rm -f "$QSLOG" "$QSHUNG" "$LOGGERLOG" "$APPLOG"; }
 waits_for() { for _ in $(seq 1 60); do [[ -s $1 ]] && return 0; sleep 0.1; done; return 1; }
 settles() { sleep 0.5; }
 
-# 1. a plain command: its id, its program and the process that becomes the app
+# 1. a plain command: its id, its program, the process that becomes the app, and when it began
 reset
+before="$(date +%s%3N)"
 launch --id fileManager app-one --new-window
+after="$(date +%s%3N)"
 waits_for "$QSLOG" || fail "no notice reached the shell"
 waits_for "$APPLOG" || fail "the app did not start"
 read -r _ app_pid < "$APPLOG"
-want="-c koompi ipc --any-display call launch begin -- fileManager app-one $app_pid"
-[[ "$(cat "$QSLOG" 2> /dev/null)" == "$want" ]] || fail "the notice is '$(cat "$QSLOG" 2> /dev/null)', want '$want' (the pid is the app's: exec keeps it)"
+notice="$(cat "$QSLOG" 2> /dev/null)"
+prefix="-c koompi ipc --any-display call launch begin -- fileManager app-one $app_pid "
+[[ "$notice" == "$prefix"* ]] || fail "the notice is '$notice', want '$prefix<ms>' (the pid is the app's: exec keeps it)"
+started="${notice#"$prefix"}"
+[[ "$started" =~ ^[0-9]{13}$ ]] || fail "the notice ends in '$started', want the launch's start in ms since the epoch"
+(( started >= before && started <= after )) || fail "the notice says the launch began at $started, which is not between $before and $after"
 [[ "$(wc -l < "$QSLOG")" -eq 1 ]] || fail "more than one notice for one launch"
 
 # 2. a desktop entry: the id is the entry's, the program is what its Exec runs
@@ -69,9 +75,10 @@ printf '[Desktop Entry]\nType=Application\nName=One\nExec=%s/app-one %%U\n' "$tm
 launch probe-one.desktop
 waits_for "$QSLOG" || fail "an entry's launch sent no notice"
 want="-c koompi ipc --any-display call launch begin -- probe-one app-one"
-[[ "$(cat "$QSLOG")" == "$want"* ]] || fail "the entry's notice is '$(cat "$QSLOG")', want '$want <pid>'"
+[[ "$(cat "$QSLOG")" == "$want"* ]] || fail "the entry's notice is '$(cat "$QSLOG")', want '$want <pid> <ms>'"
 
 # 3. a wrapper that picks its program at run time: the notice names the one it picks
+program_noticed() { awk '{ print $(NF - 2) }' "$QSLOG"; }
 for candidates in "no-such-app-x|app-two -1|app-three" "no-such-app-x||app-three" "app-one|app-two"; do
     reset
     IFS='|' read -r -a args <<< "$candidates"
@@ -79,14 +86,13 @@ for candidates in "no-such-app-x|app-two -1|app-three" "no-such-app-x||app-three
     waits_for "$QSLOG" || fail "the wrapper's launch sent no notice for '$candidates'"
     waits_for "$APPLOG" || fail "the wrapper started nothing for '$candidates'"
     read -r started _ < "$APPLOG"
-    noticed="$(awk '{ print $(NF - 1) }' "$QSLOG")"
+    noticed="$(program_noticed)"
     [[ "$noticed" == "$started" ]] || fail "for '$candidates' the wrapper started '$started' and koompi-launch told the shell '$noticed'"
 done
 reset
 launch --id terminal "$FIRST" no-such-app-x no-such-app-y
 waits_for "$QSLOG" || fail "a wrapper with nothing to start sent no notice"
-[[ "$(awk '{ print $(NF - 1) }' "$QSLOG")" == launch_first_available.sh ]] \
-    || fail "a wrapper with nothing to start: the notice names '$(awk '{ print $(NF - 1) }' "$QSLOG")'"
+[[ "$(program_noticed)" == launch_first_available.sh ]] || fail "a wrapper with nothing to start: the notice names '$(program_noticed)'"
 
 # 4. quiet: --registered (a shell surface already told it), --terminal (the window is the terminal's)
 reset

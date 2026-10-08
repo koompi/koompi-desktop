@@ -258,7 +258,7 @@ That is what lets `systemd-oomd` kill one app under memory pressure instead of t
 A bind for something the session cannot lose keeps `hl.dsp.exec_cmd` and stays out of `app.slice`.
 
 `koompi-launch` also tells the running shell what is opening, in one background call before it starts the app, so the bar's app identity can say "Opening" until the window maps.
-The call names the launch id, the program that will own the window (for `launch_first_available.sh`, the candidate it will pick) and the pid, which `exec` keeps.
+The call names the launch id, the program that will own the window (for `launch_first_available.sh`, the candidate it will pick), the pid, which `exec` keeps, and the time the launch began, so a terminal whose window maps before the call has reached the shell still ends it.
 A shell surface that already told the shell passes `--registered`, and a launch inside a terminal says nothing, because its window is the terminal's.
 No shell running is silent, and any other failure is a line in the journal under `koompi-launch`.
 

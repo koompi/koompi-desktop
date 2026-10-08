@@ -244,10 +244,17 @@ program_of() {
     done
 }
 
+# ms since the epoch; 0 where bash cannot say, and the shell then uses its own clock
+now_ms() {
+    REPLY=${EPOCHREALTIME-}
+    REPLY=${REPLY/[.,]/}
+    if [[ $REPLY =~ ^[0-9]+$ ]]; then REPLY=$((REPLY / 1000)); else REPLY=0; fi
+}
+
 # qs exits 255 when no shell runs; a shell without the handler answers "Target not found." and exits 0
 tell_shell() {
     local answer rc=0
-    answer=$(timeout 3 qs -c koompi ipc --any-display call launch begin -- "$1" "$2" "$3" 2>&1) || rc=$?
+    answer=$(timeout 3 qs -c koompi ipc --any-display call launch begin -- "$1" "$2" "$3" "$4" 2>&1) || rc=$?
     case $rc in
         0) [[ $answer == ok || $answer == ignored ]] || note "launch notice for $1: the shell answered '$answer'" ;;
         255) ;;
@@ -332,8 +339,10 @@ fi
 
 # a terminal app's window is the terminal's, which no entry of the app matches
 if ((registered == 0)) && [[ -z $terminal ]] && command -v qs >/dev/null 2>&1; then
+    now_ms
+    started=$REPLY
     program_of "$@"
-    (tell_shell "$id" "$REPLY" "$$" </dev/null >/dev/null 2>&1 &)
+    (tell_shell "$id" "$REPLY" "$$" "$started" </dev/null >/dev/null 2>&1 &)
 fi
 
 if [[ -n $cwd ]]; then

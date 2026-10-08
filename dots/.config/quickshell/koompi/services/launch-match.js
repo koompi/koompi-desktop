@@ -29,11 +29,8 @@ function entryForProgram(program, entries) {
     return found;
 }
 
-// spec: id, entryId, name, icon, startupClass, program, pid
-function record(spec, windows, active, now) {
-    const known = {};
-    for (const win of windows)
-        known[win.address] = true;
+// spec: id, entryId, name, icon, startupClass, program, pid, startedAt (ms, on whatever clock the caller read)
+function record(spec, now) {
     const entryId = spec.entryId || "";
     const id = spec.id || entryId;
     const names = [];
@@ -50,10 +47,17 @@ function record(spec, windows, active, now) {
         icon: spec.icon || "",
         pid: spec.pid || 0,
         names: names,
-        known: known,
-        activeAtStart: active ? active.address : "",
-        startedAt: now
+        startedAt: Math.min(spec.startedAt || now, now)
     };
+}
+
+// when each window was first seen and since when the focus has been where it is
+function track(seen, windows, active, now) {
+    const first = {};
+    for (const win of windows)
+        first[win.address] = seen.first[win.address] || now;
+    const focus = active ? active.address : "";
+    return { first: first, focus: focus, focusSince: focus === seen.focus ? seen.focusSince : now };
 }
 
 // entryOf joins dolphin on xcb and org.kde.dolphin on wayland into one entry
@@ -73,12 +77,9 @@ function matches(launch, win, entryOf) {
     return false;
 }
 
-function pidMapped(pid, windows) {
-    return pid > 0 && windows.some(win => win.pid === pid);
-}
-
-// an app that raises the window it already has maps nothing, so focus moving to a match counts
-function settle(launches, windows, active, entryOf, now, ttl) {
+// a window counts once it first showed up after the launch began, however late the shell heard of
+// the launch; an app that raises the window it has maps nothing, so focus moving to a match counts
+function settle(launches, windows, active, entryOf, now, ttl, seen) {
     const claimed = {};
     const waiting = [];
     for (const launch of launches) {
@@ -86,7 +87,7 @@ function settle(launches, windows, active, entryOf, now, ttl) {
             continue;
         let done = false;
         for (const win of windows) {
-            if (claimed[win.address] || launch.known[win.address] || win.mapped === false)
+            if (claimed[win.address] || !(seen.first[win.address] > launch.startedAt) || win.mapped === false)
                 continue;
             if (matches(launch, win, entryOf)) {
                 claimed[win.address] = true;
@@ -94,7 +95,7 @@ function settle(launches, windows, active, entryOf, now, ttl) {
                 break;
             }
         }
-        if (!done && active && active.address !== launch.activeAtStart && !claimed[active.address] && matches(launch, active, entryOf)) {
+        if (!done && active && seen.focusSince > launch.startedAt && !claimed[active.address] && matches(launch, active, entryOf)) {
             claimed[active.address] = true;
             done = true;
         }
