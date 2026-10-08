@@ -83,6 +83,9 @@ printf 'hyprctl %s\\n' "\$*" >> "$T/hyprctl.log"
 [[ "\${1:-}" == -j ]] && echo '{"option": "misc:disable_autoreload", "bool": false, "set": false}'
 exit 0
 STUB
+# recorders: whatever order reload_session takes, a shell restart lands here and not on the real shell
+printf '#!/usr/bin/env bash\nprintf "qs %%s\\n" "$*" >> "%s"\nexit 0\n' "$T/shell-touched.log" > "$T/bin/qs"
+printf '#!/usr/bin/env bash\nprintf "killall %%s\\n" "$*" >> "%s"\nexit 0\n' "$T/shell-touched.log" > "$T/bin/killall"
 
 mkdir -p "$T/repo"
 cat > "$T/repo/setup" <<STUB
@@ -265,6 +268,7 @@ for var in "" KOOMPI_SETUP_NO_RELOAD=1; do
         [[ -s "$T/hyprctl.log" ]] && fail "./setup reloaded although koompi update told it not to: $(cat "$T/hyprctl.log")"
     fi
 done
+[[ -s "$T/shell-touched.log" ]] && fail "a reload reached for the shell: $(cat "$T/shell-touched.log")"
 
 rm -f "$T/syu-ran"
 cat > "$T/bin/koompi-snapshot" <<'STUB'
