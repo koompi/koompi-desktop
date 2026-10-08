@@ -48,6 +48,11 @@ if [[ -n ${HYPRSHOT_CONFIG:-} ]]; then cp -- "$HYPRSHOT_CONFIG" "$home/.config/k
 else echo '{"windows": {"workspaceHelp": false}}' > "$home/.config/koompi/config.json"; fi
 printf '#!/usr/bin/env bash\nexit 1\n' > "$work/bin/koompi-shelld"
 chmod +x "$work/bin/koompi-shelld"
+# the shell's conflict check reads the host's process list: a kded6, mako or dunst there is not a conflict here
+if real_pidof=$(command -v pidof); then
+    printf '#!/usr/bin/env bash\nfor name in "$@"; do case $name in kded6|mako|dunst) exit 1 ;; esac; done\nexec %q "$@"\n' "$real_pidof" > "$work/bin/pidof"
+    chmod +x "$work/bin/pidof"
+fi
 
 {
     printf '#!/usr/bin/env bash\nset -uo pipefail\nsource %q\n' "$harness/tests/nested-hyprland.sh"
