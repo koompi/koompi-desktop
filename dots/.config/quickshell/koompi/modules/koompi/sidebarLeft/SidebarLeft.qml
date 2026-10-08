@@ -111,11 +111,11 @@ Scope { // Scope
             Loader {
                 id: sidebarLoader
                 active: false
-        
+
                 sourceComponent: PanelWindow { // Window
                     id: panelWindow
                     visible: GlobalStates.sidebarLeftOpen
-            
+
                     readonly property real screenWidth: panelWindow.screen?.width ?? 0
                     readonly property real widthNormal: screenWidth > 0
                         ? Math.round(screenWidth * Appearance.sizes.sidebarWidthFraction)
