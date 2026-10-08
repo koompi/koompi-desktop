@@ -291,22 +291,24 @@ ShellRoot {
         probe.show([], null);
         probe.after(() => {
             LaunchFeedback.begin(DesktopEntries.byId("probe-app"));
-            probe.show([first], null);
             probe.after(() => {
-                probe.show([first], first);
+                probe.show([first], null);
                 probe.after(() => {
-                    probe.verdict(!identity.launching, "closed: the first launch ended at its window");
-                    LaunchFeedback.add({ id: "probe-app", entryId: "probe-app", name: "Probe App", icon: "probe-icon", program: "probe-app-bin", startupClass: "ProbeWindowClass", startedAt: Date.now() - 60 });
+                    probe.show([first], first);
                     probe.after(() => {
-                        probe.verdict(identity.launching && identity.nameText === "Probe App", "closed: the app started again shows Opening: '" + identity.nameText + "'");
-                        probe.show([], null);
+                        probe.verdict(!identity.launching, "closed: the first launch ended at its window");
+                        LaunchFeedback.add({ id: "probe-app", entryId: "probe-app", name: "Probe App", icon: "probe-icon", program: "probe-app-bin", startupClass: "ProbeWindowClass", startedAt: Date.now() - 60 });
                         probe.after(() => {
-                            probe.verdict(identity.launching && identity.nameText === "Probe App", "closed: hearing that the first window has closed does not end it: '" + identity.nameText + "'");
-                            const next = probe.win("0xf2", "ProbeWindowClass", "Next window");
-                            probe.show([next], next);
+                            probe.verdict(identity.launching && identity.nameText === "Probe App", "closed: the app started again shows Opening: '" + identity.nameText + "'");
+                            probe.show([], null);
                             probe.after(() => {
-                                probe.verdict(!identity.launching && identity.titleText === "Next window", "closed: its own window does: '" + identity.titleText + "'");
-                                probe.several();
+                                probe.verdict(identity.launching && identity.nameText === "Probe App", "closed: hearing that the first window has closed does not end it: '" + identity.nameText + "'");
+                                const next = probe.win("0xf2", "ProbeWindowClass", "Next window");
+                                probe.show([next], next);
+                                probe.after(() => {
+                                    probe.verdict(!identity.launching && identity.titleText === "Next window", "closed: its own window does: '" + identity.titleText + "'");
+                                    probe.several();
+                                });
                             });
                         });
                     });
