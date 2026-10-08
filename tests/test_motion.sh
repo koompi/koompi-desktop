@@ -24,6 +24,8 @@
 #   final value, the work the change sets off first (a search, a list) left out: the
 #   best of three, 300 ms at most (60 ms with Reduce Motion). A value that jumps 150 ms
 #   after its trigger must settle in about 0, which proves the clock leaves the wait out.
+#   One start: the chain prints its first role line once. A second one means quickshell
+#   crashed and relaunched itself mid-run, which fails the run.
 #   The Hyprland half of the budget is test_motion_hypr.sh, the Hyprland modes are
 #   test_hypr_modes.sh.
 set -uo pipefail
@@ -151,7 +153,13 @@ grep -q 'Config.options.appearance.reduceMotion' "$APPEARANCE" \
     || fail "Appearance.qml does not read appearance.reduceMotion"
 grep -rq 'Config.options.appearance.reduceMotion' "$SHELL_ROOT/modules/settings" \
     || fail "no Settings page writes appearance.reduceMotion"
-(( failed )) || echo "ok   source: roles [${roles% }] and curves [${curves% }] read from Appearance.qml, appearance.reduceMotion in Config, Appearance and Settings, no Timer on the ladder, no looping animation that is 0 ms with Reduce Motion on"
+
+# one first-role line per probe start, so a second is quickshell relaunching itself after a crash
+chain_starts() { grep -c "^ DEBUG qml: INFO role ${roles%% *} " <<< "$1"; }
+start_line=" DEBUG qml: INFO role ${roles%% *} 200 ms, y max 1"
+[[ "$(chain_starts "$start_line")" == 1 && "$(chain_starts "$start_line"$'\n'"$start_line")" == 2 ]] \
+    || fail "the relaunch check cannot tell one start of the probe from two"
+(( failed )) || echo "ok   source: roles [${roles% }] and curves [${curves% }] read from Appearance.qml, appearance.reduceMotion in Config, Appearance and Settings, no Timer on the ladder, no looping animation that is 0 ms with Reduce Motion on, a doubled chain told from a single one"
 
 for tool in kwin_wayland qs dbus-run-session; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, static checks only"; exit "$failed"; }
@@ -534,9 +542,12 @@ if ! grep -q '^ DEBUG qml: PROBE DONE' <<< "$out" || grep -q '^ DEBUG qml: FAIL'
     grep -vE "qmlscanner|GlobalShortcut|global_shortcuts|MESA|^\s*$" <<< "$out" | tail -40 >&2
     fail "the motion probe did not pass"
 fi
+starts="$(chain_starts "$out")"
+(( starts <= 1 )) || fail "quickshell relaunched itself during the probe: its chain ran $starts times"
+(( starts > 0 )) || ! grep -q '^ DEBUG qml: PROBE DONE' <<< "$out" || fail "the probe finished without the first role line, which the relaunch check counts"
 if loops="$(grep -E 'Binding loop' <<< "$out")"; then
     echo "$loops" >&2
     fail "a QML binding loop"
 fi
 (( failed )) && exit 1
-echo "ok   probe: every role inside the budget, Reduce Motion collapses spatial roles, the ladder and the waffle with them, the thinking dots hold still, the real drawer and search pill settle inside it"
+echo "ok   probe: every role inside the budget, Reduce Motion collapses spatial roles, the ladder and the waffle with them, the thinking dots hold still, the real drawer and search pill settle inside it, quickshell started the probe once"
