@@ -55,6 +55,7 @@ ShellRoot {
     property int stepStarted: 0
     property string rateError: ""
     property int pendingEnded: 0
+    property var monitorsBefore: ({})
     readonly property string flags: Quickshell.env("PROBE_DIR")
     readonly property string cannotSave: flags + "/luac.fail"
     readonly property string ignored: flags + "/state.json.ignore"
@@ -166,6 +167,7 @@ ShellRoot {
         const elsewhere = { width: 1920, height: 1080, availableModes: ["1920x1080@60.00Hz", "1280x720@60.00Hz", "1280x720@50.00Hz"] };
         probe.verdict(probe.same(page.ratesAtCurrentSize(elsewhere), [60]), "rates at other resolutions do not count");
         probe.verdict(probe.same(page.ratesAtCurrentSize({ width: 1920, height: 1080 }), []), "a monitor that lists no modes offers no rate");
+        probe.monitorsBefore = page.hyprMonitors;
         hdmi.array.selected(74.97);
     }
 
@@ -180,6 +182,10 @@ ShellRoot {
             "both groups and every pill in them stay enabled while it waits");
         probe.verdict(probe.toggledText(rate) === "75 Hz", "the toggled rate pill is the new rate, got " + JSON.stringify(probe.toggledText(rate)));
         probe.verdict(probe.toggledText(place) === "Right of", "the toggled position pill is Right of, got " + JSON.stringify(probe.toggledText(place)));
+        const fresh = page.hyprMonitors;
+        page.hyprMonitors = probe.monitorsBefore;
+        probe.verdict(probe.toggledText(rate) === "75 Hz", "the toggled rate pill stays the new rate while the monitor reading still says the old one, got " + JSON.stringify(probe.toggledText(rate)));
+        page.hyprMonitors = fresh;
         probe.pill(rate, "60 Hz").clicked();
         probe.pill(place, "Left of").clicked();
         probe.verdict(page.busy === 0, "a click on another rate and on another position starts no tool call");
