@@ -7,8 +7,9 @@
 #   from 0.3 s on: the shell has been told, and says it is opening the app
 #   once the window maps: the launch ends, well inside the 8 s ttl, so it was the window
 # once with the program found by what its Exec runs and the window by StartupWMClass, once
-# with a window only the launched pid can claim, and once more straight after that window is
-# closed, when the shell can still be hearing of the closed window as the new launch begins.
+# with a window only the launched pid can claim, and a third time while that window is still
+# open: it is closed once the shell has the launch, so the shell hears of the close after it
+# hears of the launch, and the launch has to stay until its own window maps.
 # SHOTS=<dir> keeps the screenshots: the empty desktop, the first answer, and 3 s after the bind.
 #
 # Nothing outlives the session. Each app registers its pid and start time in $WORK/pids; after
@@ -277,10 +278,13 @@ grim "$WORK/shots/empty-desktop.png" 2>> "$WORK/grim.log"
 
 # name, bind script, window title it ends up with; the notice is a qs process of its own, so
 # the shell is asked from 0.3 s on and the screenshot is taken at the first answer
-early="" seen=-1 mapped=-1 cleared=-1 t0=0
+# name, bind script, window title it ends up with, and whether to close the windows already open once
+# the shell has the launch; the notice is a qs process of its own, so the shell is asked from 0.3 s on
+# and the screenshot is taken at the first answer
+early="" seen=-1 mapped=-1 cleared=-1 dropped=-1 t0=0
 attempt() {
-    local name=$1 bind=$2 title=$3
-    early="" seen=-1 mapped=-1 cleared=-1
+    local name=$1 bind=$2 title=$3 close_open=${4:-}
+    early="" seen=-1 mapped=-1 cleared=-1 dropped=-1
     t0=$(now_ms)
     echo "$t0 dispatch $bind" >> "$WORK/trace"
     hyprctl dispatch 'hl.dsp.exec_cmd("'"$bind"'")' > /dev/null 2>&1
@@ -291,20 +295,25 @@ attempt() {
         (( $(now_ms) - t0 > 2500 )) && break
     done
     grim "$WORK/shots/$name-0.3s.png" 2>> "$WORK/grim.log"
+    [[ -z $close_open ]] || close_probe_windows
     for _ in $(seq 1 120); do
+        # the shell is asked before the compositor: a launch it ended at the window's map has the window listed by then
+        pending=$(status)
         if (( mapped < 0 )) && [[ $(clients | jq -r --arg t "$title" '[.[] | select(.title == $t)] | length') -gt 0 ]]; then mapped=$(($(now_ms) - t0)); fi
-        if (( mapped >= 0 )) && [[ -z $(status) ]]; then cleared=$(($(now_ms) - t0)); break; fi
+        if (( mapped < 0 && dropped < 0 && seen >= 0 )) && [[ -z $pending ]]; then dropped=$(($(now_ms) - t0)); fi
+        if (( mapped >= 0 )) && [[ -z $pending ]]; then cleared=$(($(now_ms) - t0)); break; fi
         if (( $(now_ms) - t0 > 20000 )); then break; fi
         sleep 0.1
     done
 }
 
-# a dialog that was started and never maps is the loaded nested compositor stalling, whatever the shell
-# did, so it is started once more; a second stall fails the scenario
+# keep leaves this launch's window open for the next scenario. A dialog that was started and never
+# maps is the loaded nested compositor stalling, whatever the shell did, so it is started once more;
+# a second stall fails the scenario
 scenario() {
-    local name=$1 bind=$2 title=$3 try spent
+    local name=$1 bind=$2 title=$3 close_open=${4:-} keep=${5:-} try spent
     for try in 1 2; do
-        attempt "$name" "$bind" "$title"
+        attempt "$name" "$bind" "$title" "$close_open"
         (( mapped >= 0 )) && break
         diag "$name: no window after $(($(now_ms) - t0)) ms (try $try)"
         echo "$name: try $try started the app and no window came" >> "$WORK/stalls"
@@ -313,6 +322,7 @@ scenario() {
     done
     reading "$name.early" "$early"
     reading "$name.seen_ms" "$seen"
+    reading "$name.dropped_ms" "$dropped"
     reading "$name.mapped_ms" "$mapped"
     reading "$name.cleared_ms" "$cleared"
     spent=$(($(now_ms) - t0))
@@ -320,13 +330,14 @@ scenario() {
     reading "$name.late" "$(status)"
     reading "$name.focus" "$(hyprctl activewindow -j 2> /dev/null | jq -r '.title // ""')"
     grim "$WORK/shots/$name-3s.png" 2>> "$WORK/grim.log"
+    [[ -n $keep ]] && return 0
     close_probe_windows
     end_registered
 }
 
 scenario slowprobe bind-first 'slow-probe-app title'
-scenario slowpid bind-pid 'slow-probe-pid title'
-scenario slowagain bind-first 'slow-probe-app title'
+scenario slowpid bind-pid 'slow-probe-pid title' '' keep
+scenario slowagain bind-first 'slow-probe-app title' close_open
 SH
 chmod +x "$WORK/inner.sh"
 
@@ -387,11 +398,12 @@ before=$failed
 (( failed == before )) && echo "ok   idle: nothing is opening before a launch"
 
 check_scenario() {
-    local name=$1 want=$2 title=$3 early mapped cleared before=$failed
-    early="$(field "$name.early")" mapped="$(field "$name.mapped_ms")" cleared="$(field "$name.cleared_ms")"
+    local name=$1 want=$2 title=$3 early mapped cleared dropped before=$failed
+    early="$(field "$name.early")" mapped="$(field "$name.mapped_ms")" cleared="$(field "$name.cleared_ms")" dropped="$(field "$name.dropped_ms")"
     [[ "$early" == "$want" ]] || fail "$name: from 0.3 s on the shell says '$early' is opening, want '$want'"
     if [[ -z "$mapped" || "$mapped" -lt 0 ]]; then fail "$name: the slow app never mapped a window"; return; fi
     if (( mapped >= 7000 )); then fail "setup: $name took $mapped ms to map, so the 8 s ttl could have ended the launch, not the window"; return; fi
+    [[ "$dropped" == -1 ]] || fail "$name: the shell stopped saying it is opening at $dropped ms, before the window mapped at $mapped ms"
     if [[ -z "$cleared" || "$cleared" -lt 0 ]]; then fail "$name: the window mapped at $mapped ms and the shell still says '$(field "$name.late")' is opening"; return; fi
     (( cleared - mapped < 2000 )) || fail "$name: the window mapped at $mapped ms and the launch ended at $cleared ms, the ttl's doing and not the window's"
     [[ -z "$(field "$name.late")" ]] || fail "$name: 3 s after the bind the shell says '$(field "$name.late")' is opening"
@@ -416,4 +428,4 @@ fi
 
 [[ ! -s $WORK/leaks ]] || fail "a process survived SIGKILL: $(cat "$WORK/leaks")"
 (( failed == 0 )) || { dump; exit 1; }
-echo "ok   nested Hyprland: a key bind's launch is announced, and ended by its window, found by StartupWMClass and by pid, and again straight after a window closed; nothing outlived the session"
+echo "ok   nested Hyprland: a key bind's launch is announced and kept until its own window maps, found by StartupWMClass and by pid, and when the window of an earlier launch closes meanwhile; nothing outlived the session"
