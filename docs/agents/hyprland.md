@@ -15,8 +15,9 @@ shell's dispatch calls were ported onto. Search `hyprland/lib/` before assuming 
 
 `dots/.config/hypr/hyprland.lua` is the entry point and `require`s both trees:
 
-- `hyprland/*.lua` — package-owned. Resynced by `koompi-migrate` / `./setup`; any
-  edit here is silently overwritten on the next install or update.
+- `hyprland/*.lua` — package-owned. Resynced by `./setup update` on the git route and by
+  `koompi-migrate --apply` on the packaged one, which `koompi update` runs; any edit here
+  is silently overwritten on the next install or update.
 - `custom/*.lua` — user-owned. Listed in `sdata/install/files.sh`'s `KEEP_PATHS`:
   written once if absent, never clobbered afterward. Each `custom/*.lua` file is
   `require`d only `if is_file_exists(...)`, so an absent file is simply skipped, not

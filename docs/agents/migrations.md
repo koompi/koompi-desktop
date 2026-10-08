@@ -16,10 +16,9 @@ the `omarchy-pkg-*` helper family, the 4.0 upgrade special case.
 Change the default when the fix lives in a file the sync already owns:
 anything under `dots/.config/quickshell/koompi/` or `dots/.config/hypr/hyprland/`, and
 `config.json` defaults, which `koompi-migrate` merges three-way (user values win).
-Every existing user picks it up at their next `./setup update` (the git route copies those trees)
-or `koompi-migrate --apply`, with no extra code.
-`koompi update` merges the `config.json` defaults on both routes, but when packages deliver the
-update it does not run the sync: that is `koompi-migrate --apply`.
+Every existing user picks it up at their next `koompi update`, with no extra code.
+Both routes deliver the code trees: the git route copies them through `./setup update`, and a
+packaged update that the packages deliver runs `koompi-migrate --apply` once the upgrade has landed.
 
 Write a migration only when the state is outside those trees or the change is not a
 plain overwrite: a file the sync never touches (`~/.config/hypr/custom/`, `hypridle.conf`,
@@ -84,11 +83,16 @@ A staged package tree (`makepkg`'s `pkgdir`) works as it stands, because the cop
 after each success.
 `koompi-migrate --pending` lists them (exit 0 if any, 1 if none).
 
-`koompi update` runs `koompi-migrate run` on every route, in its own output: after the packages or the checkout are in place, and before it reloads the shell.
+`koompi update` on a packaged install that the packages deliver first runs `koompi-migrate --apply` (the sync), right after the upgrade.
+It sets `KOOMPI_MIGRATE_NO_RELOAD` for it, so the sync still pauses Hyprland's autoreload while it writes but leaves the reload to the update, which comes once and last.
+A failing sync fails the update on the spot, as a failing `./setup update` does on the git route: no migrations, no reload.
+The git route and the fallback to the checkout never call it, because `./setup update` has copied the trees.
+
+`koompi update` then runs `koompi-migrate run` on every route, in its own output: after the packages or the checkout are in place, and before it reloads the shell.
 On the git route it tells `./setup update` not to reload on its own (`KOOMPI_SETUP_NO_RELOAD`), so the reload still comes last.
 A failing migration does not stop the reload, because a migration is never load-bearing.
 It does fail the update: the output says which one failed, the update exits 1 instead of printing that it is up to date, and the failed migration and the ones after it stay pending.
-`koompi update --dry-run` lists what is pending and runs nothing.
+`koompi update --dry-run` says it would sync, lists what is pending, and runs nothing.
 `./setup update` on its own does not run migrations.
 
 At login, `koompi-migrate-notify.service` (`dots/.config/systemd/user/`) runs

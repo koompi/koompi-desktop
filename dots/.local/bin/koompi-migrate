@@ -55,6 +55,8 @@ config autoreload is paused while hyprland/ is written and reloaded once
 after. ~/.config/koompi/config.json keeps every value you set; only defaults
 you never changed are brought up to the packaged ones (backed up first as
 config.json.bak-<timestamp>), using the snapshot saved by the last update.
+`koompi update` runs --apply after a packaged upgrade, with
+KOOMPI_MIGRATE_NO_RELOAD set so that it leaves the one reload to the update.
 
 --pending lists point-fix migrations (sdata/migrations/) not yet applied for
 this user; exits 0 if any are pending, 1 if none. They are read from the
@@ -252,8 +254,11 @@ if $apply && [[ "$changes" -gt 0 ]]; then
     # Reload while the watcher is still off, then hand the option back: the
     # reload records the new mtimes, so re-enabling does not trigger a second one.
     if [[ -n "$autoreload_prev" ]]; then
-        hyprctl reload >/dev/null && echo "  hyprland config reloaded" \
-            || echo "  note  hyprctl reload failed; run 'koompi reload'" >&2
+        # koompi update reloads once, last
+        if [[ -z "${KOOMPI_MIGRATE_NO_RELOAD:-}" ]]; then
+            hyprctl reload >/dev/null && echo "  hyprland config reloaded" \
+                || echo "  note  hyprctl reload failed; run 'koompi reload'" >&2
+        fi
         resume_autoreload
     fi
 fi
@@ -312,7 +317,9 @@ mkdir -p "$(dirname "$LOG_FILE")"
 printf '%s %s changes=%s\n' "$(date -Iseconds)" "$($apply && echo apply || echo dry-run)" "$changes" >> "$LOG_FILE"
 
 if $apply && [[ "$changes" -gt 0 ]]; then
-    echo "koompi-migrate: done. Restart the shell (or log out and back in) to load it."
+    restart_note=" Restart the shell (or log out and back in) to load it."
+    [[ -z "${KOOMPI_MIGRATE_NO_RELOAD:-}" ]] || restart_note=""
+    echo "koompi-migrate: done.$restart_note"
 elif ! $apply && [[ "$changes" -gt 0 ]]; then
     echo "koompi-migrate: $changes pending changes. Run 'koompi-migrate --apply' to sync."
 else

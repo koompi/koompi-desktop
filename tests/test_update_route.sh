@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# every koompi update route says what the packages delivered, runs koompi-migrate once before the reload, and fails on a failed migration
+# every koompi update route says what the packages delivered; the packaged one syncs the code trees, then each runs koompi-migrate once, before the one reload
 set -uo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -40,6 +40,12 @@ cat > "$T/bin/koompi-migrate" <<STUB
 printf 'koompi-migrate %s\\n' "\$*" >> "$T/order"
 case "\${1:-}" in
     --pending) echo 1000-shim.sh; exit 0 ;;
+    --apply)
+        printf 'apply no-reload=%s\\n' "\${KOOMPI_MIGRATE_NO_RELOAD:-}" >> "$T/order"
+        echo "koompi-migrate shim: apply"
+        [[ -e "$T/apply-fails" ]] || exit 0
+        echo "koompi-migrate: rsync required" >&2
+        exit 1 ;;
     run)
         echo "koompi-migrate shim: run"
         [[ -e "$T/migrate-fails" ]] || exit 0
@@ -60,11 +66,23 @@ STUB
 printf '#!/usr/bin/env bash\nexit 0\n' > "$T/bin/koompi-snapshot"
 printf '#!/usr/bin/env bash\nexit 2\n' > "$T/bin/fwupdmgr"
 printf '#!/usr/bin/env bash\nwhile [[ "${1:-}" == --* ]]; do shift; done\nexec "$@"\n' > "$T/bin/systemd-inhibit"
-# no sessions and no lock screen, so the real seat's lock state never decides a route
-printf '#!/usr/bin/env bash\nexit 0\n' > "$T/bin/loginctl"
+# no sessions and no lock screen unless a scenario locks one, so the real seat's lock state never decides a route
+cat > "$T/bin/loginctl" <<STUB
+#!/usr/bin/env bash
+[[ -e "$T/locked" ]] || exit 0
+case "\${1:-}" in
+    list-sessions) printf '3 %s %s seat0 2188 user tty1 no -\\n' "$(id -u)" "$(id -un)" ;;
+    show-session)  echo yes ;;
+esac
+STUB
 printf '#!/usr/bin/env bash\nexit 1\n' > "$T/bin/pgrep"
 printf '#!/usr/bin/env bash\nexit 1\n' > "$T/bin/pidof"
-printf '#!/usr/bin/env bash\nprintf "hyprctl %%s\\n" "$*" >> "%s"\nexit 0\n' "$T/hyprctl.log" > "$T/bin/hyprctl"
+cat > "$T/bin/hyprctl" <<STUB
+#!/usr/bin/env bash
+printf 'hyprctl %s\\n' "\$*" >> "$T/hyprctl.log"
+[[ "\${1:-}" == -j ]] && echo '{"option": "misc:disable_autoreload", "bool": false, "set": false}'
+exit 0
+STUB
 
 mkdir -p "$T/repo"
 cat > "$T/repo/setup" <<STUB
@@ -93,6 +111,8 @@ before() {
     [[ -n "$first" && -n "$second" ]] && (( first < second ))
 }
 ran_once() { [[ "$(grep -c '^koompi-migrate run$' "$T/order")" -eq 1 ]]; }
+applied_once() { [[ "$(grep -c '^koompi-migrate --apply$' "$T/order")" -eq 1 ]]; }
+never_applied() { ! grep -q '^koompi-migrate --apply$' "$T/order"; }
 RELOADED='the update applies at your next login'
 
 : > "$T/order"
@@ -108,6 +128,7 @@ grep -q 'packages up to date' <<<"$out" \
 grep -qx 'koompi-migrate --pending' "$T/order" || fail "a dry run did not ask koompi-migrate what is pending"
 grep -q '^koompi-migrate run' "$T/order" && fail "a dry run ran the migrations"
 grep -q 'would run: 1000-shim.sh' <<<"$out" || fail "a dry run did not list the pending migration: $out"
+never_applied || fail "the git fallback applied the code-tree sync, which ./setup update already does: $(cat "$T/order")"
 
 rm -f "$T/setup-called" "$T/syu-ran"
 : > "$T/order"
@@ -117,6 +138,8 @@ grep -q 'packages up to date (route: packaged)' <<<"$out" \
     || fail "a configured [koompi] repo should end as a packaged update: $out"
 [[ -e "$T/setup-called" ]] && fail "the git route ran although the repo is configured"
 grep -q '^koompi-migrate run' "$T/order" && fail "a dry run ran the migrations on the packaged route"
+never_applied || fail "a dry run applied the code-tree sync: $(cat "$T/order")"
+grep -q 'would copy the packaged shell and Hyprland trees' <<<"$out" || fail "a dry run does not say it would sync the code trees: $out"
 
 rm -f "$T/setup-called"
 : > "$T/order"
@@ -129,6 +152,10 @@ ran_once || fail "the packaged route did not run koompi-migrate run exactly once
 before "$T/order" '^pacman -Syu' '^koompi-migrate run$' || fail "the migrations ran before the packages were upgraded: $(cat "$T/order")"
 printf '%s\n' "$out" > "$T/out"
 before "$T/out" 'koompi-migrate shim: run' "$RELOADED" || fail "the packaged route reloaded before it ran the migrations: $out"
+applied_once || fail "the packaged route did not apply the code-tree sync exactly once: $(cat "$T/order")"
+before "$T/order" '^pacman -Syu' '^koompi-migrate --apply$' || fail "the sync ran before the packages were upgraded: $(cat "$T/order")"
+before "$T/order" '^koompi-migrate --apply$' '^koompi-migrate run$' || fail "the migrations ran before the code-tree sync: $(cat "$T/order")"
+grep -qx 'apply no-reload=1' "$T/order" || fail "the sync was not told to leave the reload to the update: $(cat "$T/order")"
 
 rm -f "$T/setup-called"
 : > "$T/order"
@@ -140,6 +167,7 @@ before "$T/order" '^setup update --yes' '^koompi-migrate run$' || fail "the migr
 grep -qx 'setup update --yes \[no-reload=1\]' "$T/order" || fail "the engine let ./setup update reload before the migrations ran: $(cat "$T/order")"
 printf '%s\n' "$out" > "$T/out"
 before "$T/out" 'koompi-migrate shim: run' "$RELOADED" || fail "the git fallback reloaded before it ran the migrations: $out"
+never_applied || fail "the git fallback applied the code-tree sync, which ./setup update already does: $(cat "$T/order")"
 
 : > "$T/order"
 touch "$T/not-packaged"
@@ -149,13 +177,37 @@ before "$T/order" '^setup update --yes' '^koompi-migrate run$' || fail "the migr
 grep -qx 'setup update --yes \[no-reload=1\]' "$T/order" || fail "the engine let ./setup update reload before the migrations ran: $(cat "$T/order")"
 printf '%s\n' "$out" > "$T/out"
 before "$T/out" 'koompi-migrate shim: run' "$RELOADED" || fail "the from-git route reloaded before it ran the migrations: $out"
+never_applied || fail "the from-git route applied the code-tree sync, which ./setup update already does: $(cat "$T/order")"
 
 : > "$T/order"
 out="$(run_update --yes --no-reload)"
 grep -q 'not reloading' <<<"$out" || fail "--no-reload is not honoured on the from-git route: $out"
 ran_once || fail "--no-reload skipped the migrations: $(cat "$T/order")"
+never_applied || fail "the from-git route applied the code-tree sync under --no-reload: $(cat "$T/order")"
 
 rm -f "$T/not-packaged" "$T/versions-static"
+: > "$T/order"
+: > "$T/hyprctl.log"
+out="$(run_update --yes --no-reload)"
+grep -q 'not reloading' <<<"$out" || fail "--no-reload is not honoured on the packaged route: $out"
+applied_once || fail "--no-reload skipped the code-tree sync: $(cat "$T/order")"
+grep -qx 'apply no-reload=1' "$T/order" || fail "--no-reload let the sync reload Hyprland itself: $(cat "$T/order")"
+ran_once || fail "--no-reload skipped the migrations: $(cat "$T/order")"
+[[ -s "$T/hyprctl.log" ]] && fail "--no-reload reloaded Hyprland: $(cat "$T/hyprctl.log")"
+
+: > "$T/order"
+touch "$T/apply-fails"
+hooks="$(wc -l < "$T/hook")"
+out="$(run_update --yes)"
+rc=$?
+[[ $rc -eq 1 ]] || fail "a failed code-tree sync must fail the update (rc=$rc): $out"
+applied_once || fail "the failed sync was not the one call: $(cat "$T/order")"
+grep -q 'koompi-migrate --apply failed' <<<"$out" || fail "the update does not say the sync failed: $out"
+grep -q '^koompi-migrate run' "$T/order" && fail "a failed sync still ran the migrations: $(cat "$T/order")"
+grep -q "$RELOADED" <<<"$out" && fail "a failed sync still reached the reload: $out"
+[[ "$(wc -l < "$T/hook")" -eq "$hooks" ]] || fail "a failed sync still fired the post-update hook"
+rm -f "$T/apply-fails"
+
 : > "$T/order"
 touch "$T/migrate-fails"
 hooks="$(wc -l < "$T/hook")"
@@ -174,6 +226,32 @@ out="$(PATH="$T/empty" "$BASH" -c 'source "$1"; run_migrations' _ "$ROOT/dots/.l
 rc=$?
 [[ $rc -eq 1 ]] || fail "a missing koompi-migrate must fail the update's migration step (rc=$rc): $out"
 grep -q 'koompi-migrate is not on PATH' <<<"$out" || fail "a missing koompi-migrate is not reported: $out"
+out="$(PATH="$T/empty" "$BASH" -c 'source "$1"; sync_code_trees' _ "$ROOT/dots/.local/share/koompi/libexec/update-lib.sh" 2>&1)"
+rc=$?
+[[ $rc -eq 1 ]] || fail "a missing koompi-migrate must fail the update's code-tree sync (rc=$rc): $out"
+grep -q 'koompi-migrate is not on PATH' <<<"$out" || fail "a missing koompi-migrate is not reported by the sync: $out"
+
+if command -v rsync > /dev/null 2>&1; then
+    mkdir -p "$T/skel/.config/hypr/hyprland" "$T/migs" "$T/home/.config/hypr/hyprland"
+    printf 'shipped = 2\n' > "$T/skel/.config/hypr/hyprland/general.lua"
+    mv "$T/bin/koompi-migrate" "$T/koompi-migrate.shim"
+    printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$ROOT/dots/.local/bin/koompi-migrate" > "$T/bin/koompi-migrate"
+    chmod +x "$T/bin/koompi-migrate"
+    touch "$T/locked"
+    for flag in "" --no-reload; do
+        printf 'shipped = 1\n' > "$T/home/.config/hypr/hyprland/general.lua"
+        : > "$T/hyprctl.log"
+        out="$(KOOMPI_MIGRATE_SKEL="$T/skel" KOOMPI_MIGRATE_XDG="$T/no-xdg" KOOMPI_MIGRATE_MIGRATIONS_DIR="$T/migs" \
+            HYPRLAND_INSTANCE_SIGNATURE=test-session run_update --yes ${flag:+"$flag"})" || fail "the update with the real koompi-migrate failed: $out"
+        [[ "$(cat "$T/home/.config/hypr/hyprland/general.lua")" == 'shipped = 2' ]] || fail "the real sync did not copy the Hyprland tree: $out"
+        expected=$'hyprctl -j getoption misc:disable_autoreload\nhyprctl keyword misc:disable_autoreload 1\nhyprctl keyword misc:disable_autoreload false'
+        [[ -n "$flag" ]] || expected+=$'\nhyprctl reload'
+        [[ "$(cat "$T/hyprctl.log")" == "$expected" ]] \
+            || fail "with the real koompi-migrate ${flag:-and no flag} Hyprland should reload once, last, and not under --no-reload: $(cat "$T/hyprctl.log")"
+    done
+    rm -f "$T/locked"
+    mv "$T/koompi-migrate.shim" "$T/bin/koompi-migrate"
+fi
 
 for var in "" KOOMPI_SETUP_NO_RELOAD=1; do
     : > "$T/hyprctl.log"

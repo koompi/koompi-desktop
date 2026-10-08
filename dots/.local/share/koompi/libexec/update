@@ -60,9 +60,10 @@ It detects how KOOMPI was installed and does the right thing:
                          desktop change we committed.
   from a git checkout    git pull, then ./setup update
 
-Both routes also migrate changed config defaults into your config.json,
-backing it up to config.json.bak-<timestamp> first, then run the pending
-per-user migrations (koompi-migrate run) before the session is reloaded.
+Both routes also bring your home copy of the shell and Hyprland files up to
+date (packaged: koompi-migrate --apply, git: ./setup update), migrate changed
+config defaults into your config.json (backed up as config.json.bak-<timestamp>
+first), then run the pending per-user migrations before the session reloads.
 
 One run at a time, awake throughout, 2 GiB free required, locked session left alone.
 Every real run keeps a transcript in ~/.local/state/koompi/logs/update-<stamp>.log
@@ -553,10 +554,7 @@ update_packaged() {
     check_restart_needed
     firmware_advice
 
-    # Could anything of ours have moved? Either the [koompi] repo is real on
-    # this machine, or some koompi-* package version changed. If neither, say
-    # so honestly and deliver the desktop the other way instead of declaring
-    # victory over packages that never carried it.
+    # the [koompi] repo is real here or a koompi-* package moved; if neither, deliver the desktop the other way
     after_versions="$(packaged_versions_now)"
     local delivered=false
     koompi_repo_enabled && delivered=true
@@ -579,6 +577,7 @@ update_packaged() {
 
     ok "packages up to date (route: packaged)"
     apply_hardware_quirks
+    sync_code_trees
 
     local post_dump=""
     post_dump="$(mktemp "${TMPDIR:-/tmp}/koompi-post.XXXXXX")"

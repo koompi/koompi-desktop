@@ -194,6 +194,17 @@ setup_update() {
     KOOMPI_SETUP_NO_RELOAD=1 "$1/setup" update "${@:2}" || die "./setup update failed"
 }
 
+# packaged route only (the git route copies the trees in ./setup update); main reloads, so the sync is told not to
+sync_code_trees() {
+    step "Syncing the shell and Hyprland trees"
+    have koompi-migrate || die "koompi-migrate is not on PATH; the shell and Hyprland trees were not synced"
+    if [[ "$DRY_RUN" == true ]]; then
+        info "dry run: would copy the packaged shell and Hyprland trees into your home (koompi-migrate --apply)"
+        return 0
+    fi
+    KOOMPI_MIGRATE_NO_RELOAD=1 run koompi-migrate --apply || die "koompi-migrate --apply failed"
+}
+
 # 1 on a failed migration or a missing koompi-migrate: main still reloads, since a migration is never load-bearing, then fails the update
 run_migrations() {
     step "Running migrations"

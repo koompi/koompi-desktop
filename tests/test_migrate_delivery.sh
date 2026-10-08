@@ -67,6 +67,15 @@ expected=$'-j getoption misc:disable_autoreload\nkeyword misc:disable_autoreload
 [[ "$(cat "$HYPRCTL_LOG")" == "$expected" ]] || fail "hyprctl sequence on success: $(cat "$HYPRCTL_LOG")"
 [[ "$(cat "$HOME/.config/hypr/hyprland/general.lua")" == 'shipped = 2' ]] || fail "hyprland/ was not synced"
 
+# 1b. KOOMPI_MIGRATE_NO_RELOAD: the guard stays, the reload and the restart advice go (koompi update reloads once, last).
+reset_home
+HYPRLAND_INSTANCE_SIGNATURE=shim KOOMPI_MIGRATE_NO_RELOAD=1 "$MIGRATE" --apply > "$TEST_ROOT/out" 2>&1 || fail "--apply failed under KOOMPI_MIGRATE_NO_RELOAD: $(cat "$TEST_ROOT/out")"
+expected=$'-j getoption misc:disable_autoreload\nkeyword misc:disable_autoreload 1\nkeyword misc:disable_autoreload false'
+[[ "$(cat "$HYPRCTL_LOG")" == "$expected" ]] || fail "hyprctl sequence under KOOMPI_MIGRATE_NO_RELOAD: $(cat "$HYPRCTL_LOG")"
+[[ "$(cat "$HOME/.config/hypr/hyprland/general.lua")" == 'shipped = 2' ]] || fail "hyprland/ was not synced under KOOMPI_MIGRATE_NO_RELOAD"
+grep -q 'Restart the shell' "$TEST_ROOT/out" && fail "the closing line sends the user off to restart a shell the update restarts: $(cat "$TEST_ROOT/out")"
+grep -q '^koompi-migrate: done\.$' "$TEST_ROOT/out" || fail "no plain closing line under KOOMPI_MIGRATE_NO_RELOAD: $(cat "$TEST_ROOT/out")"
+
 # 2. rsync fails mid-sync: the EXIT trap still restores the option, no reload.
 reset_home; touch "$TEST_ROOT/rsync-fail"
 if HYPRLAND_INSTANCE_SIGNATURE=shim "$MIGRATE" --apply > "$TEST_ROOT/out" 2>&1; then fail "--apply succeeded with a failing rsync"; fi
