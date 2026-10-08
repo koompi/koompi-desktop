@@ -1,0 +1,32 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "j15": "J15 (harness flakes) is in verification: nested Hyprland in headless KWin sometimes gets no output because aquamarine 0.15.1's Wayland backend never flushes a new output's requests (wire logs from 30 sessions; a one-line flush in a scratch build fixed 60 of 60 starts against 44 of 60; fixed upstream after 0.15.1; real sessions use DRM and are unaffected). Tests and hyprshot now start Hyprland through a helper that restarts a start with no output. test_motion now clocks animations from their first step, not from the search that triggers them.",
+    "qs_crash": "test_motion's probe (qs -p motion_probe.qml) segfaulted twice in 60 bare runs today, both toasted on the founder's desktop. Quickshell relaunches itself after a crash and the probe reruns, so the test passed and hid the crash. Under gdb (a caught SIGSEGV never reaches systemd-coredump, so no toast) 69 runs crashed 0 times, so no backtrace. The crashes appeared only with J15's patched probe (2 of 90 runs) and not before (0 of about 125); J15's patch adds a 150 ms busy-wait on the UI thread (while (Date.now() < end) {}), which J15 cannot exclude as the trigger. Other probes (media_probe, recent_probe) crashed on 10-07, so the family predates it. ulimit -c 0 was not tested; it may still journal the crash and toast.",
+    "easyeffects": "J15 attributed 10 easyeffects SIGABRTs today, one per full-suite run in any worktree: a nested full-shell test starts the real easyeffects --hide-window --service-mode (EasyEffects.enable(), on by default since J12 for a profile with nothing stored, which every scratch HOME is), and it aborts in the test session. Each is a crash toast on the founder's desktop, so every full suite the swarm runs adds one. Which test starts it was not traced. Queued J41 already owns two neighbouring items: crash watch announcing only its own session's crashes (which would also silence these toasts), and test shells staying off the session's polkit agent. J41 was waiting for J15's harness files, which J15 delivers now. Queue: J44 running, then J45, J41, J28, J29.",
+    "first_ask": "J15_easyeffects_routing ESCALATE: into_j41_keep_order=0.5, into_j41_ahead_of_j45=0.44 (both put it in J41; the split is order). J15_qs_crash_next timer_and_fail_on_relaunch p=1.0.",
+    "runsh_now": "J42 is running a tiny round 5 that edits tests/run.sh right now (unsetting the caller's XDG variables for every test). The same round could put a stand-in easyeffects first on every test's PATH, so no test starts the real binary and the toasts stop at J42's merge, independent of when J41 runs; J41 still traces which test starts it and scopes crash watch. Tests that check EasyEffects behaviour would need to keep using their own stand-ins (to be confirmed by J42's full-suite run).",
+    "slots": "Six workers run (J42 round 5, J16 round 3, J07, J13, J08, J44), the decided cap. J15 is done; its round 2 (swap the busy-wait for a Timer, fail test_motion on a relaunch) is a few lines in tests/test_motion.sh plus test runs."
+  },
+  "questions": {
+    "J15_easyeffects_routing": {
+      "type": "choice",
+      "instructions": "Test shells start the real easyeffects, one crash toast on the founder's desktop per full suite. What now?",
+      "criteria": {
+        "runsh_stub_now_j41_keeps_order": "J42's round 5 also puts a stand-in easyeffects first on every test's PATH in tests/run.sh; J41 gets the tracing and crash-watch scoping in its usual place after J45. Strongest case: the toasts stop at J42's merge with a few lines in a file J42 is already changing, and no queue moves. Cost: J42's round grows a little, and the run.sh stand-in hides which test starts the binary until J41 traces it.",
+        "into_j41_ahead_of_j45": "Add it to J41 and move J41 ahead of J45. Strongest case: one job owns test shells touching the live session. Cost: toasts continue until J41 lands, and J45 waits.",
+        "into_j41_keep_order": "Add it to J41 and keep the order. Strongest case: no reordering. Cost: toasts continue longest.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J15_round2_timing": {
+      "type": "choice",
+      "instructions": "When does J15's small round 2 run?",
+      "criteria": {
+        "now_seven_workers": "Resume J15 now, seven workers until the next hand-back. Strongest case: warm context, a few lines, done soon. Cost: above the cap again.",
+        "next_free_slot": "Merge J15's round 1 now, and resume J15 for round 2 at the next free slot, ahead of the queue. Strongest case: holds the cap, and the harness fix lands for everyone now. Cost: the test keeps hiding a crash a little longer.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

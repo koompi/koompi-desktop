@@ -1,0 +1,31 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "j15": "J15 (harness flakes) is in verification: nested Hyprland in headless KWin sometimes gets no output because aquamarine 0.15.1's Wayland backend never flushes a new output's requests (wire logs from 30 sessions; a one-line flush in a scratch build fixed 60 of 60 starts against 44 of 60; fixed upstream after 0.15.1; real sessions use DRM and are unaffected). Tests and hyprshot now start Hyprland through a helper that restarts a start with no output. test_motion now clocks animations from their first step, not from the search that triggers them.",
+    "qs_crash": "test_motion's probe (qs -p motion_probe.qml) segfaulted twice in 60 bare runs today, both toasted on the founder's desktop. Quickshell relaunches itself after a crash and the probe reruns, so the test passed and hid the crash. Under gdb (a caught SIGSEGV never reaches systemd-coredump, so no toast) 69 runs crashed 0 times, so no backtrace. The crashes appeared only with J15's patched probe (2 of 90 runs) and not before (0 of about 125); J15's patch adds a 150 ms busy-wait on the UI thread (while (Date.now() < end) {}), which J15 cannot exclude as the trigger. Other probes (media_probe, recent_probe) crashed on 10-07, so the family predates it. ulimit -c 0 was not tested; it may still journal the crash and toast.",
+    "easyeffects": "J15 attributed 10 easyeffects SIGABRTs today, one per full-suite run in any worktree: a nested full-shell test starts the real easyeffects --hide-window --service-mode (EasyEffects.enable(), on by default since J12 for a profile with nothing stored, which every scratch HOME is), and it aborts in the test session. Each is a crash toast on the founder's desktop, so every full suite the swarm runs adds one. Which test starts it was not traced. Queued J41 already owns two neighbouring items: crash watch announcing only its own session's crashes (which would also silence these toasts), and test shells staying off the session's polkit agent. J41 was waiting for J15's harness files, which J15 delivers now. Queue: J44 running, then J45, J41, J28, J29."
+  },
+  "questions": {
+    "J15_qs_crash_next": {
+      "type": "choice",
+      "instructions": "What next for the quickshell probe crash?",
+      "criteria": {
+        "timer_and_fail_on_relaunch": "Swap the probe's busy-wait for a Timer delay, make test_motion fail when quickshell relaunches, and record the probe crash family (motion, media, recent) as an open item with the evidence. Strongest case: removes the suspected trigger J15 added, stops the test hiding a crash, and runs no crash hunt on the founder's machine. Cost: if crashes persist without the busy-wait, test_motion goes red about 3% of runs until Quickshell is fixed.",
+        "more_gdb_runs": "Run about 100 more gdb-wrapped probes for a backtrace. Strongest case: a backtrace is what a Quickshell fix needs. Cost: long heavy-lock time; 0 of 69 so far, and the tracer may change the timing that triggers it.",
+        "bare_hunt_ulimit": "Hunt bare under ulimit -c 0. Strongest case: the bare rate reproduces. Cost: untested whether it stops the journal entry; if not, each crash toasts the founder.",
+        "leave_as_is": "Merge as is and stop. Strongest case: no more time spent. Cost: the test keeps hiding a real crash.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J15_easyeffects_routing": {
+      "type": "choice",
+      "instructions": "Where does the real easyeffects started by test shells go, and when?",
+      "criteria": {
+        "into_j41_ahead_of_j45": "Add it to J41 (trace the test, keep test shells from starting the real binary) and move J41 ahead of J45. Strongest case: J41 already owns test shells touching the live session and crash-watch scoping, and the swarm adds a toast to the founder's desktop with every suite run until it lands. Cost: J45's launch-path fixes wait one more slot.",
+        "into_j41_keep_order": "Add it to J41 and keep the queue order (J45 first). Strongest case: no reordering. Cost: toasts continue for longer.",
+        "own_job_now": "A new small job for just this, ahead of everything queued. Strongest case: the narrowest change lands first. Cost: splits one area (test shells and the live session) across two jobs.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

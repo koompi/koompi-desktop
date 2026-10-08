@@ -45,7 +45,7 @@ Call kded6, or anything else, on the founder's session bus. Every D-Bus call in 
 ## Acceptance
 
 - The test fails on `dev` and passes on your branch.
-- A nested-harness screenshot of a shell start shows no conflict window, on dev and on your branch, with the window listed or not in the run log.
+- Nested-harness screenshots of a shell start with kded6 reported running: dev shows the empty conflict window and your branch shows none, and the run log lists the windows. Once J15 merges, `hyprshot.sh` stubs `pidof` so that kded6, mako and dunst never look running, so make kded6 look running with your own stand-in, in your own nested run.
 - Full suite: no new failures.
 
 ## Out of scope
