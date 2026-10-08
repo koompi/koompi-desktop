@@ -13,6 +13,8 @@
 #   not when two entries share one.
 #   Scale 1.25: the monitor is fractional, where a name was given a whole pixel fewer than its
 #   text, and lost two letters to the ellipsis ("Visual Studio Code" and "Probe App" here).
+#   Dimming: the icon and the name dim and pulse, never below the opacity that keeps their text at
+#   4.5:1 on the dark and the light palette, and the Opening line is never dimmed.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -113,16 +115,19 @@ ShellRoot {
         probe.later(150, fn);
     }
 
+    // the opacity of the name as drawn, sampled, and the lowest the Opening line ever had
     function opacities(count, done) {
         const seen = [];
+        let title = 1;
         const poll = Qt.createQmlObject("import QtQuick; Timer { interval: 100; repeat: true }", probe);
         poll.triggered.connect(() => {
-            seen.push(identity.identityOpacity);
+            seen.push(identity.nameOpacity);
+            title = Math.min(title, identity.titleOpacity);
             if (seen.length < count)
                 return;
             poll.stop();
             poll.destroy();
-            done(Math.min(...seen), Math.max(...seen));
+            done(Math.min(...seen), Math.max(...seen), title);
         });
         poll.start();
     }
@@ -161,7 +166,7 @@ ShellRoot {
             probe.verdict(!identity.nameElided, "a focused window: the name is not cut short at this scale");
             probe.verdict(identity.titleText === "Home", "a focused window: its title without the app's name: '" + identity.titleText + "'");
             probe.verdict(identity.menuShown, "a focused window: its menus show");
-            probe.verdict(!identity.launching && !identity.pulsing && identity.identityOpacity === 1, "nothing launching: no pulse, full opacity");
+            probe.verdict(!identity.launching && !identity.pulsing && identity.nameOpacity === 1 && identity.titleOpacity === 1, "nothing launching: no pulse, full opacity");
             probe.longNames(dolphin);
         });
     }
@@ -195,8 +200,10 @@ ShellRoot {
             probe.verdict(!identity.actionsAvailable, "a launch: the identity is not a target for the focused window's actions");
             probe.verdict(!identity.menuShown, "a launch: the menus of the window being left step aside");
             probe.verdict(identity.pulsing, "a launch: it pulses");
-            probe.opacities(24, (low, high) => {
-                probe.verdict(low <= 0.7 && high >= 0.9, "a launch: the pulse is seen, opacity " + low.toFixed(2) + " to " + high.toFixed(2));
+            probe.opacities(24, (low, high, title) => {
+                probe.verdict(low <= 0.8 && high >= 0.95, "a launch: the pulse is seen on the name, opacity " + low.toFixed(2) + " to " + high.toFixed(2));
+                probe.verdict(low >= 0.69, "a launch: the pulse never takes the name below the opacity that keeps 4.5:1 on both palettes: " + low.toFixed(2));
+                probe.verdict(title === 1, "a launch: the Opening line is never dimmed: " + title.toFixed(2));
                 probe.reduced(dolphin);
             });
         });
@@ -206,8 +213,9 @@ ShellRoot {
         Config.options.appearance.reduceMotion = true;
         probe.later(300, () => {
             probe.verdict(!identity.pulsing, "reduce motion: the pulse is stopped");
-            probe.opacities(8, (low, high) => {
-                probe.verdict(low === high && low >= 0.4 && low <= 0.7, "reduce motion: a held dim state, opacity " + low.toFixed(2) + " to " + high.toFixed(2));
+            probe.opacities(8, (low, high, title) => {
+                probe.verdict(low === high && low >= 0.69 && low <= 0.75, "reduce motion: a held dim state, opacity " + low.toFixed(2) + " to " + high.toFixed(2));
+                probe.verdict(title === 1, "reduce motion: the Opening line stays as legible as ever: " + title.toFixed(2));
                 Config.options.appearance.reduceMotion = false;
                 probe.later(200, () => probe.ending(dolphin));
             });
@@ -225,7 +233,7 @@ ShellRoot {
                 probe.verdict(!identity.launching, "a window with the entry's StartupWMClass ends it, found by DesktopEntries.heuristicLookup");
                 probe.verdict(identity.nameText === "ProbeWindowClass", "the real window's identity follows: '" + identity.nameText + "'");
                 probe.verdict(identity.titleText === "Probe window", "the real window's title follows: '" + identity.titleText + "'");
-                probe.verdict(!identity.pulsing && identity.identityOpacity === 1 && identity.menuShown, "and the pulse is gone and the menus are back");
+                probe.verdict(!identity.pulsing && identity.nameOpacity === 1 && identity.menuShown, "and the pulse is gone and the menus are back");
                 probe.terminalApp();
             });
         });

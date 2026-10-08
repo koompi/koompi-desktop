@@ -32,7 +32,10 @@ Item { // Faux global menu: bold app name + window title
     readonly property string windowTitle: root.hasWindow ? (root.activeWindow?.title ?? "") : ((root.biggestWindow?.title) ?? "")
     readonly property string nameText: root.launching ? root.launch.name : root.prettyName(root.appClass)
     readonly property string titleText: root.launching ? Translation.tr("Opening…") : root.cleanTitle(root.windowTitle)
-    readonly property real identityOpacity: identityRow.opacity
+    // the icon and the name dim, never the Opening line: it is the text that says what is happening
+    readonly property real dim: root.launching ? (Appearance.reduceMotion ? 0.7 : root.pulseLevel) : 1
+    readonly property real nameOpacity: appName.opacity
+    readonly property real titleOpacity: titleLine.opacity
     readonly property bool pulsing: pulse.running
     readonly property bool menuShown: globalMenu.visible
     readonly property bool nameElided: appName.truncated
@@ -133,12 +136,11 @@ Item { // Faux global menu: bold app name + window title
                 id: identityRow
                 anchors.fill: parent
                 spacing: 6
-                // held dim, not looped, under Reduce Motion
-                opacity: root.launching ? (Appearance.reduceMotion ? 0.6 : root.pulseLevel) : 1
 
-                IconImage { // The app being started, until its window maps
+                IconImage { // the app being started, until its window maps
                     visible: root.launching
                     Layout.alignment: Qt.AlignVCenter
+                    opacity: root.dim
                     implicitSize: 24
                     source: root.launching ? Quickshell.iconPath(root.launch.icon, "image-missing") : ""
                 }
@@ -162,6 +164,7 @@ Item { // Faux global menu: bold app name + window title
                         Layout.fillWidth: true
                         font.pixelSize: Appearance.font.pixelSize.smaller
                         font.weight: Font.Bold
+                        opacity: root.dim
                         // An unfocused monitor still shows its window, dimmed, so the
                         // focused one is tellable apart at a glance.
                         color: root.focusingThisMonitor ? Appearance.colors.colOnLayer0 : Appearance.colors.colOnLayer1Inactive
@@ -216,7 +219,7 @@ Item { // Faux global menu: bold app name + window title
         NumberAnimation {
             target: root
             property: "pulseLevel"
-            to: 0.55
+            to: 0.7
             duration: Appearance.animationDuration.slowest
             easing.type: Easing.InOutSine
         }

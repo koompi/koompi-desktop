@@ -86,7 +86,7 @@ An app that runs in a terminal is not announced at all, because its window is th
 Search, the Launchpad, the media controls and the dock tell the shell themselves, through `LauncherSearch.launch`.
 A key bind tells it through `koompi-launch`, which makes one background `qs ipc call launch begin` and never waits for it.
 While it shows, the focused window's menus and actions step aside, because they belong to the window being left, and the identity is not a click target.
-Reduce Motion holds the pulse as a dim state.
+The pulse dims the icon and the name and never the "Opening…" line, and never below 70% opacity, which keeps the name at 4.5:1 contrast on the dark and the light palette; Reduce Motion holds that dimmest state instead of pulsing.
 With no window on the desktop the identity reads "Desktop" and nothing under it, because the bar's centre already shows the workspace.
 
 The snap preview takes no input path at all.

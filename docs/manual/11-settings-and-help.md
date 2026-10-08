@@ -18,7 +18,7 @@ koompi settings power
 
 Settings, then Quick, then Reduce motion.
 With it on, panels, menus and buttons stop sliding and simply fade in a blink, and windows and desks appear without any animation.
-The name of a program that is starting stops pulsing and stays dim until its window arrives.
+The icon and name of a program that is starting stop pulsing and stay a little dim until its window arrives.
 It is off by default.
 
 ## The list of every shortcut
