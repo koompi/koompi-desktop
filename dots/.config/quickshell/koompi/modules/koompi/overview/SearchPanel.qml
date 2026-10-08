@@ -28,6 +28,7 @@ Scope {
     }
 
     function openWithQuery(query) {
+        LauncherSearch.query = query;
         GlobalStates.searchOpen = true;
         root.widget?.setSearchingText(query);
         root.widget?.focusFirstItem();
