@@ -1,0 +1,22 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "ask": "The founder delegated the icon identity pick: \"pick anyone that is the best\" (2026-10-08). The campaign's brief is a desktop that stands next to macOS, on KOOMPI hardware that includes low-end laptops. J33-J35 (the icon plate component, koompi-icons, the cursor) wait for this pick.",
+    "A_tinted_glyph_plates": "One plate component; symbolic SVG glyphs tinted with the wallpaper palette's on-container colour on a tonal squircle plate, in both modes. Only symbolic icons work: the base theme (WhiteSur-green) has 17 of the 24 Launchpad apps; six get no icon at all (Files, WezTerm, Okular, Zed, Signal, Obsidian) and need stand-ins; KOOMPI would draw a glyph for each of its roughly 40 D5 icons and every brand app it wants recognised, plus a fallback rule for the long tail (category glyph or letter). Vendor colour is gone: in the true-size close-up every app is the same green plate, and Chrome, Discord and Telegram differ only by shape.",
+    "B_colour_icon_on_plate": "The same component with a uniform plate (top surface layer in dark, white in light, 1 px edge, one elevation-1 shadow) and the colour icon at 72 % of it. Covers the long tail with no drawing: any colour icon (hicolor, pixmap) lands on the plate; the base theme supplies 23 of 24 by name. KOOMPI's own icons can be plain colour pictures. With WhiteSur's artwork, which already has a squircle body, each icon reads as a tile inside a tile in the close-up. Cost: a shadow pass per plate (MultiEffect), or one pre-rendered plate texture.",
+    "C_squircle_masked": "Each colour icon masked to the squircle with per-theme metadata (WhiteSur's body box, shared by 23 of 24), so every body fills the plate: in the close-up the most macOS-like, largest and most vivid. Icons from outside the theme must be measured one by one and anything not full-bleed is cropped, so C falls back to B's plate for them: C contains B's code. KOOMPI's own icons must be full squircle illustrations on a 1024 grid; the base theme must be full-bleed (WhiteSur is, Fluent is not); overhangs are clipped by design (Text Editor's pen, Photos' lens, the Screenshot and Updates badges, Okular's glasses). Cost: a mask pass per icon plus B's plate path.",
+    "shared": "All three use WhiteSur-green (Fluent lost for B and C). The cursor and the Control Center and Alt+Tab mockups are drawn from the same tokens in all three."
+  },
+  "questions": {
+    "J14_icon_identity": {
+      "type": "choice",
+      "instructions": "Which icon identity does KOOMPI build?",
+      "criteria": {
+        "A_tinted_glyphs": "Strongest case: one cohesive look that follows the wallpaper, and the lightest pixels. Cost: the most drawing (about 40 KOOMPI glyphs plus brand apps plus a long-tail rule), brand apps recognisable only by shape, six apps with no glyph today.",
+        "B_colour_on_plate": "Strongest case: covers every app with no drawing, one uniform plate, the simplest and most robust build; KOOMPI's icons can be plain pictures. Cost: tile-inside-a-tile with squircle artwork such as WhiteSur's, and one shadow per plate unless pre-rendered.",
+        "C_squircle_masked": "Strongest case: the most polished, macOS-like grid, every body filling its plate. Cost: B's code plus a mask pass and per-theme metadata, outside icons measured or falling back to B's plate, clipped overhangs, a full-bleed base theme required, and every KOOMPI icon a full illustration.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

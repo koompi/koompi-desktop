@@ -1,0 +1,39 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "ask": "Founder, 2026-10-08: \"do not do all the tasks. pick the highest value first.\" After asking whether the agents waste tokens, he capped the swarm at four workers. The campaign's goal: a desktop that stands next to macOS, for KOOMPI users (Cambodia first, Khmer UI, low-end laptops).",
+    "in_flight": "J07 lazy surfaces (memory; Phase 2 waits on it; fixing a quadratic focus-grab stall), J13 launch feedback (21 commits, near the end), J44 the empty conflict dialog (hits the founder's seat at the next shell restart), J45 launch paths (4 commits; mostly the waffle panel family, an alternative style), J08 round 2 (a re-open bug fix plus an edge-strip rework worth about 6 MB per screen, picked at p=0.6), J15 round 4 (tests that run on the founder's live display).",
+    "remaining": {
+      "J17": "Alt+Tab switches apps like Mac and Windows; used many times a day by every user; after J07.",
+      "J20": "Control Center from its own bar glyph (Wi-Fi, Bluetooth, volume, brightness); daily, every user; after J07.",
+      "J21": "the right panel becomes the Notification Center; daily; after J20.",
+      "J22": "the bar's right end in a fixed order, readable on any wallpaper; after J20, J21, J13.",
+      "J23": "one Search list with sections, Quick Look on files, shortcuts on commands (Spotlight parity); daily; J04 done.",
+      "J18_J19": "desks that appear when used, and Mission Control; weekly power-user value; J19 after J18; both after J07.",
+      "J24_J38": "one assistant in two sizes, then a drawer that answers what my work is doing; medium; J38 after J24.",
+      "J33_J35": "icon identity, now decided (C built B-first): the plate component, koompi-icons, the cursor; the most visible look change (Launchpad, dock, switcher).",
+      "J40": "every string the campaign added reaches the translation files; required before Khmer users see the new UI.",
+      "J25": "the session menu says what each button does, and shutting down can be undone; safety, weekly.",
+      "J26": "Settings speaks plainly and can be searched; medium, needs Jev on names first; after J11.",
+      "J11": "Settings opens in the running shell; faster open, less memory; medium.",
+      "J27_J28_J29": "Launchpad tools folder, wallpaper gallery, widget overlay labels; low to medium polish.",
+      "J30_J31_J32": "single-window gaps, glyphs matching text and on/off not by colour alone (accessibility), Reduce Transparency on battery; low to medium.",
+      "J36_J37": "content index for Search, global menus for Qt on Wayland; large, each stops after a design note; medium value.",
+      "J39": "Settings > Shortcuts shows keys like the cheatsheet; low.",
+      "J41": "crash toasts only for this session's crashes, test shells off the polkit agent, the test that starts the real easyeffects; mostly developer hygiene now that run.sh stubs easyeffects and J15 isolates tests; the polkit item is a real but rare risk."
+    },
+    "undeployed": "Nothing merged in this campaign has reached the founder's seat; deploying needs his explicit word. Real use on the seat would show which remaining items matter most."
+  },
+  "questions": {
+    "value_plan": {
+      "type": "choice",
+      "instructions": "With four workers, which plan does the campaign follow from here? Deferred items go to the open-work list, not into the queue.",
+      "criteria": {
+        "daily_parity_core": "Finish the six in flight, trimming J08 round 2 to its re-open fix (drop the edge-strip rework). Then only: J17 Alt+Tab, J20 Control Center, J21 Notification Center, J23 Search, J33 icon plate (stage B, then the mask), J40 translations, in that order. Defer the rest. Strongest case: the features every user touches every day, the visible identity, and Khmer reach, with the least spent.",
+        "polish_first": "Finish the six in flight, then the icon set J33-J35, J22 bar order, J25 session menu, J26 Settings search, J27 Launchpad folder, J40. Defer Phase 2 features. Strongest case: smaller jobs with no J07 dependency, quick visible wins. Cost: the biggest daily gaps against macOS (Alt+Tab, Control Center, Notification Center, Search) stay open.",
+        "finish_then_deploy": "Finish the six in flight (J08 trimmed), add J40, then stop new work and ask the founder to deploy and use the desktop; pick the next items from real use. Strongest case: nothing merged has been seen on a real seat yet, and real use is the best value signal. Cost: Phase 2 parity features wait on the founder's deploy and feedback.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}
