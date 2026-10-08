@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# waffle start menu, folder, taskbar and search launch apps through koompi-launch
+# waffle launches go through koompi-launch and search reads dock pins by app
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -66,8 +66,15 @@ ShellRoot {
     property int ticks: 0
     property string stage: "load"
     property int stageTicks: 0
+    property int pinStep: 0
     property var context: null
     property var results: null
+
+    readonly property var pinSteps: [
+        { label: "no pin", pins: [], want: "Pin to taskbar" },
+        { label: "the pin saved as org.kde.dolphin", pins: ["org.kde.dolphin"], want: "Unpin from taskbar" },
+        { label: "the pin saved as dolphin, the app's other class", pins: ["dolphin"], want: "Unpin from taskbar" }
+    ]
 
     Component { id: bigComp; BigAppGrid {} }
     Component { id: categoryComp; AggregatedAppCategoryModel {} }
@@ -148,6 +155,11 @@ ShellRoot {
         return ["Pin to taskbar", "Unpin from taskbar"].filter(row => texts.includes(Translation.tr(row)));
     }
 
+    function checkPinStep() {
+        const step = probe.pinSteps[probe.pinStep];
+        probe.check(`search: ${step.label} reads "${step.want}"`, probe.pinRow(), [step.want]);
+    }
+
     function openFromSearch() {
         probe.context.accepted();
         const open = probe.findAll(probe.results, item => item.text === Translation.tr("Open") && typeof item.clicked === "function");
@@ -179,7 +191,17 @@ ShellRoot {
                 }
             } else if (probe.stage === "search") {
                 if (probe.pinRow().length > 0 || probe.stageTicks > 60)
-                    probe.go("act");
+                    probe.go("pins");
+            } else if (probe.stage === "pins") {
+                const step = probe.pinSteps[probe.pinStep];
+                if (probe.stageTicks === 1)
+                    Config.options.dock.pinnedApps = step.pins;
+                // the old row outlives the pin change for a few frames
+                if (probe.stageTicks > 8 && (probe.pinRow()[0] === step.want || probe.stageTicks > 60)) {
+                    probe.run("search", probe.checkPinStep);
+                    probe.pinStep++;
+                    probe.go(probe.pinStep < probe.pinSteps.length ? "pins" : "act");
+                }
             } else if (probe.stage === "act") {
                 probe.run("search", probe.openFromSearch);
                 probe.go("settle");
@@ -216,7 +238,7 @@ plain="$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/probe.log" 2> /dev/null)"
 if ! grep -q '^ DEBUG qml: PROBE OK' <<< "$plain"; then
     grep -E '^ DEBUG qml: (FAIL|INFO)' <<< "$plain" | sed 's/^ DEBUG qml: /     /' >&2
     grep -q '^ DEBUG qml: PROBE FAILED' <<< "$plain" || { grep -vE 'qmlscanner|^\s*$' <<< "$plain" | tail -30 >&2; fail "the probe never finished"; }
-    fail "the waffle launch checks above failed"
+    fail "the waffle launch or pin checks above failed"
 fi
 
 want_launches="--id fx.folder -- fx-folder
@@ -240,4 +262,4 @@ $(diff <(LC_ALL=C sort <<< "$want_launches") <(printf '%s\n' "$launched"))"
 $(cat "$WORK/direct.log")"
 
 (( failed == 0 )) || exit 1
-echo "ok   launch paths: waffle start menu, folder, taskbar and search start apps through koompi-launch"
+echo "ok   launch paths: waffle start menu, folder, taskbar and search start apps through koompi-launch, a pin under the other class reads as pinned"

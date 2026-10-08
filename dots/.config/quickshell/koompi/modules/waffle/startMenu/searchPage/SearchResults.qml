@@ -202,7 +202,7 @@ RowLayout {
                 model: {
                     const isAppEntry = resultPreview.entry.type === Translation.tr("App");
                     const appId = isAppEntry ? resultPreview.entry.id : "";
-                    const pinned = isAppEntry ? (Config.options.dock.pinnedApps.includes(appId)) : false;
+                    const pinned = isAppEntry ? TaskbarApps.isPinned(appId) : false;
                     const startPinned = isAppEntry ? (Config.options.launcher.pinnedApps.includes(appId)) : false;
                     var result = [
                         searchResultComp.createObject(null, {
