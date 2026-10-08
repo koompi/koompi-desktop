@@ -329,6 +329,9 @@ The polkit prompt is left out of that test because its agent registers on the sy
 The shared mechanism is the `GlobalFocusGrab` singleton in `services/`.
 A surface calls `addDismissable` when it becomes visible and `removeDismissable` when it stops, and closes itself on the singleton's `dismissed` signal.
 A surface that should be inside the grab but must not be closed by a click outside, such as the bar and the on-screen keyboard, registers with `addPersistent` instead.
+The grab covers the persistent windows too once the keyboard is inside a dismissable window, or none of them takes the keyboard, and `focusIn` decides that by climbing from the window's one focused item to its content item.
+It must never visit every item below the content item: a binding depends on everything it reads, so a walk reruns for each item added while a window is built, and a cheatsheet built on open stayed blank for 8 s with the main thread pinned.
+`tests/test_grab_binding.sh` checks the list against the old walk and the cost of a cold open; a click outside, which needs a pointer, is not in it.
 `SearchPanel.qml` and `OverviewPanel.qml` are the reference implementations.
 
 Conformance as of 2026-07-30:
