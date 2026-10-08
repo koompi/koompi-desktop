@@ -15,6 +15,8 @@
 #   text, and lost two letters to the ellipsis ("Visual Studio Code" and "Probe App" here).
 #   Dimming: the icon and the name dim and pulse, never below the opacity that keeps their text at
 #   4.5:1 on the dark and the light palette, and the Opening line is never dimmed.
+#   Relaunch: focus that was on the app's window before the launch began does not end the launch,
+#   however late its notice reaches the shell, and the app's next window does.
 #   Several at once: the bar shows the newest launch, each ends at its own window in any order, one
 #   that never maps blocks no other and ends at its own ttl, and the shell keeps the eight newest.
 set -uo pipefail
@@ -247,7 +249,30 @@ ShellRoot {
         LaunchFeedback.begin({ id: "tui-app", name: "Tui App", icon: "x", startupClass: "", command: ["tui-app"], runInTerminal: true });
         probe.after(() => {
             probe.verdict(!identity.launching, "an app that runs in a terminal is not announced: its window is the terminal's");
-            probe.several();
+            probe.relaunch();
+        });
+    }
+
+    // the app's window has been up and focused for a while when a key bind starts the app again, and
+    // the notice reaches the shell 100 ms after the bind: that focus is older than the launch
+    function relaunch() {
+        LaunchFeedback.pending = [];
+        const open = probe.win("0xe1", "ProbeWindowClass", "Open window");
+        probe.show([open], null);
+        probe.after(() => {
+            probe.show([open], open);
+            probe.later(300, () => {
+                LaunchFeedback.add({ id: "probe-app", entryId: "probe-app", name: "Probe App", icon: "probe-icon", program: "probe-app-bin", startupClass: "ProbeWindowClass", startedAt: Date.now() - 100 });
+                probe.after(() => {
+                    probe.verdict(identity.launching && identity.nameText === "Probe App", "relaunch: focus that was there before the launch does not end it: '" + identity.nameText + "'");
+                    const second = probe.win("0xe2", "ProbeWindowClass", "Second window");
+                    probe.show([open, second], second);
+                    probe.after(() => {
+                        probe.verdict(!identity.launching && identity.titleText === "Second window", "relaunch: its own window does: '" + identity.titleText + "'");
+                        probe.several();
+                    });
+                });
+            });
         });
     }
 
@@ -412,4 +437,4 @@ if grep -qE 'Binding loop|TypeError|ReferenceError|Cannot assign' <<< "$out"; th
     fail "a QML error while the identity ran"
 fi
 (( failed )) && exit 1
-echo "ok   probe: Desktop alone on an empty desktop, Opening and a pulse while an app starts with the menus stepping aside, a held dim state under Reduce Motion, ended by its window or by ttl, entries resolved by id and by program"
+echo "ok   probe: Desktop alone on an empty desktop, Opening and a pulse while an app starts with the menus stepping aside, a held dim state under Reduce Motion, ended by its window or by ttl and not by a focus older than the launch, entries resolved by id and by program"

@@ -7,8 +7,9 @@
 #   from 0.3 s on: the shell has been told, and says it is opening the app
 #   once the window maps: the launch ends, well inside the 8 s ttl, so it was the window
 # once with the program found by what its Exec runs and the window by StartupWMClass, once
-# with a window only the launched pid can claim. SHOTS=<dir> keeps the screenshots:
-# the empty desktop, the first answer, and 3 s after the bind.
+# with a window only the launched pid can claim, and once more straight after that window is
+# closed, when the shell can still be hearing of the closed window as the new launch begins.
+# SHOTS=<dir> keeps the screenshots: the empty desktop, the first answer, and 3 s after the bind.
 #
 # Nothing outlives the session. Each app registers its pid and start time in $WORK/pids; after
 # every launch and before the session ends its window is closed the way a user closes it and
@@ -309,6 +310,7 @@ scenario() {
 
 scenario slowprobe bind-first 'slow-probe-app title'
 scenario slowpid bind-pid 'slow-probe-pid title'
+scenario slowagain bind-first 'slow-probe-app title'
 SH
 chmod +x "$WORK/inner.sh"
 
@@ -381,17 +383,20 @@ check_scenario() {
 }
 check_scenario slowprobe 'Slow Probe' 'slow-probe-app title'
 check_scenario slowpid 'Slow Pid Probe' 'slow-probe-pid title'
+check_scenario slowagain 'Slow Probe' 'slow-probe-app title'
 
 if command -v magick > /dev/null 2>&1 && command -v tesseract > /dev/null 2>&1; then
     expect_bar empty-desktop '^Desktop$' 'Work'
     expect_bar slowprobe-0.3s 'Slow Probe.*Opening' ''
     expect_bar slowpid-0.3s 'Slow Pid Probe.*Opening' ''
+    expect_bar slowagain-0.3s 'Slow Probe.*Opening' ''
     expect_bar slowprobe-3s 'Kdialog' 'Opening'
     expect_bar slowpid-3s 'Kdialog' 'Opening'
+    expect_bar slowagain-3s 'Kdialog' 'Opening'
 else
     echo "note: no ImageMagick or tesseract here, so the bar's pixels were not read"
 fi
 
 [[ ! -s $WORK/leaks ]] || fail "a process survived SIGKILL: $(cat "$WORK/leaks")"
 (( failed == 0 )) || { dump; exit 1; }
-echo "ok   nested Hyprland: a key bind's launch is announced, and ended by its window, found by StartupWMClass and by pid; nothing outlived the session"
+echo "ok   nested Hyprland: a key bind's launch is announced, and ended by its window, found by StartupWMClass and by pid, and again straight after a window closed; nothing outlived the session"

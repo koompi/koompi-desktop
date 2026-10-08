@@ -22,8 +22,15 @@ Singleton {
         return DesktopEntries.heuristicLookup(windowClass)?.id ?? "";
     }
 
+    // the snapshot itself: inside a change handler a sibling property can still hold the push before
+    function snapshot() {
+        const state = HyprlandData.state;
+        return { windows: state?.windows ?? [], active: state?.active_window ?? null };
+    }
+
     function observe() {
-        root.seen = LaunchMatch.track(root.seen, HyprlandData.windowList, HyprlandData.activeWindow, Date.now());
+        const view = root.snapshot();
+        root.seen = LaunchMatch.track(root.seen, view.windows, view.active, Date.now());
     }
 
     function add(spec) {
@@ -52,7 +59,8 @@ Singleton {
 
     function sweep() {
         root.observe();
-        const result = LaunchMatch.settle(root.pending, HyprlandData.windowList, HyprlandData.activeWindow, root.entryOf, Date.now(), root.ttl, root.seen);
+        const view = root.snapshot();
+        const result = LaunchMatch.settle(root.pending, view.windows, view.active, root.entryOf, Date.now(), root.ttl, root.seen);
         root.seen = result.seen;
         if (result.waiting.length !== root.pending.length)
             root.pending = result.waiting;
@@ -60,7 +68,7 @@ Singleton {
 
     Connections {
         target: HyprlandData
-        function onWindowListChanged() {
+        function onStateChanged() {
             root.sweep();
         }
     }
