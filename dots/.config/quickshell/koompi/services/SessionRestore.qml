@@ -29,8 +29,7 @@ Singleton {
     // ours. Past this, an opening window is the user's own and is left alone.
     readonly property int claimWindowMs: 90000
 
-    // Saved windows still waiting for their application to appear, each
-    // { class, workspace }. Claimed entries are removed.
+    // saved windows still waiting for their app to open, each { key, workspace }; a claimed one is removed
     property var pending: []
     // Snapshots are only written once the restore decision has been made, so
     // the state being replayed is never overwritten before it is read.
@@ -122,13 +121,15 @@ Singleton {
 
         const queue = [];
         for (const window of state.windows) {
-            // No desktop entry means no way to relaunch it. Skipping is the
-            // whole handling: no placeholder, no message, no delay.
+            // no desktop entry, no way to relaunch it: skipped without a message
             const entry = DesktopEntries.heuristicLookup(window["class"]);
             if (!entry)
                 continue;
-            queue.push(window);
-            entry.execute();
+            queue.push({
+                key: TaskbarApps.appKey(window["class"]),
+                workspace: window.workspace
+            });
+            LauncherSearch.launch(entry);
         }
         root.pending = queue;
         if (queue.length > 0)
@@ -138,7 +139,8 @@ Singleton {
     }
 
     function claim(address, windowClass, openedOn) {
-        const index = root.pending.findIndex(w => w["class"].toLowerCase() === windowClass.toLowerCase());
+        const key = TaskbarApps.appKey(windowClass);
+        const index = root.pending.findIndex(w => w.key === key);
         if (index < 0)
             return;
         const target = root.pending[index].workspace;

@@ -8,13 +8,24 @@ import Quickshell.Wayland
 Singleton {
     id: root
 
+    // heuristicLookup is a call: reading this reruns the model once the entries load
+    readonly property bool entriesLoaded: DesktopEntries.applications.values.length > 0
+
+    // one app, a class per platform (dolphin, org.kde.dolphin): the entry names it; no-entry kde classes differ by the org.kde. prefix
+    function appKey(appClass) {
+        const entry = root.entriesLoaded && appClass ? DesktopEntries.heuristicLookup(appClass) : null;
+        return (entry?.id ?? appClass ?? "").toLowerCase().replace(/^org\.kde\./, "");
+    }
+
     function isPinned(appId) {
-        return Config.options.dock.pinnedApps.indexOf(appId) !== -1;
+        const key = root.appKey(appId);
+        return Config.options.dock.pinnedApps.some(id => root.appKey(id) === key);
     }
 
     function togglePin(appId) {
+        const key = root.appKey(appId);
         if (root.isPinned(appId)) {
-            Config.options.dock.pinnedApps = Config.options.dock.pinnedApps.filter(id => id !== appId)
+            Config.options.dock.pinnedApps = Config.options.dock.pinnedApps.filter(id => root.appKey(id) !== key)
         } else {
             Config.options.dock.pinnedApps = Config.options.dock.pinnedApps.concat([appId])
         }
@@ -24,33 +35,31 @@ Singleton {
         var map = new Map();
 
         for (const appId of pinnedApps) {
-            if (!map.has(appId.toLowerCase())) map.set(appId.toLowerCase(), ({
+            const key = root.appKey(appId);
+            if (!map.has(key)) map.set(key, ({
+                appId: appId.toLowerCase(),
                 pinned: true,
                 toplevels: []
             }));
         }
 
         if (pinnedApps.length > 0) {
-            map.set("SEPARATOR", { pinned: false, toplevels: [] });
+            map.set("SEPARATOR", { appId: "SEPARATOR", pinned: false, toplevels: [] });
         }
 
         const ignoredRegexes = ignoredAppRegexes.map(pattern => new RegExp(pattern, "i"));
         for (const toplevel of toplevels) {
             if (ignoredRegexes.some(re => re.test(toplevel.appId))) continue;
-            if (!map.has(toplevel.appId.toLowerCase())) map.set(toplevel.appId.toLowerCase(), ({
+            const key = root.appKey(toplevel.appId);
+            if (!map.has(key)) map.set(key, ({
+                appId: toplevel.appId.toLowerCase(),
                 pinned: false,
                 toplevels: []
             }));
-            map.get(toplevel.appId.toLowerCase()).toplevels.push(toplevel);
+            map.get(key).toplevels.push(toplevel);
         }
 
-        var values = [];
-
-        for (const [key, value] of map) {
-            values.push(appEntryComp.createObject(null, { appId: key, toplevels: value.toplevels, pinned: value.pinned }));
-        }
-
-        return values;
+        return Array.from(map.values(), value => appEntryComp.createObject(null, value));
     }
 
     property list<var> apps: root.entries(Config.options?.dock.pinnedApps ?? [], ToplevelManager.toplevels.values, Config.options?.dock.ignoredAppRegexes ?? [])
