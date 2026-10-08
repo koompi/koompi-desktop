@@ -93,13 +93,8 @@ QML
 cat > "$WORK/inner.sh" <<'SH'
 #!/usr/bin/env bash
 set -uo pipefail
-unset HYPRLAND_INSTANCE_SIGNATURE
-parent=$WAYLAND_DISPLAY
-Hyprland -c "$HOME/.config/hypr/hyprland.lua" > "$WORK/hyprland.log" 2>&1 &
-for _ in $(seq 1 100); do sig=$(ls "$XDG_RUNTIME_DIR/hypr" 2> /dev/null | head -1); [[ -n $sig ]] && break; sleep 0.2; done
-export HYPRLAND_INSTANCE_SIGNATURE=$sig
-for _ in $(seq 1 100); do d=$(ls "$XDG_RUNTIME_DIR" | grep -E '^wayland-[0-9]+$' | grep -v "^$parent$" | head -1); [[ -n $d ]] && break; sleep 0.2; done
-export WAYLAND_DISPLAY=$d
+source "$REPO_ROOT/tests/nested-hyprland.sh"
+nested_hyprland_start "$HOME/.config/hypr/hyprland.lua" "$WORK/hyprland.log" || exit 1
 
 cd "$WORK/shell"
 qs -p focus_probe.qml > "$WORK/qs.log" 2>&1 &
@@ -119,20 +114,21 @@ echo "pick ${r:-none}" >> "$WORK/readings"
 for _ in $(seq 1 20); do [[ $(active) == focus-probe-a ]] && break; sleep 0.25; done
 echo "after $(active)" >> "$WORK/readings"
 
-cp "$XDG_RUNTIME_DIR"/hypr/*/hyprland.log "$WORK/hyprland-run.log" 2> /dev/null
+cp "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" "$WORK/hyprland-run.log" 2> /dev/null
 kill "$qs_pid" 2> /dev/null
 hyprctl dispatch 'hl.dsp.exit()' > /dev/null 2>&1
 sleep 1
 SH
 chmod +x "$WORK/inner.sh"
 
-env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY WORK="$WORK" \
+env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY WORK="$WORK" REPO_ROOT="$REPO_ROOT" \
     HOME="$HOME_DIR" XDG_RUNTIME_DIR="$RUN" XDG_CONFIG_HOME="$HOME_DIR/.config" \
     XDG_STATE_HOME="$HOME_DIR/.local/state" XDG_CACHE_HOME="$HOME_DIR/.cache" XDG_DATA_HOME="$HOME_DIR/.local/share" \
     PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
     timeout 150 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1480 --height 1000 \
         --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
 
+grep '^nested Hyprland:' "$WORK/kwin.log" | sed 's/^/note: /'
 reading() { awk -v k="$1" '$1 == k { $1 = ""; sub(/^ /, ""); print }' "$WORK/readings" 2> /dev/null; }
 dump() { echo "--- readings ---" >&2; cat -- "$WORK/readings" >&2 2> /dev/null; echo "--- qs.log ---" >&2; grep -vE 'qmlscanner|^\s*$' "$WORK/qs.log" 2> /dev/null | tail -25 >&2; }
 

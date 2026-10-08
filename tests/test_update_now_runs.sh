@@ -117,14 +117,8 @@ QML
 cat > "$WORK/inner.sh" <<SH
 #!/usr/bin/env bash
 set -uo pipefail
-unset HYPRLAND_INSTANCE_SIGNATURE
-parent=\$WAYLAND_DISPLAY
-Hyprland -c "$WORK/home/.config/hypr/hyprland.lua" > "$WORK/hyprland.log" 2>&1 &
-for _ in \$(seq 1 100); do sig=\$(ls "$RUN/hypr" 2>/dev/null | head -1); [[ -n "\$sig" ]] && break; sleep 0.2; done
-export HYPRLAND_INSTANCE_SIGNATURE=\$sig
-for _ in \$(seq 1 100); do d=\$(ls "$RUN" | grep -E '^wayland-[0-9]+\$' | grep -v "^\$parent\$" | head -1); [[ -n "\$d" ]] && break; sleep 0.2; done
-export WAYLAND_DISPLAY=\$d
-for _ in \$(seq 1 100); do hyprctl monitors -j 2>/dev/null | jq -e 'length > 0' >/dev/null 2>&1 && break; sleep 0.2; done
+source "$REPO_ROOT/tests/nested-hyprland.sh"
+nested_hyprland_start "$WORK/home/.config/hypr/hyprland.lua" "$WORK/hyprland.log" || exit 1
 cd "$WORK/shell"
 qs -p "$WORK/shell/update_probe.qml" > "$WORK/qs.log" 2>&1 &
 qs_pid=\$!
@@ -152,6 +146,7 @@ env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY -u XDG_CURRENT_
     timeout 200 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1480 --height 1000 --no-lockscreen \
         --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
 
+grep '^nested Hyprland:' "$WORK/kwin.log" | sed 's/^/note: /'
 out="$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/qs.log" 2>/dev/null)"
 grep -E '^ DEBUG qml: (PASS|FAIL|PROBE)' <<< "$out" | sed 's/^ DEBUG qml: //'
 if ! grep -q "PROBE DONE" <<< "$out" || grep -q '^ DEBUG qml: FAIL' <<< "$out"; then
