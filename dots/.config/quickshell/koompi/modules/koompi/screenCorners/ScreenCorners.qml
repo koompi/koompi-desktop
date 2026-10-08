@@ -79,13 +79,17 @@ Scope {
                 implicitWidth: cornerPanelWindow.regionWidth
                 implicitHeight: cornerPanelWindow.regionHeight
                 hoverEnabled: true
+                property bool armed: true
+                onExited: armed = true
                 onPositionChanged: {
-                    if (!Config.options.sidebar.cornerOpen.clicklessCornerEnd) return;
+                    if (!armed || !Config.options.sidebar.cornerOpen.clicklessCornerEnd) return;
                     const verticalOffset = Config.options.sidebar.cornerOpen.clicklessCornerVerticalOffset;
                     const correctX = (cornerPanelWindow.isRight && mouseArea.mouseX >= mouseArea.width - 2) || (cornerPanelWindow.isLeft && mouseArea.mouseX <= 2);
                     const correctY = (cornerPanelWindow.isTop && mouseArea.mouseY > verticalOffset || cornerPanelWindow.isBottom && mouseArea.mouseY < mouseArea.height - verticalOffset);
-                    if (correctX && correctY)
+                    if (correctX && correctY) {
+                        armed = false;
                         screenCorners.actionForCorner[cornerPanelWindow.corner]();
+                    }
                 }
                 onEntered: {
                     if (Config.options.sidebar.cornerOpen.clickless)

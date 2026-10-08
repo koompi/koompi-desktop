@@ -12,7 +12,7 @@ failed=0
 fail() { printf 'FAIL: %s\n' "$1" >&2; failed=1; }
 die() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
-for tool in Hyprland hyprctl kwin_wayland qs dbus-run-session jq; do
+for tool in Hyprland hyprctl kwin_wayland qs dbus-run-session jq python3; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, nested Hyprland not run"; exit 0; }
 done
 
@@ -38,7 +38,7 @@ LUA
 printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/koompi-shelld"
 chmod +x "$WORK/bin/koompi-shelld"
 
-# every phase names all three keys: absent ones keep the last phase's value
+# each phase names all three keys, so none depends on the one before
 cfg() { jq -n --argjson r "$2" --argjson e "$3" --argjson b "$4" \
     '{windows: {workspaceHelp: false}, appearance: {fakeScreenRounding: $r}, sidebar: {cornerOpen: {enable: $e, bottom: $b}}}' > "$WORK/cfg/$1.json"; }
 cfg p1 0 true false
@@ -181,8 +181,16 @@ hover() { # tag, x, y
     note "cursor.$1" "$(hyprctl cursorpos 2> /dev/null)"
 }
 
+# a pointer resting in the corner is moved again inside the 2 px that trigger: it must not toggle twice
+jiggle() { # tag, x, y
+    move "$2" "$3"
+    sleep 1
+    note "jiggle.$1" "$(probe sidebars)"
+}
+
 await_layers p1
 hover p1.topright $((WIDTH - 1)) 3
+jiggle p1.topright $((WIDTH - 2)) 3
 hover p1.topleft 0 3
 
 setcfg p2; await_layers p2
@@ -272,6 +280,8 @@ check_layers p1 "rounding off, corners on: only the top pair exists, each the si
     '[{x:0,y:0,w:$RW,h:$RH},{x:($W-$RW),y:0,w:$RW,h:$RH}]'
 check_hover p1.topright "the pointer in the top-right corner opens the right sidebar with the rounding off" 'left=0/0 right=1/1' $((W - 1)) 3
 check_hover p1.topleft "the pointer in the top-left corner opens the left sidebar with the rounding off" 'left=1/1 right=0/0' 0 3
+check_jiggle="$(reading jiggle.p1.topright)"
+if [[ "$check_jiggle" == 'left=0/0 right=1/1' ]]; then echo "ok   hover: a second move inside the trigger zone leaves the sidebar alone"; else fail "a second move inside the trigger zone toggled the sidebar again: sidebars read '${check_jiggle:-missing}', want 'left=0/0 right=1/1'"; fi
 check_layers p2 "rounding off, corners off: no corner window" '[]'
 check_layers p3 "rounding always, corners off: four rounding-sized windows" \
     '[{x:0,y:0,w:$R,h:$R},{x:($W-$R),y:0,w:$R,h:$R},{x:0,y:($H-$R),w:$R,h:$R},{x:($W-$R),y:($H-$R),w:$R,h:$R}]'
