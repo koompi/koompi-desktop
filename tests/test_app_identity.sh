@@ -158,11 +158,11 @@ ShellRoot {
 
     // what it checks, class the new window reports, workspace it opens on, saved windows still waiting
     readonly property var claims: [
-        ["org.kde.dolphin claims the first saved dolphin", "org.kde.dolphin", "1", 6],
-        ["a second window claims the next saved dolphin", "dolphin", "1", 5],
-        ["a third dolphin window claims nothing", "dolphin", "1", 5],
-        ["okular claims the saved org.kde.okular", "okular", "1", 4],
-        ["kdialog claims the saved org.kde.kdialog", "kdialog", "1", 3],
+        ["org.kde.dolphin claims the first saved dolphin", "org.kde.dolphin", "1", 5],
+        ["a second window claims the next saved dolphin", "dolphin", "1", 4],
+        ["a third dolphin window claims nothing", "dolphin", "1", 4],
+        ["okular claims the saved org.kde.okular", "okular", "1", 3],
+        ["a kdialog window claims nothing, its saved window was never relaunched", "kdialog", "1", 3],
         ["org.telegram.desktop claims the saved TelegramDesktop", "org.telegram.desktop", "1", 2],
         ["kdeconnect.app claims the saved org.kde.kdeconnect.app", "kdeconnect.app", "5", 1],
         ["a window of another app claims nothing", "firefox", "1", 1],
@@ -170,7 +170,8 @@ ShellRoot {
     ]
 
     function restore() {
-        probe.check("restore: every saved window with a desktop entry waits to be claimed", SessionRestore.pending.length, 7);
+        probe.check("restore: every saved window that can be relaunched waits to be claimed", SessionRestore.pending.length, 6);
+        probe.check("restore: the saved kdialog window, a NoDisplay entry, does not wait", SessionRestore.pending.some(w => w.key === TaskbarApps.appKey("org.kde.kdialog")), false);
         let n = 0;
         for (const [what, windowClass, openedOn, left] of probe.claims) {
             n++;
@@ -263,7 +264,7 @@ plain="$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/probe.log" 2> /dev/null)"
 grep -E '^ DEBUG qml: FAIL' <<< "$plain" | sed 's/^ DEBUG qml: /     /' >&2
 if ! grep -q '^ DEBUG qml: PROBE OK' <<< "$plain"; then
     grep -q '^ DEBUG qml: PROBE FAILED' <<< "$plain" || { grep -vE 'qmlscanner|^\s*$' <<< "$plain" | tail -20 >&2; fail "the probe never finished"; }
-    fail "the probe found windows and saved apps matched by class instead of by app"
+    fail "the probe found windows and saved apps matched by class instead of by app, or a NoDisplay app waiting to be claimed"
 fi
 
 launched="$(sort "$WORK/launch.log" 2> /dev/null)"
@@ -271,17 +272,16 @@ want_launches='--registered --id kitty -- fx-kitty
 --registered --id org.kde.dolphin -- fx-dolphin
 --registered --id org.kde.dolphin -- fx-dolphin
 --registered --id org.kde.kdeconnect.app -- fx-kdeconnect-app
---registered --id org.kde.kdialog -- fx-kdialog
 --registered --id org.kde.okular -- fx-okular
 --registered --id org.telegram.desktop -- fx-telegram --'
 [[ "$launched" == "$want_launches" ]] || fail "restore did not start every saved app through koompi-launch (- wanted, + saw):
 $(diff <(printf '%s\n' "$want_launches") <(printf '%s\n' "$launched"))"
+! grep -q kdialog "$WORK/launch.log" 2> /dev/null || fail "restore relaunched kdialog: it is NoDisplay, starts bare and opens nothing, and a claim for its class can move an unrelated dialog"
 [[ ! -s "$WORK/direct.log" ]] || fail "restore started an app without koompi-launch, so it is outside app.slice and on the wrong platform:
 $(cat "$WORK/direct.log")"
 
 moved="$(grep -F 'hl.dsp.window.move' "$WORK/hypr.log" 2> /dev/null | sort)"
 want_moves='dispatch hl.dsp.window.move({ workspace = 2, follow = false, window = "address:0xa1" })
-dispatch hl.dsp.window.move({ workspace = 3, follow = false, window = "address:0xa5" })
 dispatch hl.dsp.window.move({ workspace = 4, follow = false, window = "address:0xa6" })
 dispatch hl.dsp.window.move({ workspace = 7, follow = false, window = "address:0xa4" })
 dispatch hl.dsp.window.move({ workspace = 9, follow = false, window = "address:0xa2" })'
@@ -291,4 +291,4 @@ focuses="$(grep -cF 'hl.dsp.focus({ workspace = 4 })' "$WORK/hypr.log" 2> /dev/n
 [[ "${focuses:-0}" == 2 ]] || fail "the saved workspace was focused ${focuses:-0} times, want 2 (before the apps start and once every window is back)"
 
 (( failed == 0 )) || exit 1
-echo "ok   identity: a pinned or saved app is one app under either class, restore starts apps through koompi-launch and moves each claimed window once"
+echo "ok   identity: a pinned or saved app is one app under either class, restore starts apps through koompi-launch, skips NoDisplay entries and moves each claimed window once"

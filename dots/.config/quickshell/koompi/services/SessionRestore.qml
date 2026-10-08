@@ -121,9 +121,9 @@ Singleton {
 
         const queue = [];
         for (const window of state.windows) {
-            // no desktop entry, no way to relaunch it: skipped without a message
+            // no entry to relaunch, or a NoDisplay one that opens nothing bare (kdialog)
             const entry = DesktopEntries.heuristicLookup(window["class"]);
-            if (!entry)
+            if (!entry || entry.noDisplay)
                 continue;
             queue.push({
                 key: TaskbarApps.appKey(window["class"]),

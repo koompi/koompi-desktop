@@ -285,6 +285,7 @@ The dock and a restored session match a window to its app by desktop entry, not 
 A pinned `org.kde.dolphin` and a running X11 `dolphin` are one dock entry, and a saved `dolphin` claims the window that `org.kde.dolphin` opens.
 A class with no entry to find (`kdialog`, `kdeconnect.app`) matches by its name without KDE's `org.kde.` prefix.
 A window that reports no class has no entry: looking an empty class up answers with an arbitrary app, so the dock, the waffle taskbar and the media panel skip the lookup.
+A restored session skips a saved window whose entry is `NoDisplay`, such as `kdialog`, which opens nothing when started bare, as it skips one with no entry.
 
 ### Kiri
 
