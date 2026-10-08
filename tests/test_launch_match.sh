@@ -213,6 +213,35 @@ check("the next time the focus lands on it, it ends the next launch",
         { windows: [mine, elsewhere], active: mine, at: 900 },
     ]), ["a,b", "b", "b", ""]));
 
+// several different apps at once, as session restore starts them
+const apps = () => [
+    begin({ id: "dolphin", entryId: "org.kde.dolphin", name: "Dolphin" }, 1000),
+    begin({ id: "kdialog", entryId: "org.kde.kdialog", name: "KDialog" }, 1010),
+    begin({ id: "wezterm", entryId: "org.wezfurlong.wezterm", name: "WezTerm" }, 1020),
+];
+const wDolphin = win("0x11", "org.kde.dolphin");
+const wKdialog = win("0x12", "org.kde.kdialog");
+const wWezterm = win("0x13", "org.wezfurlong.wezterm");
+check("several apps at once: each ends at its own window, in whatever order the windows come",
+    same(sweeps(apps(), [
+        { windows: boot, active: boot[0], at: 1100 },
+        { windows: [...boot, wWezterm], active: wWezterm, at: 1500 },
+        { windows: [...boot, wWezterm, wDolphin], active: wDolphin, at: 1800 },
+        { windows: [...boot, wWezterm, wDolphin, wKdialog], active: wKdialog, at: 2100 },
+    ]), ["dolphin,kdialog,wezterm", "dolphin,kdialog", "kdialog", ""]));
+check("several apps at once: one that never maps blocks no other, and waits alone for its own ttl",
+    same(sweeps(apps(), [
+        { windows: boot, active: boot[0], at: 1100 },
+        { windows: [...boot, wWezterm, wDolphin], active: wDolphin, at: 1800 },
+        { windows: [...boot, wWezterm, wDolphin], active: wDolphin, at: 1000 + TTL - 1 },
+        { windows: [...boot, wWezterm, wDolphin], active: wDolphin, at: 1010 + TTL },
+    ]), ["dolphin,kdialog,wezterm", "kdialog", "kdialog", ""]));
+check("several apps at once: the one that never maps is the newest, and the older two still end at their windows",
+    same(sweeps([...apps().slice(0, 2), begin({ id: "never", entryId: "org.nowhere.app", name: "Never" }, 1030)], [
+        { windows: boot, active: boot[0], at: 1100 },
+        { windows: [...boot, wDolphin, wKdialog], active: wKdialog, at: 1800 },
+    ]), ["dolphin,kdialog,never", "never"]));
+
 check("a launch lives until ttl", settleAt(dolphin1000(), [], null, 1000 + TTL - 1).length === 1);
 check("a launch is dropped at ttl", settleAt(dolphin1000(), [], null, 1000 + TTL).length === 0);
 check("only the expired one is dropped", names(settleAt([begin({ id: "old", entryId: "x" }, 0 + 1), begin({ id: "new", entryId: "y" }, 9000)], [], null, 9500)) === "new");

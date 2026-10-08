@@ -15,6 +15,8 @@
 #   text, and lost two letters to the ellipsis ("Visual Studio Code" and "Probe App" here).
 #   Dimming: the icon and the name dim and pulse, never below the opacity that keeps their text at
 #   4.5:1 on the dark and the light palette, and the Opening line is never dimmed.
+#   Several at once: the bar shows the newest launch, each ends at its own window in any order, one
+#   that never maps blocks no other and ends at its own ttl, and the shell keeps the eight newest.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -74,6 +76,8 @@ write_entry() {
     printf '[Desktop Entry]\nType=Application\nName=%s\nIcon=%s\nExec=%s\n%s' "$2" "$3" "$4" "${5:+$5$'\n'}" > "$HOME_DIR/.local/share/applications/$1.desktop"
 }
 write_entry probe-app "Probe App" probe-icon "probe-app-bin %U" "StartupWMClass=ProbeWindowClass"
+write_entry second-app "Second App" probe-icon "second-app-bin" "StartupWMClass=SecondWindowClass"
+write_entry third-app "Third App" probe-icon "third-app-bin" "StartupWMClass=ThirdWindowClass"
 write_entry shared-one "Shared One" shared-icon "sharedlauncher one"
 write_entry shared-two "Shared Two" shared-icon "sharedlauncher two"
 
@@ -243,6 +247,49 @@ ShellRoot {
         LaunchFeedback.begin({ id: "tui-app", name: "Tui App", icon: "x", startupClass: "", command: ["tui-app"], runInTerminal: true });
         probe.after(() => {
             probe.verdict(!identity.launching, "an app that runs in a terminal is not announced: its window is the terminal's");
+            probe.several();
+        });
+    }
+
+    // three apps started in the same second, as session restore starts them: the bar shows the newest,
+    // each ends at its own window, and the one that never maps blocks nothing
+    function several() {
+        const ids = () => LaunchFeedback.pending.map(l => l.id).join(",");
+        LaunchFeedback.pending = [];
+        LaunchFeedback.ttl = 1500;
+        for (const id of ["probe-app", "second-app", "third-app"])
+            LaunchFeedback.begin(DesktopEntries.byId(id));
+        probe.after(() => {
+            probe.verdict(ids() === "probe-app,second-app,third-app", "several: three launches wait at once: " + ids());
+            probe.verdict(identity.nameText === "Third App", "several: the bar shows the newest: '" + identity.nameText + "'");
+            const second = probe.win("0xc2", "SecondWindowClass", "Second window");
+            probe.show([second], second);
+            probe.after(() => {
+                probe.verdict(ids() === "probe-app,third-app", "several: a window ends its own launch, not the newest one: " + ids());
+                probe.verdict(identity.nameText === "Third App", "several: and the bar still shows the newest: '" + identity.nameText + "'");
+                const third = probe.win("0xc3", "ThirdWindowClass", "Third window");
+                probe.show([second, third], third);
+                probe.after(() => {
+                    probe.verdict(ids() === "probe-app", "several: the next window ends the next launch: " + ids());
+                    probe.verdict(identity.launching && identity.nameText === "Probe App", "several: the oldest, whose window has not come, shows once the newer ones have ended: '" + identity.nameText + "'");
+                    probe.later(1700, () => {
+                        probe.verdict(ids() === "" && !identity.launching, "several: the one that never maps ends at its own ttl: [" + ids() + "]");
+                        probe.crowd();
+                    });
+                });
+            });
+        });
+    }
+
+    // more launches than the shell keeps: the oldest are forgotten and the bar shows the newest
+    function crowd() {
+        for (let i = 0; i < 9; i++)
+            LaunchFeedback.add({ id: "n" + i, entryId: "n" + i, name: "App " + i, icon: "x", program: "n" + i });
+        probe.after(() => {
+            const kept = LaunchFeedback.pending.map(l => l.id).join(",");
+            probe.verdict(kept === "n1,n2,n3,n4,n5,n6,n7,n8", "several: the shell keeps the eight newest launches: " + kept);
+            probe.verdict(identity.nameText === "App 8", "several: and the bar shows the newest of them: '" + identity.nameText + "'");
+            LaunchFeedback.pending = [];
             probe.expiring();
         });
     }

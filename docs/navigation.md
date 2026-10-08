@@ -82,6 +82,8 @@ Its icon and name show over "Opening…" and pulse, from the moment of the launc
 A window counts as the app's when it is the launched process, when its class resolves to the same desktop entry (`dolphin` on xcb and `org.kde.dolphin` on Wayland are one), when it carries the entry's `StartupWMClass`, or when its class is what was launched; it has to be a window that first showed up after the launch began, however late the shell heard of the launch.
 An app that raises the window it already has maps nothing, so the focus landing on a matching window ends the launch too.
 A window ends one launch for as long as it exists, and one focus move ends one, so starting an app twice shows "Opening" until its second window arrives.
+Several launches at once, which is how session restore starts its apps, are kept up to eight, the oldest forgotten first, and the bar shows the newest one still waiting.
+Each ends at its own window in whatever order the windows come, and one that never maps ends at its own 8 s without holding another up, though while it is the newest the bar keeps showing it.
 An app that runs in a terminal is not announced at all, because its window is the terminal's.
 Search, the Launchpad, the media controls and the dock tell the shell themselves, through `LauncherSearch.launch`.
 A key bind tells it through `koompi-launch`, which makes one background `qs ipc call launch begin` and never waits for it.
