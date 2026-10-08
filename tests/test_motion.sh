@@ -22,8 +22,8 @@
 #   Surfaces: the real SidebarDrawer (the right panel's drawer pages) and the real
 #   SearchWidget's pill are timed from the property's first step to its landing on its
 #   final value, the work the change sets off first (a search, a list) left out: the
-#   best of three, 300 ms at most (60 ms with Reduce Motion). A jump that follows a
-#   150 ms block proves the clock leaves that work out.
+#   best of three, 300 ms at most (60 ms with Reduce Motion). A value that jumps 150 ms
+#   after its trigger must settle in about 0, which proves the clock leaves the wait out.
 #   The Hyprland half of the budget is test_motion_hypr.sh, the Hyprland modes are
 #   test_hypr_modes.sh.
 set -uo pipefail
@@ -367,11 +367,10 @@ ShellRoot {
     }
 
     function proveSettle(done) {
-        probe.settle("a jump after a 150 ms block", 60, () => { probe.jump = 0; }, () => {
-            const end = Date.now() + 150;
-            while (Date.now() < end) {}
-            probe.jump = 1;
-        }, () => probe.jump, 1, done);
+        probe.settle("a jump 150 ms after the trigger", 60,
+            () => { probe.jump = 0; },
+            () => probe.later(150, () => { probe.jump = 1; }),
+            () => probe.jump, 1, done);
     }
 
     function findField(item) {
