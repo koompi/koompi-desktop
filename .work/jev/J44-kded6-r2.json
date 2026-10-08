@@ -1,0 +1,20 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "first_decision": "J44_kded6_tray_conflict unload_watcher_module p=0.93 (jev-1.13.0), framed by the lead on the assumption that unloading kded6's statusnotifierwatcher module makes kded6 stand aside.",
+    "measured_by_j44": "With real kded6 6.30.0, Quickshell 0.3.1's SystemTray and stand-in tray items on private buses (six experiments, run twice): unloadModule returns true and removes the module and its object, but kded6 keeps owning the name org.kde.StatusNotifierWatcher (still owned 6 s later), and calls to it answer No such object path. In the seat's order (shell first, kded6 second, as on the founder's seat today) the unload changes nothing the shell sees; when that shell exits, kded6 takes the name. With the module left loaded kded6 then serves the watcher and the tray keeps working; with it unloaded kded6 holds the name with no watcher, the next shell cannot take the name, items fail to register, and the tray stays empty after the restart. With kded6 first, a shell lists items through kded6's watcher (TRAY items=1). Quickshell logs 'Could not register watcher ..., presumably because one is already registered': it is built to host an existing watcher. setModuleAutoloading(false) plus a kded6 restart is worse.",
+    "commit1": "J44's commit 1 alone (the dialog never opens empty and quits when nothing is left; kded6 is no longer a conflict; autoKillTrays removed) passes its 7-check test and the full suite (127/4/0). Commit 2 is the unload."
+  },
+  "questions": {
+    "J44_kded6_tray_conflict_r2": {
+      "type": "choice",
+      "instructions": "Given the measurements, what should the shell do about kded6?",
+      "criteria": {
+        "leave_kded6_alone": "Drop commit 2: never touch kded6; its watcher, or the shell's, serves the tray in every order measured; ship commit 1 (no empty dialog, kded6 not a conflict). Strongest case: the only measured option that keeps the tray working through a shell restart, and the least code.",
+        "keep_unload": "Keep commit 2 as first decided. Cost: measured to leave the tray empty after the next shell restart on the seat's order.",
+        "kill_kded6": "Kill kded6 at every shell start, as the old autoKillTrays did. Cost: unmeasured, takes the appmenu and every other kded module down, and D-Bus restarts kded6 on demand.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}
