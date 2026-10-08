@@ -38,6 +38,13 @@ That means a better default shipped later would never reach you, so each update 
 
 Your own choices win every time there is a disagreement.
 
+## One-time fixes
+
+Some fixes cannot reach a machine that is already set up, because they change files in your own home folder.
+Those ship as small one-time fixes, and each update runs the ones you have not had yet, in the same window, before it restarts the shell.
+`koompi update --dry-run` lists them.
+If one fails, the update says which and ends with an error, and the fix is offered again when you next log in.
+
 ## Snapshots
 
 On a KOOMPI OS install, the disk is btrfs and the system can be photographed before it changes.

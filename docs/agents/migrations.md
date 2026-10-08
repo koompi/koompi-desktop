@@ -81,12 +81,21 @@ A staged package tree (`makepkg`'s `pkgdir`) works as it stands, because the cop
 `koompi-migrate run` applies every pending migration in order and writes the marker
 after each success.
 `koompi-migrate --pending` lists them (exit 0 if any, 1 if none).
+
+`koompi update` runs `koompi-migrate run` on every route, in its own output: after the packages or the checkout are in place, and before it reloads the shell.
+On the git route it tells `./setup update` not to reload on its own (`KOOMPI_SETUP_NO_RELOAD`), so the reload still comes last.
+A failing migration does not stop the reload, because a migration is never load-bearing.
+It does fail the update: the output says which one failed, the update exits 1 instead of printing that it is up to date, and the failed migration and the ones after it stay pending.
+`koompi update --dry-run` lists what is pending and runs nothing.
+`./setup update` on its own does not run migrations.
+
 At login, `koompi-migrate-notify.service` (`dots/.config/systemd/user/`) runs
 `koompi-migrate notify`: with nothing pending it exits; otherwise it waits for the shell to
 own `org.freedesktop.Notifications` and sends a toast through `koompi-notify-send`
 whose `--exec` opens the first terminal `variables.lua` prefers, running
 `koompi-migrate run --hold`.
-Login is the only trigger, and the unit's comment says why.
+That toast is how anything `koompi update` left pending is offered again, and how a machine updated by `./setup update` alone catches up.
+Login is the only other trigger, and the unit's comment says why.
 
 ## Worked example
 

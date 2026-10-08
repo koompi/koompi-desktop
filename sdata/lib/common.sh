@@ -19,8 +19,8 @@ KOOMPI_STATE_DIR="${XDG_STATE_HOME}/koompi"
 MANIFEST="${KOOMPI_STATE_DIR}/installed-files"
 # shellcheck disable=SC2034  # read by setups.sh and uninstall.sh, which source this file
 SYSTEM_MANIFEST="${KOOMPI_STATE_DIR}/installed-system-files"
-# Read by the `koompi update` helper, which has no other way to find the
-# checkout. Keep the two in step if this ever moves.
+# Read by libexec/update and koompi-migrate, which have no other way to find
+# the checkout. Keep them in step if this ever moves.
 REPO_PATH_FILE="${KOOMPI_STATE_DIR}/repo-path"
 BACKUP_ROOT="${BACKUP_ROOT:-$HOME/.koompi-dots-backup}"
 # Used by sdata/install/setups.sh and sdata/install/uninstall.sh.
@@ -250,6 +250,8 @@ record_repo_path() {
 # does not reliably hot-reload a changed tree.
 # wayland pin below: an older session still exports xcb, and a shell on xcb maps no layer surfaces
 reload_session() {
+    # koompi update reloads itself, after its migrations
+    [[ -z "${KOOMPI_SETUP_NO_RELOAD:-}" ]] || return 0
     have hyprctl || return 0
     [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] || {
         info "not inside a Hyprland session; the new config loads at your next login"

@@ -44,7 +44,7 @@ cat > "$T/bin/pacman-conf" <<'STUB'
 exit 0
 STUB
 printf '#!/usr/bin/env bash\nexec "$@"\n' > "$T/bin/sudo"
-for tool in paru yay koompi-hook koompi-snapshot; do
+for tool in paru yay koompi-hook koompi-snapshot koompi-migrate; do
     printf '#!/usr/bin/env bash\nprintf "%s %%s\\n" "$*" >> "%s"\nexit 0\n' "$tool" "$T/order" > "$T/bin/$tool"
 done
 printf '#!/usr/bin/env bash\nprintf "git %%s\\n" "$*" >> "%s"\nexit 0\n' "$T/order" > "$T/bin/git"

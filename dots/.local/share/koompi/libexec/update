@@ -40,10 +40,9 @@ source "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/update-lib.sh" \
 
 DRY_RUN=false; ASSUME_YES=false; NO_RELOAD=false; FIRMWARE=false
 
-# ./setup update reloads on its own (common.sh reload_session has no --no-reload)
 refuse_git_route_if_locked() {
-    session_locked && die "session is locked; ./setup update would restart the shell under the lock. Unlock and run 'koompi update' again"
-    info "session lock: unlocked (logind LockedHint); ./setup update may restart the shell"
+    session_locked && die "session is locked; the update rewrites the live shell tree. Unlock and run 'koompi update' again"
+    info "session lock: unlocked (logind LockedHint)"
 }
 
 usage() {
@@ -62,7 +61,8 @@ It detects how KOOMPI was installed and does the right thing:
   from a git checkout    git pull, then ./setup update
 
 Both routes also migrate changed config defaults into your config.json,
-backing it up to config.json.bak-<timestamp> first.
+backing it up to config.json.bak-<timestamp> first, then run the pending
+per-user migrations (koompi-migrate run) before the session is reloaded.
 
 One run at a time, awake throughout, 2 GiB free required, locked session left alone.
 Every real run keeps a transcript in ~/.local/state/koompi/logs/update-<stamp>.log
@@ -572,9 +572,8 @@ update_packaged() {
         local -a args=()
         [[ "$DRY_RUN"    == true ]] && args+=(--dry-run)
         [[ "$ASSUME_YES" == true ]] && args+=(--yes)
-        NO_RELOAD=true   # ./setup update reloads the session itself
         UPDATE_ROUTE=from-git
-        "$repo/setup" update "${args[@]}" || die "./setup update failed"
+        setup_update "$repo" "${args[@]}"
         return 0
     fi
 
@@ -604,10 +603,8 @@ update_from_git() {
     local -a args=()
     [[ "$DRY_RUN"    == true ]] && args+=(--dry-run)
     [[ "$ASSUME_YES" == true ]] && args+=(--yes)
-    # ./setup update reloads the session itself, so suppress the second reload.
-    NO_RELOAD=true
     UPDATE_ROUTE=from-git
-    "$repo/setup" update "${args[@]}" || die "./setup update failed"
+    setup_update "$repo" "${args[@]}"
 }
 
 UPDATE_ROUTE=unknown
@@ -655,24 +652,25 @@ main() {
     info "lock taken: $LOCK_FILE (pid $$)"
     stay_awake
 
-    local method
+    local method migrated=true
     if is_packaged; then
         method=packaged
         update_packaged
-        # A fallback already ran the git route, which reloads on its own.
         [[ "$UPDATE_ROUTE" == from-git ]] && method=from-git
-        [[ "$UPDATE_ROUTE" == from-git ]] || reload_session
-        [[ -z "$REBOOT_REASON" ]] || warn "reboot needed: $REBOOT_REASON; a shell reload cannot apply that. Reboot when convenient"
     else
         method=from-git
         update_from_git
     fi
+    run_migrations || migrated=false
+    reload_session
+    [[ -z "$REBOOT_REASON" ]] || warn "reboot needed: $REBOOT_REASON; a shell reload cannot apply that. Reboot when convenient"
 
     # Both branches die() on failure, so reaching this line means the update
     # completed. Fires exactly once per run, whichever way it updated. The
     # guard keeps updates working where koompi-hook isn't on PATH (yet).
     command -v koompi-hook >/dev/null 2>&1 && KOOMPI_HOOK_UPDATE_METHOD="$method" koompi-hook post-update
 
+    [[ "$migrated" == true ]] || die "the update finished, but a migration failed; see above"
     step "Done"
     printf '  KOOMPI is up to date (%s route). %skoompi-health%s reports on the session.\n' \
         "$method" "${C_BOLD}" "${C_RST}"

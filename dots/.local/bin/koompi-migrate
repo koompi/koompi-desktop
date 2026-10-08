@@ -64,7 +64,8 @@ checkout this copy runs from, the checkout ./setup recorded in
 run applies every pending migration in order, recording completion per user
 under ~/.local/state/koompi/migrations/. A failing migration stops the run
 and later ones are left pending. --hold waits for Enter afterwards, for the
-terminal the notification opens.
+terminal the notification opens. `koompi update` runs it before it reloads the
+shell.
 
 notify is what koompi-migrate-notify.service runs at login: with migrations
 pending, it waits for the shell's notification server and sends a toast whose

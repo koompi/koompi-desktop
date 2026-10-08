@@ -189,6 +189,26 @@ apply_hardware_quirks() {
     return 0
 }
 
+# main reloads, after the migrations, so ./setup update is told not to
+setup_update() {
+    KOOMPI_SETUP_NO_RELOAD=1 "$1/setup" update "${@:2}" || die "./setup update failed"
+}
+
+# 1 on a failed migration or a missing koompi-migrate: main still reloads, since a migration is never load-bearing, then fails the update
+run_migrations() {
+    step "Running migrations"
+    have koompi-migrate || { warn "koompi-migrate is not on PATH; the migrations were not run"; return 1; }
+    if [[ "$DRY_RUN" == true ]]; then
+        local pending
+        pending="$(koompi-migrate --pending | paste -sd' ' -)" || pending=""
+        if [[ -n "$pending" ]]; then info "dry run: would run: $pending"; else info "dry run: no migrations pending"; fi
+        return 0
+    fi
+    run koompi-migrate run && return 0
+    warn "a migration failed, and the ones after it are still pending; 'koompi-migrate run' retries them, and the login notice offers them again"
+    return 1
+}
+
 # `koompi update --firmware`: fwupdmgr update, interactively, and nothing else.
 cmd_firmware() {
     have fwupdmgr || die "fwupdmgr is not installed; it comes with the fwupd package: sudo pacman -S fwupd"

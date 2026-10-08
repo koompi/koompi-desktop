@@ -29,7 +29,7 @@ cat > "$T/bin/pacman-conf" <<'STUB'
 exit 0
 STUB
 printf '#!/usr/bin/env bash\nexec "$@"\n' > "$T/bin/sudo"
-for tool in paru koompi-hook koompi-snapshot hyprctl setsid; do
+for tool in paru koompi-hook koompi-snapshot hyprctl setsid koompi-migrate; do
     printf '#!/usr/bin/env bash\nprintf "%s %%s\\n" "$*" >> "%s"\nexit 0\n' "$tool" "$T/order" > "$T/bin/$tool"
 done
 # fwupdmgr: get-updates answers with whatever $T/fw-rc says (0 = updates listed, 2 = none)

@@ -48,7 +48,7 @@ KOOMPI hides three that would otherwise start:
 Each is a file of the same name in `dots/.config/autostart/` with `Hidden=true`, listed in `KEEP_PATHS`: written once if absent, never rewritten.
 To get one back, edit the file to `Hidden=false`; deleting it only brings it back at the next update.
 
-`/etc/skel` seeds new users only and `koompi-migrate` syncs only the shell and `hypr/hyprland`, so an existing home gets the target and the three files from `sdata/migrations/*-session-target-autostart.sh`.
+`/etc/skel` seeds new users only and `koompi-migrate` syncs only the shell and `hypr/hyprland`, so an existing home gets the target and the three files from `sdata/migrations/*-session-target-autostart.sh`, which `koompi update` runs (`docs/agents/migrations.md`).
 
 ## Options the shell holds
 
