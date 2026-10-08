@@ -6,6 +6,7 @@
 set -euo pipefail
 [[ -n ${KOOMPI_HEAVY_LOCKED:-} ]] || exec "$(dirname -- "${BASH_SOURCE[0]}")/heavy.sh" "${BASH_SOURCE[0]}" "$@"
 
+harness=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 repo=$(realpath "$1"); out=$(realpath -m "$2"); shift 2
 size=1920x1200
 if [[ ${1:-} != -- ]]; then size=$1; shift; fi
@@ -49,11 +50,8 @@ printf '#!/usr/bin/env bash\nexit 1\n' > "$work/bin/koompi-shelld"
 chmod +x "$work/bin/koompi-shelld"
 
 {
-    printf '#!/usr/bin/env bash\nset -uo pipefail\nunset HYPRLAND_INSTANCE_SIGNATURE\nparent=$WAYLAND_DISPLAY\n'
-    printf 'Hyprland -c %q > %q 2>&1 &\n' "$home/.config/hypr/hyprland.lua" "$out/hyprland.log"
-    printf 'for _ in $(seq 1 100); do sig=$(ls %q/hypr 2>/dev/null | head -1); [[ -n $sig ]] && break; sleep 0.2; done\n' "$run"
-    printf 'export HYPRLAND_INSTANCE_SIGNATURE=$sig\n'
-    printf 'for _ in $(seq 1 100); do d=$(ls %q | grep -E "^wayland-[0-9]+$" | grep -v "^$parent$" | head -1); [[ -n $d ]] && break; sleep 0.2; done\nexport WAYLAND_DISPLAY=$d\n' "$run"
+    printf '#!/usr/bin/env bash\nset -uo pipefail\nsource %q\n' "$harness/tests/nested-hyprland.sh"
+    printf 'nested_hyprland_start %q %q || exit 1\n' "$home/.config/hypr/hyprland.lua" "$out/hyprland.log"
     printf 'for _ in $(seq 1 100); do qs -c koompi ipc show >/dev/null 2>&1 && break; sleep 0.5; done\nsleep 5\n'
     for step in "$@"; do
         case $step in
@@ -68,13 +66,14 @@ chmod +x "$work/bin/koompi-shelld"
     done
     # an app still open when the nested compositor exits can crash, and every crash under this uid toasts the live desktop
     printf 'hyprctl -j clients 2>/dev/null | jq -r ".[] | select(.pid > 0) | .pid" | xargs -r kill -TERM 2>/dev/null\nsleep 1\n'
-    printf 'echo "display=$WAYLAND_DISPLAY sig=$HYPRLAND_INSTANCE_SIGNATURE" >> %q\ncp "$XDG_RUNTIME_DIR"/hypr/*/hyprland.log %q 2>/dev/null\ncp "$XDG_RUNTIME_DIR"/quickshell/by-id/*/log.qslog %q 2>/dev/null\nhyprctl dispatch "hl.dsp.exit()" >/dev/null 2>&1\nsleep 1\n' "$out/run.log" "$out/hyprland-run.log" "$out/qs.qslog"
+    printf 'echo "display=$WAYLAND_DISPLAY sig=$HYPRLAND_INSTANCE_SIGNATURE" >> %q\ncp "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" %q 2>/dev/null\ncp "$(ls -t "$XDG_RUNTIME_DIR"/quickshell/by-id/*/log.qslog | head -1)" %q 2>/dev/null\nhyprctl dispatch "hl.dsp.exit()" >/dev/null 2>&1\nsleep 1\n' "$out/run.log" "$out/hyprland-run.log" "$out/qs.qslog"
 } > "$work/inner.sh"
 chmod +x "$work/inner.sh"
 
 env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
     HOME="$home" XDG_RUNTIME_DIR="$run" XDG_CONFIG_HOME="$home/.config" XDG_STATE_HOME="$home/.local/state" \
     XDG_CACHE_HOME="$home/.cache" PATH="$work/bin:$PATH" KOOMPI_SHELLD="$work/bin/koompi-shelld" \
-    timeout 240 dbus-run-session --config-file="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/tests/private-bus.conf" -- kwin_wayland --virtual --width "$((w + 200))" --height "$((h + 200))" \
+    timeout 240 dbus-run-session --config-file="$harness/tests/private-bus.conf" -- kwin_wayland --virtual --width "$((w + 200))" --height "$((h + 200))" \
         --no-lockscreen --no-global-shortcuts --exit-with-session "$work/inner.sh" > "$out/kwin.log" 2>&1 || true
+grep '^nested Hyprland:' "$out/kwin.log" >&2 || true
 ls "$out"/*.png 2>/dev/null || { echo "hyprshot: no images; see $out/kwin.log and $out/hyprland.log" >&2; exit 1; }
