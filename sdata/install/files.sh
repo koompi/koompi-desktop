@@ -15,6 +15,9 @@
 # rewrites on every quit, so it is seeded once - writing it again reverts whatever
 # chain the user built and resets their device selection.
 readonly KEEP_PATHS=(
+    ".config/autostart/geoclue-demo-agent.desktop"
+    ".config/autostart/nm-applet.desktop"
+    ".config/autostart/org.kde.kdeconnect.daemon.desktop"
     ".config/easyeffects/db/easyeffectsrc"
     ".config/hypr/custom/env.lua"
     ".config/hypr/custom/execs.lua"

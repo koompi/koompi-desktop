@@ -95,8 +95,9 @@ depends=(
   nm-connection-editor      # the network widget's "advanced settings" opens this
 
   # --- connectivity ----------------------------------------------------------
-  # Phone pairing, clipboard sync and notification mirroring. The shell's
-  # KDE Connect integration is dead weight without the daemon.
+  # Phone pairing, clipboard sync and notification mirroring. kdeconnectd starts
+  # when KDE Connect opens, and koompi-remotedesktop-portal allows Remote Input
+  # only while kdeconnectd runs.
   kdeconnect
 
   # --- voice -----------------------------------------------------------------

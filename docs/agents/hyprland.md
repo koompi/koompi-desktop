@@ -37,6 +37,17 @@ The user manager reads that directory, so the first start loads it with no enabl
 It binds `graphical-session.target`, which hypridle, the crash watcher, touch gestures, the migration notice and the portals hang off, and it wants `xdg-desktop-autostart.target`, which starts every login item.
 `xdg-desktop-autostart.target` refuses a manual start, so a script must never `systemctl --user start` it; `tests/test_session_autostart.sh` fails on that.
 
+Apps set to start at login (`~/.config/autostart`, `/etc/xdg/autostart`) do start, from the next login: systemd generates their units when the user manager starts.
+`OnlyShowIn=` and `NotShowIn=` are read against `XDG_CURRENT_DESKTOP=KOOMPI:Hyprland`.
+KOOMPI hides three that would otherwise start:
+
+- `nm-applet`, because the shell has its own network panel.
+- `geoclue-demo-agent`, because Weather starts it when it needs a location and Weather is off by default.
+- `org.kde.kdeconnect.daemon`, because D-Bus starts `kdeconnectd` when KDE Connect opens, and Remote Input through `koompi-remotedesktop-portal` needs it running.
+
+Each is a file of the same name in `dots/.config/autostart/` with `Hidden=true`, listed in `KEEP_PATHS`: written once if absent, never rewritten.
+To get one back, edit the file to `Hidden=false`; deleting it only brings it back at the next update.
+
 ## Options the shell holds
 
 `hyprland/shellOverrides/main.lua` is written by the shell, never by hand, through

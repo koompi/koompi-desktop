@@ -1,0 +1,6 @@
+[Desktop Entry]
+# hidden: the shell has its own network panel; Hidden=false starts the applet at login
+Type=Application
+Name=NetworkManager Applet
+Exec=nm-applet
+Hidden=true
