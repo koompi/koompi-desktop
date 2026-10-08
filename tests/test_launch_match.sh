@@ -27,10 +27,10 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 sed '/^\.pragma /d' "$MATCH_JS" > "$WORK/match.mjs"
-printf '\nexport { record, track, matches, settle, entryForProgram, programOf };\n' >> "$WORK/match.mjs"
+printf '\nexport { record, track, noneSeen, matches, settle, entryForProgram, programOf };\n' >> "$WORK/match.mjs"
 
 cat > "$WORK/run.mjs" <<'EOF'
-import { record, track, matches, settle, entryForProgram, programOf } from "./match.mjs";
+import { record, track, noneSeen, matches, settle, entryForProgram, programOf } from "./match.mjs";
 
 let failed = 0;
 const check = (name, cond, extra = "") => {
@@ -105,7 +105,7 @@ check("an empty class never goes to the lookup, which answers an arbitrary entry
 check("no window is no match", !matches(record({ entryId: "org.kde.dolphin" }, 1000), null, entryOf));
 
 // track: what the shell has seen, and when
-const EMPTY = { first: {}, focus: "", focusSince: 0 };
+const EMPTY = noneSeen();
 const old = [win("0x1", "dolphin"), win("0x2", "kitty")];
 const t100 = track(EMPTY, old, old[1], 100);
 check("track stamps every window with the time it was first seen", t100.first["0x1"] === 100 && t100.first["0x2"] === 100);
@@ -114,12 +114,17 @@ check("track keeps the first time of a window it knew, and stamps a new one", t2
 check("track forgets a window that is gone", track(t200, [old[0]], old[0], 300).first["0x2"] === undefined);
 check("track moves the focus time only when the focus moves", t200.focusSince === 100 && track(t200, old, old[0], 300).focusSince === 300);
 check("track with no focus", track(t200, old, null, 300).focus === "");
+const claimedSeen = { ...t100, claimedWindows: { "0x1": true, "0x9": true }, claimedFocus: true };
+check("track keeps a window's claim while the window exists and drops it with the window",
+    track(claimedSeen, old, old[1], 200).claimedWindows["0x1"] === true && track(claimedSeen, old, old[1], 200).claimedWindows["0x9"] === undefined);
+check("track keeps the focus claim while the focus stays and drops it when the focus moves",
+    track(claimedSeen, old, old[1], 200).claimedFocus === true && track(claimedSeen, old, old[0], 200).claimedFocus === false);
 
 // settle: a window counts when it first showed up after the launch began
 const dolphin = { id: "org.kde.dolphin", entryId: "org.kde.dolphin", name: "Dolphin" };
 const begin = (spec, at) => record({ ...spec, startedAt: at }, at);
 const seenAt = (windows, active, at, from = t100) => track(from, windows, active, at);
-const settleAt = (launches, windows, active, at, seen = seenAt(windows, active, at)) => settle(launches, windows, active, entryOf, at, TTL, seen);
+const settleAt = (launches, windows, active, at, seen = seenAt(windows, active, at)) => settle(launches, windows, active, entryOf, at, TTL, seen).waiting;
 const dolphin1000 = () => [begin(dolphin, 1000)];
 
 check("a launch waits while nothing maps", settleAt(dolphin1000(), [], null, 1100).length === 1);
@@ -149,6 +154,64 @@ check("focus staying where it was does not end it, though that window matches",
     settleAt(dolphin1000(), old, old[0], 1500, track(track(EMPTY, old, old[0], 100), old, old[0], 1500)).length === 1);
 check("focus moving to an unrelated window does not", settleAt(dolphin1000(), old, old[1], 1500, track(track(EMPTY, old, old[0], 100), old, old[1], 1500)).length === 1);
 check("a window that settled one launch is not the focus rule's for another", names(settleAt(two, mapped, mapped[2], 1500, seenMapped)) === "b");
+
+// consecutive sweeps, as the service runs them: each starts from the claims the one before made
+const sweeps = (launches, steps) => {
+    let seen = noneSeen();
+    let left = launches;
+    return steps.map(step => {
+        seen = track(seen, step.windows, step.active, step.at);
+        const result = settle(left, step.windows, step.active, entryOf, step.at, TTL, seen);
+        seen = result.seen;
+        left = result.waiting;
+        return names(left);
+    });
+};
+const boot = [win("0x1", "kitty")];
+const w3 = win("0x3", "dolphin");
+const w4 = win("0x4", "dolphin");
+const pair = () => [begin({ ...dolphin, id: "a" }, 1000), begin({ ...dolphin, id: "b" }, 1100)];
+const same = (got, want) => JSON.stringify(got) === JSON.stringify(want);
+
+check("a window that settled the older launch does not settle the younger on the next sweep",
+    same(sweeps(pair(), [
+        { windows: boot, active: boot[0], at: 1150 },
+        { windows: [...boot, w3], active: w3, at: 1500 },
+        { windows: [...boot, w3], active: w3, at: 1750 },
+        { windows: [...boot, w3], active: w3, at: 2000 },
+    ]), ["a,b", "b", "b", "b"]));
+check("the younger launch is settled by a window of its own",
+    sweeps(pair(), [
+        { windows: boot, active: boot[0], at: 1150 },
+        { windows: [...boot, w3], active: w3, at: 1500 },
+        { windows: [...boot, w3, w4], active: w4, at: 1750 },
+    ]).pop() === "");
+check("a window that is gone gives up its claim, so a reused address can settle a later launch",
+    sweeps([begin({ ...dolphin, id: "a" }, 1000), begin({ ...dolphin, id: "c" }, 1900)], [
+        { windows: boot, active: boot[0], at: 1100 },
+        { windows: [...boot, w3], active: w3, at: 1500 },
+        { windows: boot, active: boot[0], at: 1950 },
+        { windows: [...boot, w3], active: w3, at: 2100 },
+    ]).pop() === "");
+
+const mine = win("0x1", "dolphin");
+const elsewhere = win("0x2", "kitty");
+const focusPair = () => [begin({ ...dolphin, id: "a" }, 400), begin({ ...dolphin, id: "b" }, 450)];
+check("one focus move ends one launch, on that sweep and on every later one",
+    same(sweeps(focusPair(), [
+        { windows: [mine, elsewhere], active: elsewhere, at: 300 },
+        { windows: [mine, elsewhere], active: elsewhere, at: 420 },
+        { windows: [mine, elsewhere], active: mine, at: 500 },
+        { windows: [mine, elsewhere], active: mine, at: 750 },
+        { windows: [mine, elsewhere], active: mine, at: 1000 },
+    ]), ["a,b", "a,b", "b", "b", "b"]));
+check("the next time the focus lands on it, it ends the next launch",
+    same(sweeps(focusPair(), [
+        { windows: [mine, elsewhere], active: elsewhere, at: 300 },
+        { windows: [mine, elsewhere], active: mine, at: 500 },
+        { windows: [mine, elsewhere], active: elsewhere, at: 700 },
+        { windows: [mine, elsewhere], active: mine, at: 900 },
+    ]), ["a,b", "b", "b", ""]));
 
 check("a launch lives until ttl", settleAt(dolphin1000(), [], null, 1000 + TTL - 1).length === 1);
 check("a launch is dropped at ttl", settleAt(dolphin1000(), [], null, 1000 + TTL).length === 0);

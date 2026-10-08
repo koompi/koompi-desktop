@@ -12,7 +12,7 @@ Singleton {
 
     property int ttl: 8000
     property var pending: []
-    property var seen: ({ first: {}, focus: "", focusSince: 0 })
+    property var seen: LaunchMatch.noneSeen()
     readonly property var current: root.pending.length > 0 ? root.pending[root.pending.length - 1] : null
 
     // heuristicLookup("") answers with an arbitrary entry
@@ -52,9 +52,10 @@ Singleton {
 
     function sweep() {
         root.observe();
-        const waiting = LaunchMatch.settle(root.pending, HyprlandData.windowList, HyprlandData.activeWindow, root.entryOf, Date.now(), root.ttl, root.seen);
-        if (waiting.length !== root.pending.length)
-            root.pending = waiting;
+        const result = LaunchMatch.settle(root.pending, HyprlandData.windowList, HyprlandData.activeWindow, root.entryOf, Date.now(), root.ttl, root.seen);
+        root.seen = result.seen;
+        if (result.waiting.length !== root.pending.length)
+            root.pending = result.waiting;
     }
 
     Connections {

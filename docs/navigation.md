@@ -81,6 +81,7 @@ While an app is starting, the same identity answers for it, so Enter is never me
 Its icon and name show over "Opening…" and pulse, from the moment of the launch until a window of that app maps or 8 s have passed, and then the identity is the focused window again.
 A window counts as the app's when it is the launched process, when its class resolves to the same desktop entry (`dolphin` on xcb and `org.kde.dolphin` on Wayland are one), when it carries the entry's `StartupWMClass`, or when its class is what was launched; it has to be a window that first showed up after the launch began, however late the shell heard of the launch.
 An app that raises the window it already has maps nothing, so the focus landing on a matching window ends the launch too.
+A window ends one launch for as long as it exists, and one focus move ends one, so starting an app twice shows "Opening" until its second window arrives.
 An app that runs in a terminal is not announced at all, because its window is the terminal's.
 Search, the Launchpad, the media controls and the dock tell the shell themselves, through `LauncherSearch.launch`.
 A key bind tells it through `koompi-launch`, which makes one background `qs ipc call launch begin` and never waits for it.

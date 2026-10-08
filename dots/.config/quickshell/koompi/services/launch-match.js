@@ -51,13 +51,29 @@ function record(spec, now) {
     };
 }
 
-// when each window was first seen and since when the focus has been where it is
+function noneSeen() {
+    return { first: {}, focus: "", focusSince: 0, claimedWindows: {}, claimedFocus: false };
+}
+
+// when each window was first seen, since when the focus has been where it is, and which of them
+// have already ended a launch (a window ends one for as long as it exists, a focus move ends one)
 function track(seen, windows, active, now) {
     const first = {};
-    for (const win of windows)
+    const claimedWindows = {};
+    for (const win of windows) {
         first[win.address] = seen.first[win.address] || now;
+        if (seen.claimedWindows[win.address])
+            claimedWindows[win.address] = true;
+    }
     const focus = active ? active.address : "";
-    return { first: first, focus: focus, focusSince: focus === seen.focus ? seen.focusSince : now };
+    const moved = focus !== seen.focus;
+    return {
+        first: first,
+        focus: focus,
+        focusSince: moved ? now : seen.focusSince,
+        claimedWindows: claimedWindows,
+        claimedFocus: moved ? false : seen.claimedFocus
+    };
 }
 
 // entryOf joins dolphin on xcb and org.kde.dolphin on wayland into one entry
@@ -78,9 +94,11 @@ function matches(launch, win, entryOf) {
 }
 
 // a window counts once it first showed up after the launch began, however late the shell heard of
-// the launch; an app that raises the window it has maps nothing, so focus moving to a match counts
+// the launch; an app that raises the window it has maps nothing, so focus moving to a match counts.
+// Returns the launches still waiting and the claims made, to carry into the next sweep.
 function settle(launches, windows, active, entryOf, now, ttl, seen) {
-    const claimed = {};
+    const claimed = Object.assign({}, seen.claimedWindows);
+    let focusClaimed = seen.claimedFocus;
     const waiting = [];
     for (const launch of launches) {
         if (now - launch.startedAt >= ttl)
@@ -95,12 +113,12 @@ function settle(launches, windows, active, entryOf, now, ttl, seen) {
                 break;
             }
         }
-        if (!done && active && seen.focusSince > launch.startedAt && !claimed[active.address] && matches(launch, active, entryOf)) {
-            claimed[active.address] = true;
+        if (!done && active && !focusClaimed && !claimed[active.address] && seen.focusSince > launch.startedAt && matches(launch, active, entryOf)) {
+            focusClaimed = true;
             done = true;
         }
         if (!done)
             waiting.push(launch);
     }
-    return waiting;
+    return { waiting: waiting, seen: Object.assign({}, seen, { claimedWindows: claimed, claimedFocus: focusClaimed }) };
 }
