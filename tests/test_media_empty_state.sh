@@ -184,7 +184,7 @@ for run in 0 1; do
         fail "the media probe did not pass with $label"
     fi
     if (( run == 1 )); then
-        grep -qxF -- '--id alpha -- alpha ' "$WORK/launch.log" 2> /dev/null \
+        grep -qxF -- '--registered --id alpha -- alpha ' "$WORK/launch.log" 2> /dev/null \
             || fail "Open <player> did not launch the remembered app through koompi-launch: $(cat "$WORK/launch.log" 2> /dev/null)"
     else
         [[ -e "$WORK/launch.log" ]] && fail "something launched with no player ever active"
