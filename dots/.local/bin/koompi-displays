@@ -4,12 +4,17 @@ set -euo pipefail
 
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 MONITORS_LUA="$XDG_CONFIG_HOME/hypr/monitors.lua"
+STATE_DIR="${XDG_RUNTIME_DIR:+$XDG_RUNTIME_DIR/koompi-displays}"
+PENDING="${STATE_DIR:+$STATE_DIR/pending}"
+CONFIRM_SECONDS="${KOOMPI_DISPLAYS_CONFIRM_SECONDS:-15}"
+case $0 in /*) SELF=$0 ;; *) SELF=$PWD/$0 ;; esac
 # two decimals like the compositor lists them; one cannot tell 74.97 from 75.00
 JQ_MODE='def mode: "\(.width)x\(.height)@\(.refreshRate*100|round/100)";'
 
 usage() {
     echo "usage: koompi-displays place <monitor> <left|right|above|below> [anchor]" >&2
-    echo "       koompi-displays rate <monitor> <hz>" >&2
+    echo "       koompi-displays rate <monitor> <hz>   (switches; keep saves it, revert or ${CONFIRM_SECONDS} s of silence undoes it)" >&2
+    echo "       koompi-displays keep | revert" >&2
     exit 1
 }
 
@@ -80,10 +85,78 @@ wait_for_rate() {
     return 1
 }
 
+need_state() {
+    [ -n "$STATE_DIR" ] || { echo "koompi-displays: XDG_RUNTIME_DIR is not set" >&2; exit 1; }
+    mkdir -p "$STATE_DIR"
+}
+
+# whoever renames the record away owns it: keep, revert and the timer never act twice
+claim_pending() {
+    local claim="$PENDING.$$"
+    mv -- "$PENDING" "$claim" 2>/dev/null || return 1
+    echo "$claim"
+}
+
+restore_from() {
+    local rec="$1" fields mon mode x y scale centi
+    fields=$(jq -er '"\(.monitor) \(.mode) \(.x) \(.y) \(.scale) \(.centi)"' "$rec") || { rm -f -- "$rec"; return 1; }
+    rm -f -- "$rec"
+    read -r mon mode x y scale centi <<< "$fields"
+    apply_mode "$mon" "$mode" "$x" "$y" "$scale"
+    wait_for_rate "$mon" "$centi" || { echo "koompi-displays: $mon did not go back to $mode" >&2; return 1; }
+}
+
+undo_pending() {
+    local claim
+    claim=$(claim_pending) || return 0
+    restore_from "$claim" || true
+}
+
+print_pending() {
+    local now
+    printf -v now '%(%s)T' -1
+    jq -c --argjson now "$now" '{monitor, previous: (.centi / 100), deadline, seconds: ([.deadline - $now, 0] | max)}' "$PENDING"
+}
+
+# a record past its deadline means the timer died: undo it before anything else changes
+refuse_if_pending() {
+    local now
+    [ -n "$PENDING" ] && [ -e "$PENDING" ] || return 0
+    printf -v now '%(%s)T' -1
+    if (( now >= $(jq -r '.deadline // 0' "$PENDING" 2>/dev/null || echo 0) )); then
+        undo_pending
+        return 0
+    fi
+    echo "koompi-displays: a refresh-rate change is waiting for an answer; run 'koompi-displays keep' or 'revert' first" >&2
+    exit 1
+}
+
+# runs in its own session, so closing Settings or a black screen cannot stop it; counts sleeps, a clock step cannot stretch it
+cmd_expire() {
+    local token="${1:-}" i
+    for ((i = 0; i < CONFIRM_SECONDS * 4; i++)); do
+        [ -e "$PENDING" ] || return 0
+        sleep 0.25
+    done
+    [ "$(jq -r .token "$PENDING" 2>/dev/null)" = "$token" ] || return 0
+    undo_pending
+}
+
+arm_pending() {
+    local record="$1" token="$$.$RANDOM$RANDOM" deadline now
+    command -v setsid >/dev/null 2>&1 || { echo "koompi-displays: setsid (util-linux) is needed to guard the change" >&2; exit 1; }
+    printf -v now '%(%s)T' -1
+    deadline=$((now + CONFIRM_SECONDS))
+    jq -c --arg t "$token" --argjson d "$deadline" '{monitor, mode, x, y, scale, centi} + {token: $t, deadline: $d}' <<< "$record" > "$PENDING.new"
+    mv -- "$PENDING.new" "$PENDING"
+    setsid -f bash "$SELF" _expire "$token" </dev/null >/dev/null 2>&1
+}
+
 # ponytail: pairwise placement only; monitors beyond the pair keep their absolute spots
 cmd_place() {
     local mon="${1:-}" dir="${2:-}" anchor="${3:-}" monjson
     [ -n "$mon" ] && [ -n "$dir" ] || usage
+    refuse_if_pending
 
     monjson=$(hyprctl monitors -j)
 
@@ -128,11 +201,13 @@ cmd_rate() {
     local mon="${1:-}" hz="${2:-}" row centi rate listed w h x y scale
     [ -n "$mon" ] && [ -n "$hz" ] || usage
     [[ $hz =~ ^[0-9]+([.][0-9]+)?$ ]] || { echo "koompi-displays: '$hz' is not a refresh rate in Hz" >&2; exit 1; }
+    need_state
+    refuse_if_pending
 
     # rates are centi-Hz integers so 74.97 compares exactly; only modes at the current WxH count
-    row=$(hyprctl monitors -j | jq -c --arg m "$mon" '
+    row=$(hyprctl monitors -j | jq -c --arg m "$mon" "$JQ_MODE"'
         .[] | select(.name == $m) | . as $mon
-        | {w: .width, h: .height, x: .x, y: .y, scale: .scale,
+        | {monitor: .name, w: .width, h: .height, x: .x, y: .y, scale: .scale, mode: mode, centi: (.refreshRate * 100 | round),
            rates: ([.availableModes[]?
                     | capture("^(?<w>[0-9]+)x(?<h>[0-9]+)@(?<r>[0-9.]+)Hz$")
                     | select((.w | tonumber) == $mon.width and (.h | tonumber) == $mon.height)
@@ -146,15 +221,40 @@ cmd_rate() {
         exit 1
     fi
 
-    read -r w h x y scale <<< "$(jq -r '"\(.w) \(.h) \(.x) \(.y) \(.scale)"' <<< "$row")"
     printf -v rate '%d.%02d' $((centi / 100)) $((centi % 100))
-    apply_mode "$mon" "${w}x${h}@${rate}" "$x" "$y" "$scale"
-    wait_for_rate "$mon" "$centi" || { echo "koompi-displays: $mon did not switch to $rate Hz, layout not saved" >&2; exit 1; }
-    persist_layout
+    read -r w h x y scale <<< "$(jq -r '"\(.w) \(.h) \(.x) \(.y) \(.scale)"' <<< "$row")"
+    arm_pending "$row"
+    if ! apply_mode "$mon" "${w}x${h}@${rate}" "$x" "$y" "$scale" || ! wait_for_rate "$mon" "$centi"; then
+        undo_pending
+        echo "koompi-displays: $mon did not switch to $rate Hz" >&2
+        exit 1
+    fi
+    print_pending
+}
+
+cmd_keep() {
+    local claim
+    need_state
+    claim=$(claim_pending) || { echo "koompi-displays: no refresh-rate change is waiting; it already went back" >&2; exit 1; }
+    if ! persist_layout; then
+        restore_from "$claim" || true
+        exit 1
+    fi
+    rm -f -- "$claim"
+}
+
+cmd_revert() {
+    local claim
+    need_state
+    claim=$(claim_pending) || exit 0
+    restore_from "$claim"
 }
 
 case "${1:-}" in
     place) shift; cmd_place "$@" ;;
     rate) shift; cmd_rate "$@" ;;
+    keep) cmd_keep ;;
+    revert) cmd_revert ;;
+    _expire) shift; cmd_expire "$@" ;;
     *) usage ;;
 esac

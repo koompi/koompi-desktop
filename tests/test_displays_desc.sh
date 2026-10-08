@@ -13,8 +13,9 @@ end_case() { (( case_failed )) || printf 'PASS %s\n' "$1"; case_failed=0; }
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 stub="$tmp/bin"
-mkdir -p "$stub" "$tmp/config/hypr"
-for cmd in bash jq mktemp mv rm sleep cat; do
+mkdir -p "$stub" "$tmp/config/hypr" "$tmp/run"
+chmod 700 "$tmp/run"
+for cmd in bash jq mktemp mv rm sleep cat mkdir setsid; do
     path="$(command -v "$cmd")" || { echo "FAIL: test host has no $cmd" >&2; exit 1; }
     ln -s "$path" "$stub/$cmd"
 done
@@ -25,14 +26,17 @@ lua="$tmp/config/hypr/monitors.lua"
 fresh() {
     cp "$REPO_ROOT/tests/displays-monitors.json" "$tmp/state.json"
     : > "$tmp/eval.log"
-    rm -f "$lua"
+    rm -rf "$lua" "$tmp/run/koompi-displays"
 }
 monitors() { jq "$1" "$tmp/state.json" > "$tmp/state.new" && mv "$tmp/state.new" "$tmp/state.json"; }
 run_displays() {
-    env -i PATH="$stub" HOME="$tmp" XDG_CONFIG_HOME="$tmp/config" \
+    env -i PATH="$stub" HOME="$tmp" XDG_CONFIG_HOME="$tmp/config" XDG_RUNTIME_DIR="$tmp/run" \
         HYPRCTL_STATE="$tmp/state.json" HYPRCTL_EVAL_LOG="$tmp/eval.log" bash "$SCRIPT" "$@" > "$tmp/out" 2>&1
 }
-persist() { run_displays rate "$1" "${2:-74.97}" || fail "rate $1 ${2:-74.97} failed: $(cat "$tmp/out")"; }
+persist() {
+    run_displays rate "$1" "${2:-74.97}" || fail "rate $1 ${2:-74.97} failed: $(cat "$tmp/out")"
+    run_displays keep || fail "keep failed: $(cat "$tmp/out")"
+}
 keys() { grep -o 'output = ".*"' "$lua" | sed 's/^output = //' | tr '\n' ' '; }
 body() { tail -n +3 "$lua"; }
 rule() {
