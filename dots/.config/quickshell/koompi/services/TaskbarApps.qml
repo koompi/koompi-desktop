@@ -20,11 +20,9 @@ Singleton {
         }
     }
 
-    property list<var> apps: {
+    function entries(pinnedApps, toplevels, ignoredAppRegexes) {
         var map = new Map();
 
-        // Pinned apps
-        const pinnedApps = Config.options?.dock.pinnedApps ?? [];
         for (const appId of pinnedApps) {
             if (!map.has(appId.toLowerCase())) map.set(appId.toLowerCase(), ({
                 pinned: true,
@@ -32,16 +30,12 @@ Singleton {
             }));
         }
 
-        // Separator
         if (pinnedApps.length > 0) {
             map.set("SEPARATOR", { pinned: false, toplevels: [] });
         }
 
-        // Ignored apps
-        const ignoredRegexStrings = Config.options?.dock.ignoredAppRegexes ?? [];
-        const ignoredRegexes = ignoredRegexStrings.map(pattern => new RegExp(pattern, "i"));
-        // Open windows
-        for (const toplevel of ToplevelManager.toplevels.values) {
+        const ignoredRegexes = ignoredAppRegexes.map(pattern => new RegExp(pattern, "i"));
+        for (const toplevel of toplevels) {
             if (ignoredRegexes.some(re => re.test(toplevel.appId))) continue;
             if (!map.has(toplevel.appId.toLowerCase())) map.set(toplevel.appId.toLowerCase(), ({
                 pinned: false,
@@ -58,6 +52,8 @@ Singleton {
 
         return values;
     }
+
+    property list<var> apps: root.entries(Config.options?.dock.pinnedApps ?? [], ToplevelManager.toplevels.values, Config.options?.dock.ignoredAppRegexes ?? [])
 
     component TaskbarAppEntry: QtObject {
         id: wrapper
