@@ -16,8 +16,10 @@ the `omarchy-pkg-*` helper family, the 4.0 upgrade special case.
 Change the default when the fix lives in a file the sync already owns:
 anything under `dots/.config/quickshell/koompi/` or `dots/.config/hypr/hyprland/`, and
 `config.json` defaults, which `koompi-migrate` merges three-way (user values win).
-Every existing user picks it up at their next `koompi update` or `koompi-migrate --apply`
-with no extra code.
+Every existing user picks it up at their next `./setup update` (the git route copies those trees)
+or `koompi-migrate --apply`, with no extra code.
+`koompi update` merges the `config.json` defaults on both routes, but when packages deliver the
+update it does not run the sync: that is `koompi-migrate --apply`.
 
 Write a migration only when the state is outside those trees or the change is not a
 plain overwrite: a file the sync never touches (`~/.config/hypr/custom/`, `hypridle.conf`,
