@@ -73,14 +73,24 @@ Item {
 
     onQueryChanged: columnsFlick.contentY = 0
 
+    function arrive() {
+        columnsFlick.contentY = 0;
+        searchField.text = "";
+        searchField.forceActiveFocus();
+    }
+
+    Component.onCompleted: {
+        if (GlobalStates.cheatsheetOpen)
+            root.arrive();
+    }
+
     Connections {
         target: GlobalStates
         function onCheatsheetOpenChanged() {
-            columnsFlick.contentY = 0;
-            if (!GlobalStates.cheatsheetOpen)
-                return;
-            searchField.text = "";
-            searchField.forceActiveFocus();
+            if (GlobalStates.cheatsheetOpen)
+                root.arrive();
+            else
+                columnsFlick.contentY = 0;
         }
     }
 
