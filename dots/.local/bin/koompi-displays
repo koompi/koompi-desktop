@@ -115,7 +115,7 @@ undo_pending() {
 print_pending() {
     local now
     printf -v now '%(%s)T' -1
-    jq -c --argjson now "$now" '{monitor, previous: (.centi / 100), deadline, seconds: ([.deadline - $now, 0] | max)}' "$PENDING"
+    jq -c --argjson now "$now" '{monitor, rate: (.target / 100), previous: (.centi / 100), deadline, seconds: ([.deadline - $now, 0] | max)}' "$PENDING"
 }
 
 # a record past its deadline means the timer died: undo it before anything else changes
@@ -227,7 +227,7 @@ cmd_rate() {
     arm_pending "$row" "$centi"
     if ! apply_mode "$mon" "${w}x${h}@${rate}" "$x" "$y" "$scale" || ! wait_for_rate "$mon" "$centi"; then
         undo_pending
-        echo "koompi-displays: $mon did not switch to $rate Hz" >&2
+        echo "koompi-displays: $mon did not switch to $hz Hz" >&2
         exit 1
     fi
     print_pending

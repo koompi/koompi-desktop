@@ -57,8 +57,8 @@ fresh
 run_displays rate HDMI-A-1 74.97
 status=$?
 (( status == 0 )) || fail "rate HDMI-A-1 74.97 exited $status: $(cat "$tmp/out")"
-jq -e '.monitor == "HDMI-A-1" and .previous == 60 and .seconds >= 14 and .seconds <= 15' "$tmp/out" > /dev/null \
-    || fail "rate did not print the monitor, the rate it goes back to and 15 seconds to answer: $(cat "$tmp/out")"
+jq -e '.monitor == "HDMI-A-1" and .rate == 74.97 and .previous == 60 and .seconds >= 14 and .seconds <= 15' "$tmp/out" > /dev/null \
+    || fail "rate did not print the monitor, the new rate, the rate it goes back to and 15 seconds to answer: $(cat "$tmp/out")"
 [[ "$(cat "$tmp/eval.log")" == "$want_74" ]] || fail "rate 74.97 sent '$(cat "$tmp/eval.log")', wanted '$want_74'"
 [[ ! -e "$lua" ]] || fail "rate saved a layout before it was kept: $(lua_text)"
 [[ -e "$pending" ]] || fail "rate left no record of the change it is waiting on"
@@ -89,12 +89,12 @@ end_case "revert puts the old rate back and monitors.lua stays as it was"
 
 fresh
 printf -- '-- kept\n' > "$lua"
-CONFIRM=4 run_displays rate HDMI-A-1 74.97
+CONFIRM=6 run_displays rate HDMI-A-1 74.97
 status=$?
-(( status == 0 )) || fail "rate with a 4 s window exited $status: $(cat "$tmp/out")"
+(( status == 0 )) || fail "rate with a 6 s window exited $status: $(cat "$tmp/out")"
 (( $(eval_lines) == 1 )) || fail "the revert had already happened when rate returned, so rate itself waited: $(cat "$tmp/eval.log")"
 hdmi_rate_is 74.97 || fail "rate did not leave the monitor at 74.97 while it waits"
-wait_until 12 two_evals || fail "no answer for 4 s and the monitor was not put back: $(cat "$tmp/eval.log")"
+wait_until 16 two_evals || fail "no answer for 6 s and the monitor was not put back: $(cat "$tmp/eval.log")"
 [[ "$(eval_n 2)" == "$want_back" ]] || fail "the timeout sent '$(eval_n 2)', wanted '$want_back'"
 hdmi_rate_is 60 || fail "after the timeout the monitor runs $(jq '.[1].refreshRate' "$tmp/state.json"), not 60"
 [[ "$(lua_text)" == '-- kept' ]] || fail "the timeout changed monitors.lua: $(lua_text)"
