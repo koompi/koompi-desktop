@@ -28,7 +28,8 @@ Scope {
     property var lastPlayer: null
     readonly property var lastEntry: {
         const scanned = DesktopEntries.applications.values.length > 0;
-        return root.lastPlayer && scanned ? DesktopEntries.heuristicLookup(root.lastPlayer.entry || root.lastPlayer.name) : null;
+        const name = root.lastPlayer?.entry || root.lastPlayer?.name;
+        return name && scanned ? DesktopEntries.heuristicLookup(name) : null;
     }
 
     function remember() {
@@ -44,7 +45,7 @@ Scope {
 
     function openLastPlayer() {
         const entry = root.lastEntry;
-        const window = HyprlandData.windowList.find(win => DesktopEntries.heuristicLookup(win.class)?.id === entry.id);
+        const window = HyprlandData.windowList.find(win => win.class && DesktopEntries.heuristicLookup(win.class)?.id === entry.id);
         if (window)
             Hyprland.dispatch(`hl.dsp.focus({ window = "address:${window.address}" })`);
         else

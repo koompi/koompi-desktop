@@ -284,6 +284,7 @@ A window rule for a Qt app has to match its class on both platforms, because the
 The dock and a restored session match a window to its app by desktop entry, not by class.
 A pinned `org.kde.dolphin` and a running X11 `dolphin` are one dock entry, and a saved `dolphin` claims the window that `org.kde.dolphin` opens.
 A class with no entry to find (`kdialog`, `kdeconnect.app`) matches by its name without KDE's `org.kde.` prefix.
+A window that reports no class has no entry: looking an empty class up answers with an arbitrary app, so the dock, the waffle taskbar and the media panel skip the lookup.
 
 ### Kiri
 
