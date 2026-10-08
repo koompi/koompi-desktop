@@ -268,8 +268,9 @@ for _ in $(seq 1 80); do [[ $(hyprctl monitors -j 2> /dev/null | jq length) -ge 
 if [[ $(hyprctl monitors -j 2> /dev/null | jq length) -lt 1 ]]; then reading monitor missing; exit 0; fi
 reading monitor ready
 
-# the shell is up when its launch handler answers; the daemon's first snapshot follows
+# the shell is up when its launch handler answers and its bar is a surface; the daemon's first snapshot follows
 for _ in $(seq 1 120); do answer=$(qs -c koompi ipc call launch status 2> /dev/null); [[ $? -eq 0 && $answer != "Target not found." ]] && break; sleep 0.5; done
+for _ in $(seq 1 120); do hyprctl layers -j 2> /dev/null | jq -e '[.. | objects | select(.namespace? == "quickshell:bar")] | length > 0' > /dev/null 2>&1 && break; sleep 0.5; done
 sleep 6
 reading idle "$(status)"
 grim "$WORK/shots/empty-desktop.png" 2>> "$WORK/grim.log"
