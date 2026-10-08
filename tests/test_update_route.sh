@@ -175,7 +175,6 @@ rc=$?
 [[ $rc -eq 1 ]] || fail "a missing koompi-migrate must fail the update's migration step (rc=$rc): $out"
 grep -q 'koompi-migrate is not on PATH' <<<"$out" || fail "a missing koompi-migrate is not reported: $out"
 
-rm -f "$T/hyprctl.log"
 for var in "" KOOMPI_SETUP_NO_RELOAD=1; do
     : > "$T/hyprctl.log"
     env HYPRLAND_INSTANCE_SIGNATURE=test-session ${var:+"$var"} bash -c '
