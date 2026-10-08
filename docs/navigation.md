@@ -105,7 +105,10 @@ An edge never opens something from the other side.
 | Top-right corner, 250x5 px | right sidebar | yes |
 | Bottom corners | same, mirrored | no, `sidebar.cornerOpen.bottom` defaults to false |
 
-Corner activation as a whole is `sidebar.cornerOpen.enable`, default true, and only the corner pair matching `cornerOpen.bottom` is loaded at all.
+Corner activation as a whole is `sidebar.cornerOpen.enable`, default true, and only the corner pair matching `cornerOpen.bottom` hosts a hot corner.
+A corner window exists only while it has a job: drawing the fake screen rounding (`appearance.fakeScreenRounding`), or hosting its hot corner.
+The jobs are independent, so the hot corners work with the rounding off, and there each corner window is exactly its 250x5 region.
+Under a fullscreen window the hot corners are off, and so is the rounding unless `fakeScreenRounding` is 1 (always).
 
 ## Gestures
 
