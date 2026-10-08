@@ -47,6 +47,8 @@ export PATH="$SHIMS:$PATH"
 # copies of both have drifted.
 export KOOMPI_MIGRATE_SKEL="$TEST_ROOT/skel" KOOMPI_MIGRATE_XDG="$TEST_ROOT/xdg"
 export HOME="$TEST_ROOT/home"
+export XDG_CONFIG_HOME="$HOME/.config" XDG_STATE_HOME="$HOME/.local/state"
+unset KOOMPI_STATE_DIR KOOMPI_CONFIG_FILE
 export KOOMPI_MIGRATE_MIGRATIONS_DIR="$TEST_ROOT/migrations"
 mkdir -p "$KOOMPI_MIGRATE_SKEL/.config/hypr/hyprland" "$KOOMPI_MIGRATE_MIGRATIONS_DIR"
 printf 'shipped = 2\n' > "$KOOMPI_MIGRATE_SKEL/.config/hypr/hyprland/general.lua"

@@ -101,6 +101,9 @@ export PATH="$T/bin:$PATH"
 export HOME="$T/home"
 export XDG_STATE_HOME="$T/home/.local/state"
 export XDG_RUNTIME_DIR="$T/runtime"
+# the real koompi-migrate runs below: nothing it reads may point outside the scratch home
+export XDG_CONFIG_HOME="$T/home/.config" XDG_DATA_HOME="$T/home/.local/share"
+unset KOOMPI_STATE_DIR KOOMPI_CONFIG_FILE
 export KOOMPI_UPDATE_MODULES_DIR="$T/modules"
 unset HYPRLAND_INSTANCE_SIGNATURE   # keep reload_session away from the live session
 export NO_COLOR=1
