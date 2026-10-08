@@ -1,0 +1,18 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "cap": "swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0): six Sonnet workers; every nested compositor and full suite runs one at a time under the machine-wide heavy lock, which since today gives each worktree one place in the line.",
+    "now": "Seven are running. J16 handed back round 2 and the lead dispatched J08 into its slot, then the review found a defect and Jev sent J16 back for a small round 3 (two page lines, one saved field, re-renders, a full suite). J42 is also on a small round 4. J08 has just started and is still reading. J43 is one queued heavy run from its hand-back. The bottleneck is the heavy lock, not the agents: each worker spends most of its time waiting in that line, so a seventh adds one more place in it, not more parallel compositors."
+  },
+  "questions": {
+    "swarm_seventh_worker": {
+      "type": "choice",
+      "instructions": "What to do about the seventh running worker?",
+      "criteria": {
+        "keep_seven_no_refill": "Let all seven run, and do not refill the next slot that frees, so the swarm drops back to six on its own. Strongest case: J08's start is not wasted, and the two extra rounds are small; the lock already caps compositor load at one. Cost: briefly above the decided cap, with one more place in the heavy line.",
+        "pause_j08": "Tell J08 to stop after reading and wait for the next free slot. Strongest case: holds the decided cap exactly. Cost: J08 idles while holding its context, and the lead must remember to release it.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

@@ -62,7 +62,7 @@ Login items take effect at the next login, not at deploy: the running target doe
 
 ## Swarm, from 2026-10-07 (founder: "identify the leftover work and assign a subagent swarm")
 
-Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet workers at once; every nested compositor and full suite runs under `.work/tools/heavy.sh` (flock on `/tmp/koompi-heavy.lock`); the harness tools lock themselves. Since `5033bff71` each worktree waits behind its own lock first and holds one place in the shared line (J07 had queued 11 of the 20 waiting runs), and the shot tools reach the lock through heavy.sh. Specs J17-J32 and J36-J43 are written and reviewed.
+Jev: `swarm_concurrency six_with_heavy_lock p=0.91 (jev-1.13.0)`. Six Sonnet workers at once; every nested compositor and full suite runs under `.work/tools/heavy.sh` (flock on `/tmp/koompi-heavy.lock`); the harness tools lock themselves. Since `5033bff71` each worktree waits behind its own lock first and holds one place in the shared line (J07 had queued 11 of the 20 waiting runs), and the shot tools reach the lock through heavy.sh. Seven ran from 2026-10-08 after J16 went back for round 3 once J08 had its slot: `swarm_seventh_worker keep_seven_no_refill p=0.9`, so the next slot that frees is not refilled. Specs J17-J32 and J36-J43 are written and reviewed.
 Queue: `queue_order breakage_then_hub p=0.71 (jev-1.13.0)`: J42, J07, J13, J15, J43, J41, J08, J28, J29, with J16 round 2 placed after J42 (the founder handed that call to the lead, 2026-10-08). Startable after them: J30, J31, J32, J39, J36 stage A; the rest follow their dependencies.
 Full suite on `dev` at `c78cbb1c0` (J09 merged, before J04 and J12), 2026-10-08: 112 passed, 4 skipped (the baseline's four), 0 failed.
 
