@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # GlobalFocusGrab: its window list follows the keyboard (the old tree walk is the oracle), and a cold cheatsheet
-# neither pins the main thread nor stays blank. Hyprland nested in a headless KWin, repo keybinds, real surfaces.
-# Click-outside dismissal needs a pointer: not exercised.
+# neither pins the main thread nor stays blank, and a click outside each surface still dismisses it.
+# Hyprland nested in a headless KWin, repo keybinds, real surfaces, a virtual pointer for the clicks.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SHELL_ROOT="$REPO_ROOT/dots/.config/quickshell/koompi"
 HYPR="$REPO_ROOT/dots/.config/hypr"
 CPU_MAX_TICKS=300
+PAINT_MAX_S=1.0
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
@@ -41,6 +42,7 @@ import qs
 import qs.services
 import qs.modules.common
 import qs.modules.koompi.cheatsheet
+import qs.modules.koompi.launchpad
 import qs.modules.koompi.overview
 import qs.modules.koompi.sidebarLeft
 import qs.modules.koompi.sidebarRight
@@ -55,6 +57,7 @@ ShellRoot {
     property var st: ({})
 
     Cheatsheet { id: sheet }
+    Launchpad { id: pad }
     SearchPanel { id: search }
     SidebarLeft { id: left }
     SidebarRight { id: right }
@@ -143,6 +146,7 @@ ShellRoot {
         }
         function openSearch(): void { search.open(); }
         function flag(name: string, on: bool): void { GlobalStates[name] = on; }
+        function flagOf(name: string): string { return String(GlobalStates[name]); }
     }
 }
 QML
@@ -232,6 +236,24 @@ for s in cheatsheet search sidebarLeft sidebarRight; do
     call probe reset
 done
 
+# no pointer in the nested session: wl_virtual_click.py makes one; the point is empty desktop for each surface
+click_out() {
+    local name=$1 flag=$2 x=$3 y=$4 before after
+    if [[ $name == launchpad ]]; then call launchpad open > /dev/null; else open_surface "$name" > /dev/null; fi
+    sleep 2
+    before=$(call probe flagOf "$flag")
+    python3 "$REPO_ROOT/tests/wl_virtual_click.py" 1920 1200 "$x" "$y" >> "$WORK/click.log" 2>&1
+    sleep 1.5
+    after=$(call probe flagOf "$flag")
+    log "CLICK $name before=$before after=$after"
+    [[ $after == false ]] || { if [[ $name == launchpad ]]; then call launchpad close > /dev/null; else close_surface "$name" > /dev/null; fi; sleep 1; }
+}
+click_out cheatsheet cheatsheetOpen 40 1150
+click_out search searchOpen 40 1150
+click_out sidebarLeft sidebarLeftOpen 1880 1150
+click_out sidebarRight sidebarRightOpen 40 1150
+click_out launchpad launchpadOpen 40 1150
+
 kill "$qs_pid" 2> /dev/null
 cp "$XDG_RUNTIME_DIR"/hypr/*/hyprland.log "$WORK/hyprland-run.log" 2> /dev/null
 hyprctl dispatch 'hl.dsp.exit()' > /dev/null 2>&1
@@ -241,7 +263,7 @@ SH
 chmod +x "$WORK/inner.sh"
 
 env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY WORK="$WORK" \
-    HOME="$HOME_DIR" XDG_RUNTIME_DIR="$RUN" XDG_CONFIG_HOME="$HOME_DIR/.config" \
+    REPO_ROOT="$REPO_ROOT" HOME="$HOME_DIR" XDG_RUNTIME_DIR="$RUN" XDG_CONFIG_HOME="$HOME_DIR/.config" \
     XDG_STATE_HOME="$HOME_DIR/.local/state" XDG_CACHE_HOME="$HOME_DIR/.cache" XDG_DATA_HOME="$HOME_DIR/.local/share" \
     PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
     timeout 420 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 2120 --height 1400 \
@@ -282,8 +304,18 @@ if [[ $painted == none ]]; then
     miss "a cold cheatsheet was not on screen in the whole run: the main thread is still busy with it"
 elif (( used > CPU_MAX_TICKS )); then
     miss "a cold cheatsheet took $used ticks of main-thread CPU to reach the screen, at $painted s (at most $CPU_MAX_TICKS)"
+elif awk -v t="$painted" -v m="$PAINT_MAX_S" 'BEGIN { exit !(t > m) }'; then
+    miss "a cold cheatsheet was on screen only at $painted s (at most $PAINT_MAX_S s)"
 else
-    echo "ok   cost: a cold cheatsheet was on screen at $painted s, after $used ticks of main-thread CPU (at most $CPU_MAX_TICKS)"
+    echo "ok   cost: a cold cheatsheet was on screen at $painted s, after $used ticks of main-thread CPU (at most $CPU_MAX_TICKS, $PAINT_MAX_S s)"
 fi
+
+for s in cheatsheet search sidebarLeft sidebarRight launchpad; do
+    if grep -qE "^CLICK $s before=true after=false\$" "$WORK/readings"; then
+        echo "ok   click: a click outside dismissed the $s"
+    else
+        miss "a click outside did not dismiss the $s: $(grep -E "^CLICK $s " "$WORK/readings" || echo 'no reading') $(tail -2 "$WORK/click.log" 2> /dev/null)"
+    fi
+done
 
 (( failed == 0 )) || { dump; exit 1; }
