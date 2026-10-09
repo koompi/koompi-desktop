@@ -1,7 +1,7 @@
 groups=(koompi)
 pkgname=koompi-widgets
 pkgver=1.0
-pkgrel=8
+pkgrel=9
 pkgdesc='KOOMPI Widget Dependencies'
 arch=(any)
 license=(None)
@@ -19,4 +19,23 @@ depends=(
   translate-shell
   wlogout
   libqalculate
+  # Arch's own quickshell, plus the Qt modules and KDE bits the shell loads
+  quickshell
+  qt6-5compat
+  qt6-avif-image-plugin
+  qt6-imageformats
+  qt6-multimedia
+  qt6-positioning
+  qt6-quicktimeline
+  qt6-sensors
+  qt6-svg
+  qt6-tools
+  qt6-translations
+  qt6-virtualkeyboard
+  qt6-wayland
+  kirigami
+  kdialog
+  syntax-highlighting
 )
+conflicts=(koompi-quickshell-git)
+replaces=(koompi-quickshell-git)

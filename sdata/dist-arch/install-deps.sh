@@ -29,7 +29,6 @@ ARCH_DEP_PKGBUILDS=(
     koompi-toolkit
     koompi-widgets
     koompi-hyprland
-    koompi-quickshell-git
     koompi-microtex-git
     koompi-bibata-modern-classic-bin
 )
@@ -46,6 +45,7 @@ arch_drop_deprecated() {
         {quickshell,hyprutils,hyprpicker,hyprlang,hypridle,hyprland-qt-support}-git
         {hyprland-qtutils,hyprlock,xdg-desktop-portal-hyprland,hyprcursor}-git
         {hyprwayland-scanner,hyprland}-git
+        koompi-quickshell-git
     )
     # Naming the -debug siblings is the only way they go. makepkg's
     # create_debug_package() empties the split package's conflicts, provides and
