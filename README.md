@@ -187,7 +187,6 @@ Update this section when a stage changes hands, not per commit.
 | Signed `[koompi]` repo | Skeleton only (`build-packages.yml`). Signing key and publish target are not decided, so the sign and publish steps stay commented out. |
 | Installer | Zig TUI renders with the ANSI theme; not yet autostarted from the live ISO, and the branded pacstrap path waits on the signed repo. |
 | Quickshell package | `koompi-quickshell-git` pins `qt6-base`/`qt6-declarative` to exact versions because it links Qt's private ABI; every Qt bump means rebuild and re-pin. |
-| Quickwork drawer | Not built. `Super+O` is reserved; the left sidebar still carries the inherited AI and translator tabs. |
 
 Blocked on decisions: the `[koompi]` repo signing key and where the repo is hosted.
 Everything after that in the chain (branded ISO, installer autostart) is waiting on it.

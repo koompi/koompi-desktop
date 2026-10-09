@@ -9,7 +9,7 @@ The `Super+/` cheatsheet is generated from the `description` field of each bind,
 
 ## Roles
 
-Six roles, and nothing else may claim a primary gesture or a bare `Super` chord.
+Five roles, and nothing else may claim a primary gesture or a bare `Super` chord.
 
 | Role | Question it answers | Surface | Opened by | State |
 | --- | --- | --- | --- | --- |
@@ -18,7 +18,6 @@ Six roles, and nothing else may claim a primary gesture or a bare `Super` chord.
 | Today | "what is my machine doing" | right sidebar, `SidebarRight.qml` | `Super+N` | `sidebarRightOpen` |
 | Now | "what is my work doing" | left sidebar, `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 | Launchpad | "show me everything installed" | `Launchpad.qml` | 4-finger spread only | `launchpadOpen` |
-| Quickwork | "do this for me" | not built | `Super+O`, reserved and unbound | none yet |
 
 Search is the primary app launcher.
 It is also how the desktop's own switches are reached: three letters find a command like night light or create system snapshot in the same flat list as the apps, and the action scope (`/`) with nothing typed after it lists every one of them under its group heading.
@@ -28,8 +27,8 @@ Launchpad is deliberately gesture-only and takes no keyboard binding, so the two
 Phase 2 changes several of these surfaces; what is decided but not yet built is in "Decided for Phase 2, not yet built" below, and the tables here change as each piece ships.
 
 One role is named for where it is going, not for what it is today.
-**Now** is the left sidebar, which is to become Quickwork's drawer: active tasks, approvals, recent artifacts, and task continuity.
-Until Quickwork exists, the left sidebar still holds the inherited AI and translator tabs, and those are the thing being replaced rather than the thing being specified.
+**Now** is the left sidebar, which is to become a drawer for what your work is doing.
+It still holds the inherited AI and translator tabs, and those are the thing being replaced rather than the thing being specified.
 
 **Today** is the right sidebar, and it is built: a header carrying today's date, pin, settings and power, then one column.
 Quick sliders and toggles come first, with an All controls row that opens the full grid as a drawer page.
@@ -157,7 +156,6 @@ Many shell binds have a second copy guarded by `qs ipc call TEST_ALIVE ||` that 
 | `Super+Shift+,` | dismiss every toast |
 | `Super+Alt+,` | open the newest toast: its default action, then dismissed |
 | `Super+Shift+Alt+,` | notification history, the right sidebar |
-| `Super+O` | reserved for Quickwork, unbound |
 | `Super+V` | clipboard history |
 | `Super+.` | emoji |
 | `Super+/` | cheatsheet |
