@@ -190,6 +190,7 @@ install_google_sans_flex
 install_nerd_font
 install_adw_gtk3
 install_bibata_cursor
+install_koompi_icons
 $IS_UBUNTU && debian_build_hyprsunset
 
 # Darkly, breeze-plus, songrec and microtex are all buildable but none is on the

@@ -71,6 +71,7 @@ source "$REPO_ROOT/sdata/lib/from-source.sh"
 install_fonts_from_release
 install_google_sans_flex
 install_nerd_font
+install_koompi_icons
 # A no-op while Fedora's zig meets ZIG_MIN, which it does today. Called anyway so
 # a release that falls behind costs a download rather than the global menu.
 install_zig

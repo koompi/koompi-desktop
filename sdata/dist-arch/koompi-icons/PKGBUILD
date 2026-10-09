@@ -1,0 +1,21 @@
+groups=(koompi)
+pkgname=koompi-icons
+pkgver=2026.09.10
+pkgrel=1
+pkgdesc="KOOMPI icon theme: WhiteSur green folders, light and dark"
+arch=('any')
+url="https://github.com/vinceliuice/WhiteSur-icon-theme"
+license=('GPL-3.0-only')
+depends=('breeze')
+makedepends=('gtk-update-icon-cache')
+options=('!strip')
+_tag=2026-09-10
+source=("WhiteSur-icon-theme-$_tag.tar.gz::$url/archive/refs/tags/$_tag.tar.gz"
+        build-theme.sh)
+sha256sums=('406c9cd59705583f1754b0eaca96cc48bafda042b88ef143f16d8ae1820ecd95'
+            'SKIP')
+
+package() {
+  "$srcdir/build-theme.sh" "$srcdir/WhiteSur-icon-theme-$_tag" "$pkgdir/usr/share/icons"
+  install -Dm644 "$srcdir/WhiteSur-icon-theme-$_tag/COPYING" "$pkgdir/usr/share/licenses/$pkgname/COPYING"
+}

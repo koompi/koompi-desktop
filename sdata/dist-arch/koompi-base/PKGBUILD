@@ -29,6 +29,7 @@ depends=(
   koompi-screencapture
   koompi-toolkit
   koompi-bibata-modern-classic-bin
+  koompi-icons
   # Shared branding (wallpapers, plymouth/grub/sddm theming, sddm enablement).
   koompi-branding
   # Login manager — no koompi-* package declared one before; both editions use it.

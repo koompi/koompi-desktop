@@ -208,6 +208,12 @@ Tips:
 - [source](https://github.com/ful1e5/Bibata_Cursor)
 - Used in Hyprland config, not necessary.
 
+## koompi-icons
+- [source](https://github.com/vinceliuice/WhiteSur-icon-theme), GPL-3.0, pinned release `2026-09-10`
+- The icon theme: WhiteSur with green folders, installed as `koompi-icons` (light) and `koompi-icons-dark`.
+- Set by `switchwall.sh` and `kde-material-you-colors/config.conf`; `tests/test_icon_theme.sh` fails if they drift.
+- Debian and Fedora get it from the same release through `install_koompi_icons` in `sdata/lib/from-source.sh`.
+
 ## illogical-impulse-microtex-git
 - [source](https://github.com/NanoMichael/MicroTeX)
 - This package will be installed as `/opt/MicroTeX`.

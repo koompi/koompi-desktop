@@ -31,6 +31,7 @@ ARCH_DEP_PKGBUILDS=(
     koompi-hyprland
     koompi-microtex-git
     koompi-bibata-modern-classic-bin
+    koompi-icons
 )
 
 # Package names from the pre-KOOMPI era. Left installed they sit as orphans and,

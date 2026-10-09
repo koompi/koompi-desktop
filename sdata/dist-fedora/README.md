@@ -22,6 +22,8 @@ packages.list     one package per line, with the COPR noted where it is not in F
 `solopasha/hyprland` is the better-known Hyprland COPR and is **not** used: it lags well behind `sdegler` (0.49 against 0.56 as of July 2026).
 Switching back is a one-line change here if that ever inverts.
 
+`koompi-icons` is in none of them: `install_koompi_icons` in `sdata/lib/from-source.sh` fetches the pinned WhiteSur release and builds it into `~/.local/share/icons` with the script the Arch package uses.
+
 ## Two things that differ from upstream
 
 **No prebuilt-RPM repo.**
