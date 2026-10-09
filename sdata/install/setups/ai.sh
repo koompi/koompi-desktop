@@ -126,12 +126,15 @@ write_litert_lm_config() {
     [[ -e "$config" ]] && { info "$config exists; leaving it alone"; return 0; }
     [[ "$DRY_RUN" == true ]] && { info "would write $config"; return 0; }
 
+    local backend=cpu
+    compgen -G '/dev/dri/renderD*' >/dev/null && backend=gpu
+
     mkdir -p "$(dirname "$config")"
-    cat > "$config" <<'EOF'
+    cat > "$config" <<EOF
 {
   "default": {
-    "backend": "gpu",
-    "cpu_thread_count": 8,
+    "backend": "$backend",
+    "cpu_thread_count": $(nproc),
     "cache": "disk",
     "max_num_tokens": 16384
   }
