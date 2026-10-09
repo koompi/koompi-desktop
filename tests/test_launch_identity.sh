@@ -411,31 +411,11 @@ QML
 cat > "$WORK/inner.sh" <<'SH'
 #!/usr/bin/env bash
 set -uo pipefail
-unset HYPRLAND_INSTANCE_SIGNATURE
-parent=$WAYLAND_DISPLAY
+source "$REPO_ROOT/tests/nested-hyprland.sh"
 
-running() { local s; read -r _ _ s _ 2> /dev/null < "/proc/$1/stat" && [[ $s != Z ]]; }
-# the compositor is asked to leave, and ended by pid if it does not
-cleanup() {
-    hyprctl dispatch 'hl.dsp.exit()' > /dev/null 2>&1
-    for _ in $(seq 1 20); do running "$hypr_pid" || break; sleep 0.25; done
-    if running "$hypr_pid"; then
-        kill "$hypr_pid" 2> /dev/null
-        sleep 1
-        kill -KILL "$hypr_pid" 2> /dev/null
-    fi
-    wait "$hypr_pid" 2> /dev/null
-}
-
-Hyprland -c "$HOME/.config/hypr/hyprland.lua" > "$WORK/hyprland.log" 2>&1 &
-hypr_pid=$!
-trap cleanup EXIT
-for _ in $(seq 1 100); do sig=$(ls "$XDG_RUNTIME_DIR/hypr" 2> /dev/null | head -1); [[ -n $sig ]] && break; sleep 0.2; done
-export HYPRLAND_INSTANCE_SIGNATURE=$sig
-for _ in $(seq 1 100); do d=$(ls "$XDG_RUNTIME_DIR" | grep -E '^wayland-[0-9]+$' | grep -v "^$parent$" | head -1); [[ -n $d ]] && break; sleep 0.2; done
-export WAYLAND_DISPLAY=$d
-for _ in $(seq 1 80); do [[ $(hyprctl monitors -j 2> /dev/null | jq length) -ge 1 ]] && break; sleep 0.5; done
-if [[ $(hyprctl monitors -j 2> /dev/null | jq length) -ge 1 ]]; then
+cleanup() { nested_hyprland_stop "$hypr_pid" "$HYPRLAND_INSTANCE_SIGNATURE"; }
+if nested_hyprland_start "$HOME/.config/hypr/hyprland.lua" "$WORK/hyprland.log"; then
+    trap cleanup EXIT
     echo ready > "$WORK/monitor"
     cd "$WORK/shell" || exit 1
     QT_QPA_PLATFORM=wayland timeout 100 qs -p identity_probe.qml > "$WORK/qs.log" 2>&1
@@ -449,7 +429,7 @@ run_session() {
     RUN="$(mktemp -d /tmp/hr.XXXXXX)"
     chmod 700 "$RUN"
     rm -f "$WORK/monitor" "$WORK/qs.log"
-    env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY -u QT_QPA_PLATFORM WORK="$WORK" \
+    env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY -u QT_QPA_PLATFORM WORK="$WORK" REPO_ROOT="$REPO_ROOT" \
         HOME="$HOME_DIR" XDG_RUNTIME_DIR="$RUN" XDG_CONFIG_HOME="$HOME_DIR/.config" \
         XDG_STATE_HOME="$HOME_DIR/.local/state" XDG_CACHE_HOME="$HOME_DIR/.cache" XDG_DATA_HOME="$HOME_DIR/.local/share" XDG_DATA_DIRS="$WORK/sysdata" \
         PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" \
