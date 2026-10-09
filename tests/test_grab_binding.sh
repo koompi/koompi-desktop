@@ -278,6 +278,7 @@ field() { grep -E "$1" "$WORK/readings" | head -1 | sed -E 's/ first.*//' | sed 
 total() { grep -E '^STATS ' "$WORK/readings" | sed -E 's/ first.*//' | sed -E "s/.* $1=([0-9]+).*/\1/" | awk '{ s += $1 } END { print s + 0 }'; }
 
 grep -q '^wedged' "$WORK/readings" 2> /dev/null && { echo "skip: no nested Hyprland start had an output (hyprwm/aquamarine#415), the grab test did not run"; exit 0; }
+grep -q '^dead' "$WORK/readings" 2> /dev/null && grep -q 'no output' "$WORK/readings" && { echo "skip: the retry after a no-output nested Hyprland start died (hyprwm/aquamarine#415), the grab test did not run"; exit 0; }
 grep -q '^dead' "$WORK/readings" 2> /dev/null && { dump; fail "setup: the nested Hyprland exited while it started"; }
 grep -q '^done$' "$WORK/readings" 2> /dev/null || { dump; fail "setup: the probe session did not finish"; }
 grep -qE '^holder (ok|MISMATCH) inside=true' "$WORK/readings" || { dump; fail "setup: the window with the nested focused item never held the keyboard"; }
