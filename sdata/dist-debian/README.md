@@ -64,7 +64,7 @@ The correct package name is `yq-go`, which exists in Debian forky/sid and trixie
 | `uv` | `astral.sh/uv/install.sh` | not apt-installable on any Debian or Ubuntu release |
 | `matugen` | upstream release binary (Debian); PPA (Ubuntu) | no Debian package on any suite |
 | `adw-gtk3` | upstream release tarball | not packaged; GTK apps stay unthemed without it |
-| `bibata-cursor-theme` | upstream release tarball | not packaged |
+| `bibata-cursor-theme` | upstream release tarball, `Bibata-Modern-Classic` into `~/.local/share/icons` | not packaged; without it the cursor stays Adwaita, which `hyprland/env.lua` and `./setup` fall back to on their own |
 | `koompi-icons` | pinned WhiteSur release, built by `sdata/dist-arch/koompi-icons/build-theme.sh` | not packaged; without it apps keep Breeze icons |
 | `hyprshot` | a single upstream bash script | not packaged |
 | `hyprsunset` | source build, Ubuntu only | in Debian backports; in no Ubuntu archive or PPA. Its build deps are all in resolute universe, so this is minutes, not a Wayland rebuild |
