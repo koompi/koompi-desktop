@@ -77,6 +77,9 @@ logind_answer() {
     out="${out#s \"}"; echo "${out%\"}"
 }
 
+# inhibited: possible once the inhibitor (the shell's keep-awake) goes
+hibernate_possible() { [[ "$1" == yes || "$1" == challenge || "$1" == inhibited ]]; }
+
 pre_kernel() {
     [[ -f "$IMAGE_SIZE" ]] || { echo "no /sys/power/image_size: this kernel or firmware cannot hibernate"; return 1; }
     echo "kernel supports hibernation (image up to $(human "$(<"$IMAGE_SIZE")"))"
@@ -238,8 +241,8 @@ cmd_status() {
         printf '  --  no resume= on GRUB_CMDLINE_LINUX_DEFAULT\n'
     fi
     answer="$(logind_answer)"
-    printf '  %s  logind CanHibernate: %s\n' "$([[ "$answer" == yes || "$answer" == challenge ]] && echo ok || echo --)" "$answer"
-    [[ "$answer" == yes || "$answer" == challenge ]]
+    printf '  %s  logind CanHibernate: %s\n' "$(hibernate_possible "$answer" && echo ok || echo --)" "$answer"
+    hibernate_possible "$answer"
 }
 
 cmd=setup

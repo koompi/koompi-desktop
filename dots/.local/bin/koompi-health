@@ -191,7 +191,7 @@ section "Hibernation"
 hib_setup="$HOME/.local/share/koompi/libexec/hibernation-setup"
 [[ -x "$hib_setup" ]] || hib_setup=/usr/lib/koompi/hibernation-setup
 case "$(busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanHibernate 2>/dev/null)" in
-    *'"yes"'*|*'"challenge"'*) ok "hibernation: available" ;;
+    *'"yes"'*|*'"challenge"'*|*'"inhibited"'*) ok "hibernation: available" ;;
     *'"no"'*) warn "hibernation: disabled by policy (logind CanHibernate=no)" ;;
     *) warn "hibernation: not set up (run: sudo $hib_setup; '$hib_setup status' says why)" ;;
 esac

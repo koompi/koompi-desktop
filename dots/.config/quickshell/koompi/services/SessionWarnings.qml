@@ -43,8 +43,8 @@ Singleton {
     Process {
         id: detectHibernateProc
         running: true
-        // "challenge" = possible, just needs auth.
-        command: ["bash", "-c", "busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanHibernate | grep -qE '\"(yes|challenge)\"'"]
+        // challenge needs auth, inhibited waits on an inhibitor (our own keep-awake): both are possible.
+        command: ["bash", "-c", "busctl call org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager CanHibernate | grep -qE '\"(yes|challenge|inhibited)\"'"]
         onExited: (exitCode, exitStatus) => {
             root.canHibernate = (exitCode === 0);
         }
