@@ -267,13 +267,13 @@ if ! grep -q '^ DEBUG qml: PROBE OK' <<< "$plain"; then
 fi
 
 launched="$(sort "$WORK/launch.log" 2> /dev/null)"
-want_launches='--id kitty -- fx-kitty
---id org.kde.dolphin -- fx-dolphin
---id org.kde.dolphin -- fx-dolphin
---id org.kde.kdeconnect.app -- fx-kdeconnect-app
---id org.kde.kdialog -- fx-kdialog
---id org.kde.okular -- fx-okular
---id org.telegram.desktop -- fx-telegram --'
+want_launches='--registered --id kitty -- fx-kitty
+--registered --id org.kde.dolphin -- fx-dolphin
+--registered --id org.kde.dolphin -- fx-dolphin
+--registered --id org.kde.kdeconnect.app -- fx-kdeconnect-app
+--registered --id org.kde.kdialog -- fx-kdialog
+--registered --id org.kde.okular -- fx-okular
+--registered --id org.telegram.desktop -- fx-telegram --'
 [[ "$launched" == "$want_launches" ]] || fail "restore did not start every saved app through koompi-launch (- wanted, + saw):
 $(diff <(printf '%s\n' "$want_launches") <(printf '%s\n' "$launched"))"
 [[ ! -s "$WORK/direct.log" ]] || fail "restore started an app without koompi-launch, so it is outside app.slice and on the wrong platform:
