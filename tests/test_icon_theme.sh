@@ -15,13 +15,11 @@ fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 light=koompi-icons
 dark=koompi-icons-dark
 
-grep -qx "    local icon_theme=\"$light\"" "$SWITCH" || fail "switchwall.sh light icon_theme is not $light"
-grep -qF "[[ \"\$mode_flag\" == \"dark\" ]] && icon_theme=\"$dark\"" "$SWITCH" || fail "switchwall.sh dark icon_theme is not $dark"
-grep -qF "icon-theme '$dark'" "$SWITCH" || fail "switchwall.sh gsettings dark is not $dark"
-grep -qF "icon-theme '$light'" "$SWITCH" || fail "switchwall.sh gsettings light is not $light"
+grep -qF "want=\"$light\"" "$SWITCH" || fail "switchwall.sh light icon_theme_for is not $light"
+grep -qF "want=\"$dark\"" "$SWITCH" || fail "switchwall.sh dark icon_theme_for is not $dark"
 grep -qx "iconslight = $light" "$CONF" || fail "kde-material-you-colors iconslight is not $light"
 grep -qx "iconsdark = $dark" "$CONF" || fail "kde-material-you-colors iconsdark is not $dark"
-if grep -rn "breeze-plus" "$SWITCH" "$CONF" >/dev/null; then fail "a breeze-plus name is left in switchwall.sh or config.conf"; fi
+if grep -n "breeze-plus" "$CONF" >/dev/null; then fail "a breeze-plus name is left in config.conf"; fi
 
 # the theme directories the build script lays down are the names above
 grep -qF "Name=$light/" "$PKG/build-theme.sh" || fail "build-theme.sh does not set Name=$light"

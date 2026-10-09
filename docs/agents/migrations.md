@@ -61,6 +61,9 @@ The slug is lowercase words joined by hyphens, and says what the script fixes.
   If a new install would break without the migration, the fix belongs in the defaults.
 - Never restart the shell or Hyprland.
   `koompi update` reloads after migrations; the login-time run already runs current code.
+- There is no "retry later": exit 0 writes the marker, and a non-zero exit fails `koompi update` and blocks every later migration.
+  A migration that needs something not yet on disk (`1791564120-koompi-icons-theme.sh` needs the theme) exits 0 and says why;
+  the code the sync owns has to apply the same change itself once the thing lands (`switchwall.sh` does for the icon theme).
 - A failing migration stops the run and leaves later ones pending; the user sees
   `FAILED <name>`.
   Exit non-zero on a real failure, not on "nothing to do".

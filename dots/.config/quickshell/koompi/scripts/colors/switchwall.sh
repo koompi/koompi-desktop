@@ -21,6 +21,18 @@ activate_venv() {
     source "$activate"
 }
 
+# the shipped theme may be absent (--no-deps, a failed build or fetch); naming it then blanks every app icon
+icon_theme_for() {
+    local want="koompi-icons" fallback="breeze-plus" dir
+    [[ "$1" == dark ]] && { want="koompi-icons-dark"; fallback="breeze-plus-dark"; }
+    local -a dirs
+    IFS=: read -ra dirs <<< "${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+    for dir in "${dirs[@]/%//icons}" "${XDG_DATA_HOME:-$HOME/.local/share}/icons" "$HOME/.icons"; do
+        [[ -f "$dir/$want/index.theme" ]] && { printf '%s\n' "$want"; return 0; }
+    done
+    printf '%s\n' "$fallback"
+}
+
 handle_qt_app_colors() {
     # Check if Qt app theming is enabled in config
     if [ -f "$SHELL_CONFIG_FILE" ]; then
@@ -35,8 +47,8 @@ handle_qt_app_colors() {
         [[ "$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null)" == *dark* ]] \
             && mode_flag="dark" || mode_flag="light"
     fi
-    local icon_theme="koompi-icons"
-    [[ "$mode_flag" == "dark" ]] && icon_theme="koompi-icons-dark"
+    local icon_theme
+    icon_theme="$(icon_theme_for "$mode_flag")"
 
     # KDE apps read kdeglobals directly and no KDE tool is in the path, so merge the
     # matugen scheme there ourselves. Plain Qt apps get the qt6ct one via
@@ -84,11 +96,11 @@ pre_process() {
     if [[ "$mode_flag" == "dark" ]]; then
         gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
         gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark'
-        gsettings set org.gnome.desktop.interface icon-theme 'koompi-icons-dark'
+        gsettings set org.gnome.desktop.interface icon-theme "$(icon_theme_for dark)"
     elif [[ "$mode_flag" == "light" ]]; then
         gsettings set org.gnome.desktop.interface color-scheme 'prefer-light'
         gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3'
-        gsettings set org.gnome.desktop.interface icon-theme 'koompi-icons'
+        gsettings set org.gnome.desktop.interface icon-theme "$(icon_theme_for light)"
     fi
 
     if [ ! -d "$CACHE_DIR"/user/generated ]; then

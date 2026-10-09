@@ -2,6 +2,21 @@
 # the icon theme moved from breeze-plus to koompi-icons; only a user still on the shipped value moves, any other pick stays
 config="${XDG_CONFIG_HOME:-$HOME/.config}"
 
+# without the theme on disk the move blanks every app icon; switchwall.sh moves the user at the next wallpaper or mode change once it lands
+installed() {
+    local dir
+    local -a dirs
+    IFS=: read -ra dirs <<< "${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+    for dir in "${dirs[@]/%//icons}" "${XDG_DATA_HOME:-$HOME/.local/share}/icons" "$HOME/.icons"; do
+        [[ -f "$dir/$1/index.theme" ]] && return 0
+    done
+    return 1
+}
+if ! installed koompi-icons && ! installed koompi-icons-dark; then
+    echo "koompi-icons is not installed; icon theme left as it is (run ./setup install --only-deps)"
+    exit 0
+fi
+
 rewrite() {
     local file="$1" expr="$2"
     [[ -f "$file" ]] || return 0
