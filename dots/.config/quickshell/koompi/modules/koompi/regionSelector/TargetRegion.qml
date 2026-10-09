@@ -66,9 +66,10 @@ Rectangle {
                     id: regionIconLoader
                     active: root.showIcon
                     visible: active
-                    sourceComponent: IconImage {
-                        implicitSize: Appearance.font.pixelSize.larger
-                        source: Quickshell.iconPath(AppSearch.guessIcon(root.text), "image-missing")
+                    sourceComponent: AppIconPlate {
+                        size: Appearance.font.pixelSize.larger
+                        iconName: AppSearch.guessIcon(root.text)
+                        label: root.text
                     }
                 }
 

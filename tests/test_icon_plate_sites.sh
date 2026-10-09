@@ -24,6 +24,9 @@ SITES=(
     modules/waffle/startMenu/startPage/StartAppButton.qml
     modules/waffle/startMenu/startPage/AppCategoryGrid.qml
     modules/waffle/startMenu/searchPage/SearchEntryIcon.qml
+    modules/koompi/sidebarRight/volumeMixer/VolumeMixerEntry.qml
+    modules/koompi/regionSelector/TargetRegion.qml
+    modules/waffle/polkit/WPolkitContent.qml
 )
 
 for part in AppIconPlate AppIconPlateBase AppIconPlateMask AppIconPlates AppIconBodies Squircle; do
@@ -61,7 +64,7 @@ fi
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 sed '/^\.pragma /d' "$WIDGETS/app-icon-plate.js" > "$WORK/plate.mjs"
-printf '\nexport { bodyBox, parseIndex, unresolved, bucket, letter, shadowMargin, radiusRatio, cornerHandle, glyphRatio };\n' >> "$WORK/plate.mjs"
+printf '\nexport { bodyBox, bodyThemes, parseIndex, unresolved, bucket, letter, shadowMargin, radiusRatio, cornerHandle, glyphRatio };\n' >> "$WORK/plate.mjs"
 
 cat > "$WORK/run.mjs" <<'EOF'
 import * as P from "./plate.mjs";
@@ -87,6 +90,11 @@ check("a real name is resolved", !P.unresolved("firefox"));
 check("an unresolved icon shows the first letter of its name", P.letter("konsole") === "K" && P.letter("  zed") === "Z");
 check("a label with no letters shows a question mark", P.letter("") === "?" && P.letter("..") === "?");
 
+const shipped = JSON.parse(process.env.SHIPPED_THEMES);
+check("the shipped theme names are read from build-theme.sh", shipped.length >= 2, JSON.stringify(shipped));
+for (const name of shipped)
+    check(`the theme ${name} that build-theme.sh writes has a body box`, P.bodyThemes().includes(name) && P.bodyBox(name, true) !== null);
+
 check("sizes snap up to the next optical size", P.bucket(35) === 48 && P.bucket(32) === 32 && P.bucket(96) === 96 && P.bucket(200) === 256 && P.bucket(1000) === 256);
 check("the corner is 28 % of the side", P.radiusRatio() === 0.28);
 check("the icon body is 72 % of the plate", P.glyphRatio() === 0.72);
@@ -99,5 +107,9 @@ check("the shadow margin grows with the plate", P.shadowMargin(96) > P.shadowMar
 if (failed) process.exit(1);
 console.log("ok");
 EOF
+BUILD_THEME="$REPO_ROOT/sdata/dist-arch/koompi-icons/build-theme.sh"
+[[ -f "$BUILD_THEME" ]] || fail "missing sdata/dist-arch/koompi-icons/build-theme.sh"
+SHIPPED_THEMES="$(grep -oE "Name=koompi-icons[a-z-]*" "$BUILD_THEME" | sed 's/^Name=//' | sort -u | jq -R . | jq -sc .)"
+export SHIPPED_THEMES
 cd "$WORK" && "$RUNNER" run.mjs || fail "app-icon-plate.js rules"
 echo "ok   icon plate: ${#SITES[@]} sites go through AppIconPlate, effects are cached, theme metadata and fallback rules hold"

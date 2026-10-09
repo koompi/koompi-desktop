@@ -76,10 +76,14 @@ Rectangle {
                         spacing: 15
 
                         WAppIcon {
-                            iconName: PolkitService.flow?.iconName ?? "window-shield"
-                            fallback: PolkitService.flow?.iconName == "" ? `${Looks.iconsPath}/window-shield` : PolkitService.flow.iconName
-                            isMask: PolkitService.flow?.iconName === ""
-                            tryCustomIcon: false
+                            visible: !polkitPlate.visible
+                            iconName: "window-shield"
+                        }
+                        AppIconPlate {
+                            id: polkitPlate
+                            visible: (PolkitService.flow?.iconName ?? "") !== ""
+                            size: 26
+                            iconName: PolkitService.flow?.iconName ?? ""
                         }
                         WText {
                             Layout.fillWidth: true
