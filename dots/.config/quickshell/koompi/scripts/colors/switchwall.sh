@@ -35,8 +35,8 @@ handle_qt_app_colors() {
         [[ "$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null)" == *dark* ]] \
             && mode_flag="dark" || mode_flag="light"
     fi
-    local icon_theme="breeze-plus"
-    [[ "$mode_flag" == "dark" ]] && icon_theme="breeze-plus-dark"
+    local icon_theme="koompi-icons"
+    [[ "$mode_flag" == "dark" ]] && icon_theme="koompi-icons-dark"
 
     # KDE apps read kdeglobals directly and no KDE tool is in the path, so merge the
     # matugen scheme there ourselves. Plain Qt apps get the qt6ct one via
@@ -84,11 +84,11 @@ pre_process() {
     if [[ "$mode_flag" == "dark" ]]; then
         gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
         gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark'
-        gsettings set org.gnome.desktop.interface icon-theme 'breeze-plus-dark'
+        gsettings set org.gnome.desktop.interface icon-theme 'koompi-icons-dark'
     elif [[ "$mode_flag" == "light" ]]; then
         gsettings set org.gnome.desktop.interface color-scheme 'prefer-light'
         gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3'
-        gsettings set org.gnome.desktop.interface icon-theme 'breeze-plus'
+        gsettings set org.gnome.desktop.interface icon-theme 'koompi-icons'
     fi
 
     if [ ! -d "$CACHE_DIR"/user/generated ]; then
