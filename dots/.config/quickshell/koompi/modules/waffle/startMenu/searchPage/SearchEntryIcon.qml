@@ -18,11 +18,10 @@ Item {
     Loader {
         anchors.centerIn: parent
         active: root.entry.iconType === LauncherSearchResult.IconType.System && root.entry.iconName !== ""
-        sourceComponent: WAppIcon {
-            implicitSize: root.iconSize
+        sourceComponent: AppIconPlate {
+            size: root.iconSize
             iconName: root.entry.iconName
-            tryCustomIcon: false
-            animated: false
+            label: root.entry.name
         }
     }
     Loader {

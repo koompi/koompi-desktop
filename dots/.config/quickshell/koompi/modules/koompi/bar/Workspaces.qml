@@ -217,7 +217,6 @@ Item {
                     implicitHeight: workspaceButtonWidth
                     property var biggestWindow: HyprlandData.biggestWindowForWorkspace(button.workspaceValue)
                     property string mainAppIconName: AppSearch.guessIcon(biggestWindow?.class)
-                    property var mainAppIconSource: Quickshell.iconPath(mainAppIconName, "image-missing")
                     readonly property bool showLabel: root.showNumbers || Config.options?.bar.workspaces.alwaysShowNumbers
                     readonly property bool showIcon: !showLabel
                         && Config.options?.bar.workspaces.showAppIcons
@@ -270,15 +269,16 @@ Item {
                         height: root.workspaceVisualSize
                         opacity: workspaceButtonBackground.showIcon ? 1 : 0
                         visible: opacity > 0
-                        IconImage {
+                        AppIconPlate {
                             id: mainAppIcon
                             anchors.bottom: parent.bottom
                             anchors.right: parent.right
                             anchors.bottomMargin: (root.workspaceVisualSize - workspaceIconSize) / 2
                             anchors.rightMargin: (root.workspaceVisualSize - workspaceIconSize) / 2
 
-                            source: workspaceButtonBackground.mainAppIconSource
-                            implicitSize: workspaceIconSize
+                            iconName: workspaceButtonBackground.mainAppIconName
+                            label: workspaceButtonBackground.biggestWindow?.class ?? ""
+                            size: workspaceIconSize
 
                             Behavior on opacity {
                                 animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
@@ -289,7 +289,7 @@ Item {
                             Behavior on anchors.rightMargin {
                                 animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
                             }
-                            Behavior on implicitSize {
+                            Behavior on size {
                                 animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
                             }
                         }

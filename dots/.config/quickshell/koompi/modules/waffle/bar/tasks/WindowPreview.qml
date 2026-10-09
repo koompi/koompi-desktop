@@ -5,6 +5,7 @@ import Qt5Compat.GraphicalEffects
 import qs.services
 import qs.modules.common
 import qs.modules.common.functions
+import qs.modules.common.widgets
 import qs.modules.waffle.looks
 import qs.modules.waffle.bar
 import Quickshell
@@ -43,12 +44,13 @@ Button {
             Layout.fillHeight: false
             spacing: 8
 
-            WAppIcon {
+            AppIconPlate {
                 id: appIcon
                 Layout.leftMargin: Looks.radius.large - root.padding + 2
                 Layout.alignment: Qt.AlignVCenter
                 iconName: AppSearch.guessIcon(root.toplevel.appId)
-                implicitSize: 16
+                label: root.toplevel.appId
+                size: 16
             }
 
             Item {

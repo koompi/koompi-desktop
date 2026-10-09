@@ -49,7 +49,7 @@ Item { // Window
     property real iconToWindowRatio: centerIcons ? 0.35 : 0.15
     property real xwaylandIndicatorToIconRatio: 0.35
     property real iconToWindowRatioCompact: 0.6
-    property string iconPath: Quickshell.iconPath(AppSearch.guessIcon(windowData?.class), "image-missing")
+    property string iconName: AppSearch.guessIcon(windowData?.class)
     property bool compactMode: Appearance.font.pixelSize.smaller * 4 > targetWindowHeight || Appearance.font.pixelSize.smaller * 4 > targetWindowWidth
 
     property bool indicateXWayland: windowData?.xwayland ?? false
@@ -110,7 +110,7 @@ Item { // Window
             border.width : 1
         }
 
-        StyledImage {
+        AppIconPlate {
             id: windowIcon
             property real baseSize: Math.min(root.targetWindowWidth, root.targetWindowHeight)
             anchors {
@@ -119,19 +119,11 @@ Item { // Window
                 centerIn: root.centerIcons ? parent : undefined
                 margins: baseSize * root.iconGapRatio
             }
-            property var iconSize: {
-                return baseSize * (root.compactMode ? root.iconToWindowRatioCompact : root.iconToWindowRatio);
-            }
-            mipmap: true
-            Layout.alignment: Qt.AlignHCenter
-            source: root.iconPath
-            width: iconSize
-            height: iconSize
+            iconName: root.iconName
+            label: root.windowData?.class ?? ""
+            size: baseSize * (root.compactMode ? root.iconToWindowRatioCompact : root.iconToWindowRatio)
 
-            Behavior on width {
-                animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this)
-            }
-            Behavior on height {
+            Behavior on size {
                 animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this)
             }
         }

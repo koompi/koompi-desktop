@@ -372,6 +372,21 @@ The remaining gap is the one surface whose keyboard focus is set but not gated.
 The wallpaper selector and the left sidebar both ask for `OnDemand` unconditionally, which is currently harmless and will stop being harmless the moment either window stays mapped beyond a single open.
 A warm `LazySurface` window is built but not mapped, because a layer window that is not visible has no surface, so it does not count.
 
+## App icons
+
+Every app icon the shell draws goes through `AppIconPlate` (`modules/common/widgets`): the Launchpad, Search results, the dock, the Overview, the bar's workspace and active-window icons, and the waffle taskbar, start menu, task view and window previews.
+`tests/test_icon_plate_sites.sh` lists those sites and fails on one that draws an icon around the plate.
+
+The plate is a squircle whose corner is 28 % of its side and follows `rounding_power` (2.5), filled with the highest surface layer in dark mode and white in light, with a 1 px edge and an elevation-1 shadow.
+An icon sits at 72 % of the plate.
+When the active icon theme draws the icon itself and declares a full-bleed body (`app-icon-plate.js` lists the themes, WhiteSur-green at 6.25 % to 93.75 % of the canvas), the icon is cut to the squircle instead, so its body fills the plate and any overhang is clipped.
+The theme comes from `QS_ICON_THEME`, else `[Icons] Theme` in `kdeglobals`, and a theme with no entry is never masked.
+An icon that resolves to nothing (including `image-missing`) shows the first letter of the app's name on the plate.
+
+The plate's shadow and each masked icon are drawn once into a texture (`AppIconPlates`, keyed by size, colours and icon) and every plate reuses it, so nothing runs a shader per plate per frame.
+`tests/test_icon_plate_render.sh` counts the renders: sixteen animated plates cost one plate texture and one mask per distinct icon, and a second grid of the same icons costs none.
+Sizes snap up to 16, 24, 32, 48, 64, 96, 128, 192 or 256 for the texture and are scaled to the size asked for.
+
 ## Motion
 
 One budget for every surface, from decision D6 of the 2026-10-07 audit: a panel or popup arrives in 200 ms and leaves in 150, a small move takes 120, the workspace slide takes 300, and nothing overshoots.

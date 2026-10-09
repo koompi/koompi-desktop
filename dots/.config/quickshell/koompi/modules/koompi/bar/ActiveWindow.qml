@@ -137,12 +137,13 @@ Item { // Faux global menu: bold app name + window title
                 anchors.fill: parent
                 spacing: 6
 
-                IconImage { // the app being started, until its window maps
+                AppIconPlate { // the app being started, until its window maps
                     visible: root.launching
                     Layout.alignment: Qt.AlignVCenter
                     opacity: root.dim
-                    implicitSize: 24
-                    source: root.launching ? Quickshell.iconPath(root.launch.icon, "image-missing") : ""
+                    size: 24
+                    iconName: root.launching ? root.launch.icon : ""
+                    label: root.launching ? root.launch.name : ""
                 }
 
                 ColumnLayout { // App name stacked over window title, as one bounded block

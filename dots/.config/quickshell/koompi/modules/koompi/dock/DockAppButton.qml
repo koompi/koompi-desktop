@@ -1,6 +1,7 @@
 import qs.services
 import qs.modules.common
 import qs.modules.common.functions
+import qs.modules.common.widgets
 import Qt5Compat.GraphicalEffects
 import QtQuick
 import QtQuick.Layouts
@@ -93,9 +94,10 @@ DockButton {
                     verticalCenter: parent.verticalCenter
                 }
                 active: !root.isSeparator
-                sourceComponent: IconImage {
-                    source: Quickshell.iconPath(AppSearch.guessIcon(appToplevel.appId), "image-missing")
-                    implicitSize: root.iconSize
+                sourceComponent: AppIconPlate {
+                    iconName: AppSearch.guessIcon(appToplevel.appId)
+                    label: root.desktopEntry?.name ?? appToplevel.appId
+                    size: root.iconSize
                 }
             }
 
