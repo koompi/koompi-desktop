@@ -160,7 +160,7 @@ impl Worker {
                     let refresh = refresh_for(&event.name);
                     if !refresh.is_empty() {
                         pending.merge(refresh);
-                        deadline = Some(Instant::now() + self.debounce());
+                        deadline.get_or_insert_with(|| Instant::now() + self.debounce());
                     }
                 }
                 () = sleep_until(deadline) => {
