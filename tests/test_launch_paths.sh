@@ -330,15 +330,15 @@ fi
 
 declare -A exec_of=([fx.start]=fx-start [fx.folder]=fx-folder [fx.task]=fx-task [org.kde.dolphin]=fx-dolphin)
 media_entry="$(sed -n 's/^ DEBUG qml: MEDIA_ENTRY //p' <<< "$plain")"
-want_launches="--id fx.folder -- fx-folder
---id fx.start -- fx-start
---id fx.task -- fx-task
---id fx.task -- fx-task
---id fx.task -- fx-task
---id fx.task -- fx-task --new-window
---id org.kde.dolphin -- fx-dolphin
---id org.kde.dolphin -- fx-dolphin"
-[[ -z $media_entry ]] || want_launches+=$'\n'"--id $media_entry -- ${exec_of[$media_entry]:-?}"
+want_launches="--registered --id fx.folder -- fx-folder
+--registered --id fx.start -- fx-start
+--registered --id fx.task -- fx-task
+--registered --id fx.task -- fx-task
+--registered --id fx.task -- fx-task
+--registered --id fx.task -- fx-task --new-window
+--registered --id org.kde.dolphin -- fx-dolphin
+--registered --id org.kde.dolphin -- fx-dolphin"
+[[ -z $media_entry ]] || want_launches+=$'\n'"--registered --id $media_entry -- ${exec_of[$media_entry]:-?}"
 want_count="$(grep -c '' <<< "$want_launches")"
 for _ in $(seq 1 30); do
     seen="$(grep -c '' "$WORK/launch.log" 2> /dev/null)"
