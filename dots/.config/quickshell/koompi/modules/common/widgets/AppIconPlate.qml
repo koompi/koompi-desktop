@@ -78,7 +78,6 @@ Item {
         height: width
         source: root.baseUrl
         smooth: true
-        mipmap: true
     }
 
     Loader {
@@ -106,6 +105,7 @@ Item {
         height: width
         sourceSize: Qt.size(root.tile * Plate.glyphRatio() * 2, root.tile * Plate.glyphRatio() * 2)
         source: visible ? root.path : ""
+        asynchronous: true
         smooth: true
         mipmap: true
     }
@@ -117,7 +117,6 @@ Item {
         height: width
         source: root.maskUrl
         smooth: true
-        mipmap: true
     }
 
     Loader {

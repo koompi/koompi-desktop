@@ -46,6 +46,7 @@ Item {
             height: root.full
             sourceSize: Qt.size(root.full * 2, root.full * 2)
             source: root.source
+            asynchronous: true
             smooth: true
             mipmap: true
             onStatusChanged: {
