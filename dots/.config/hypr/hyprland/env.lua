@@ -30,8 +30,21 @@ hl.env("QT_QPA_PLATFORM", "wayland;xcb")
 -- loading plasma-integration (M5/M7 Qt unwind).
 hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
 
--- Cursor
-hl.env("XCURSOR_THEME", "Adwaita")
+-- Cursor: naming a theme that is not on disk falls back unpredictably, so Adwaita stands in until Bibata lands
+local cursor_theme = "Bibata-Modern-Classic"
+local function theme_installed(name)
+    local dirs = { home_dir .. "/.local/share/icons", home_dir .. "/.icons" }
+    for dir in (os.getenv("XDG_DATA_DIRS") or "/usr/local/share:/usr/share"):gmatch("[^:]+") do
+        dirs[#dirs + 1] = dir .. "/icons"
+    end
+    for _, dir in ipairs(dirs) do
+        local f = io.open(dir .. "/" .. name .. "/index.theme")
+        if f then f:close() return true end
+    end
+    return false
+end
+if not theme_installed(cursor_theme) then cursor_theme = "Adwaita" end
+hl.env("XCURSOR_THEME", cursor_theme)
 hl.env("XCURSOR_SIZE", "24")
 
 -- Virtual environment

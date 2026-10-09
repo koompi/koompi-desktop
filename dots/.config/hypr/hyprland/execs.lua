@@ -27,5 +27,5 @@ hl.on("hyprland.start", function ()
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE && systemctl --user start hyprland-session.target")
 
     -- Cursor
-    hl.exec_cmd("hyprctl setcursor Adwaita 24")
+    hl.exec_cmd("hyprctl setcursor " .. (os.getenv("XCURSOR_THEME") or "Adwaita") .. " 24")
 end)
