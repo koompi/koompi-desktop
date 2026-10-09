@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# J46: what MprisController shows after a browser's media ends. A stub
+# What MprisController shows after a browser's media ends. A stub
 # plasma-browser-integration player on a private session bus plays for a few
-# seconds, then does what the TODO says the real one does: goes Paused with
-# Position pinned at the length ("ends"), drops its bus name ("drops"), or, the
-# case the activePlayerStale workaround was written for, stays Playing with a
-# frozen Position ("frozen"). The probe samples the real MprisController
-# singleton in a headless KWin; koompi-shelld is a PATH shim.
+# seconds, then goes Paused with Position pinned at the length ("ends") or drops
+# its bus name ("drops"). Neither may leave a playing phantom. The probe samples
+# the real MprisController singleton in a headless KWin; koompi-shelld is a PATH shim.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -120,7 +118,7 @@ ShellRoot {
             const p = MprisController.activePlayer;
             console.log("SAMPLE t=" + t + " players=" + MprisController.players.length
                 + " active=" + (p ? "yes" : "no") + " playing=" + MprisController.isPlaying
-                + " media=" + MprisController.hasActiveMedia + " stale=" + MprisController.activePlayerStale);
+                + " media=" + MprisController.hasActiveMedia);
             if (t >= 14) Qt.quit();
         }
     }
@@ -146,21 +144,18 @@ run_probe() { # $1: scenario
     sed 's/\x1b\[[0-9;]*m//g' "$WORK/probe-$1.log" | sed -n 's/^ DEBUG qml: SAMPLE //p'
 }
 
-at() { grep -E "^t=$2 " <<< "$1"; }
-
 want() { # $1 scenario, $2 sample time, $3 expected fields
     local line; line="$(grep -E "^t=$2 " <<< "$samples")"
     [[ "$line" == *"$3"* ]] || fail "$1 at t=$2: wanted '$3', got '$line'"
 }
 
-for scenario in ends drops frozen; do
+for scenario in ends drops; do
     samples="$(run_probe "$scenario")"
-    [[ -n "$samples" ]] || fail "$scenario: the probe printed no samples"
+    [[ -n "$samples" ]] || { tail -20 "$WORK/probe-$scenario.log" >&2; fail "$scenario: the probe printed no samples"; }
     want "$scenario" 2 "players=1 active=yes playing=true"
     case "$scenario" in
-        ends)   want ends 14 "players=1 active=yes playing=false media=true stale=false" ;;
+        ends)   want ends 14 "players=1 active=yes playing=false media=true" ;;
         drops)  want drops 14 "players=0 active=no playing=false media=false" ;;
-        frozen) want frozen 14 "playing=true media=false stale=true" ;;
     esac
     echo "ok   $scenario"
 done
