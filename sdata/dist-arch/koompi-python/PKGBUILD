@@ -1,7 +1,7 @@
 groups=(koompi)
 pkgname=koompi-python
 pkgver=1.1
-pkgrel=5
+pkgrel=6
 pkgdesc='KOOMPI Python Dependencies'
 arch=(any)
 license=(None)
@@ -13,4 +13,6 @@ depends=(
   libsoup3
   libportal-gtk4
   gobject-introspection
+  python-gobject
+  python-opencv
 )
