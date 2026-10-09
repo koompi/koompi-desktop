@@ -124,7 +124,8 @@ rc=$?
 elapsed=$((($(date +%s%N) - start) / 1000000))
 (( rc == 0 )) || fail "a hanging shell stopped the launch, rc $rc after $elapsed ms (a capture of its output waited for it)"
 (( elapsed < 2000 )) || fail "a hanging shell delayed the launch by $elapsed ms"
-[[ -e "$QSHUNG" ]] || fail "the hang case never reached the shell shim"
+for _ in $(seq 1 60); do [[ -e $QSHUNG ]] && break; sleep 0.1; done
+[[ -e $QSHUNG ]] || fail "the hang case never reached the shell shim"
 waits_for "$APPLOG" || fail "the app did not start while the shell hung"
 for _ in $(seq 1 50); do grep -q 'no answer' "$LOGGERLOG" 2> /dev/null && break; sleep 0.2; done
 grep -q 'no answer from the shell in 3 s' "$LOGGERLOG" 2> /dev/null || fail "a shell that never answered was not logged: '$(cat "$LOGGERLOG" 2> /dev/null)'"
