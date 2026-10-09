@@ -109,3 +109,7 @@ failed: test_search_window_focus.sh
 - Proposed line for `koompi_de_gotchas` under QML (I did not write the shared vault): "A handler for one property's change sees the previous value of its siblings bound to the same source. Qt re-evaluates one push's bindings one after another and the handler runs between them. Read the source object in the handler. Repro: `evidence/push-order/qt-handler-sees-previous-sibling.qml`."
 
 All scratch work dirs my tests kept have been removed by exact path.
+
+## Round 2 (rebased at a38dc9c5a)
+
+Three tests fixed in 412b6dd8d, eb6bb6721, b957130b9; full suite 138 passed, 4 skipped, 0 failed. Evidence: J13-handoff/evidence/round2/.
