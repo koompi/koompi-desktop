@@ -157,34 +157,8 @@ set -uo pipefail
 unset HYPRLAND_INSTANCE_SIGNATURE
 log() { printf '%s\n' "$*" >> "$WORK/readings"; }
 
-locate() {
-    local lock p s
-    for lock in "$XDG_RUNTIME_DIR"/hypr/*/hyprland.lock; do
-        [[ -f $lock ]] || continue
-        { read -r p; read -r s; } < "$lock"
-        [[ $p == "$1" && -n $s ]] && { echo "$(basename -- "$(dirname -- "$lock")") $s"; return 0; }
-    done
-    return 1
-}
-# no-output start (hyprwm/aquamarine#415): SIGKILL and redo; its SIGTERM and its own exit both abort, and a coredump toasts the live seat
-for attempt in 1 2 3 4 5 6; do
-    Hyprland -c "$HOME/.config/hypr/hyprland.lua" >> "$WORK/hyprland.log" 2>&1 &
-    hypr_pid=$!
-    found=""
-    for _ in $(seq 1 150); do
-        found=$(locate "$hypr_pid") && break
-        kill -0 "$hypr_pid" 2> /dev/null || { log "dead Hyprland exited at start $attempt"; exit 0; }
-        sleep 0.2
-    done
-    if [[ -n $found ]]; then
-        read -r sig socket <<< "$found"
-        export HYPRLAND_INSTANCE_SIGNATURE=$sig WAYLAND_DISPLAY=$socket
-        for _ in $(seq 1 50); do hyprctl monitors -j 2> /dev/null | jq -e 'length > 0' > /dev/null 2>&1 && break 2; sleep 0.1; done
-    fi
-    log "start $attempt: no output"
-    kill -9 "$hypr_pid" 2> /dev/null; wait "$hypr_pid" 2> /dev/null
-done
-hyprctl monitors -j 2> /dev/null | jq -e 'length > 0' > /dev/null 2>&1 || { log "wedged: no start had an output"; exit 0; }
+source "$REPO_ROOT/tests/nested-hyprland.sh"
+nested_hyprland_start "$HOME/.config/hypr/hyprland.lua" "$WORK/hyprland.log" || { log "dead nested Hyprland did not start"; exit 0; }
 
 cd "$WORK/shell" || exit 1
 qs -p grab_probe.qml > "$WORK/qs.log" 2>&1 &
@@ -277,9 +251,7 @@ dump() {
 field() { grep -E "$1" "$WORK/readings" | head -1 | sed -E 's/ first.*//' | sed -E "s/.* $2=([^ ]+).*/\1/"; }
 total() { grep -E '^STATS ' "$WORK/readings" | sed -E 's/ first.*//' | sed -E "s/.* $1=([0-9]+).*/\1/" | awk '{ s += $1 } END { print s + 0 }'; }
 
-grep -q '^wedged' "$WORK/readings" 2> /dev/null && { echo "skip: no nested Hyprland start had an output (hyprwm/aquamarine#415), the grab test did not run"; exit 0; }
-grep -q '^dead' "$WORK/readings" 2> /dev/null && grep -q 'no output' "$WORK/readings" && { echo "skip: the retry after a no-output nested Hyprland start died (hyprwm/aquamarine#415), the grab test did not run"; exit 0; }
-grep -q '^dead' "$WORK/readings" 2> /dev/null && { dump; fail "setup: the nested Hyprland exited while it started"; }
+grep -q '^dead' "$WORK/readings" 2> /dev/null && { dump; fail "setup: the nested Hyprland did not start"; }
 grep -q '^done$' "$WORK/readings" 2> /dev/null || { dump; fail "setup: the probe session did not finish"; }
 grep -qE '^holder (ok|MISMATCH) inside=true' "$WORK/readings" || { dump; fail "setup: the window with the nested focused item never held the keyboard"; }
 for s in cheatsheet search sidebarLeft sidebarRight; do
