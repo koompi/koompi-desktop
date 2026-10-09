@@ -283,7 +283,7 @@ install_files() {
     fi
 
     # Pull in the rounded-polygon submodule; the shell fails to load without it.
-    if [[ -f "$REPO_ROOT/.gitmodules" ]] && ! [[ -e "$REPO_ROOT/dots/.config/quickshell/koompi/modules/common/widgets/shapes/qmldir" ]]; then
+    if [[ -f "$REPO_ROOT/.gitmodules" ]] && ! [[ -e "$REPO_ROOT/dots/.config/quickshell/koompi/modules/common/widgets/shapes/material-shapes.js" ]]; then
         run git -C "$REPO_ROOT" submodule update --init --recursive
     fi
 
