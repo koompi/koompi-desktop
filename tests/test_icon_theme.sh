@@ -5,8 +5,8 @@
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-SWITCH="$ROOT/dots/.config/quickshell/koompi/scripts/colors/switchwall.sh"
 CONF="$ROOT/dots/.config/kde-material-you-colors/config.conf"
+ICONFN="$ROOT/dots/.config/quickshell/koompi/scripts/colors/icon_theme.sh"
 PKG="$ROOT/sdata/dist-arch/koompi-icons"
 FROM_SOURCE="$ROOT/sdata/lib/from-source.sh"
 
@@ -15,8 +15,8 @@ fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 light=koompi-icons
 dark=koompi-icons-dark
 
-grep -qF "want=\"$light\"" "$SWITCH" || fail "switchwall.sh light icon_theme_for is not $light"
-grep -qF "want=\"$dark\"" "$SWITCH" || fail "switchwall.sh dark icon_theme_for is not $dark"
+grep -qF "want=\"$light\"" "$ICONFN" || fail "icon_theme.sh light icon_theme_for is not $light"
+grep -qF "want=\"$dark\"" "$ICONFN" || fail "icon_theme.sh dark icon_theme_for is not $dark"
 grep -qx "iconslight = $light" "$CONF" || fail "kde-material-you-colors iconslight is not $light"
 grep -qx "iconsdark = $dark" "$CONF" || fail "kde-material-you-colors iconsdark is not $dark"
 if grep -n "breeze-plus" "$CONF" >/dev/null; then fail "a breeze-plus name is left in config.conf"; fi

@@ -6,6 +6,7 @@ XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 CACHE_DIR="$XDG_CACHE_HOME/quickshell"
 STATE_DIR="$XDG_STATE_HOME/quickshell"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/icon_theme.sh"
 SHELL_CONFIG_FILE="$XDG_CONFIG_HOME/koompi/config.json"
 terminalscheme="$SCRIPT_DIR/terminal/scheme-base.json"
 # set by hyprland/env.lua inside a session only; same default as env.lua
@@ -19,18 +20,6 @@ activate_venv() {
     fi
     # shellcheck source=/dev/null # venv activate script lives outside the repo
     source "$activate"
-}
-
-# the shipped theme may be absent (--no-deps, a failed build or fetch); naming it then blanks every app icon
-icon_theme_for() {
-    local want="koompi-icons" fallback="breeze-plus" dir
-    [[ "$1" == dark ]] && { want="koompi-icons-dark"; fallback="breeze-plus-dark"; }
-    local -a dirs
-    IFS=: read -ra dirs <<< "${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
-    for dir in "${dirs[@]/%//icons}" "${XDG_DATA_HOME:-$HOME/.local/share}/icons" "$HOME/.icons"; do
-        [[ -f "$dir/$want/index.theme" ]] && { printf '%s\n' "$want"; return 0; }
-    done
-    printf '%s\n' "$fallback"
 }
 
 handle_qt_app_colors() {
@@ -47,8 +36,7 @@ handle_qt_app_colors() {
         [[ "$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null)" == *dark* ]] \
             && mode_flag="dark" || mode_flag="light"
     fi
-    local icon_theme
-    icon_theme="$(icon_theme_for "$mode_flag")"
+    local icon_theme; icon_theme="$(icon_theme_for "$mode_flag")"
 
     # KDE apps read kdeglobals directly and no KDE tool is in the path, so merge the
     # matugen scheme there ourselves. Plain Qt apps get the qt6ct one via

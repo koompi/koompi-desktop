@@ -6,13 +6,14 @@ set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SWITCH="$ROOT/dots/.config/quickshell/koompi/scripts/colors/switchwall.sh"
+ICONFN="$ROOT/dots/.config/quickshell/koompi/scripts/colors/icon_theme.sh"
 TEST_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TEST_ROOT"' EXIT
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
-fn="$(sed -n '/^icon_theme_for() {/,/^}/p' "$SWITCH")"
-[[ -n "$fn" ]] || fail "switchwall.sh has no icon_theme_for"
+fn="$(sed -n '/^icon_theme_for() {/,/^}/p' "$ICONFN")"
+[[ -n "$fn" ]] || fail "switchwall.sh has no icon_theme_for in icon_theme.sh"
 eval "$fn"
 
 # only the lookup runs: gsettings and the rest of switchwall.sh never start
@@ -37,6 +38,7 @@ touch "$HOME/.local/share/icons/koompi-icons-dark/index.theme"
 [[ "$(icon_theme_for light)" == breeze-plus ]] || fail "light picked a theme only dark has"
 
 # every place the script names the theme goes through the lookup
+grep -qF "icon_theme.sh" "$SWITCH" || fail "switchwall.sh does not source icon_theme.sh"
 if grep -nE "(icon-theme|icon_theme=)[ =]*['\"]?koompi-icons" "$SWITCH"; then
     fail "switchwall.sh names koompi-icons without checking it is installed"
 fi
