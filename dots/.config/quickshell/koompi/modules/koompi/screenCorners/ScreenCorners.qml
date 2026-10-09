@@ -79,21 +79,35 @@ Scope {
                 implicitWidth: cornerPanelWindow.regionWidth
                 implicitHeight: cornerPanelWindow.regionHeight
                 hoverEnabled: true
-                property bool armed: true
-                onExited: armed = true
+                property bool seen: false
+                property bool moved: false
+                property bool fired: false
+                property real baseX: -1
+                property real baseY: -1
+
+                // enter and its first motion are a refocus, not a push
+                onEntered: {
+                    seen = false;
+                    moved = false;
+                    fired = false;
+                }
                 onPositionChanged: {
-                    if (!armed || !Config.options.sidebar.cornerOpen.clicklessCornerEnd) return;
-                    const verticalOffset = Config.options.sidebar.cornerOpen.clicklessCornerVerticalOffset;
+                    if (!seen) {
+                        seen = true;
+                        baseX = mouseArea.mouseX;
+                        baseY = mouseArea.mouseY;
+                        return;
+                    }
+                    if (!moved && mouseArea.mouseX === baseX && mouseArea.mouseY === baseY) return;
+                    moved = true;
+                    if (fired) return;
+                    const cornerOpen = Config.options.sidebar.cornerOpen;
+                    const verticalOffset = cornerOpen.clicklessCornerVerticalOffset;
                     const correctX = (cornerPanelWindow.isRight && mouseArea.mouseX >= mouseArea.width - 2) || (cornerPanelWindow.isLeft && mouseArea.mouseX <= 2);
                     const correctY = (cornerPanelWindow.isTop && mouseArea.mouseY > verticalOffset || cornerPanelWindow.isBottom && mouseArea.mouseY < mouseArea.height - verticalOffset);
-                    if (correctX && correctY) {
-                        armed = false;
-                        screenCorners.actionForCorner[cornerPanelWindow.corner]();
-                    }
-                }
-                onEntered: {
-                    if (Config.options.sidebar.cornerOpen.clickless)
-                        screenCorners.actionForCorner[cornerPanelWindow.corner]();
+                    if (!cornerOpen.clickless && !(cornerOpen.clicklessCornerEnd && correctX && correctY)) return;
+                    fired = true;
+                    screenCorners.actionForCorner[cornerPanelWindow.corner]();
                 }
                 onPressed: {
                     screenCorners.actionForCorner[cornerPanelWindow.corner]();

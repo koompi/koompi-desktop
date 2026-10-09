@@ -122,7 +122,8 @@ Corner activation as a whole is `sidebar.cornerOpen.enable`, default true, and o
 A corner window exists only while it has a job: drawing the fake screen rounding (`appearance.fakeScreenRounding`), or hosting its hot corner.
 The jobs are independent, so the hot corners work with the rounding off, and there each corner window is exactly its 250x5 region.
 Under a fullscreen window the hot corners are off, and so is the rounding unless `fakeScreenRounding` is 1 (always).
-A corner fires once per visit: the pointer has to leave it before it can fire again, so a pointer that crosses the last two pixels in more than one move does not open the sidebar and shut it again.
+A corner fires on a push: the pointer has to move inside the corner window after entering it, and it fires once per visit, so a pointer that crosses the last two pixels in more than one move does not open the sidebar and shut it again.
+Entering the window, or finding the pointer resting in it when a sidebar closes or the window appears, does not fire it, so a sidebar closed over IPC or with `Escape` stays closed.
 
 ## Gestures
 

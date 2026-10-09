@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# a corner window exists only for a job (fake rounding, hot corner); hot corners work with rounding off
-# nested Hyprland in headless KWin, probe shell with ScreenCorners alone, config.json rewritten per phase
+# a corner window exists only for a job (fake rounding, hot corner); hot corners work with rounding off;
+# a corner fires on a push and not on a refocus, so a sidebar closed under a resting pointer stays closed
+# nested Hyprland in headless KWin, probe shell with ScreenCorners and SidebarRight, config.json rewritten per phase
 # the nested compositor has no pointer, so wl_virtual_pointer.py gives it one: hl.dsp.cursor.move sends no events
 # shellcheck disable=SC2016  # the $names in the want_json filters are jq variables
 set -uo pipefail
@@ -54,6 +55,7 @@ import qs
 import qs.modules.common
 import qs.panelFamilies
 import qs.modules.koompi.screenCorners
+import qs.modules.koompi.sidebarRight
 import Quickshell
 import Quickshell.Io
 import QtQuick
@@ -64,6 +66,7 @@ ShellRoot {
     property int rightToggles: 0
 
     PanelLoader { component: ScreenCorners {} }
+    PanelLoader { component: SidebarRight {} }
 
     Connections {
         target: GlobalStates
@@ -146,10 +149,14 @@ setcfg() {
 corner_layers() {
     hyprctl layers -j 2> /dev/null | jq -c '[.[].levels[][]? | select(.namespace == "quickshell:screenCorners") | {x, y, w, h}] | sort_by(.y, .x)'
 }
+sidebar_layers() {
+    hyprctl layers -j 2> /dev/null | jq '[.[].levels[][]? | select(.namespace == "quickshell:sidebarRight")] | length'
+}
 fullscreen_state() { hyprctl activewindow -j 2> /dev/null | jq -r '(.fullscreen // 0) | tostring'; }
 is_fullscreen() { case "$(fullscreen_state)" in 0 | false | '') return 1 ;; esac; }
 
 note sizes "$(probe sizes)"
+read -r _ REGION_W _ <<< "$(probe sizes)"
 
 # wait for a change, then 1 s of quiet
 prev='[]'
@@ -165,40 +172,76 @@ await_layers() {
     note "layers.$1" "$prev"
 }
 
-# from the middle, so the pointer enters the corner window instead of starting in it
-hover() { # tag, x, y
+wait_for_toggle() {
     local state=''
-    probe reset > /dev/null
-    move $((WIDTH / 2)) $((HEIGHT / 2))
-    move "$2" "$3"
     for _ in $(seq 1 20); do
         state=$(probe sidebars)
-        [[ $state != 'left=0/0 right=0/0' ]] && break
+        [[ $state != "$1" ]] && break
         sleep 0.25
     done
     sleep 1
-    note "hover.$1" "$(probe sidebars)"
+}
+
+# from the middle into the window outside the trigger zone, then on to the corner end: a push
+push() { # tag, left|right, top|bottom
+    local x near y
+    if [[ $2 == right ]]; then x=$((WIDTH - 1)); near=$((WIDTH - REGION_W / 2)); else x=0; near=$((REGION_W / 2)); fi
+    if [[ $3 == top ]]; then y=3; else y=$((HEIGHT - 3)); fi
+    move $((WIDTH / 2)) $((HEIGHT / 2))
+    probe reset > /dev/null
+    sleep 0.6
+    move "$near" "$y"
+    sleep 0.5
+    note "enter.$1" "$(probe sidebars)"
+    move "$x" "$y"
+    wait_for_toggle 'left=0/0 right=0/0'
+    note "push.$1" "$(probe sidebars)"
     note "cursor.$1" "$(hyprctl cursorpos 2> /dev/null)"
 }
 
-# a pointer resting in the corner is moved again inside the 2 px that trigger: it must not toggle twice
+# one move inside the zone after the push fired
 jiggle() { # tag, x, y
     move "$2" "$3"
     sleep 1
     note "jiggle.$1" "$(probe sidebars)"
 }
 
+# straight from the middle into the zone: the enter lands there and nothing moves after it
+teleport() { # tag, x, y
+    move $((WIDTH / 2)) $((HEIGHT / 2))
+    probe reset > /dev/null
+    sleep 0.6
+    move "$2" "$3"
+    sleep 1
+    note "teleport.$1" "$(probe sidebars)"
+}
+
+# the right sidebar closed over ipc while the pointer rests in its corner, then a fresh push
+reopen() { # tag
+    qs -p corner_probe.qml ipc call sidebarRight close > /dev/null 2>&1
+    sleep 3
+    note "reopen.$1.closed" "$(probe sidebars) layers=$(sidebar_layers)"
+    move $((WIDTH / 2)) $((HEIGHT / 2))
+    sleep 0.6
+    move $((WIDTH - REGION_W / 2)) 3
+    move $((WIDTH - 1)) 3
+    wait_for_toggle "$(probe sidebars)"
+    note "reopen.$1.fresh" "$(probe sidebars) layers=$(sidebar_layers)"
+}
+
 await_layers p1
-hover p1.topright $((WIDTH - 1)) 3
+push p1.topright right top
 jiggle p1.topright $((WIDTH - 2)) 3
-hover p1.topleft 0 3
+reopen p1
+teleport p1.topright $((WIDTH - 1)) 3
+push p1.topleft left top
 
 setcfg p2; await_layers p2
 setcfg p3; await_layers p3
 setcfg p4; await_layers p4
-hover p4.bottomright $((WIDTH - 1)) $((HEIGHT - 3))
+push p4.bottomright right bottom
 setcfg p5; await_layers p5
-hover p5.bottomleft 0 $((HEIGHT - 3))
+push p5.bottomleft left bottom
 
 setcfg p6; await_layers p6
 probe showWindow > /dev/null
@@ -230,7 +273,7 @@ run_session() {
         HOME="$HOME_DIR" XDG_RUNTIME_DIR="$RUN" XDG_CONFIG_HOME="$HOME_DIR/.config" \
         XDG_STATE_HOME="$HOME_DIR/.local/state" XDG_CACHE_HOME="$HOME_DIR/.cache" XDG_DATA_HOME="$HOME_DIR/.local/share" \
         PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
-        timeout 300 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width "$((W + 200))" --height "$((H + 200))" \
+        timeout 420 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width "$((W + 200))" --height "$((H + 200))" \
             --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
     rm -rf "$RUN"
 }
@@ -266,31 +309,38 @@ check_layers() { # phase, what, jq array of {x,y,w,h} sorted by y then x
     want="$(want_json "$3")"
     if [[ "$got" == "$want" ]]; then echo "ok   layers: $2"; else fail "$2: corner windows are ${got:-missing}, want $want"; fi
 }
-check_hover() { # phase, what, want, x, y
-    local got at
+check_eq() { # key, want, what
+    local got
+    got="$(reading "$1")"
+    if [[ "$got" == "$2" ]]; then echo "ok   $3"; else fail "$3: read '${got:-missing}', want '$2'"; fi
+}
+check_push() { # key, what, want, x, y
+    local at
     at="$(reading "cursor.$1")"
     if [[ "$at" != "$4, $5" ]]; then fail "setup: moving the pointer into the corner left it at '${at:-nowhere}', want '$4, $5'"; return; fi
-    got="$(reading "hover.$1")"
-    if [[ "$got" == "$3" ]]; then echo "ok   hover: $2"; else fail "$2: sidebars read '${got:-missing}', want '$3'"; fi
+    check_eq "push.$1" "$3" "$2"
 }
 
 TOP_BOTH='[{x:0,y:0,w:$BW,h:$BH},{x:($W-$BW),y:0,w:$BW,h:$BH},{x:0,y:($H-$R),w:$R,h:$R},{x:($W-$R),y:($H-$R),w:$R,h:$R}]'
 
 check_layers p1 "rounding off, corners on: only the top pair exists, each the size of its region" \
     '[{x:0,y:0,w:$RW,h:$RH},{x:($W-$RW),y:0,w:$RW,h:$RH}]'
-check_hover p1.topright "the pointer in the top-right corner opens the right sidebar with the rounding off" 'left=0/0 right=1/1' $((W - 1)) 3
-check_hover p1.topleft "the pointer in the top-left corner opens the left sidebar with the rounding off" 'left=1/1 right=0/0' 0 3
-check_jiggle="$(reading jiggle.p1.topright)"
-if [[ "$check_jiggle" == 'left=0/0 right=1/1' ]]; then echo "ok   hover: a second move inside the trigger zone leaves the sidebar alone"; else fail "a second move inside the trigger zone toggled the sidebar again: sidebars read '${check_jiggle:-missing}', want 'left=0/0 right=1/1'"; fi
+check_eq enter.p1.topright 'left=0/0 right=0/0' "entering the window short of the trigger zone fires nothing"
+check_push p1.topright "a push into the top-right corner opens the right sidebar with the rounding off" 'left=0/0 right=1/1' $((W - 1)) 3
+check_eq jiggle.p1.topright 'left=0/0 right=1/1' "a second move inside the trigger zone leaves the sidebar alone"
+check_eq reopen.p1.closed 'left=0/0 right=0/2 layers=0' "a sidebar closed over IPC with the pointer resting in its corner stays closed"
+check_eq reopen.p1.fresh 'left=0/0 right=1/3 layers=1' "a fresh push opens it again"
+check_eq teleport.p1.topright 'left=0/0 right=0/0' "a pointer that appears in the trigger zone fires nothing"
+check_push p1.topleft "a push into the top-left corner opens the left sidebar with the rounding off" 'left=1/1 right=0/0' 0 3
 check_layers p2 "rounding off, corners off: no corner window" '[]'
 check_layers p3 "rounding always, corners off: four rounding-sized windows" \
     '[{x:0,y:0,w:$R,h:$R},{x:($W-$R),y:0,w:$R,h:$R},{x:0,y:($H-$R),w:$R,h:$R},{x:($W-$R),y:($H-$R),w:$R,h:$R}]'
 check_layers p4 "rounding always, corners at the bottom: the bottom pair grows to hold its region" \
     '[{x:0,y:0,w:$R,h:$R},{x:($W-$R),y:0,w:$R,h:$R},{x:0,y:($H-$BH),w:$BW,h:$BH},{x:($W-$BW),y:($H-$BH),w:$BW,h:$BH}]'
-check_hover p4.bottomright "the pointer in the bottom-right corner opens the right sidebar through a window that also draws the rounding" 'left=0/0 right=1/1' $((W - 1)) $((H - 3))
+check_push p4.bottomright "a push into the bottom-right corner opens the right sidebar through a window that also draws the rounding" 'left=0/0 right=1/1' $((W - 1)) $((H - 3))
 check_layers p5 "rounding off, corners at the bottom: only the bottom pair exists" \
     '[{x:0,y:($H-$RH),w:$RW,h:$RH},{x:($W-$RW),y:($H-$RH),w:$RW,h:$RH}]'
-check_hover p5.bottomleft "the pointer in the bottom-left corner opens the left sidebar" 'left=1/1 right=0/0' 0 $((H - 3))
+check_push p5.bottomleft "a push into the bottom-left corner opens the left sidebar" 'left=1/1 right=0/0' 0 $((H - 3))
 check_layers p6 "rounding when not fullscreen, corners on top: the top pair holds both jobs" "$TOP_BOTH"
 case "$(reading fullscreen)" in 0 | false | '') fail "setup: the probe window never went fullscreen" ;; esac
 check_layers p6.fullscreen "a fullscreen window takes every corner window down" '[]'
