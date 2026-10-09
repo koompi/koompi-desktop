@@ -1,0 +1,26 @@
+{
+  "project": "koompi-desktop",
+  "lead_pick": {
+    "J46_media_workaround": "keep_workaround"
+  },
+  "state": {
+    "what": "services/MprisController.qml keeps a workaround for plasma-browser-integration reporting Playing with a frozen Position after a tab's media ends: while a plasma browser player is Playing and playerctl exists, a 3 s Timer forks `playerctl -p <bus> position`; frozen across 3 polls (~9 s) marks the player stale and hides the media card.",
+    "origin": "Came in with the 2026-07-29 import of the shell (commit 7304e6bdf); no record of who observed the freeze or when.",
+    "reproduction": "The founder's TODO: not reproduced in two attempts against the real host; real media ending goes Paused with Position pinned at the length, and tearing the element out drops the bus name.",
+    "J46_evidence": "Stub MPRIS player on a private bus, headless (tests/test_mpris_phantom.sh, commit 084d1c7b9): (1) Paused at length: a paused card shows, identical with or without the workaround (its timer only runs while Playing). (2) Bus name dropped: card gone within 1 s, both ways. (3) Playing with frozen Position (the workaround's case, never seen on the real host): with it, flagged stale at ~9 s; without it the phantom Playing card stays until the browser exits.",
+    "cost_of_keeping": "One playerctl fork every 3 s for as long as a browser plays media (about 1200 forks per hour of video), ~40 lines of code. The project tracks shell idle power.",
+    "cost_of_removing": "If the freeze ever happens, a stale Playing card stays on the bar/panel until the browser closes. Cosmetic, no data loss.",
+    "reversibility": "Removal is one separate commit (d5e031fdc) on dev; revertable."
+  },
+  "questions": {
+    "J46_media_workaround": {
+      "type": "choice",
+      "instructions": "Keep or remove the plasma-browser stale-position workaround?",
+      "criteria": {
+        "keep_workaround": "Drop d5e031fdc. Strongest case: guards a failure someone wrote code for, at small cost; the evidence only shows it is unproven, not unneeded.",
+        "remove_workaround": "Merge d5e031fdc. Strongest case: the failure was never reproduced on the real host, the two real behaviours are clean without it, and it forks a process every 3 s during all browser playback.",
+        "need_more_facts": "Neither is supported yet; name the fact."
+      }
+    }
+  }
+}
