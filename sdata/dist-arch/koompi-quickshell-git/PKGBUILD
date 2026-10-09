@@ -1,4 +1,4 @@
-_commit='1a4716cde794a59928d9d9fc15f2afc7a95de360' # v0.3.1; the older pin fails to moc under gcc 16 / qt 6.11
+_commit='4f508be500dea6e5732cc3d50382a0048b17e7b1' # v0.3.2; v0.3.1 and the older pin fail to moc under gcc 16 / qt 6.11
 # Useful links:
 # https://git.outfoxxed.me/quickshell/quickshell/commits/branch/master
 # https://aur.archlinux.org/packages/quickshell-git
