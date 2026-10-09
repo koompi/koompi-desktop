@@ -11,10 +11,14 @@ DIST="$REPO_ROOT/sdata/dist-arch"
 # The build order the installer actually uses, read from the recipe rather than
 # restated here, so the two cannot drift.
 mapfile -t order < <(
-    sed -n '/^ARCH_DEP_PKGBUILDS=(/,/^)/p' "$DIST/install-deps.sh" |
-        sed -e '1d' -e '$d' -e 's/#.*//' | tr -d ' \t' | grep -v '^$'
+    {
+        sed -n '/^ARCH_DEP_PKGBUILDS=(/,/^)/p' "$DIST/install-deps.sh"
+        sed -n '/^ARCH_APP_PKGBUILDS=(/,/^)/p' "$DIST/install-apps.sh"
+    } | sed -e '/^[A-Z_]*=(/d' -e '/^)/d' -e 's/#.*//' | tr -d ' \t' | grep -v '^$'
 )
 (( ${#order[@]} )) || { echo "could not read ARCH_DEP_PKGBUILDS" >&2; exit 1; }
+[[ " ${order[*]} " == *" koompi-kiri koompi-apps "* ]] \
+    || { echo "FAIL: ARCH_APP_PKGBUILDS (install-apps.sh) is not in the install order" >&2; exit 1; }
 
 # pkgname -> directory, for everything this repo can build.
 declare -A built_by=()
