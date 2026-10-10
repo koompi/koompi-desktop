@@ -6,6 +6,7 @@ import qs.services
 import qs.modules.koompi.background
 import qs.modules.koompi.bar
 import qs.modules.koompi.cheatsheet
+import qs.modules.koompi.controlCenter
 import qs.modules.koompi.dock
 import qs.modules.koompi.intelligence
 import qs.modules.koompi.launchpad
@@ -37,6 +38,7 @@ Scope {
     PanelLoader { extraCondition: !Config.options.bar.vertical; component: Bar {} }
     PanelLoader { component: Background {} }
     PanelLoader { component: Cheatsheet {} }
+    PanelLoader { component: ControlCenter {} }
     PanelLoader { extraCondition: Config.options.dock.enable; component: Dock {} }
     PanelLoader { component: Intelligence {} }
     PanelLoader { extraCondition: Ai.feedback.panelOpen; component: FeedbackWindow { service: Ai.feedback } }

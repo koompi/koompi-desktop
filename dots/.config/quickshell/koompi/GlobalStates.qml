@@ -11,6 +11,7 @@ Singleton {
     id: root
     property bool barOpen: true
     property bool cheatsheetOpen: false
+    property bool controlCenterOpen: false
     property bool crosshairOpen: false
     property bool intelligenceOpen: false
     property bool launchpadOpen: false
@@ -37,8 +38,14 @@ Singleton {
     property bool wallpaperSelectorOpen: false
     property bool workspaceShowNumbers: false
 
+    onControlCenterOpenChanged: {
+        if (controlCenterOpen)
+            sidebarRightOpen = false;
+    }
+
     onSidebarRightOpenChanged: {
         if (sidebarRightOpen) {
+            controlCenterOpen = false;
             Notifications.timeoutAll();
             seenTimer.restart();
         } else {

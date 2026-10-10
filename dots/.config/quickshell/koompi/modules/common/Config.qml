@@ -465,6 +465,11 @@ Singleton {
                 property bool autoKillNotificationDaemons: false
             }
 
+            property JsonObject controlCenter: JsonObject {
+                // optional modules under the fixed ones, by quick-toggle type; seeded once from sidebar.quickToggles
+                property list<string> extraModules: []
+            }
+
             property JsonObject crosshair: JsonObject {
                 // Valorant crosshair format. Use https://www.vcrdb.net/builder
                 property string code: "0;P;d;1;0l;10;0o;2;1b;0"
