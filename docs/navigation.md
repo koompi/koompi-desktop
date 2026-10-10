@@ -19,8 +19,18 @@ Five roles, and nothing else may claim a primary gesture or a bare `Super` chord
 | Now | "what is my work doing" | left sidebar, `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 | Launchpad | "show me everything installed" | `Launchpad.qml` | 4-finger spread only | `launchpadOpen` |
 
-Search is the primary app launcher.
-It is also how the desktop's own switches are reached: three letters find a command like night light or create system snapshot in the same flat list as the apps, and the action scope (`/`) with nothing typed after it lists every one of them under its group heading.
+Search is the primary app launcher, and one ranked list.
+A query with no prefix asks every provider and draws the answers under headings, in this order when they have rows: Top Hit (the single best match across providers), Applications, Windows, Commands and Settings, Files, Calculator, Clipboard (three at most).
+Each section keeps five rows and a "Show all N" row that retypes the query inside that section's sigil, so the sigils stay as filters.
+Web search is always the last row.
+The ranking is `services/launcherSearch/ranking.js`: a name that is the query beats one that starts with it, then a word that starts with it, then one that contains it, and a tie goes to the earlier section.
+A row that arrives late (files, after fd's 250 ms debounce, or a translation) joins its section, and neither the Top Hit nor the row under the keyboard cursor moves.
+A file row shows its home-relative folder and its modified date, read for the whole result set by one `stat`, never a process per row.
+With the keyboard cursor on a file row, `Space` toggles `koompi-quicklook` on it and `Escape` puts the preview away before it closes Search; in the typing box `Space` is a space.
+The desktop's own switches are reached the same way: three letters find a command like night light, create system snapshot or screen snip, and a command with a Hyprland bind draws that chord as keycaps, taken from `HyprlandKeybinds` by the bind's description (`bind` in `services/commandTree/Entries.qml` and `Captures.qml`).
+The action scope (`/`) with nothing typed after it lists every command under its group heading.
+`translate <text>` runs the left sidebar's `trans -brief` call with the engine and languages from `language.translator`; the text goes to an online translator and the row says so, and Enter copies the result.
+On the selected app row the desktop entry's actions are labelled buttons; unselected rows show none.
 Groups are headings, not levels, so there is no drilling and no back key, and a command the machine cannot run is absent rather than greyed — a laptop with no fingerprint reader never sees the enrolment row.
 An empty query with no prefix still answers with recent apps, under one Recent heading drawn by the same mechanism as a command group's, not a label on each row.
 Launchpad is deliberately gesture-only and takes no keyboard binding, so the two never compete for the same reflex.
@@ -432,7 +442,6 @@ Two of them gain a second surface, and no new role is created.
 | Today | splits in two: the Control Center holds the machine's switches | `modules/koompi/controlCenter/` | `Super+Alt+N`, its bar glyph | `controlCenterOpen` |
 | Today | the right sidebar becomes the Notification Center: date, notifications grouped by app, a System group, then the next events, weather, to-do and timer | `SidebarRight.qml` | `Super+N`, the clock | `sidebarRightOpen` |
 | Now | the left sidebar becomes one assistant: a 420 px drawer that opens the same thread in the Intelligence window | `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
-| Search | one ranked list with section headings (Top Hit, Applications, Commands and Settings, Files, Calculator, Clipboard); the sigils stay as filters | `SearchPanel.qml` | `Super` release | `searchOpen` |
 
 The Control Center and the Notification Center are one role on two surfaces because they answer one question, what the machine is doing, from the same edge.
 Opening either closes the other.
