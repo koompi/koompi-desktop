@@ -234,6 +234,13 @@ for i = 1, 2 do
     hl.bind("SUPER + " .. arrowkey[i], hl.dsp.focus({ direction = focusdir[i] }),
         { description = "Window: Focus " .. descdir[i] })
 end
+-- Alt+Tab without a switcher (founder, 2026-10-10): tiles are all visible, so the overview (Super+Tab)
+-- is the picker; Alt+Tab flips to the window used before, on any workspace, and back again
+hl.bind("ALT + Tab", function()
+    local last = hl.get_last_window()
+    if last then hl.dispatch(hl.dsp.focus({ window = "address:" .. last.address })) end
+end, { description = "Window: Back to the previous window" })
+hl.bind("ALT + SHIFT + Tab", hl.dsp.window.cycle_next(), { description = "Window: Next window on this workspace" })
 --#/# bind = SUPER + SHIFT, ←/↑/→/↓,, -- Move in direction
 for i = 1, 4 do
     local arrowkey = { "Left", "Right", "Up", "Down" }
