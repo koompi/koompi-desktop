@@ -236,6 +236,10 @@ check("keys that share a cap are told apart by a space, not a slash", same(
 check("Print and Super+Shift+S are one row, they open the same snip", same(chordsOf("Utilities", "Screen snip"), ["PrtSc", "Super + Shift + S"]), JSON.stringify(chordsOf("Utilities", "Screen snip")));
 check("the two whole-screen screenshots differ in the notification", chordsOf("Utilities", "Screenshot the whole screen, save and copy it, with a notification").join() === "Shift + PrtSc"
     && chordsOf("Utilities", "Screenshot the whole screen, save and copy it, silently").join() === "Ctrl + PrtSc");
+check("Window opens with the tiling moves, in the order a newcomer needs them", same(rowsOf("Window").slice(0, 8).map(r => r.text), [
+    "Focus left/right/up/down", "Move left/right/up/down", "Send to workspace 1–10", "Back to the previous window",
+    "Next window on this workspace", "Float/Tile", "Fullscreen", "Close"]), JSON.stringify(rowsOf("Window").slice(0, 8).map(r => r.text)));
+check("Window: Resize is the next row after the moves", rowsOf("Window").map(r => r.text).indexOf("Resize") === 9);
 check("Force quit is one row", same(chordsOf("Window", "Force quit"), ["Super + Alt + Shift + Q"]), JSON.stringify(chordsOf("Window", "Force quit")));
 
 if (failed > 0) { console.error(`${failed} cheatsheet-binds check(s) failed`); process.exit(1); }

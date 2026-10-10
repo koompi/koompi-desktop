@@ -222,8 +222,26 @@ function chordOf(item, label) {
              ids: item.entries.map(e => e.id), run: runner ? runner.id : -1 };
 }
 
+// The rows a newcomer needs first, per category; the rest follow in bind order.
+const FIRST = {
+    "Window": ["Focus left/right/up/down", "Move left/right/up/down", "Send to workspace 1–10",
+               "Back to the previous window", "Next window on this workspace", "Float/Tile",
+               "Fullscreen", "Close", "Move", "Resize"],
+};
+
+function byFirst(category, rows) {
+    const first = Object.prototype.hasOwnProperty.call(FIRST, category) ? FIRST[category] : [];
+    const rank = row => {
+        const at = first.indexOf(row.text);
+        return at < 0 ? first.length : at;
+    };
+    return rows.map((row, index) => ({ row: row, index: index }))
+        .sort((a, b) => rank(a.row) - rank(b.row) || a.index - b.index)
+        .map(o => o.row);
+}
+
 // Rows for one category ("" is the binds without one), in order of first
-// appearance. Binds that share a description are one row with every chord,
+// appearance, but for the FIRST list. Binds that share a description are one row with every chord,
 // fewest modifiers first. binds: { id, mods, key, description, dispatchable }.
 function buildRows(binds, category, overrides) {
     const label = makeLabeler(overrides);
@@ -247,11 +265,11 @@ function buildRows(binds, category, overrides) {
             if (same.run < 0) same.run = chord.run;
         }
     }
-    return [...rows.values()].map(row => {
+    return byFirst(category, [...rows.values()].map(row => {
         const ordered = row.chords.map((chord, index) => ({ chord: chord, index: index }))
             .sort((a, b) => a.chord.modCount - b.chord.modCount || a.index - b.index)
             .map(o => o.chord);
         const runner = ordered.find(c => c.run >= 0);
         return { text: row.text, chords: ordered, ids: ordered.reduce((all, c) => all.concat(c.ids), []), runId: runner ? runner.run : -1 };
-    });
+    }));
 }

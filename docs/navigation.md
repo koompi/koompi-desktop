@@ -448,6 +448,9 @@ It registers **persistent** rather than dismissable, which is the one place it d
 Each of its steps opens the real surface it is describing, and nearly all of those are dismissable; a dismissable tour would be closed by the shared grab the moment it demonstrated anything.
 That is the same reason the bar and the on-screen keyboard are persistent.
 
+KOOMPI is keyboard first, so the tour teaches the tiling moves before the mouse: focus with `Super+arrows`, move with `Super+Shift+arrows`, send to a desk with `Super+Alt+number`, `Alt+Tab` back to the last window.
+The cheatsheet puts the Window group in the first column and lists those rows first, in that order (`FIRST` in `cheatsheet-binds.js`, not the order of `keybinds.lua`).
+
 ## Decided for Phase 2, not yet built
 
 Source: `docs/design/ux-audit-2026-10-07.md`, decisions D2, D3 and D4, and jobs J17 to J24 in the UX campaign.

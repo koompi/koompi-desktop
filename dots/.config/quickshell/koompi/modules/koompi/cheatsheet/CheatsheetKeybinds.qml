@@ -14,10 +14,10 @@ Item {
     id: root
     property real padding: 4
     property var categoryColumns: [
+        ["Window", "Workspace"],
         ["Shell", "Kiri"],
         ["App", ""],
-        ["Utilities", "Screen", "Media"],
-        ["Window", "Workspace", "Session"],
+        ["Utilities", "Screen", "Media", "Session"],
     ]
     implicitWidth: QsWindow?.window?.screen.width * 0.7 ?? 0
     implicitHeight: QsWindow?.window?.screen.height * 0.7 ?? 0

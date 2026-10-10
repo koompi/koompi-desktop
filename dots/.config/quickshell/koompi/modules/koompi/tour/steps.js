@@ -66,10 +66,24 @@ const steps = [
         demo: "sidebarLeftOpen"
     },
     {
-        icon: "drag_pan",
-        title: "Moving and arranging windows",
-        body: "Hold Super and drag a window with the mouse to move it anywhere. Drag it towards an edge and an outline shows where it will land before you let go.\n\nHold Super and drag with the right button to change its size.",
-        keys: ["Super", "drag"],
+        icon: "keyboard_arrow_right",
+        title: "Moving between windows",
+        body: "Hold Super and press an arrow to jump to the window next to the one you are in. Add Shift and the arrow pushes the window itself that way.\n\nThe mouse still works: hold Super and drag a window to move it, or drag with the right button to change its size.",
+        keys: ["Super", "←→↑↓"],
+        demo: ""
+    },
+    {
+        icon: "move_item",
+        title: "Sending a window to another desk",
+        body: "Hold Super and Alt and press a desk's number. The window goes there and you stay where you are.",
+        keys: ["Super", "Alt", "1–0"],
+        demo: ""
+    },
+    {
+        icon: "swap_horiz",
+        title: "Back to the window you were just in",
+        body: "Tap Alt and Tab to jump back to the last window you used, on any desk. Tap it again to come back.\n\nWith Shift added, it steps through the windows on this desk.",
+        keys: ["Alt", "Tab"],
         demo: ""
     },
     {
