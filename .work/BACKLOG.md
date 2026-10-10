@@ -9,10 +9,9 @@ The previous campaign is in `archive/2026-08-25-maintainability-omarchy/`.
 
 **Tiling decision, founder 2026-10-10:** KOOMPI is a tiling desktop. Take what newcomers from Mac and Windows need, keep it keyboard-first, and drop floating-desktop habits. This replaces the value plan below. The build order is also in `~/.config/koompi/TODO.md`.
 
-**Build, in order (14 jobs):** J23 Search, J30 smart gaps, J17 Alt+Tab, J20 Control Center, J21 Notification Center, J18 fixed workspaces, J19 tiling overview, J22, J39, J25, J26 (founder approves names), J31, J32, then J40 last.
-- J17, J18 and J19 open with the founder's tiling decision, which overrides the spec text: Alt+Tab is workspace-first; workspace numbers are fixed and the bar hides empty ones, which reverses D2; the overview shows tiles in place.
+**Build, in order (lead's call, 2026-10-10 evening):** J20 Control Center (running), J21 Notification Center, J18 fixed workspaces in the bar, J19 tiling overview, J22 bar order and contrast, J25 session menu with undo, then J40 translations last. Done: J23, J30, and J17 as two Alt+Tab binds (`0c3ab5ba4`).
 
-**Parked, do not start (in `parked/`):** J24, J27, J28, J29, J36, J37 (the xcb allowlist stays) and J38. Also J08's edge strips.
+**Parked, do not start (in `parked/`):** J24, J27, J28, J29, J36, J37 (the xcb allowlist stays) and J38. Cut by the lead (founder: "be decisive on what not to build"): J26 (Search finds every Settings page), J31 (J20 carries the on/off rule), J32, J39 (the cheatsheet teaches keys); J17's popup switcher (unfinished work in `parked/J17-popup-switcher-unfinished.patch`). Also J08's edge strips.
 
 **To spec (from tiling):**
 - grouped or tabbed windows;
@@ -174,3 +173,9 @@ Founder-only: the pick from J14's mockups; authorising deployment to the live se
 - Lead batch, 2026-10-10 evening, deployed at 17:01 (`./setup update --only-files`, seat at `98849cd01`; suite 156/4/0). It contains the Keep-awake restore fix (`28eb219df`), the icon-migration message (`7706ad473`), and the Fedora cursor plus dead `conflictCachePath` (`98849cd01`). Live check: the shell restarted with no QML errors. The fix then restored the seat's saved `idle.inhibit: true` (saved earlier; it had never been restored because of the bug), so Keep awake came on with a sleep block. The lead turned it back off over IPC, since it was off before the deploy; the block is gone and the saved value is now false.
 - J30 merged 2026-10-10 (`98525e5be`, cherry-picked from `ac2f57a38`): `w[t1]s[false]` workspace rule with gaps 0, and a tiled-only window rule with border 0. The worker found Hyprland's documented `w[tv1]` re-insets the tile once a floating window opens; scratchpads keep 30 px. Worker suite 157/4/0. Lead: the branch test passes; the 1366 render shows the tile flush. Lead override (`2b2e7eec6`): rounding 0 for the lone tile, so wallpaper does not show in the screen corners. Nested `hyprctl getprop activewindow`: one window rounding 0 and border 0; two windows 18 and 1. The founder's `hypr/custom` has no gap, border or rule overrides.
 - J30 deployed 2026-10-10 18:31 (seat at `4c1b425c6`, suite 157/4/0). Live: workspace rule `w[t1]s[false]` loaded with gaps 0, no config errors; WezTerm alone on its workspace fills 1920x1160 under the bar; Keep awake stayed off across the restart.
+- Lead, 2026-10-10 evening:
+  - J23 merged (`e1c90debe..b81dffbc7`, cherry-picked) with the lead override `5c47408ed`: no clipboard and no dot-folder files in the blended list.
+  - The deploy restart is session-scoped (`ffbc4ac68`; the 18:31 J30 deploy had killed the J23 worker's nested shell).
+  - The lock PAM journal check counts only its own run (`b1bac481a`).
+  - Alt+Tab is two binds (`0c3ab5ba4`); the J17 worker was stopped.
+  - Suite before the PAM fix: 159/4/1 (`test_lock_pam`, journal shared with the J20 worker's suite).
