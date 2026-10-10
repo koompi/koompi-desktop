@@ -1,5 +1,11 @@
 # J19: the overview becomes Mission Control
 
+## Founder decision, 2026-10-10: KOOMPI is a tiling desktop (overrides the spec below where they differ)
+
+- The overview is a **grid of workspaces, each drawn with its tiles in place**, not windows spread out Mac-style. The layout a user built is what they see.
+- From the overview: click a workspace to go there, drag a window onto another workspace to move it, and type to search (J23). Keyboard first: arrows move between workspaces, Enter goes, Super+Shift+N moves the focused window.
+- Workspaces follow J18's fixed numbers; empty ones show as one "next free" slot.
+
 Audit: `docs/design/ux-audit-2026-10-07.md` section 3.4 (O1-O3) and section 5 (F6). Read `/home/userx/workspace/koompi/koompi-desktop/.work/jobs/CONTRACT.md` first.
 
 Depends on:

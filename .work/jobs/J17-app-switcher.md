@@ -1,5 +1,12 @@
 # J17: Alt+Tab switches apps, the way Mac and Windows hands expect
 
+## Founder decision, 2026-10-10: KOOMPI is a tiling desktop (overrides the spec below where they differ)
+
+- Alt+Tab cycles **windows on the current workspace first**, most recent first; windows on other workspaces come after them, marked with their workspace number. In tiling the current workspace's windows are side by side, so they are the ones a switch is usually for.
+- Choosing a window on another workspace goes to that workspace; it never pulls the window across.
+- The switcher never changes the tiling layout. Focus moves; tiles stay where they are.
+- Super+Tab stays the overview (J19). Keep the Mac and Windows wording in the manual, but say how it maps onto workspaces.
+
 Audit: `docs/design/ux-audit-2026-10-07.md` section 3.3 and decision D3 (section 7: `alt_tab_switcher_keep_super_tab_overview`). Read `/home/userx/workspace/koompi/koompi-desktop/.work/jobs/CONTRACT.md` first.
 
 Depends on: J07 merged (the switcher's window lives inside J07's lazy-surface component; read the merged `modules/common/LazySurface.qml` and one converted surface before writing yours). The lead merges `.work/jobs/phase2-navigation-draft.md` into `docs/navigation.md` before this job starts.

@@ -1,5 +1,12 @@
 # J18: desks appear when used, like Spaces
 
+## Founder decision, 2026-10-10: KOOMPI is a tiling desktop (overrides the spec below and audit decision D2 `dynamic_like_macos`)
+
+- Workspace numbers stay **fixed**: Super+1...9 always go to the same workspace. There is no renumbering, and no workspace is created or destroyed behind the user's back.
+- What changes is the bar: empty workspaces are hidden from the indicator (with the active one always shown), and one "next free" slot shows where Super+N would open a fresh one. A setting brings back the full row of ten.
+- `workspace-slots.js` still exports the slot function for J19, now over fixed ids.
+- Rename the job in reports to "the bar shows the workspaces in use"; the manual's desks chapter explains fixed numbers.
+
 Audit: `docs/design/ux-audit-2026-10-07.md` section 3.1 (B2) and decision D2 (section 7: `dynamic_like_macos`). Read `/home/userx/workspace/koompi/koompi-desktop/.work/jobs/CONTRACT.md` first.
 
 Depends on: J07 merged. J19 builds its workspace strip on this job's slot function, so J18 merges first.

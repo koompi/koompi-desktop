@@ -7,11 +7,18 @@ The previous campaign is in `archive/2026-08-25-maintainability-omarchy/`.
 
 `dev` at `d13dd3503`: lead suite 156 passed, 4 skipped (the baseline four), 0 failed; no test reached the easyeffects stand-in. Open specs are in `jobs/`; finished specs and reports are in `done/`.
 
-**Next, in the founder's order** (2026-10-08: "do not do all the tasks. pick the highest value first", `value_plan daily_parity_core p=0.65`). Five jobs:
-J23 Search, J17 Alt+Tab, J20 Control Center, J21 Notification Center, then J40 translations last.
+**Tiling decision, founder 2026-10-10:** KOOMPI is a tiling desktop. Take what newcomers from Mac and Windows need, keep it keyboard-first, and drop floating-desktop habits. This replaces the value plan below. The build order is also in `~/.config/koompi/TODO.md`.
 
-**Deferred.** Start one only on the founder's pick. Sixteen jobs:
-J18, J19, J22, J24, J25, J26 (also needs the founder's OK on its names), J27, J28, J29, J30, J31, J32, J36, J37, J38, J39.
+**Build, in order (14 jobs):** J23 Search, J30 smart gaps, J17 Alt+Tab, J20 Control Center, J21 Notification Center, J18 fixed workspaces, J19 tiling overview, J22, J39, J25, J26 (founder approves names), J31, J32, then J40 last.
+- J17, J18 and J19 open with the founder's tiling decision, which overrides the spec text: Alt+Tab is workspace-first; workspace numbers are fixed and the bar hides empty ones, which reverses D2; the overview shows tiles in place.
+
+**Parked, do not start (in `parked/`):** J24, J27, J28, J29, J36, J37 (the xcb allowlist stays) and J38. Also J08's edge strips.
+
+**To spec (from tiling):**
+- grouped or tabbed windows;
+- teach the tiling moves first;
+- one scratchpad pattern;
+- Search, Overview, Today and Launchpad each do one thing.
 
 **Fixed 2026-10-10 (`6799245a6`), not deployed:** the Settings page keys are window shortcuts. In nested Hyprland, Ctrl+Shift+Tab never moved on the seat's `settings.qml` and does now; the other three moved in both. No automated test: headless KWin lacks the virtual keyboard protocol.
 
@@ -35,7 +42,7 @@ J18, J19, J22, J24, J25, J26 (also needs the founder's OK on its names), J27, J2
 - Seeding `easyEffects` state in test HOMEs: it trips the Idle bug above (J41 uses a stand-in).
 - J08's edge strips: parked on branch `j08-edge-strips-wip`; not resumed unless picked.
 
-**Deploy state:** the seat runs `b2f06fc6b` (setup update, 2026-10-10 11:17), plus the icon theme set by hand in kdeglobals. Not deployed: the plate's qt6ct lookup (`3e28aeaa1`), J41 (the crash toast filter), J11 (Settings in the shell) and the Settings keys (`6799245a6`). Deploying needs the founder's word.
+**Deploy state:** the seat runs `f1035b4a6`. Files were deployed with `./setup update --only-files -y` at 16:25 on 2026-10-10, on the founder's word; the last full update ran at 11:17. Verified: the changed files match `dev`; the shell restarted with no QML errors and has the `settings` IPC target; koompi-crash-watch was restarted. The seat's config had `sidebar.cornerOpen.visualize: true` from before (every backup), which painted the 250x5 hot-corner zones over the bar. It is set false now (backup `config.json.bak-visualize`); Settings has no control for it.
 
 ## Baseline, before any job
 
