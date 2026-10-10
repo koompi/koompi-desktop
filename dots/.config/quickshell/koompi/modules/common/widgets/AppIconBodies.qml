@@ -19,16 +19,7 @@ Singleton {
 
     Process {
         running: true
-        command: ["bash", "-c", `
-            theme=\${QS_ICON_THEME:-$(awk -F= '/^\\[/ { s = $0 } s == "[Icons]" && $1 == "Theme" { print $2 }' "\${XDG_CONFIG_HOME:-$HOME/.config}/kdeglobals" 2> /dev/null)}
-            echo "$theme"
-            [[ -n $theme ]] || exit 0
-            for base in "\${XDG_DATA_HOME:-$HOME/.local/share}/icons" "$HOME/.icons" \${XDG_DATA_DIRS//://icons }/icons; do
-                [[ -d $base/$theme ]] || continue
-                for category in apps devices; do ls -1 "$base/$theme/$category/scalable" 2> /dev/null; done | sed 's/\\.[^.]*$//'
-                break
-            done
-        `]
+        command: ["bash", Quickshell.shellPath("scripts/colors/icon_theme_index.sh")]
         stdout: StdioCollector {
             onStreamFinished: {
                 const parsed = Plate.parseIndex(this.text);
