@@ -26,13 +26,34 @@ run() {
 }
 
 # kept in step with sdata/lib/common.sh, which the installed scripts cannot source
+# this session's processes of a binary: same uid and XDG_RUNTIME_DIR. A nested test shell runs with a
+# runtime dir of its own (tests/run.sh, the hyprshot and shellshot tools), and a restart must not kill it
+session_pids() {
+    local pid rt
+    while read -r pid; do
+        [[ -n "$pid" ]] || continue
+        rt="$(tr '\0' '\n' 2>/dev/null < "/proc/$pid/environ" | sed -n 's/^XDG_RUNTIME_DIR=//p')"
+        if [[ "$rt" == "${XDG_RUNTIME_DIR:-}" ]]; then printf '%s\n' "$pid"; fi
+    done < <(pgrep -u "$(id -u)" -x -- "$1" 2>/dev/null)
+    return 0
+}
+
 stop_processes() {
-    local name
+    local name pids waited
     for name in "$@"; do
-        printf '%s     $ killall -w -q %s%s\n' "${C_DIM}" "$name" "${C_RST}"
+        printf '%s     $ stop this session'"'"'s %s%s\n' "${C_DIM}" "$name" "${C_RST}"
         [[ "$DRY_RUN" == true ]] && continue
-        pgrep -x -- "$name" >/dev/null 2>&1 || continue
-        killall -w -q -- "$name" 2>/dev/null || warn "could not stop $name"
+        pids="$(session_pids "$name")"
+        [[ -n "$pids" ]] || continue
+        # shellcheck disable=SC2086 # one pid per word
+        kill $pids 2>/dev/null || true
+        # like killall -w: wait until they are gone, at most 10 s
+        for ((waited = 0; waited < 100; waited++)); do
+            pids="$(for pid in $pids; do if kill -0 "$pid" 2>/dev/null; then echo "$pid"; fi; done)"
+            [[ -z "$pids" ]] && break
+            sleep 0.1
+        done
+        [[ -z "$pids" ]] || warn "could not stop $name"
     done
     return 0
 }
@@ -44,7 +65,7 @@ count_shells() {
         if tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -qF -- '-c koompi'; then
             n=$((n + 1))
         fi
-    done < <(pgrep -x qs 2>/dev/null)
+    done < <(session_pids qs)
     printf '%s\n' "$n"
 }
 

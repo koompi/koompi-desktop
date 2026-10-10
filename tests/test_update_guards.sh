@@ -10,11 +10,11 @@ fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 command -v flock >/dev/null || { echo "flock not installed; skipping" >&2; exit 0; }
 
 T="$(mktemp -d)"
-FAKE_QS_PID=""; FAKE_HYPR_PID=""; FIRST_PID=""
+FAKE_HYPR_PID=""; FIRST_PID=""
 cleanup() {
     touch "$T/release"
     [[ -n "$FIRST_PID" ]] && wait "$FIRST_PID" 2>/dev/null
-    for p in "$FAKE_QS_PID" "$FAKE_HYPR_PID"; do
+    for p in "$(cat "$T/qs-pid" 2>/dev/null)" "$FAKE_HYPR_PID"; do
         [[ -n "$p" ]] && { kill "$p" 2>/dev/null; wait "$p" 2>/dev/null; }
     done
     rm -rf "$T"
@@ -70,7 +70,13 @@ case "\${1:-}" in
 esac
 STUB
 printf '#!/usr/bin/env bash\nprintf "hyprctl %%s\\n" "$*" >> "%s"\nexit 0\n' "$T/order" > "$T/bin/hyprctl"
-printf '#!/usr/bin/env bash\nprintf "setsid %%s\\n" "$*" >> "%s"\nexit 0\n' "$T/order" > "$T/bin/setsid"
+# the restart starts a fresh stand-in shell in this session, detached like the real setsid qs -c koompi
+REAL_SETSID="$(command -v setsid)"
+cat > "$T/bin/setsid" <<STUB
+#!/usr/bin/env bash
+printf 'setsid %s\\n' "\$*" >> "$T/order"
+"$REAL_SETSID" -f "$T/start-qs"
+STUB
 cat > "$T/bin/killall" <<STUB
 #!/usr/bin/env bash
 for arg in "\$@"; do case "\$arg" in -*|--) ;; *) printf '%s\\n' "\$arg" >> "$T/killall-log" ;; esac; done
@@ -78,13 +84,21 @@ exit 0
 STUB
 chmod +x "$T"/bin/*
 ln -s "$(command -v bash)" "$T/bin/qs"
-# real /proc entry for count_shells; reaps its sleep on TERM or an orphan holds stdout open for 300s
-"$T/bin/qs" -c "trap 'kill \$s' TERM; sleep 300 & s=\$!; wait" -c koompi &
-FAKE_QS_PID=$!
+mkdir -p "$T/runtime"
+# a real /proc entry for count_shells, in the session's runtime dir (a restart stops only this session's
+# shell); it logs its stop where the killall log was, and reaps its sleep on TERM or an orphan holds stdout
+export QS_T="$T"
+cat > "$T/start-qs" <<'STUB'
+#!/usr/bin/env bash
+XDG_RUNTIME_DIR="$QS_T/runtime" "$QS_T/bin/qs" -c 'trap "echo qs >> \"$QS_T/killall-log\"; kill \$s; exit 0" TERM; sleep 300 & s=$!; wait' -c koompi > /dev/null 2>&1 &
+printf '%s\n' "$!" > "$QS_T/qs-pid"
+STUB
+chmod +x "$T/start-qs"
+"$T/start-qs"
 cat > "$T/bin/pgrep" <<STUB
 #!/usr/bin/env bash
 case "\${!#}" in
-    qs) printf '%s\\n' "$FAKE_QS_PID"; exit 0 ;;
+    qs) cat "$T/qs-pid"; exit 0 ;;
 esac
 exit 1
 STUB
