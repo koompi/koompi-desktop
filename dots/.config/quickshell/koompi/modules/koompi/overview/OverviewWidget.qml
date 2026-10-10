@@ -205,7 +205,6 @@ Item {
                 required property int index
                 deskId: modelData
                 isNew: modelData === root.slotInfo.newId
-                isActive: modelData === root.activeId
                 selected: !root.filtering && index === root.selectedIndex
                 dropHover: root.dragTarget === modelData
                 x: Grid.cell(root.layout, index).x
@@ -240,6 +239,24 @@ Item {
                 showTitle: root.filtering
                 onPicked: address => root.focusWindow(address)
                 onReleased: address => root.dropWindow(address)
+            }
+        }
+
+        Repeater {
+            model: root.slotIds
+            delegate: OverviewDeskFrame {
+                id: frame
+                required property int modelData
+                required property int index
+                deskId: modelData
+                isNew: modelData === root.slotInfo.newId
+                isActive: modelData === root.activeId
+                selected: !root.filtering && index === root.selectedIndex
+                z: 2
+                x: Grid.cell(root.layout, index).x
+                y: Grid.cell(root.layout, index).y
+                width: root.layout.cellW
+                height: root.layout.cellH
             }
         }
     }

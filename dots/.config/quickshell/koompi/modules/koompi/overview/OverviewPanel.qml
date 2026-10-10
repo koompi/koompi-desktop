@@ -1,6 +1,7 @@
 import qs
 import qs.services
 import qs.modules.common
+import qs.modules.common.functions
 import Quickshell.Io
 import QtQuick
 import Quickshell
@@ -72,7 +73,7 @@ Scope {
 
                 Rectangle {
                     anchors.fill: parent
-                    color: Appearance.colors.colScrim
+                    color: ColorUtils.transparentize(Appearance.m3colors.m3background, 0.06)
                 }
 
                 Loader {

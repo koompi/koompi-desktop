@@ -64,7 +64,8 @@ Item {
             anchors.centerIn: parent
             iconName: AppSearch.guessIcon(root.windowData?.class)
             label: root.windowData?.class ?? ""
-            size: Math.min(root.width, root.height) * 0.45
+            visible: Math.min(root.width, root.height) >= 40
+            size: Math.min(96, Math.min(root.width, root.height) * 0.45)
         }
         Rectangle {
             visible: (root.hovered || root.selected || root.showTitle) && !dragArea.drag.active

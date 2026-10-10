@@ -464,7 +464,7 @@ Two of them gain a second surface, and no new role is created.
 | Role | Change | Surface | Opened by | State |
 | --- | --- | --- | --- | --- |
 | Overview | gains the app switcher, its keyboard reflex for "take me back to that app" | `modules/koompi/appSwitcher/` | `Alt+Tab` held | `appSwitcherOpen` |
-| Overview | becomes Mission Control: the desks in use side by side, each drawn with its tiles where they sit, plus a `+` for the next free one; click a desk, drag a window onto a desk, arrows and `Enter`, typing filters | `OverviewPanel.qml` | `Super+Tab`, 4-finger up and down | `overviewOpen` |
+| Overview | becomes Mission Control: the desks in use side by side, each drawn with its tiles where they sit, plus a `+` for the next free one; click a desk, drag a window onto a desk, arrows and `Enter`, typing filters | `OverviewPanel.qml` | `Super+Tab`, 4-finger up or down | `overviewOpen` |
 | Today | the right sidebar becomes the Notification Center: date, notifications grouped by app, a System group, then the next events, weather, to-do and timer | `SidebarRight.qml` | `Super+N`, the clock | `sidebarRightOpen` |
 | Now | the left sidebar becomes one assistant: a 420 px drawer that opens the same thread in the Intelligence window | `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 
@@ -478,7 +478,7 @@ The app switcher joins Overview rather than founding a role: it answers "where a
 | --- | --- | --- | --- | --- | --- |
 | App switcher | `Alt+Tab`, `Alt+Shift+Tab` while held; a quick tap switches to the previous app without drawing | none | none | none | yes, `appSwitcher` |
 | Notification Center | `Super+N` | the clock; a dot on it while notifications are unread | top-right | none | yes, `sidebarRight` |
-| Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up opens and down closes, following the fingers | yes |
+| Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up or down toggles it | yes |
 | Assistant drawer | `Super+A`; its header's Open in window hands the thread to `Super+Shift+I`'s window | one button, as today | top-left | none | yes |
 
 The panel button that wrapped the status indicators goes away.
