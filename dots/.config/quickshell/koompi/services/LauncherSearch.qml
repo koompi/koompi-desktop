@@ -323,14 +323,8 @@ Singleton {
                     title: Translation.tr("Calculator"),
                     rows: math ? [math] : [],
                     top: startsWithNumber
-                },
-                {
-                    id: "clipboard",
-                    title: Translation.tr("Clipboard"),
-                    rows: query.trim().length >= 2 ? root.clipboard.rows(query) : [],
-                    cap: 3,
-                    prefix: Config.options.search.prefix.clipboard
                 }
+                // no clipboard section: what was copied (a password, a token) shows only under its prefix, never while typing
             ],
             tail: Config.options.search.prefix.showDefaultActionsWithoutPrefix ? [root.commandRow(), root.webRow()] : []
         });

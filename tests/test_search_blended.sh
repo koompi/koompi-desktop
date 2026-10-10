@@ -28,6 +28,11 @@ for entry in "$SHELL_ROOT"/*; do
     ln -s "$entry" "$WORK/shell/$(basename -- "$entry")"
 done
 printf 'x\n' > "$WORK/home/Documents/sound-notes.txt"
+# a config file under a dot folder, and a copied secret: neither belongs in the list while typing
+mkdir -p "$WORK/home/.config/studio"
+printf 'x\n' > "$WORK/home/.config/studio/sound-settings.txt"
+printf '#!/usr/bin/env bash\n[[ $1 == list ]] && printf "7\\tsound-password-hunter2\\n"\nexit 0\n' > "$WORK/bin/cliphist"
+chmod +x "$WORK/bin/cliphist"
 printf '[Desktop Entry]\nType=Application\nName=Sound Studio\nExec=studio\n' > "$WORK/data/applications/studio.desktop"
 printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/koompi-shelld"
 chmod +x "$WORK/bin/koompi-shelld"
@@ -61,6 +66,7 @@ ShellRoot {
     }
 
     Component.onCompleted: {
+        Cliphist.refresh();
         LauncherSearch.query = "sound";
         probe.firstKeyEarly = LauncherSearch.results.length > 0 ? LauncherSearch.results[0].key : "";
     }
@@ -104,6 +110,16 @@ ShellRoot {
         probe.check("command: a command with no bind shows no keycaps",
             CommandTree.results("night")[0].shortcut, []);
         probe.check("tail: the web search is the last row", rows[rows.length - 1].key, "web");
+        probe.check("hidden: a file under a dot folder stays out of the blended list",
+            rows.some(row => row.key.indexOf("/.config/") >= 0), false);
+        probe.check("clipboard: a copied entry stays out of the blended list",
+            rows.some(row => (row.name + " " + row.rawValue).indexOf("hunter2") >= 0), false);
+        LauncherSearch.query = ";sound";
+        probe.check("clipboard: it answers under its own prefix",
+            LauncherSearch.results.some(row => (row.name + " " + row.rawValue).indexOf("hunter2") >= 0), true);
+        LauncherSearch.query = "~sound";
+        probe.check("hidden: the file prefix still reaches dot folders",
+            LauncherSearch.results.some(row => row.key.indexOf("/.config/studio/sound-settings.txt") >= 0), true);
 
         LauncherSearch.query = "~sound";
         probe.check("sigil: ~ still lists only files, under Recent / Files headings",

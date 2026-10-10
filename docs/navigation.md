@@ -20,7 +20,7 @@ Five roles, and nothing else may claim a primary gesture or a bare `Super` chord
 | Launchpad | "show me everything installed" | `Launchpad.qml` | 4-finger spread only | `launchpadOpen` |
 
 Search is the primary app launcher, and one ranked list.
-A query with no prefix asks every provider and draws the answers under headings, in this order when they have rows: Top Hit (the single best match across providers), Applications, Windows, Commands and Settings, Files, Calculator, Clipboard (three at most).
+A query with no prefix asks every provider and draws the answers under headings, in this order when they have rows: Top Hit (the single best match across providers), Applications, Windows, Commands and Settings, Files, Calculator. Clipboard history and files in hidden folders answer only under their prefixes (`;` and the file prefix), so a copied password never shows while typing and config files do not crowd out documents.
 Each section keeps five rows and a "Show all N" row that retypes the query inside that section's sigil, so the sigils stay as filters.
 Web search is always the last row.
 The ranking is `services/launcherSearch/ranking.js`: a name that is the query beats one that starts with it, then a word that starts with it, then one that contains it, and a tie goes to the earlier section.

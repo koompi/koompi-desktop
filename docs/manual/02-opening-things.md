@@ -4,7 +4,7 @@
 
 Tap Super, let go, and start typing.
 
-Search answers with programs, windows, the desktop's own commands, settings pages, files, sums and your clipboard, in one list under short headings.
+Search answers with programs, windows, the desktop's own commands, settings pages, files and sums, in one list under short headings. Your clipboard history stays out of that list, so nothing you copied shows up while you type; start with `;` or press `Super+V` to search it.
 The single best answer is at the top under Top Hit.
 Press Enter to take it, or arrow down to another one.
 Each heading shows five answers at most; the last row of a long one, "Show all", opens the whole set.

@@ -73,9 +73,14 @@ QtObject {
         };
     }
 
+    // a path through a dot folder is config, not a document: the blended list leaves it to the file prefix
+    function hidden(path: string): bool {
+        return path.slice(root.home.length).split("/").some(part => part.startsWith("."));
+    }
+
     function blended(search: string): var {
         const parts = root.split(search);
-        return root.rows(parts.recents.concat(parts.found), "");
+        return root.rows(parts.recents.concat(parts.found).filter(file => !root.hidden(file.path)), "");
     }
 
     function scoped(search: string): var {
