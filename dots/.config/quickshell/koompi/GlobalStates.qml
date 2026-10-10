@@ -14,6 +14,7 @@ Singleton {
     property bool crosshairOpen: false
     property bool intelligenceOpen: false
     property bool launchpadOpen: false
+    property bool settingsOpen: false
     property bool sidebarLeftOpen: false
     property bool sidebarRightOpen: false
     property bool mediaControlsOpen: false

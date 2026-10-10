@@ -322,7 +322,8 @@ A closed surface does not exist.
 `LazySurface` in `modules/common/` builds a surface's window the moment its open flag turns on and releases it `keepWarm` after the flag turns off, two minutes unless the surface says otherwise, so open, close, open inside that time is one instance.
 The `IpcHandler`, the `GlobalShortcut`s and the state stay in the always-built `Scope` beside it, which is why keys and IPC still work with no window, and code outside the window reaches it as `surface.item`, never by an id inside it.
 A window built while its flag is already on never saw the flag change, so what it does when opened it also does from `Component.onCompleted`.
-The Launchpad, Search, Overview, the cheatsheet, both sidebars, the media controls, the session menu, the screensaver, the tour, the polkit prompt and the screen translator are built this way.
+The Launchpad, Search, Overview, the cheatsheet, both sidebars, the media controls, the session menu, the screensaver, the tour, the polkit prompt, the screen translator and the Settings window are built this way.
+Settings is hosted by the shell: `koompi-settings` asks the running shell over IPC (`settings toggle`, or `settings page <name>`), and only when that call fails does it start the standalone `settings.qml`, which hosts the same `SettingsContent`.
 Each of them but the polkit prompt reports `built`, whether its `LazySurface` holds an instance, and `tests/test_lazy_surfaces.sh` reads it while the surface is closed, open and just closed.
 The polkit prompt is left out of that test because its agent registers on the system bus.
 

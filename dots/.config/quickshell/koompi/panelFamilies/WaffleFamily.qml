@@ -19,6 +19,7 @@ import qs.modules.waffle.taskView
 // Fallbacks
 import qs.modules.koompi.cheatsheet
 import qs.modules.koompi.tour
+import qs.modules.koompi.settings
 import qs.modules.koompi.onScreenKeyboard
 import qs.modules.koompi.overlay
 import qs.modules.koompi.screenTranslator
@@ -40,6 +41,7 @@ Scope {
     PanelLoader { component: WaffleTaskView {} }
 
     PanelLoader { component: Cheatsheet {} }
+    PanelLoader { component: SettingsWindow {} }
     PanelLoader { component: OnScreenKeyboard {} }
     PanelLoader { component: Overlay {} }
     PanelLoader { component: ScreenTranslator {} }

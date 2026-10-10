@@ -25,6 +25,7 @@ import qs.modules.koompi.sidebarLeft
 import qs.modules.koompi.sidebarLeft.aiChat.feedback
 import qs.modules.koompi.sidebarLeft.aiChat.memory
 import qs.modules.koompi.sidebarRight
+import qs.modules.koompi.settings
 import qs.modules.koompi.snapPreview
 import qs.modules.koompi.tour
 import qs.modules.koompi.overlay
@@ -55,6 +56,7 @@ Scope {
     PanelLoader { component: Screensaver {} }
     PanelLoader { component: ScreenTranslator {} }
     PanelLoader { component: SessionScreen {} }
+    PanelLoader { component: SettingsWindow {} }
     PanelLoader { component: SidebarLeft {} }
     PanelLoader { component: SidebarRight {} }
     PanelLoader { extraCondition: Config.options.windows.snapPreview; component: SnapPreview {} }
