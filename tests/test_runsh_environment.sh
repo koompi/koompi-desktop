@@ -29,6 +29,7 @@ done
 [[ "\${XDG_DATA_DIRS:-}" == "$T/datadirs" ]] || { echo "XDG_DATA_DIRS changed to \${XDG_DATA_DIRS:-unset}"; exit 1; }
 rt="\${XDG_RUNTIME_DIR:-}"
 [[ -n "\$rt" && "\$rt" != "$T/runtime" ]] || { echo "XDG_RUNTIME_DIR is the caller's: \${rt:-unset}"; exit 1; }
+[[ "\${KOOMPI_TEST_LIVE_RUNTIME_DIR:-}" == "$T/runtime" ]] || { echo "the caller's runtime dir is not handed on as KOOMPI_TEST_LIVE_RUNTIME_DIR"; exit 1; }
 [[ -d "\$rt" && "\$(stat -c %a "\$rt")" == 700 && -z "\$(ls -A "\$rt")" ]] || { echo "XDG_RUNTIME_DIR \$rt is not an empty 0700 dir"; exit 1; }
 echo "\$rt" >> "$T/runtimes"
 easyeffects --hide-window --service-mode || { echo "the easyeffects stand-in did not exit 0"; exit 1; }

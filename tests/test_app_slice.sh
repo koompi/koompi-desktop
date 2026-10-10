@@ -26,6 +26,7 @@ mkdir -p "$tmp/bin"
 printf '#!/usr/bin/env bash\nexit 255\n' > "$tmp/bin/qs"
 chmod +x "$tmp/bin/qs"
 export PATH="$tmp/bin:$PATH"
+export XDG_RUNTIME_DIR="${KOOMPI_TEST_LIVE_RUNTIME_DIR:-${XDG_RUNTIME_DIR:-}}"
 
 cat > "$tmp/argdump" <<'EOF'
 #!/usr/bin/env bash

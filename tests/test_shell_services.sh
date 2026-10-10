@@ -195,13 +195,13 @@ else
 
     # The suite reads by default and restores what it touches, so it is safe here,
     # but without a running PipeWire every check fails for the wrong reason.
-    if ! compgen -G "${XDG_RUNTIME_DIR:-/nonexistent}/pipewire-*" > /dev/null; then
+    if ! compgen -G "${KOOMPI_TEST_LIVE_RUNTIME_DIR:-${XDG_RUNTIME_DIR:-/nonexistent}}/pipewire-*" > /dev/null; then
         skip "no pipewire socket under XDG_RUNTIME_DIR; the audiod conformance suite needs a live PipeWire"
     elif ! command -v python3 > /dev/null; then
         skip "no python3; the audiod conformance suite did not run"
     else
         printf -- '--- audiod conformance\n'
-        AUDIOD="$ROOT/audiod/zig-out/bin/audiod" timeout 300 python3 "$ROOT/audiod/tests/test_audiod.py" \
+        XDG_RUNTIME_DIR="${KOOMPI_TEST_LIVE_RUNTIME_DIR:-$XDG_RUNTIME_DIR}" AUDIOD="$ROOT/audiod/zig-out/bin/audiod" timeout 300 python3 "$ROOT/audiod/tests/test_audiod.py" \
             > "$tmp/audiod.log" 2>&1
         rc=$?
         tail -1 "$tmp/audiod.log"

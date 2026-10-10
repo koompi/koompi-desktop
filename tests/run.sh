@@ -21,6 +21,9 @@ unset XDG_CONFIG_HOME XDG_STATE_HOME XDG_DATA_HOME XDG_CACHE_HOME KOOMPI_STATE_D
 unset WAYLAND_DISPLAY DISPLAY HYPRLAND_INSTANCE_SIGNATURE
 export QT_QPA_PLATFORM=offscreen
 
+# only the user manager and PipeWire checks (test_app_slice, test_shell_services) read the real runtime dir, through this
+export KOOMPI_TEST_LIVE_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}"
+
 # the real easyeffects aborts in a nested test session and each abort toasts the live desktop; a test that wants one puts its own first on PATH
 scratch="$(mktemp -d)" || { echo "run.sh: mktemp -d failed" >&2; exit 1; }
 trap 'rm -rf "${scratch:?}"' EXIT
