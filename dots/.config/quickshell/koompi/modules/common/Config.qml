@@ -581,8 +581,7 @@ Singleton {
 
             property JsonObject overview: JsonObject {
                 property bool enable: true
-                // scale, rows, columns and the three order/icon switches below no longer draw anything: the overview fits one cell per desk
-                property real scale: 0.18
+                property real scale: 0.18 // inert with rows, columns and the order/icon switches: one cell per desk
                 property real rows: 2
                 property real columns: 5
                 property bool orderRightLeft: false
