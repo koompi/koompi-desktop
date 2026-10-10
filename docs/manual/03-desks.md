@@ -1,11 +1,11 @@
 # Desks
 
-Instead of piling every window onto one screen, you get ten separate desks.
+Instead of piling every window onto one screen, you get ten separate desks, each with a fixed number.
 Put your writing on one and your browser on another.
 Nothing on the desk you are not looking at can interrupt what is in front of you.
 
 There is no setting up to do.
-A desk exists when you put something on it and stops existing when you take it away.
+`Super+3` always goes to desk 3, whatever else is open. Desks are never renumbered, so you can learn where things live.
 
 ## Moving between them
 
@@ -18,8 +18,10 @@ A desk exists when you put something on it and stops existing when you take it a
 On a touchpad, four fingers left or right walks between desks.
 Scrolling the wheel over the numbers at the top of the screen does the same.
 
-The numbers themselves are in the middle of the top strip.
-A desk with something on it is filled in; an empty one is not.
+The top strip shows the desks you are using, plus the one you are on, plus one quiet dot for the next free desk (hover it and it says "New desk").
+With work on desks 1, 2 and 5 you see 1, 2, 5 and a dot where 3 would be; click it, or press `Super+3`, to start a desk there.
+A desk joins the strip when something is on it or you go to it, and leaves again when it is empty and you are elsewhere.
+Settings, Bar, "Show only the workspaces in use" turns this off and gives back the full row of ten.
 
 ## Sending a window somewhere else
 

@@ -208,8 +208,18 @@ ContentPage {
             }
         }
 
+        ConfigSwitch {
+            buttonIcon: "dynamic_feed"
+            text: Translation.tr("Show only the workspaces in use")
+            checked: Config.options.bar.workspaces.dynamic
+            onCheckedChanged: {
+                Config.options.bar.workspaces.dynamic = checked;
+            }
+        }
+
         ConfigSpinBox {
             icon: "view_column"
+            enabled: !Config.options.bar.workspaces.dynamic
             text: Translation.tr("Workspaces shown")
             value: Config.options.bar.workspaces.shown
             from: 1

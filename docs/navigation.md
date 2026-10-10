@@ -63,7 +63,7 @@ The horizontal bar and the vertical bar are alternative bars, so a given session
 | Cheatsheet | `Super+/` | none | none | none | yes |
 | Window actions | none, by decision | left-click the app identity in the left section | none | none | no |
 | Snap preview | none of its own, rides `Super+drag` | none | none | none | no |
-| Workspace hint | none | shown under the workspaces widget on a first run | none | none | no |
+| Workspace hint | none | shown under the workspaces widget on a first run; centred on the widget, which is as wide as the desks in use | none | none | no |
 | Screensaver | none | none | none | none | yes, called by hypridle at 120 s idle and closed on resume; any key or pointer motion on it also closes it, and the lock replaces it |
 | Bar popups: 1 agent usage, 2 battery, 3 pomodoro, 4 clock | `Super+Ctrl+1`..`4`, again or `Escape` to close | hover the widget | none | none | yes, `bar popup N`, `bar popupClose` |
 | Update badge | none | its own glyph, no count, left of the right-panel button while updates are pending; click opens the updates popup (count, last check, Update now, Check again), click again or outside closes it, middle-click rechecks | none | none | no |
@@ -212,7 +212,7 @@ They set their own flags rather than aliasing `searchOpen`, which is what makes 
 
 | Keys | Action |
 | --- | --- |
-| `Super+1..0` | focus workspace |
+| `Super+1..0` | focus workspace by its fixed number; the bar then shows it |
 | `Ctrl+Super+Left/Right` | focus workspace left/right |
 | `Super+PageUp/PageDown` | focus workspace left/right |
 | `Super+scroll` | focus workspace left (scroll up) or right (scroll down) |
@@ -483,9 +483,11 @@ The clock and the Control Center glyph are the only bar targets that open a pane
 
 ### Workspaces
 
-The bar and the overview strip draw the occupied desks of the current group, the active desk if it is empty, and one empty "new desk" slot, from one shared rule.
-Desk numbers are never renumbered, so `Super+N` still means desk N, and an empty desk appears in the bar the moment it is focused.
-`bar.workspaces.dynamic: false` brings back the fixed row of `bar.workspaces.shown`.
+The bar shows the workspaces in use: the occupied desks of the current group of ten, the active desk if it is empty, and one empty "new desk" slot (the lowest free number), from one shared rule in `modules/common/functions/workspace-slots.js`.
+Desk numbers are fixed. Nothing is renumbered, created or destroyed by the bar, so `Super+N` always reaches desk N and a gap stays a gap: desks 1, 2 and 5 in use draw 1, 2, 5 and an empty 3.
+`Super+N`, `Super+Alt+N` (the desk gets a window) and the 4-finger swipe onto an empty desk make that desk appear in the bar; it leaves again once it is empty and you are elsewhere.
+Slots fade and resize with the `elementMove` role, which Reduce Motion cuts to instant.
+`bar.workspaces.dynamic: false` (Settings, Bar, "Show only the workspaces in use") brings back the fixed row of `bar.workspaces.shown`.
 
 ## Rules for adding to this model
 

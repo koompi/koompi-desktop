@@ -410,6 +410,7 @@ Singleton {
                 property list<string> screenList: [] // List of names, like "eDP-1", find out with 'hyprctl monitors' command
                 property JsonObject workspaces: JsonObject {
                     property bool monochromeIcons: true
+                    property bool dynamic: true // draw only the desks in use; false is the fixed row of `shown`
                     property int shown: 10
                     property bool showAppIcons: true
                     property bool alwaysShowNumbers: false
