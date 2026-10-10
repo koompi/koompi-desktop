@@ -32,7 +32,13 @@ Singleton {
         property string image: notification?.image ?? ""
         property string summary: notification?.summary ?? ""
         property double time
-        property string urgency: notification?.urgency.toString() ?? "normal"
+        property string appHint: notification?.hints["x-kde-appname"] ?? ""
+        readonly property bool isSystem: root.isSystemSender(appName, appHint)
+        // system notices never shout: critical is held to normal
+        property string urgency: {
+            const urgency = notification?.urgency.toString() ?? "normal";
+            return isSystem && urgency === NotificationUrgency.Critical.toString() ? NotificationUrgency.Normal.toString() : urgency;
+        }
         // koompi-notify-send --exec; [] when absent, malformed, or restored from disk
         property var execArgv: root.parseExecArgv(notification?.hints["koompi-exec-argv"])
         property Timer timer
@@ -170,6 +176,34 @@ Singleton {
     }
 
     property var groupsByAppName: groupsForList(root.list)
+
+    function isSystemSender(appName, appHint) {
+        const senders = Config.options.notifications.systemApps;
+        return senders.includes(appName) || (appHint !== "" && senders.includes(appHint));
+    }
+
+    // The Notification Center: app groups without the system senders, and the system notices
+    // folded by summary into rows with a count.
+    property var panelGroupsByAppName: groupsForList(root.list.filter((notif) => !notif.isSystem))
+    property list<string> panelAppNameList: appNameListForGroups(root.panelGroupsByAppName)
+    property var systemRows: {
+        const rows = {};
+        root.list.filter((notif) => notif.isSystem).forEach((notif) => {
+            if (!rows[notif.summary]) rows[notif.summary] = { summary: notif.summary, body: "", count: 0, ids: [], time: 0, appIcon: notif.appIcon };
+            const row = rows[notif.summary];
+            row.count++;
+            row.ids.push(notif.notificationId);
+            if (notif.time >= row.time) {
+                row.time = notif.time;
+                row.body = notif.body;
+            }
+        });
+        return Object.values(rows).sort((a, b) => b.time - a.time);
+    }
+
+    function discardMany(ids) {
+        ids.slice().forEach((id) => root.discardNotification(id));
+    }
     property var popupGroupsByAppName: groupsForList(root.popupList)
     property list<string> appNameList: appNameListForGroups(root.groupsByAppName)
     property list<string> popupAppNameList: appNameListForGroups(root.popupGroupsByAppName)

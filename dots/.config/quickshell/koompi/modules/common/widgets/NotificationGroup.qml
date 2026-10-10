@@ -18,6 +18,8 @@ MouseArea { // Notification group area
     property bool multipleNotifications: notificationCount > 1
     property bool expanded: false
     property bool popup: false
+    // the Notification Center turns this on: a clear button on the title row, and the keys
+    property bool clearable: false
     property real padding: 10
     implicitHeight: background.implicitHeight
 
@@ -69,6 +71,22 @@ MouseArea { // Notification group area
                     Notifications.discardNotification(notif.notificationId);
                 });
             });
+        }
+    }
+
+    function clearGroup() {
+        Notifications.discardMany(root.notifications.map(notif => notif.notificationId));
+    }
+
+    activeFocusOnTab: clearable
+    Keys.onPressed: event => {
+        if (!root.clearable) return;
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            root.toggleExpanded();
+            event.accepted = true;
+        } else if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {
+            root.clearGroup();
+            event.accepted = true;
         }
     }
 
@@ -146,6 +164,8 @@ MouseArea { // Notification group area
         }
         
         clip: true
+        border.width: root.clearable && root.activeFocus ? 2 : 0
+        border.color: Appearance.colors.colPrimary
         implicitHeight: root.expanded ? 
             row.implicitHeight + padding * 2 :
             Math.min(80, row.implicitHeight + padding * 2)
@@ -221,9 +241,32 @@ MouseArea { // Notification group area
                             color: Appearance.colors.colSubtext
                         }
                     }
+                    RippleButton {
+                        id: clearButton
+                        objectName: "nc-clear-" + (root.notificationGroup?.appName ?? "")
+                        visible: root.clearable
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        implicitWidth: 30
+                        implicitHeight: expandButton.implicitHeight
+                        buttonRadius: Appearance.rounding.full
+                        colBackground: expandButton.colBackground
+                        colBackgroundHover: expandButton.colBackgroundHover
+                        onClicked: root.clearGroup()
+                        contentItem: MaterialSymbol {
+                            horizontalAlignment: Text.AlignHCenter
+                            iconSize: Appearance.font.pixelSize.normal
+                            color: Appearance.colors.colOnLayer2
+                            text: "close"
+                        }
+                        StyledToolTip {
+                            text: Translation.tr("Clear these")
+                        }
+                    }
                     NotificationGroupExpandButton {
                         id: expandButton
                         anchors.right: parent.right
+                        anchors.rightMargin: root.clearable ? clearButton.width + 4 : 0
                         anchors.verticalCenter: parent.verticalCenter
                         count: root.notificationCount
                         expanded: root.expanded
