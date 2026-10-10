@@ -126,7 +126,7 @@ if [[ -d "$RUNTIME_DIR" ]]; then
         ok "$RUNTIME_DIR/$f is 0600"
     done
 else
-    skip "no $RUNTIME_DIR — the shell has not sent a request on this boot"
+    echo "  note: no $RUNTIME_DIR in this run's own runtime dir, so the shell's socket-dir modes are not checked here"
 fi
 
 # The narrowing is done by the wrapper the shell execs, so run that exact wrapper

@@ -17,6 +17,10 @@ TESTS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # a test that pins only HOME writes into whatever these name when the caller exports them
 unset XDG_CONFIG_HOME XDG_STATE_HOME XDG_DATA_HOME XDG_CACHE_HOME KOOMPI_STATE_DIR
 
+# a stray GUI process finds no compositor and lands offscreen, not on the founder's screen
+unset WAYLAND_DISPLAY DISPLAY HYPRLAND_INSTANCE_SIGNATURE
+export QT_QPA_PLATFORM=offscreen
+
 # the real easyeffects aborts in a nested test session and each abort toasts the live desktop; a test that wants one puts its own first on PATH
 scratch="$(mktemp -d)" || { echo "run.sh: mktemp -d failed" >&2; exit 1; }
 trap 'rm -rf "${scratch:?}"' EXIT
@@ -46,10 +50,15 @@ for test in "$TESTS_DIR"/test_*.sh; do
     name="$(basename -- "$test")"
     printf '%s==> %s%s\n' "${C_BOLD}" "$name" "${C_RST}"
 
+    # qs registers its instance and sockets in the runtime dir, so each test gets one of its own
+    rt="$(mktemp -d "$scratch/rt.XXXXXX")" || { echo "run.sh: mktemp -d failed" >&2; exit 1; }
+    chmod 700 "$rt"
+
     # Invoked through bash rather than executed, so a test that arrived without
     # its executable bit is still run instead of being reported as a failure.
-    output="$(KOOMPI_RUNSH_TEST="$name" bash "$test" 2>&1 < /dev/null)"
+    output="$(XDG_RUNTIME_DIR="$rt" KOOMPI_RUNSH_TEST="$name" bash "$test" 2>&1 < /dev/null)"
     rc=$?
+    rm -rf "${rt:?}"
     if (( rc != 0 )); then
         printf '%s\n' "$output"
         printf '%s  xx%s %s\n' "${C_RED}" "${C_RST}" "$name"
