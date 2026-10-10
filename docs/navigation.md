@@ -16,6 +16,7 @@ Five roles, and nothing else may claim a primary gesture or a bare `Super` chord
 | Search | "take me to a thing" | `SearchPanel.qml` | `Super` release | `searchOpen` |
 | Overview | "where are my windows" | `OverviewPanel.qml` | `Super+Tab`, 4-finger up/down | `overviewOpen` |
 | Today | "what is my machine doing" | right sidebar, `SidebarRight.qml` | `Super+N` | `sidebarRightOpen` |
+| Today | "what can I switch" | Control Center, `modules/koompi/controlCenter/ControlCenter.qml` | `controlCenterToggle`, IPC `controlCenter` | `controlCenterOpen` |
 | Now | "what is my work doing" | left sidebar, `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 | Launchpad | "show me everything installed" | `Launchpad.qml` | 4-finger spread only | `launchpadOpen` |
 
@@ -57,6 +58,7 @@ The horizontal bar and the vertical bar are alternative bars, so a given session
 | --- | --- | --- | --- | --- | --- |
 | Left sidebar | `Super+A` | one button, hidden unless AI or translator is enabled | top-left | none | yes |
 | Right sidebar | `Super+N` | one button | top-right | none | yes |
+| Control Center | the global shortcut `controlCenterToggle`; `Super+Alt+N` is pointed at it by the right-panel job, until then it still opens the right sidebar's controls page | its own glyph, left of the clock (the bar job, not built yet) | none | none | yes, `controlCenter` |
 | Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up or down | yes |
 | Search | `Super` | none | none | none | yes |
 | Launchpad | none, by decision | none | none | 4-finger spread and close | yes |
@@ -163,6 +165,7 @@ Many shell binds have a second copy guarded by `qs ipc call TEST_ALIVE ||` that 
 | `Super+A` | left sidebar |
 | `Super+Alt+A` | detach left sidebar |
 | `Super+N` | right sidebar |
+| `controlCenterToggle` (`Super+Alt+N` once the right-panel job rebinds it; today that chord still opens the right sidebar's controls page) | Control Center |
 | `Super+,` | dismiss the newest notification toast (it stays in the right sidebar's history) |
 | `Super+Shift+,` | dismiss every toast |
 | `Super+Alt+,` | open the newest toast: its default action, then dismissed |
@@ -310,6 +313,25 @@ The migration `sdata/migrations/*-custom-keybind-descriptions.sh` brings the des
 | `Super+Escape` | cancel dictation |
 | `Super+Alt+K` | Kiri settings |
 
+## The Control Center
+
+The machine's switches, in one 360 px panel under the bar, on the focused monitor, with the layer namespace `quickshell:controlCenter`.
+It is a surface of the Today role beside the right sidebar, and opening either closes the other (`GlobalStates.qml`).
+The window is built by `LazySurface` when `controlCenterOpen` turns on; the `GlobalShortcut` `controlCenterToggle` and the `controlCenter` IPC target (`toggle`, `open`, `close`, `module <name>`) live in the always-built `ControlCenter.qml`.
+`module` takes `wifi`, `bluetooth`, `display`, `sound`, `nowPlaying` or `battery` and opens that page.
+
+The modules, top to bottom: Wi-Fi, Bluetooth (only with an adapter), Do Not Disturb, Keep awake, Display (brightness, Night Light, Dark mode), Sound (volume and the output device), Now Playing (only while a player exists), Battery (only on battery hardware), the optional modules the user chose, and Edit.
+Every switch shows its state three ways: the filled glyph on an accent plate, and the word On or Off.
+The one-shot captures (screen snip, colour picker, identify music, on-screen keyboard) are not here; they have keys and are Search commands.
+
+Keys: Up and Down (or Tab) move between modules, Space or Enter flips a switch, Right or a click on the chevron opens the module's page, Left and Right set a slider (Enter opens its page), Escape or Backspace goes back from a page, and Escape on the list closes the panel; a click outside closes it too.
+A page slides in over the list inside the same window; with Reduce Motion on it crossfades instead.
+Pages reuse the Wi-Fi network list, the Bluetooth device list and the per-app volume mixer from the right sidebar, and each ends in a "More ... settings" link that opens that Settings page through `koompi-settings <page>`.
+
+Edit lists every optional module with Shown or Hidden: Screen recording (on while a recording runs), Game mode, Power profile, EasyEffects, Cloudflare WARP, Anti-flashbang and Audio input.
+The choice is `controlCenter.extraModules`, seeded once by `sdata/migrations/*-control-center-modules.sh` from the types in the user's stored `sidebar.quickToggles.android.toggles`.
+`tests/test_control_center.sh` drives all of this with real keys in a nested Hyprland.
+
 ## Super on its own
 
 Search opens when `Super` is *released*, which makes every other `Super` chord ambiguous until the release arrives.
@@ -352,6 +374,7 @@ Conformance as of 2026-07-30:
 | Search | dismissable | gated on `searchOpen` |
 | Overview | dismissable | gated on `overviewOpen` |
 | Right sidebar | dismissable | gated on `sidebarRightOpen` |
+| Control Center | dismissable | gated on `controlCenterOpen` |
 | Left sidebar | dismissable | unconditional `OnDemand`, harmless because the window is gated on `sidebarLeftOpen` |
 | Wallpaper selector | dismissable | unconditional `OnDemand`, window gated by its loader |
 | Media controls | dismissable | not set |
@@ -439,7 +462,6 @@ Two of them gain a second surface, and no new role is created.
 | --- | --- | --- | --- | --- |
 | Overview | gains the app switcher, its keyboard reflex for "take me back to that app" | `modules/koompi/appSwitcher/` | `Alt+Tab` held | `appSwitcherOpen` |
 | Overview | becomes Mission Control: the current desk's windows laid out large, a strip of occupied desks with a `+`, typing filters | `OverviewPanel.qml` | `Super+Tab`, 4-finger up and down following the fingers | `overviewOpen` |
-| Today | splits in two: the Control Center holds the machine's switches | `modules/koompi/controlCenter/` | `Super+Alt+N`, its bar glyph | `controlCenterOpen` |
 | Today | the right sidebar becomes the Notification Center: date, notifications grouped by app, a System group, then the next events, weather, to-do and timer | `SidebarRight.qml` | `Super+N`, the clock | `sidebarRightOpen` |
 | Now | the left sidebar becomes one assistant: a 420 px drawer that opens the same thread in the Intelligence window | `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 
@@ -452,7 +474,6 @@ The app switcher joins Overview rather than founding a role: it answers "where a
 | Surface | Keyboard | Bar | Corner | Gesture | IPC |
 | --- | --- | --- | --- | --- | --- |
 | App switcher | `Alt+Tab`, `Alt+Shift+Tab` while held; a quick tap switches to the previous app without drawing | none | none | none | yes, `appSwitcher` |
-| Control Center | `Super+Alt+N` | its own glyph, left of the clock | none | none | yes, `controlCenter` |
 | Notification Center | `Super+N` | the clock; a dot on it while notifications are unread | top-right | none | yes, `sidebarRight` |
 | Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up opens and down closes, following the fingers | yes |
 | Assistant drawer | `Super+A`; its header's Open in window hands the thread to `Super+Shift+I`'s window | one button, as today | top-left | none | yes |
@@ -469,7 +490,6 @@ The clock and the Control Center glyph are the only bar targets that open a pane
 | `Alt+Shift+Tab` | app switcher: previous app |
 | `Q`, `Escape`, arrows while `Alt` holds the switcher | close the selected app, cancel, move |
 | `Alt+grave` | next window of the current app, nothing drawn |
-| `Super+Alt+N` | Control Center (was: the right sidebar's controls page) |
 
 `Super+grave` stays the terminal widget; window cycling takes `Alt+grave`, the switcher's own modifier.
 
@@ -477,7 +497,6 @@ The clock and the Control Center glyph are the only bar targets that open a pane
 
 | Surface | Grab | Keyboard focus |
 | --- | --- | --- |
-| Control Center | dismissable | gated on `controlCenterOpen` |
 | Notification Center | dismissable, unchanged from the right sidebar | gated on `sidebarRightOpen` |
 | App switcher | none: it lives while Alt is held and closes on release, `Escape` or a commit | `None`; its keys arrive as Hyprland binds in the `appswitcher` submap, so the window being left keeps focus until the switch |
 
