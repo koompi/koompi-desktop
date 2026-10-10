@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 
+import "../../../services/launcherSearch/ranking.js" as Ranking
 import Qt.labs.synchronizer
 import Qt5Compat.GraphicalEffects
 import QtQuick
@@ -50,6 +51,24 @@ Item { // Wrapper
 
     function focusFirstItem() {
         appResults.currentIndex = 0;
+    }
+
+    // The query the list on screen answers. While it is the same query, rows that
+    // arrive late (files, a translation) slot in without moving the cursor.
+    property string settledQuery: ""
+    readonly property int smallText: Math.max(12, Appearance.font.pixelSize.smaller)
+
+    function applyResults(rows) {
+        const heldKey = appResults.currentItem?.entry?.key ?? "";
+        const holdCursor = appResults.activeFocus && root.settledQuery === LauncherSearch.query;
+        resultModel.values = rows;
+        root.settledQuery = LauncherSearch.query;
+        if (appResults.count === 0)
+            return;
+        if (holdCursor)
+            appResults.currentIndex = Ranking.stableIndex(heldKey, rows.map(row => row.key), appResults.currentIndex);
+        else
+            root.focusFirstItem();
     }
 
     function focusSearchInput() {
@@ -216,17 +235,18 @@ Item { // Wrapper
                 Timer {
                     id: debounceTimer
                     interval: root.typingDebounceInterval
-                    onTriggered: {
-                        resultModel.values = LauncherSearch.results ?? [];
-                    }
+                    onTriggered: root.applyResults(LauncherSearch.results ?? [])
                 }
 
                 Connections {
                     target: LauncherSearch
                     function onResultsChanged() {
-                        resultModel.values = LauncherSearch.results.slice(0, root.typingResultLimit);
-                        root.focusFirstItem();
+                        root.applyResults(LauncherSearch.results.slice(0, root.typingResultLimit));
                         debounceTimer.restart();
+                    }
+                    function onScopeSwitched() {
+                        root.focusSearchInput();
+                        searchBar.searchInput.cursorPosition = searchBar.searchInput.text.length;
                     }
                 }
 
@@ -286,13 +306,13 @@ Item { // Wrapper
                         spacing: 4
                         StyledText {
                             text: modelData.prefix ?? modelData.key
-                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            font.pixelSize: root.smallText
                             font.family: Appearance.font.family.monospace
                             color: Appearance.colors.colPrimary
                         }
                         StyledText {
                             text: modelData.label
-                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            font.pixelSize: root.smallText
                             color: Appearance.colors.colSubtext
                         }
                     }

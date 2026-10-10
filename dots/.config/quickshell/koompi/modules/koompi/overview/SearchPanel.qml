@@ -117,7 +117,8 @@ Scope {
                 }
 
                 Keys.onPressed: event => {
-                    if (event.key === Qt.Key_Escape) {
+                    // a Quick Look comes down first, then Search
+                    if (event.key === Qt.Key_Escape && !FileSearch.closeQuicklook()) {
                         root.close();
                     }
                 }
