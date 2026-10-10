@@ -23,7 +23,7 @@ model about it. OMARCHY-AUDIT O30; the omarchy originals are
   `COREDUMP_SIGNAL_NAME`. Nothing is stored; the watcher keeps one timestamp per
   program name in memory for the dedupe window.
 - Filters, in order: numeric pid (an entry without one is logged and skipped),
-  own uid, `KOOMPI_CRASH_IGNORE` (extended regex on the executable's basename, or
+  own uid, a `COREDUMP_ENVIRON` whose `XDG_RUNTIME_DIR` is not the watcher's own (a nested test session's crash, logged to stderr with program, pid and that dir; an entry with no environ or no such variable is still announced), `KOOMPI_CRASH_IGNORE` (extended regex on the executable's basename, or
   the 15-char comm when there is no path), its own `koompi-crash-*` tools, and
   one toast per program per `KOOMPI_CRASH_DEDUPE_SECONDS` (60). Only a delivered
   toast starts the window, so a send that failed does not hide a crash loop.

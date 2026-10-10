@@ -225,6 +225,31 @@ title_is chrome /opt/google/chrome/chrome "Chrome closed unexpectedly"
 title_is noexe -  "Noexe closed unexpectedly"
 echo "ok   title: Name= of the entry whose Exec binary crashed (user dir first, env and quoted Exec, second shared dir), else the capitalised name; no entry from an action group or a Hidden one; normal urgency, no signal in the text"
 
+# --- 5c. a foreign XDG_RUNTIME_DIR in COREDUMP_ENVIRON is skipped, said so ----
+
+own_dir="${XDG_RUNTIME_DIR:-/run/user/$UID}"
+environ_entry() { # environ_entry <environ text>
+    entry "$UID" nested 6000 /usr/bin/nested SIGSEGV | jq -c --arg e "$1" '. + {COREDUMP_ENVIRON: $e}'
+}
+rm -f "$WORK/notify.log"
+environ_entry $'HOME=/tmp/h\nXDG_RUNTIME_DIR=/tmp/hr.test\nPATH=/usr/bin' > "$WORK/fixture.jsonl"
+err="$("$WATCH" 2>&1 >/dev/null)"
+[[ -e "$WORK/notify.log" ]] && fail "a crash from XDG_RUNTIME_DIR=/tmp/hr.test was announced"
+grep -q 'nested (pid 6000).*foreign XDG_RUNTIME_DIR /tmp/hr.test' <<<"$err" || fail "the foreign-runtime-dir skip was silent: $err"
+rm -f "$WORK/notify.log"
+environ_entry $'HOME=/tmp/h\nXDG_RUNTIME_DIR='"$own_dir"$'\nPATH=/usr/bin' > "$WORK/fixture.jsonl"
+"$WATCH" >/dev/null 2>&1
+[[ "$(wc -l < "$WORK/notify.log")" == 1 ]] || fail "a crash with the watcher's own runtime dir was not announced once"
+rm -f "$WORK/notify.log"
+environ_entry $'HOME=/tmp/h\nPATH=/usr/bin' > "$WORK/fixture.jsonl"
+"$WATCH" >/dev/null 2>&1
+[[ "$(wc -l < "$WORK/notify.log")" == 1 ]] || fail "an environ without XDG_RUNTIME_DIR was not announced"
+rm -f "$WORK/notify.log"
+entry "$UID" nested 6000 /usr/bin/nested SIGSEGV > "$WORK/fixture.jsonl"
+"$WATCH" >/dev/null 2>&1
+[[ "$(wc -l < "$WORK/notify.log")" == 1 ]] || fail "an entry without COREDUMP_ENVIRON was not announced"
+echo "ok   environ: foreign XDG_RUNTIME_DIR skipped and logged; own dir, none, or no environ announced"
+
 # --- 6. diagnose: report written, model absent -> refusal --------------------
 
 rm -f "$WORK"/*.argv "$WORK/notify.log"

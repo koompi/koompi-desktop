@@ -135,12 +135,15 @@ fi
         # A field that is not valid UTF-8 comes as a byte array and @tsv refuses
         # it; the read then fails the pid check and the entry is reported, not
         # silently dropped.
-        IFS=$'\t' read -r uid comm pid exe signal < <(
+        IFS=$'\t' read -r uid comm pid exe signal rundir < <(
             jq -r '[(.COREDUMP_UID // ._UID // "-"),
                     (.COREDUMP_COMM // "-"),
                     (.COREDUMP_PID // "-"),
                     (.COREDUMP_EXE // "-"),
-                    (.COREDUMP_SIGNAL_NAME // "-")] | @tsv' <<<"$entry" 2>/dev/null
+                    (.COREDUMP_SIGNAL_NAME // "-"),
+                    ((.COREDUMP_ENVIRON | if type == "string" then
+                        (split("\n") | map(select(startswith("XDG_RUNTIME_DIR="))) | first // "" | ltrimstr("XDG_RUNTIME_DIR="))
+                      else "" end) | if . == "" then "-" else . end)] | @tsv' <<<"$entry" 2>/dev/null
         )
         if [[ ! ${pid:-} =~ ^[0-9]+$ ]]; then
             echo "koompi-crash-watch: journal entry without a usable COREDUMP_PID, skipped" >&2
@@ -151,6 +154,13 @@ fi
         # entry cannot announce another user's crash either.
         [[ $uid =~ ^[0-9]+$ ]] || continue
         (( uid == UID )) || continue
+
+        # a nested test session's crash carries its own runtime dir; no
+        # XDG_RUNTIME_DIR in the environ keeps the announcement
+        if [[ -n ${rundir:-} && $rundir != - && $rundir != "${XDG_RUNTIME_DIR:-/run/user/$UID}" ]]; then
+            echo "koompi-crash-watch: crash of $comm (pid $pid) ran in foreign XDG_RUNTIME_DIR $rundir, not announced" >&2
+            continue
+        fi
 
         # comm is truncated to 15 characters; the executable's basename is not.
         name=$comm
