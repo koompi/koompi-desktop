@@ -23,15 +23,23 @@ Singleton {
         if (!root.inhibit) root.stopInhibitor();
     }
 
+    // restore the saved switch and stop a predecessor's inhibitor; a states.json that loads before
+    // this singleton exists (every machine that has run the shell) fires no readyChanged here
+    function restore() {
+        if (!Persistent.isNewHyprlandInstance) {
+            root.inhibit = Persistent.states.idle.inhibit;
+        } else {
+            Persistent.states.idle.inhibit = root.inhibit;
+        }
+        if (!root.inhibit) root.stopInhibitor();
+    }
+
+    Component.onCompleted: if (Persistent.ready) root.restore()
+
     Connections {
         target: Persistent
         function onReadyChanged() {
-            if (!Persistent.isNewHyprlandInstance) {
-                root.inhibit = Persistent.states.idle.inhibit;
-            } else {
-                Persistent.states.idle.inhibit = root.inhibit;
-            }
-            if (!root.inhibit) root.stopInhibitor();
+            if (Persistent.ready) root.restore();
         }
     }
 

@@ -23,6 +23,8 @@ QS_BIN="$(command -v qs)"
 mkdir -p "$WORK/bin" "$WORK/home" "$WORK/runtime" "$WORK/xdg/config/koompi" "$WORK/xdg/state/quickshell/user" "$WORK/xdg/cache" "$WORK/xdg/data"
 chmod 700 "$WORK/runtime"
 echo greeted > "$WORK/xdg/state/quickshell/user/first_run.txt"
+# the second pass is every real user: a states.json is already there, so Persistent can be ready before Idle exists
+[[ -n "${SEED_STATES:-}" ]] && echo '{"idle": {"inhibit": false}}' > "$WORK/xdg/state/quickshell/states.json"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/easyeffects"; chmod +x "$WORK/bin/easyeffects"
 echo '{"windows": {"workspaceHelp": false}}' > "$WORK/xdg/config/koompi/config.json"
 
@@ -127,4 +129,9 @@ expect foreign_after_off yes "turning Keep awake off killed an inhibitor it neve
 expect foreign2_after_off yes "turning Keep awake off killed an inhibitor it never recorded"
 expect unrelated_after_off yes "turning Keep awake off killed a process that was never an inhibitor"
 expect pidfile_after_off no "the pid file outlived the inhibitor"
-echo "ok   shell: Keep awake stops only the inhibitor it recorded, at start and when turned off"
+if [[ -z "${SEED_STATES:-}" ]]; then
+    echo "ok   shell: Keep awake stops only the inhibitor it recorded, at start and when turned off (fresh profile)"
+    rm -rf "${WORK:?}"
+    exec env SEED_STATES=1 bash "${BASH_SOURCE[0]}"
+fi
+echo "ok   shell: the same with a saved states.json, as on every machine that has run the shell before"
