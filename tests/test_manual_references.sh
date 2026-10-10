@@ -98,7 +98,7 @@ fi
 loop_families=(
     "Super+1 Super+2 Super+3 Super+4 Super+5 Super+6 Super+7 Super+8 Super+9 Super+0|hl.bind(\"SUPER + \" .. (i % 10)"
     "Super+Alt+1 Super+Alt+2 Super+Alt+3 Super+Alt+4 Super+Alt+5 Super+Alt+6 Super+Alt+7 Super+Alt+8 Super+Alt+9 Super+Alt+0|hl.bind(\"SUPER + ALT + \" .. (i % 10)"
-    "Super+Left Super+Right Super+Up Super+Down|hl.bind(\"SUPER + \" .. arrowkey[i]"
+    "Super+Left Super+Right Super+Up Super+Down Super+BracketLeft Super+BracketRight|hl.bind(\"SUPER + \" .. f[1]"
     "Super+Shift+Left Super+Shift+Right Super+Shift+Up Super+Shift+Down|hl.bind(\"SUPER + SHIFT + \" .. arrowkey[i]"
     "Ctrl+Super+Left Ctrl+Super+Right|hl.bind(\"CTRL + SUPER + \" .. keys[i]"
     "Super+PageUp Super+PageDown|local key = { \"SUPER + Page_Down\", \"SUPER + Page_Up\" }"
