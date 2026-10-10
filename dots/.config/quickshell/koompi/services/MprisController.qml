@@ -103,7 +103,7 @@ Singleton {
 		}
 	}
 
-	onActivePlayerChanged: this.updateTrack();
+	onActivePlayerChanged: { this.updateTrack(); this.__resetStale(); }
 
 	function updateTrack() {
 		//console.log(`update: ${this.activePlayer?.trackTitle ?? ""} : ${this.activePlayer?.trackArtists}`)
@@ -125,7 +125,62 @@ Singleton {
 	// ends; UI should gate visibility on this rather than on a non-empty title.
 	readonly property bool hasActiveMedia: !!this.activePlayer
 		&& this.activePlayer.playbackState !== MprisPlaybackState.Stopped
-		&& (this.activePlayer.trackTitle ?? "").length > 0;
+		&& (this.activePlayer.trackTitle ?? "").length > 0
+		&& !this.activePlayerStale;
+
+	// plasma-browser-integration can stick reporting Playing with a frozen real position
+	// after a tab's media ends. Quickshell extrapolates position for anything Playing,
+	// so the freeze is invisible in-process; playerctl reads it out-of-band. Plasma only
+	// - native players are never polled, and without playerctl the phantom shows.
+	property bool activePlayerStale: false;
+	readonly property bool activeIsPlasma: (this.activePlayer?.dbusName ?? "")
+		.startsWith("org.mpris.MediaPlayer2.plasma-browser-integration");
+	property real __lastRealPos: -1;
+	property int __frozenPolls: 0;
+	function __resetStale() {
+		this.__lastRealPos = -1;
+		this.__frozenPolls = 0;
+		this.activePlayerStale = false;
+	}
+
+	property bool playerctlAvailable: false
+	Process {
+		running: true
+		command: ["which", "playerctl"]
+		onExited: (exitCode, exitStatus) => root.playerctlAvailable = (exitCode === 0)
+	}
+
+	Process {
+		id: realPositionProbe
+		property string busSuffix: ""
+		command: ["playerctl", "-p", busSuffix, "position"]
+		stdout: StdioCollector {
+			id: realPosCollector
+			onStreamFinished: {
+				const pos = parseFloat(realPosCollector.text.trim());
+				if (isNaN(pos)) return; // playerctl missing or no value -> leave as-is
+				if (!(root.activePlayer?.isPlaying ?? false)) { root.__resetStale(); return; }
+				if (root.__lastRealPos >= 0 && Math.abs(pos - root.__lastRealPos) < 0.05) {
+					root.__frozenPolls++;
+				} else {
+					root.__frozenPolls = 0;
+				}
+				root.__lastRealPos = pos;
+				root.activePlayerStale = root.__frozenPolls >= 2; // frozen across 3 polls (~9s)
+			}
+		}
+	}
+
+	Timer {
+		interval: 3000
+		repeat: true
+		running: root.playerctlAvailable && root.activeIsPlasma && (root.activePlayer?.isPlaying ?? false)
+		onRunningChanged: if (!running) root.__resetStale();
+		onTriggered: {
+			realPositionProbe.busSuffix = root.activePlayer.dbusName.replace("org.mpris.MediaPlayer2.", "");
+			realPositionProbe.running = true;
+		}
+	}
 
 	property bool canTogglePlaying: this.activePlayer?.canTogglePlaying ?? false;
 	function togglePlaying() {
