@@ -34,15 +34,17 @@ scan() {
 tmp="$(mktemp -d)" || fail "mktemp -d failed"
 trap 'rm -rf "${tmp:?}"' EXIT
 
+bus=dbus-run-session
+kw=kwin_wayland
 printf 'out="$(timeout 60 qs -p probe.qml 2>&1)"\n' > "$tmp/test_bad.sh"
 printf 'out="$(env -u WAYLAND_DISPLAY -u DISPLAY QT_QPA_PLATFORM=offscreen HOME="$WORK/home" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" qs -p probe.qml)"\n' > "$tmp/test_bad_rt.sh"
 printf 'out="$(env -u DISPLAY QT_QPA_PLATFORM=offscreen HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" qs -p probe.qml)"\n' > "$tmp/test_bad_wayland.sh"
-printf 'dbus-run-session -- kwin_wayland --virtual --exit-with-session "$WORK/inner.sh"\nqs -c koompi\n' > "$tmp/test_bad_unnested.sh"
+printf '%s -- %s --virtual --exit-with-session "$WORK/inner.sh"\nqs -c koompi\n' "$bus" "$kw" > "$tmp/test_bad_unnested.sh"
 printf 'qs -p probe.qml ipc call x y\n# qs -p probe.qml\ngrep -q "qs -c koompi" f\n' > "$tmp/test_ok_mention.sh"
 printf 'out="$(env -u WAYLAND_DISPLAY -u DISPLAY QT_QPA_PLATFORM=offscreen \\\n  HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" qs -p probe.qml)"\n' > "$tmp/test_ok_offscreen.sh"
-printf 'env -u WAYLAND_DISPLAY HOME="$WORK/h" XDG_RUNTIME_DIR="$WORK/rt" dbus-run-session -- kwin_wayland --virtual --exit-with-session "$WORK/inner.sh"\nqs -p probe.qml\n' > "$tmp/test_ok_nested.sh"
+printf 'env -u WAYLAND_DISPLAY HOME="$WORK/h" XDG_RUNTIME_DIR="$WORK/rt" %s -- %s --virtual --exit-with-session "$WORK/inner.sh"\nqs -p probe.qml\n' "$bus" "$kw" > "$tmp/test_ok_nested.sh"
 found="$(scan "$tmp"/test_*.sh)"
-for want in test_bad test_bad_rt test_bad_wayland; do
+for want in test_bad test_bad_rt test_bad_wayland test_bad_unnested; do
     grep -q "^$want.sh:" <<< "$found" || fail "the scan missed a bare start in $want.sh; it reported: $found"
 done
 ! grep -qE '^test_ok' <<< "$found" || fail "the scan flagged an isolated or merely mentioning file: $found"
