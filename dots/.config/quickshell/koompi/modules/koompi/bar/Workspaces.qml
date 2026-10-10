@@ -276,7 +276,9 @@ Item {
                     implicitHeight: workspaceButtonWidth
                     property var biggestWindow: HyprlandData.biggestWindowForWorkspace(button.workspaceValue)
                     property string mainAppIconName: AppSearch.guessIcon(biggestWindow?.class)
+                    // with empty desks hidden a slot's place no longer says its number, so the number is drawn
                     readonly property bool showLabel: root.showNumbers || Config.options?.bar.workspaces.alwaysShowNumbers
+                        || Config.options?.bar.workspaces.dynamic
                     readonly property bool showIcon: !showLabel
                         && Config.options?.bar.workspaces.showAppIcons
                         && !!biggestWindow
