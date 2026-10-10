@@ -52,9 +52,9 @@ const steps = [
         demo: "launchpadOpen"
     },
     {
-        icon: "tune",
-        title: "What your machine is doing",
-        body: "Sound, screen brightness, network, Bluetooth and battery, with your notifications underneath. The second tab holds your calendar, to-do list and timer.",
+        icon: "notifications",
+        title: "What is waiting for you",
+        body: "Your notifications, grouped by app, with a clear button on each group. Messages from the computer itself sit in a System group at the bottom of the list. Below them: your next events, the weather, your to-do list and a timer. The switches for sound, brightness, Wi-Fi and the rest are in the Control Center, on Super+Alt+N.",
         keys: ["Super", "N"],
         demo: "sidebarRightOpen"
     },

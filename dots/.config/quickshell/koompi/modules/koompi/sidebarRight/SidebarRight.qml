@@ -167,12 +167,6 @@ Scope {
     }
 
     GlobalShortcut {
-        name: "sidebarRightControls"
-        description: "Opens the right sidebar on all controls"
-
-        onPressed: root.showDrawer("controls")
-    }
-    GlobalShortcut {
         name: "sidebarRightCalendar"
         description: "Opens the right sidebar on the calendar"
 

@@ -37,6 +37,7 @@ chmod +x "$WORK/bin/koompi-shelld"
 
 cat > "$WORK/shell/wx_probe.qml" <<'QML'
 import qs.services
+import QtQuick
 import Quickshell
 import Quickshell.Io
 

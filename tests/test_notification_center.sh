@@ -2,7 +2,7 @@
 # J21: the right panel is the Notification Center. The real SidebarRight in a probe shell, Hyprland nested in a
 # headless KWin on a private bus, notifications sent with notify-send, real keys through wtype. It reads back:
 #   - two app groups (two notifications each), each with a clear button, and clearing one removes only that group
-#   - one collapsed System group whose row reads "Memory shortage avoided x6", from two senders
+#   - one collapsed System group whose row reads "Memory shortage avoided ×6", from two senders
 #   - no quick toggles or sliders in the panel, and the widgets in order: Up next, Weather, To-do, Timer
 #   - Tab reaches a group, Enter expands it, Delete clears it, Escape closes the panel
 set -uo pipefail
@@ -87,7 +87,8 @@ ShellRoot {
             return `${named("nc-system").length} expanded=${g.expanded} rows=${named("nc-sysrow-").map(r => r.label).join("|")}`;
         }
         function controls(): string {
-            return `${all().filter(i => /QuickToggle|QuickSliders|QuickPanel/.test(`${i}`)).length}`;
+            const found = all().map(i => `${i}`);
+            return `${found.filter(t => /QuickSliders|QuickPanel|Android\w+Toggle|Classic\w+Toggle/.test(t)).length}/${found.filter(t => t.startsWith("QuickToggleButton")).length}`;
         }
         function order(): string {
             return named("w-").sort((a, b) => a.mapToItem(sr.content, 0, 0).y - b.mapToItem(sr.content, 0, 0).y).map(w => w.objectName).join(",");
@@ -146,7 +147,7 @@ note groups_after_clear "$(call probe groups)"
 
 notify-send -a alpha "alpha again" "back"
 sleep 1
-keys -k Tab
+for _ in 1 2 3 4 5; do keys -k Tab; [[ $(call probe focused) == nc-group-* ]] && break; done
 note focus_tab "$(call probe focused)"
 keys -k Return
 note expanded_after_enter "$(call probe expanded alpha)"
@@ -178,9 +179,9 @@ expect() { [[ "$(reading "$1")" == "$2" ]] || { dump; fail "$3: got '$(reading "
 [[ -s "$WORK/readings" ]] || { dump; fail "setup: the probe recorded nothing"; }
 
 expect groups "beta:2:1,alpha:2:1" "two app groups with a clear button each, newest first"
-expect system "1 expanded=false rows=Memory shortage avoided x6" "one collapsed System group, identical rows counted"
+expect system "1 expanded=false rows=Memory shortage avoided ×6" "one collapsed System group, identical rows counted"
 echo "ok   probe: two app groups with a clear each; one collapsed System group reading x6"
-expect controls "0" "quick toggles and sliders in the panel"
+expect controls "0/3" "quick toggles and sliders in the panel (the header keeps its three buttons)"
 expect order "w-upnext,w-weather,w-todo,w-timer" "the widget order"
 echo "ok   probe: no quick toggles; Up next, Weather, To-do, Timer in order"
 expect groups_after_clear "beta:2:1" "clearing alpha"

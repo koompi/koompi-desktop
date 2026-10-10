@@ -15,7 +15,7 @@ Five roles, and nothing else may claim a primary gesture or a bare `Super` chord
 | --- | --- | --- | --- | --- |
 | Search | "take me to a thing" | `SearchPanel.qml` | `Super` release | `searchOpen` |
 | Overview | "where are my windows" | `OverviewPanel.qml` | `Super+Tab`, 4-finger up/down | `overviewOpen` |
-| Today | "what is my machine doing" | right sidebar, `SidebarRight.qml` | `Super+N` | `sidebarRightOpen` |
+| Today | "what is waiting for me" | Notification Center, right sidebar, `SidebarRight.qml` | `Super+N` | `sidebarRightOpen` |
 | Today | "what can I switch" | Control Center, `modules/koompi/controlCenter/ControlCenter.qml` | `controlCenterToggle`, IPC `controlCenter` | `controlCenterOpen` |
 | Now | "what is my work doing" | left sidebar, `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 | Launchpad | "show me everything installed" | `Launchpad.qml` | 4-finger spread only | `launchpadOpen` |
@@ -41,10 +41,12 @@ One role is named for where it is going, not for what it is today.
 **Now** is the left sidebar, which is to become a drawer for what your work is doing.
 It still holds the inherited AI and translator tabs, and those are the thing being replaced rather than the thing being specified.
 
-**Today** is the right sidebar, and it is built: a header carrying today's date, pin, settings and power, then one column.
-Quick sliders and toggles come first, with an All controls row that opens the full grid as a drawer page.
-Under the Today heading sit the weather, today's calendar events and the grouped notifications.
-Under the Personal heading, Calendar, To Do and Timer are rows that open as drawer pages, so their widgets are built only while a page is open.
+**Today** is the right sidebar, now the Notification Center, and it is built: a header carrying today's date, pin, settings and power, then one scrolling column.
+Notifications come first, grouped by app, each group with its own clear button (`Tab` reaches a group, `Enter` expands it, `Delete` clears it), then Clear all.
+A System group follows, collapsed: the senders in `notifications.systemApps` (KOOMPI and the kernel's memory notices by default) land there, identical summaries fold into one row with a count such as "Memory shortage avoided ×6", and a system notice never toasts louder than normal urgency.
+Below that, four cards: Up next (the next three events across today and tomorrow), Weather (place, condition, now, today's high and low), To-do (the first three unfinished items) and Timer (the running timer, or "Start a timer").
+The Up next, To-do and Timer cards open the Calendar, To Do and Timer drawer pages, which are built only while a page is open (`Super+Alt+C`, `D` and `T` open them directly).
+The sliders, toggles and `Super+Alt+N` moved to the Control Center, the other surface of the role.
 
 ## Entry points
 
@@ -57,8 +59,8 @@ The horizontal bar and the vertical bar are alternative bars, so a given session
 | Surface | Keyboard | Bar | Corner | Gesture | IPC |
 | --- | --- | --- | --- | --- | --- |
 | Left sidebar | `Super+A` | one button, hidden unless AI or translator is enabled | top-left | none | yes |
-| Right sidebar | `Super+N` | one button | top-right | none | yes |
-| Control Center | the global shortcut `controlCenterToggle`; `Super+Alt+N` is pointed at it by the right-panel job, until then it still opens the right sidebar's controls page | its own glyph, left of the clock (the bar job, not built yet) | none | none | yes, `controlCenter` |
+| Notification Center (right sidebar) | `Super+N` | one button | top-right | none | yes |
+| Control Center | `Super+Alt+N`, the global shortcut `controlCenterToggle` | its own glyph, left of the clock (the bar job, not built yet) | none | none | yes, `controlCenter` |
 | Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up or down | yes |
 | Search | `Super` | none | none | none | yes |
 | Launchpad | none, by decision | none | none | 4-finger spread and close | yes |
