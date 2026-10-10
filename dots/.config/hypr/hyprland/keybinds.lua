@@ -221,21 +221,10 @@ hl.bind("SUPER + mouse:272", hl.dsp.global("quickshell:snapPreviewDrag")) -- # [
 hl.bind("SUPER + mouse:274", hl.dsp.window.drag(), { mouse = true, description = "Window: Move" })
 hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Window: Resize" })
 --#/# bind = SUPER + ←/↑/→/↓,, -- Focus in direction
-for i = 1, 4 do
-    local arrowkey = { "Left", "Right", "Up", "Down" }
-    local focusdir = { "l", "r", "u", "d" }
-    hl.bind("SUPER + " .. arrowkey[i], hl.dsp.focus({ direction = focusdir[i] }),
-        { description = "Window: Focus " .. arrowkey[i] })
+for _, f in ipairs({ { "Left", "l" }, { "Right", "r" }, { "Up", "u" }, { "Down", "d" }, { "BracketLeft", "l", "Left" }, { "BracketRight", "r", "Right" } }) do
+    hl.bind("SUPER + " .. f[1], hl.dsp.focus({ direction = f[2] }), { description = "Window: Focus " .. (f[3] or f[1]) })
 end
-for i = 1, 2 do
-    local arrowkey = { "BracketLeft", "BracketRight" }
-    local focusdir = { "l", "r" }
-    local descdir = { "Left", "Right" }
-    hl.bind("SUPER + " .. arrowkey[i], hl.dsp.focus({ direction = focusdir[i] }),
-        { description = "Window: Focus " .. descdir[i] })
-end
--- Alt+Tab without a switcher (founder, 2026-10-10): tiles are all visible, so the overview (Super+Tab)
--- is the picker; Alt+Tab flips to the window used before, on any workspace, and back again
+-- Alt+Tab has no switcher: the overview (Super+Tab) is the picker; Alt+Tab flips to the window used before, on any workspace
 hl.bind("ALT + Tab", function()
     local last = hl.get_last_window()
     if last then hl.dispatch(hl.dsp.focus({ window = "address:" .. last.address })) end

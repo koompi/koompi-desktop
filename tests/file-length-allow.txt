@@ -1,6 +1,6 @@
 audiod/src/engine.zig	698
 docs/brainstorm/js/app.js	391
-dots/.config/hypr/hyprland/keybinds.lua	447
+dots/.config/hypr/hyprland/keybinds.lua	441
 dots/.config/quickshell/koompi-quicklook/shell.qml	667
 dots/.config/quickshell/koompi/modules/common/Config.qml	827
 dots/.config/quickshell/koompi/modules/common/functions/fuzzysort.js	682
