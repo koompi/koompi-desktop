@@ -25,6 +25,7 @@ printf '[Desktop Entry]\nType=Application\nName=kwinshot\nExec=%s\nX-KDE-DBUS-Re
     "$(readlink -f "$(command -v python3)")" > "$work/xdg/data/applications/kwinshot.desktop"
 mkdir -p "$work/xdg/state/quickshell/user" "$work/xdg/config/koompi"
 echo greeted > "$work/xdg/state/quickshell/user/first_run.txt"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$work/bin/easyeffects"; chmod +x "$work/bin/easyeffects"
 if [[ -n ${SHELLSHOT_CONFIG:-} ]]; then cp -- "$SHELLSHOT_CONFIG" "$work/xdg/config/koompi/config.json"
 else echo '{"windows": {"workspaceHelp": false}}' > "$work/xdg/config/koompi/config.json"; fi
 printf '#!/usr/bin/env bash\nexit 1\n' > "$work/bin/koompi-shelld"
@@ -50,7 +51,7 @@ chmod +x "$work/inner.sh"
 
 w=${size%x*}; h=${size#*x}
 env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
-    PATH="$work/bin:$PATH" KOOMPI_SHELLD="$work/bin/koompi-shelld" QT_QPA_PLATFORM=wayland HOME="$work/home" XDG_RUNTIME_DIR="$work/rt" \
+    PATH="$work/bin:$PATH" KOOMPI_SHELLD="$work/bin/koompi-shelld" QT_QPA_PLATFORM=wayland HOME="$work/home" XDG_RUNTIME_DIR="$work/rt" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$work/no-system-bus" \
     XDG_CONFIG_HOME="$work/xdg/config" XDG_STATE_HOME="$work/xdg/state" XDG_CACHE_HOME="$work/xdg/cache" \
     XDG_DATA_HOME="$work/xdg/data" KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
     timeout 180 dbus-run-session --config-file="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)/tests/private-bus.conf" -- kwin_wayland --virtual --width "$w" --height "$h" \

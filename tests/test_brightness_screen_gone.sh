@@ -20,6 +20,7 @@ for entry in "$SHELL_ROOT"/*; do
     [[ "$(basename -- "$entry")" == shell.qml ]] || ln -s "$entry" "$WORK/shell/$(basename -- "$entry")"
 done
 echo greeted > "$WORK/xdg/state/quickshell/user/first_run.txt"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/easyeffects"; chmod +x "$WORK/bin/easyeffects"
 echo '{"windows": {"workspaceHelp": false}}' > "$WORK/xdg/config/koompi/config.json"
 printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/koompi-shelld"
 cat > "$WORK/shell/shell.qml" <<'QML'
@@ -48,7 +49,7 @@ chmod +x "$WORK/inner.sh"
 
 env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
     PATH="$WORK/bin:$PATH" HOME="$WORK/home" QT_NO_XDG_DESKTOP_PORTAL=1 KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland \
-    XDG_RUNTIME_DIR="$WORK/run" XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" \
+    XDG_RUNTIME_DIR="$WORK/run" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$WORK/no-system-bus" XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" \
     XDG_CACHE_HOME="$WORK/xdg/cache" XDG_DATA_HOME="$WORK/xdg/data" \
     timeout 120 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual \
         --width 1280 --height 800 --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1

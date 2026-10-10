@@ -27,6 +27,7 @@ trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/xdg/config/koompi" "$WORK/xdg/state/quickshell/user" "$WORK/xdg/cache" "$WORK/xdg/data" "$WORK/bin" "$WORK/home" "$WORK/rt"
 chmod 700 "$WORK/rt"
 echo greeted > "$WORK/xdg/state/quickshell/user/first_run.txt"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/easyeffects"; chmod +x "$WORK/bin/easyeffects"
 echo '{"windows": {"workspaceHelp": false}}' > "$WORK/xdg/config/koompi/config.json"
 printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/koompi-shelld"
 chmod +x "$WORK/bin/koompi-shelld"
@@ -62,7 +63,7 @@ SH
 chmod +x "$WORK/inner.sh"
 
 env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
-    PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" \
+    PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$WORK/no-system-bus" \
     XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" XDG_CACHE_HOME="$WORK/xdg/cache" \
     XDG_DATA_HOME="$WORK/xdg/data" KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
     timeout 150 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 800 \

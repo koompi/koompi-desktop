@@ -44,6 +44,7 @@ mkdir -p "$home/.local/share"
 [[ -d $HOME/.local/share/fonts ]] && ln -s "$HOME/.local/share/fonts" "$home/.local/share/fonts"
 ln -s "$repo/dots/.config/fontconfig" "$home/.config/fontconfig"
 echo greeted > "$home/.local/state/quickshell/user/first_run.txt"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$work/bin/easyeffects"; chmod +x "$work/bin/easyeffects"
 if [[ -n ${HYPRSHOT_CONFIG:-} ]]; then cp -- "$HYPRSHOT_CONFIG" "$home/.config/koompi/config.json"
 else echo '{"windows": {"workspaceHelp": false}}' > "$home/.config/koompi/config.json"; fi
 printf '#!/usr/bin/env bash\nexit 1\n' > "$work/bin/koompi-shelld"
@@ -76,7 +77,7 @@ fi
 chmod +x "$work/inner.sh"
 
 env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY \
-    HOME="$home" XDG_RUNTIME_DIR="$run" XDG_CONFIG_HOME="$home/.config" XDG_STATE_HOME="$home/.local/state" \
+    HOME="$home" XDG_RUNTIME_DIR="$run" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$run/no-system-bus" XDG_CONFIG_HOME="$home/.config" XDG_STATE_HOME="$home/.local/state" \
     XDG_CACHE_HOME="$home/.cache" PATH="$work/bin:$PATH" KOOMPI_SHELLD="$work/bin/koompi-shelld" \
     timeout 240 dbus-run-session --config-file="$harness/tests/private-bus.conf" -- kwin_wayland --virtual --width "$((w + 200))" --height "$((h + 200))" \
         --no-lockscreen --no-global-shortcuts --exit-with-session "$work/inner.sh" > "$out/kwin.log" 2>&1 || true

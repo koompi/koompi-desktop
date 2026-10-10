@@ -57,6 +57,7 @@ run_shell() {
     mkdir -p "$WORK/home" "$WORK/xdg/config/koompi" "$WORK/xdg/state/quickshell/user" "$WORK/xdg/cache" "$WORK/xdg/data" "$WORK/runtime"
     chmod 700 "$WORK/runtime"
     echo greeted > "$WORK/xdg/state/quickshell/user/first_run.txt"
+    printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/easyeffects"; chmod +x "$WORK/bin/easyeffects"
     printf '{"windows": {"workspaceHelp": false}, "ai": {"memory": {"binary": "%s/bin/memd-shadow"}}}\n' "$WORK" \
         > "$WORK/xdg/config/koompi/config.json"
     printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/koompi-shelld"
@@ -65,7 +66,7 @@ run_shell() {
         HOME="$WORK/home" SHELL_ROOT="$SHELL_ROOT" READINGS="$WORK/readings.$name" QS_LOG="$WORK/qs.$name.log" \
         MEMD_MARKER="$WORK/marker.$name" IDLE_SECONDS="$2" TRIGGER="$3" \
         PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
-        XDG_RUNTIME_DIR="$WORK/runtime" XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" \
+        XDG_RUNTIME_DIR="$WORK/runtime" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$WORK/no-system-bus" XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" \
         XDG_CACHE_HOME="$WORK/xdg/cache" XDG_DATA_HOME="$WORK/xdg/data" \
         timeout 150 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 800 \
         --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" \

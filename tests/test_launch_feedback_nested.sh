@@ -128,6 +128,7 @@ ln -s "$REPO_ROOT/dots/.config/quickshell/koompi" "$HOME_DIR/.config/quickshell/
 ln -s "$REPO_ROOT/dots/.config/fontconfig" "$HOME_DIR/.config/fontconfig"
 [[ -d "$HOME/.local/share/fonts" ]] && ln -s "$HOME/.local/share/fonts" "$HOME_DIR/.local/share/fonts"
 echo greeted > "$HOME_DIR/.local/state/quickshell/user/first_run.txt"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/easyeffects"; chmod +x "$WORK/bin/easyeffects"
 echo '{"windows": {"workspaceHelp": false}, "language": {"ui": "en_US"}}' > "$HOME_DIR/.config/koompi/config.json"
 
 # the real daemon, asked for hyprland only: network, power and the rest would reach the host's system bus
@@ -346,7 +347,7 @@ run_session() {
     chmod 700 "$RUN"
     rm -f "$WORK/readings" "$WORK/stop" "$WORK/pids" "$WORK/trace" "$WORK/logger.log" "$WORK/diag.txt" "$WORK/leaks" "$WORK/stalls"
     env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY -u QT_QPA_PLATFORM WORK="$WORK" \
-        HOME="$HOME_DIR" XDG_RUNTIME_DIR="$RUN" XDG_CONFIG_HOME="$HOME_DIR/.config" \
+        HOME="$HOME_DIR" XDG_RUNTIME_DIR="$RUN" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$WORK/no-system-bus" XDG_CONFIG_HOME="$HOME_DIR/.config" \
         XDG_STATE_HOME="$HOME_DIR/.local/state" XDG_CACHE_HOME="$HOME_DIR/.cache" XDG_DATA_HOME="$HOME_DIR/.local/share" \
         PATH="$WORK/bin:$REPO_ROOT/dots/.local/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" \
         timeout 300 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 2120 --height 1400 \
