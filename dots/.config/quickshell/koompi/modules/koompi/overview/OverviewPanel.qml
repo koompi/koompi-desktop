@@ -1,6 +1,7 @@
 import qs
 import qs.services
 import qs.modules.common
+import Quickshell.Io
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
@@ -36,6 +37,8 @@ Scope {
             WlrLayershell.keyboardFocus: GlobalStates.overviewOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
             color: "transparent"
 
+            property alias widget: overviewLoader.item
+
             mask: Region {
                 item: GlobalStates.overviewOpen ? overviewLayout : null
             }
@@ -62,32 +65,33 @@ Scope {
                 }
             }
 
-            implicitWidth: overviewLayout.implicitWidth
-            implicitHeight: overviewLayout.implicitHeight
-
-            Column {
+            Item {
                 id: overviewLayout
+                anchors.fill: parent
                 visible: GlobalStates.overviewOpen
-                anchors {
-                    horizontalCenter: parent.horizontalCenter
-                    top: parent.top
-                }
 
-                Keys.onPressed: event => {
-                    if (event.key === Qt.Key_Escape) {
-                        root.close();
-                    }
+                Rectangle {
+                    anchors.fill: parent
+                    color: Appearance.colors.colScrim
                 }
 
                 Loader {
                     id: overviewLoader
-                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.fill: parent
                     active: GlobalStates.overviewOpen && (Config?.options.overview.enable ?? true)
                     sourceComponent: OverviewWidget {
                         screen: overviewWindow.screen
                     }
                 }
             }
+        }
+    }
+
+    IpcHandler {
+        target: "overview"
+
+        function state(): string {
+            return JSON.stringify(surface.item?.widget?.snapshot() ?? {});
         }
     }
 
