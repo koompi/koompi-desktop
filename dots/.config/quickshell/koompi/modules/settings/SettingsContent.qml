@@ -32,31 +32,29 @@ Item {
         root.currentPage = root.pageIndex(name);
     }
 
+    // window shortcuts, not Keys on the layout: those stop once focus moves into a page, and
+    // Ctrl+Shift+Tab carries Shift, so a Control-only modifier test never matched it
+    Shortcut {
+        sequence: "Ctrl+PgDown"
+        onActivated: root.currentPage = Math.min(root.currentPage + 1, root.pages.length - 1)
+    }
+    Shortcut {
+        sequence: "Ctrl+PgUp"
+        onActivated: root.currentPage = Math.max(root.currentPage - 1, 0)
+    }
+    Shortcut {
+        sequences: [StandardKey.NextChild]
+        onActivated: root.currentPage = (root.currentPage + 1) % root.pages.length
+    }
+    Shortcut {
+        sequences: [StandardKey.PreviousChild]
+        onActivated: root.currentPage = (root.currentPage - 1 + root.pages.length) % root.pages.length
+    }
+
     ColumnLayout {
         anchors {
             fill: parent
             margins: contentPadding
-        }
-
-        Keys.onPressed: (event) => {
-            if (event.modifiers === Qt.ControlModifier) {
-                if (event.key === Qt.Key_PageDown) {
-                    root.currentPage = Math.min(root.currentPage + 1, root.pages.length - 1)
-                    event.accepted = true;
-                } 
-                else if (event.key === Qt.Key_PageUp) {
-                    root.currentPage = Math.max(root.currentPage - 1, 0)
-                    event.accepted = true;
-                }
-                else if (event.key === Qt.Key_Tab) {
-                    root.currentPage = (root.currentPage + 1) % root.pages.length;
-                    event.accepted = true;
-                }
-                else if (event.key === Qt.Key_Backtab) {
-                    root.currentPage = (root.currentPage - 1 + root.pages.length) % root.pages.length;
-                    event.accepted = true;
-                }
-            }
         }
 
         Item { // Titlebar
