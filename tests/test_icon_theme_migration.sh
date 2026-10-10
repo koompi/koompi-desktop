@@ -19,7 +19,7 @@ run_with() {
     printf '[Appearance]\nicon_theme=%s\nstyle=Darkly\n' "$qt6ct" > "$home/.config/qt6ct/qt6ct.conf"
     printf 'iconslight = %s\niconsdark = %s\n' "${myc%%,*}" "${myc##*,}" > "$home/.config/kde-material-you-colors/config.conf"
     HOME="$home" XDG_CONFIG_HOME="$home/.config" XDG_DATA_DIRS="$DATA_DIRS" GSETTINGS_BACKEND=keyfile \
-        bash -euo pipefail "$MIG" >/dev/null
+        bash -euo pipefail "$MIG" > "$home/migrate.out"
     printf '%s\n' "$home"
 }
 
@@ -29,6 +29,7 @@ grep -qx 'foo=bar' "$h/.config/kdeglobals" || fail "kdeglobals lost another key"
 grep -qx 'icon_theme=koompi-icons-dark' "$h/.config/qt6ct/qt6ct.conf" || fail "qt6ct did not move"
 grep -qx 'iconslight = koompi-icons' "$h/.config/kde-material-you-colors/config.conf" || fail "iconslight did not move"
 grep -qx 'iconsdark = koompi-icons-dark' "$h/.config/kde-material-you-colors/config.conf" || fail "iconsdark did not move"
+grep -qx '~/.config/qt6ct/qt6ct.conf: icon theme now koompi-icons-dark' "$h/migrate.out" || fail "the message does not name the dark theme it set: $(cat "$h/migrate.out")"
 
 h="$(run_with light breeze-plus breeze-plus breeze-plus,breeze-plus-dark)"
 grep -qx 'Theme=koompi-icons' "$h/.config/kdeglobals" || fail "light kdeglobals did not move"

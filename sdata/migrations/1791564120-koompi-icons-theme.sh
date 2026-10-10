@@ -27,9 +27,11 @@ rewrite() {
         rm -f -- "$tmp"
         return 0
     fi
+    local now
+    now="$(diff -- "$file" "$tmp" | grep -m1 -oE 'koompi-icons(-dark)?' || true)"
     cat "$tmp" > "$file"
     rm -f -- "$tmp"
-    echo "${file/#$HOME/\~}: icon theme now koompi-icons"
+    echo "${file/#$HOME/\~}: icon theme now ${now:-koompi-icons}"
 }
 
 rewrite "$config/kdeglobals" '/^\[Icons\]/,/^\[/ s/^Theme=breeze-plus(-dark)?[[:space:]]*$/Theme=koompi-icons\1/'
