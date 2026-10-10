@@ -227,7 +227,8 @@ echo "ok   title: Name= of the entry whose Exec binary crashed (user dir first, 
 
 # --- 5c. a foreign XDG_RUNTIME_DIR in COREDUMP_ENVIRON is skipped, said so ----
 
-own_dir="${XDG_RUNTIME_DIR:-/run/user/$UID}"
+own_dir="$WORK/runtime"
+export XDG_RUNTIME_DIR="$own_dir"
 environ_entry() { # environ_entry <environ text>
     entry "$UID" nested 6000 /usr/bin/nested SIGSEGV | jq -c --arg e "$1" '. + {COREDUMP_ENVIRON: $e}'
 }
