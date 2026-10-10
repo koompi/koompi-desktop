@@ -75,7 +75,7 @@ MouseArea { // Notification group area
     }
 
     function clearGroup() {
-        Notifications.discardMany(root.notifications.map(notif => notif.notificationId));
+        root.notifications.forEach(notif => Notifications.discardNotification(notif.notificationId));
     }
 
     activeFocusOnTab: clearable

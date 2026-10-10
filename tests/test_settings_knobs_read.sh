@@ -19,7 +19,8 @@ SETTINGS="$SHELL_ROOT/modules/settings"
 
 # Paths that are written from Settings and read by nothing, deliberately. Empty on
 # purpose: add a row only with the reason, never to silence a real dead knob.
-declare -a ALLOWED=()
+# the right panel stopped drawing the toggles (J21); the Settings control for their style goes with the Control Center's own settings
+declare -a ALLOWED=("sidebar.quickToggles.style")
 
 # `Config.options.a.b.c =` and `Config.options?.a.b.c =`, minus the assignment.
 written="$(grep -rhoE 'Config\.options\??(\.[A-Za-z_][A-Za-z0-9_]*\??)+[[:space:]]*=[^=]' "$SETTINGS" 2>/dev/null \

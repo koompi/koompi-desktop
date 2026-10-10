@@ -12,7 +12,7 @@ Rectangle {
     readonly property var rows: Notifications.systemRows
 
     function clearAll() {
-        root.rows.forEach(row => Notifications.discardMany(row.ids));
+        root.rows.forEach(row => row.ids.forEach(id => Notifications.discardNotification(id)));
     }
 
     visible: rows.length > 0
@@ -103,7 +103,7 @@ Rectangle {
                     visible: root.expanded
                     glyph: "close"
                     tip: Translation.tr("Clear")
-                    onClicked: Notifications.discardMany(sysRow.modelData.ids)
+                    onClicked: sysRow.modelData.ids.forEach(id => Notifications.discardNotification(id))
                 }
             }
         }

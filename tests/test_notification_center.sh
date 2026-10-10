@@ -180,7 +180,7 @@ expect() { [[ "$(reading "$1")" == "$2" ]] || { dump; fail "$3: got '$(reading "
 
 expect groups "beta:2:1,alpha:2:1" "two app groups with a clear button each, newest first"
 expect system "1 expanded=false rows=Memory shortage avoided ×6" "one collapsed System group, identical rows counted"
-echo "ok   probe: two app groups with a clear each; one collapsed System group reading x6"
+echo "ok   probe: two app groups with a clear each; one collapsed System group reading ×6"
 expect controls "0/3" "quick toggles and sliders in the panel (the header keeps its three buttons)"
 expect order "w-upnext,w-weather,w-todo,w-timer" "the widget order"
 echo "ok   probe: no quick toggles; Up next, Weather, To-do, Timer in order"
