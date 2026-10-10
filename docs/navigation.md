@@ -464,7 +464,7 @@ Two of them gain a second surface, and no new role is created.
 | Role | Change | Surface | Opened by | State |
 | --- | --- | --- | --- | --- |
 | Overview | gains the app switcher, its keyboard reflex for "take me back to that app" | `modules/koompi/appSwitcher/` | `Alt+Tab` held | `appSwitcherOpen` |
-| Overview | becomes Mission Control: the current desk's windows laid out large, a strip of occupied desks with a `+`, typing filters | `OverviewPanel.qml` | `Super+Tab`, 4-finger up and down following the fingers | `overviewOpen` |
+| Overview | becomes Mission Control: the desks in use side by side, each drawn with its tiles where they sit, plus a `+` for the next free one; click a desk, drag a window onto a desk, arrows and `Enter`, typing filters | `OverviewPanel.qml` | `Super+Tab`, 4-finger up and down | `overviewOpen` |
 | Today | the right sidebar becomes the Notification Center: date, notifications grouped by app, a System group, then the next events, weather, to-do and timer | `SidebarRight.qml` | `Super+N`, the clock | `sidebarRightOpen` |
 | Now | the left sidebar becomes one assistant: a 420 px drawer that opens the same thread in the Intelligence window | `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 

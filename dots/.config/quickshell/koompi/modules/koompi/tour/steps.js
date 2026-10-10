@@ -40,7 +40,7 @@ const steps = [
     {
         icon: "select_window",
         title: "See every window at once",
-        body: "When you lose a window, this shows all of them across all your desks, laid out small. Click one to go to it, or drag it onto another desk.",
+        body: "When you lose a window, this shows your desks side by side, each one tiled the way you left it. Click a desk or a window to go there, drag a window onto another desk to move it, or just type its name.",
         keys: ["Super", "Tab"],
         demo: "overviewOpen"
     },

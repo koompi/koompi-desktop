@@ -33,33 +33,12 @@ Press `Super+Tab` for the overview, then drag any window onto any desk.
 
 ## Seeing all of it at once
 
-`Super+Tab` lays every window on every desk out small, in one picture.
+`Super+Tab` shows your desks side by side, each one drawn the way you tiled it.
+Only the desks in use appear, each under its own number, with a `+` for the next free one.
 Four fingers up or down does the same.
 
-Click a window to go to it.
+Click a desk to go there, or click a window to go straight to it.
 Drag a window onto another desk to move it there.
-Press `Super+Tab` again, or Escape, to leave.
-
-This is what you reach for when you have lost something.
-
-## The scratchpad
-
-One more desk sits outside the ten, hidden until you ask for it.
-
-`Super+S` shows it and hides it again.
-`Super+Alt+S` sends the window you are in there.
-
-Use it for the thing you keep coming back to and do not want in the way: a chat window, a notepad, a running log.
-
-## A wallpaper for each desk
-
-Each desk can carry its own picture, and the desktop recolours itself around whichever one you are on.
-
-```sh
-koompi wallpaper status              # what each desk is set to now
-koompi wallpaper set 3 ~/Pictures/river.jpg
-koompi wallpaper seed                # give all ten a different random one
-```
-
-`Ctrl+Super+T` opens the picker for the desk you are on.
-`Ctrl+Super+Alt+T` rolls a random one for that desk and nothing else.
+The arrow keys move between desks and `Enter` goes.
+Start typing to find a window by its name, then `Enter` to jump to it.
+`Escape` clears what you typed, and closes the overview when nothing is typed.
