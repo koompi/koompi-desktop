@@ -5,7 +5,7 @@ The previous campaign is in `archive/2026-08-25-maintainability-omarchy/`.
 
 ## Status, 2026-10-10 (read this first; the tables and notes below are history)
 
-`dev` at `d13dd3503`. Open specs are in `jobs/`; finished specs and reports are in `done/`.
+`dev` at `d13dd3503`: lead suite 156 passed, 4 skipped (the baseline four), 0 failed; no test reached the easyeffects stand-in. Open specs are in `jobs/`; finished specs and reports are in `done/`.
 
 **Next, in the founder's order** (2026-10-08: "do not do all the tasks. pick the highest value first", `value_plan daily_parity_core p=0.65`). Five jobs:
 J23 Search, J17 Alt+Tab, J20 Control Center, J21 Notification Center, then J40 translations last.
