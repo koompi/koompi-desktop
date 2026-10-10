@@ -15,7 +15,7 @@ command -v node > /dev/null || { printf 'node is not installed; skipping\n'; exi
 
 FILE_SEARCH="$QS/services/FileSearch.qml" \
 SETTINGS_PAGES="$QS/services/SettingsPages.qml" \
-SETTINGS_WINDOW="$QS/settings.qml" \
+SETTINGS_WINDOW="$QS/modules/settings/SettingsContent.qml" \
 node - <<'EOF'
 const fs = require("fs");
 
@@ -67,9 +67,9 @@ const pagesSrc = fs.readFileSync(process.env.SETTINGS_PAGES, "utf8");
 const components = [...pagesSrc.matchAll(/component:\s*"([^"]+)"/g)].map(m => m[1]);
 
 check("the page list survived the move to the singleton", components.length > 10);
-check("settings.qml reads the shared list", /property var pages:\s*SettingsPages\.list/.test(fs.readFileSync(process.env.SETTINGS_WINDOW, "utf8")));
+check("the settings content reads the shared list", /property var pages:\s*SettingsPages\.list/.test(fs.readFileSync(process.env.SETTINGS_WINDOW, "utf8")));
 
-// Search hands `koompi-settings` this argument; settings.qml then resolves it
+// Search hands `koompi-settings` this argument; SettingsContent then resolves it
 // with `component.toLowerCase().includes(requested)`. An argument that matches
 // two components would silently open the wrong page.
 for (const component of components) {
