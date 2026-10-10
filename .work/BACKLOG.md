@@ -13,7 +13,7 @@ J23 Search, J17 Alt+Tab, J20 Control Center, J21 Notification Center, then J40 t
 **Deferred.** Start one only on the founder's pick. Sixteen jobs:
 J18, J19, J22, J24, J25, J26 (also needs the founder's OK on its names), J27, J28, J29, J30, J31, J32, J36, J37, J38, J39.
 
-**Open fix, not a job:** in Settings, Ctrl+PageUp/PageDown and Ctrl+Tab do nothing (founder, 2026-10-10). The handler is `Keys.onPressed` on the layout in `modules/settings/SettingsContent.qml`, so it misses keys once focus is in a page. Ctrl+Shift+Tab never matched `modifiers === Qt.ControlModifier`. Pre-existing, not from J11.
+**Fixed 2026-10-10 (`6799245a6`), not deployed:** the Settings page keys are window shortcuts. In nested Hyprland, Ctrl+Shift+Tab never moved on the seat's `settings.qml` and does now; the other three moved in both. No automated test: headless KWin lacks the virtual keyboard protocol.
 
 **Found, not acted on:**
 - Idle's stale-inhibitor cleanup runs only on `Persistent.onReadyChanged`, so it is missed when `states.json` already exists (J41).
@@ -35,7 +35,7 @@ J18, J19, J22, J24, J25, J26 (also needs the founder's OK on its names), J27, J2
 - Seeding `easyEffects` state in test HOMEs: it trips the Idle bug above (J41 uses a stand-in).
 - J08's edge strips: parked on branch `j08-edge-strips-wip`; not resumed unless picked.
 
-**Deploy state:** the seat runs `b2f06fc6b` (setup update, 2026-10-10 11:17), plus the icon theme set by hand in kdeglobals. Not deployed: the plate's qt6ct lookup (`3e28aeaa1`), J41 (the crash toast filter) and J11 (Settings in the shell). Deploying needs the founder's word.
+**Deploy state:** the seat runs `b2f06fc6b` (setup update, 2026-10-10 11:17), plus the icon theme set by hand in kdeglobals. Not deployed: the plate's qt6ct lookup (`3e28aeaa1`), J41 (the crash toast filter), J11 (Settings in the shell) and the Settings keys (`6799245a6`). Deploying needs the founder's word.
 
 ## Baseline, before any job
 
