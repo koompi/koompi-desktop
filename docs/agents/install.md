@@ -55,7 +55,7 @@ Also written:
 - `~/.config/searxng/settings.yml`, once.
 - `~/.local/share/wayland-sessions/koompi.desktop`, its `Exec=` rewritten to `~/.local/bin/koompi-session` when `/usr/bin/koompi-session` is absent.
 - `~/.claude/skills/koompi`, `~/.codex/skills/koompi`, `~/.pi/agent/skills/koompi`: symlinks to `docs/agents`, only where that harness's directory already exists.
-- The cursor (Bibata Modern Classic at 24, Adwaita until the theme is on disk), a cursor default and GTK settings through `gsettings` and `update-desktop-database` (`setups/desktop.sh`).
+- A cursor default and GTK settings through `gsettings` and `update-desktop-database` (`setups/desktop.sh`).
 - The old `xdg-desktop-portal.service.d/koompi-remotedesktop.conf` drop-in is removed if it still carries the `XDG_DESKTOP_PORTAL_DIR` override.
 
 ## System paths (sudo)
