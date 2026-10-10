@@ -49,7 +49,8 @@ fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-mkdir -p "$WORK/hypr/hyprland" "$WORK/hypr/custom" "$WORK/bin" "$WORK/shell" "$WORK/xdg/config" "$WORK/xdg/state" "$WORK/xdg/cache"
+mkdir -p "$WORK/hypr/hyprland" "$WORK/hypr/custom" "$WORK/bin" "$WORK/shell" "$WORK/xdg/config" "$WORK/xdg/state" "$WORK/xdg/cache" "$WORK/home" "$WORK/rt"
+chmod 700 "$WORK/rt"
 
 # The shapes keybinds.lua uses: a local wrapper around exec_cmd, a global, a
 # namespaced dispatcher with a table argument, a closure, a mouse drag, a submap.
@@ -114,6 +115,9 @@ if ! command -v qs > /dev/null 2>&1; then
     echo "skip: quickshell (qs) not installed, recorder checked only"
     exit 0
 fi
+for tool in kwin_wayland dbus-run-session; do
+    command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, recorder checked only"; exit 0; }
+done
 
 # symlinks, the real tree carries the assets
 for entry in "$SHELL_ROOT"/*; do
@@ -366,15 +370,27 @@ ShellRoot {
 }
 QML
 
-out="$(cd "$WORK" && PATH="$WORK/bin:$PATH" SHIM_BINDS="$WORK/binds.txt" SHIM_LOG="$WORK/shim.log" \
+cat > "$WORK/inner.sh" <<SH
+#!/usr/bin/env bash
+cd "$WORK" || exit 1
+timeout 120 qs -p "$WORK/shell/cheatsheet_probe.qml" > "$WORK/qs.log" 2>&1
+SH
+chmod +x "$WORK/inner.sh"
+
+env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
+    HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" PATH="$WORK/bin:$PATH" SHIM_BINDS="$WORK/binds.txt" SHIM_LOG="$WORK/shim.log" \
     HYPRLAND_CONFIG="$WORK/hypr/hyprland.lua" \
     XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" XDG_CACHE_HOME="$WORK/xdg/cache" \
-    timeout 120 qs -p "$WORK/shell/cheatsheet_probe.qml" 2>&1)"
+    timeout 180 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 800 \
+        --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
+out="$(cat -- "$WORK/qs.log" 2> /dev/null)"
 echo "$out" | sed -n 's/.*qml\x1b\[0m: //p;s/^ DEBUG qml: //p' | grep -E '^(PASS|FAIL|PROBE)' || true
 
 if ! grep -q "PROBE OK" <<< "$out"; then
     echo "--- probe output ---" >&2
     echo "$out" >&2
+    echo "--- kwin ---" >&2
+    tail -20 "$WORK/kwin.log" >&2
     exit 1
 fi
 echo "ok: HyprlandKeybinds merges hyprctl binds with the recorded Lua declarations and dispatches through hyprctl"

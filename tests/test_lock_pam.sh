@@ -60,7 +60,8 @@ fi
 # --- PamContext against broken configs ------------------------------------------
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-mkdir -p "$WORK/probe" "$WORK/self-contained" "$WORK/bare" "$WORK/control"
+mkdir -p "$WORK/probe" "$WORK/self-contained" "$WORK/bare" "$WORK/control" "$WORK/home" "$WORK/rt"
+chmod 700 "$WORK/rt"
 
 cat > "$WORK/probe/probe.qml" <<'QML'
 import QtQuick
@@ -89,7 +90,8 @@ QML
 
 # Runs the probe and prints its "[probe]" lines, colour stripped.
 probe() {
-    LOCK_PAM_DIR="$1" LOCK_PAM_CONFIG="$2" timeout 20 qs -p "$WORK/probe/probe.qml" 2>&1 \
+    env -u WAYLAND_DISPLAY -u DISPLAY QT_QPA_PLATFORM=offscreen HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" \
+        LOCK_PAM_DIR="$1" LOCK_PAM_CONFIG="$2" timeout 20 qs -p "$WORK/probe/probe.qml" 2>&1 \
         | sed 's/\x1b\[[0-9;]*m//g' | grep -o '\[probe\].*'
 }
 

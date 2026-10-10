@@ -2,9 +2,10 @@
 # J48: everything the desktop can do to itself is one flat index of leaves in
 # services/CommandTree.qml, reachable by typing three letters. Groups are
 # headings, not levels: there is no drilling and no back key. The static half
-# reads the sources; the probe half loads the real singleton with `qs -p`,
-# shimming koompi-hw-fingerprint and XDG_STATE_HOME so the two conditions that
-# are not already held by a service can be driven both ways.
+# reads the sources; the probe half loads the real singleton with `qs -p` in a
+# headless KWin on a private bus, shimming koompi-hw-fingerprint and
+# XDG_STATE_HOME so the two conditions that are not already held by a service
+# can be driven both ways.
 set -uo pipefail
 # extglob so the ANSI escapes qs colours its log with can be stripped by a bash
 # replacement instead of a sed round trip.
@@ -85,11 +86,15 @@ if ! command -v qs > /dev/null 2>&1; then
     echo "skip: quickshell (qs) not installed, static checks only"
     exit 0
 fi
+for tool in kwin_wayland dbus-run-session; do
+    command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, static checks only"; exit 0; }
+done
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/shell" "$WORK/bin" "$WORK/xdg/config" "$WORK/xdg/cache" \
-         "$WORK/reader/koompi/crash" "$WORK/noreader/koompi"
+         "$WORK/reader/koompi/crash" "$WORK/noreader/koompi" "$WORK/home" "$WORK/rt"
+chmod 700 "$WORK/rt"
 for entry in "$SHELL_ROOT"/*; do
     ln -s "$entry" "$WORK/shell/$(basename -- "$entry")"
 done
@@ -211,12 +216,29 @@ ShellRoot {
 }
 QML
 
+cat > "$WORK/inner.sh" <<'SH'
+#!/usr/bin/env bash
+cd "$WORK/shell" || exit 1
+timeout 60 qs -p "$PROBE_QML" > "$WORK/qs.log" 2>&1
+SH
+chmod +x "$WORK/inner.sh"
+
+nested_qs() {
+    local probe=$1
+    shift
+    rm -f "$WORK/qs.log"
+    env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
+        HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" WORK="$WORK" PROBE_QML="$probe" PATH="$WORK/bin:$PATH" "$@" \
+        timeout 120 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 800 \
+            --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
+    cat -- "$WORK/qs.log" 2> /dev/null
+}
+
 run_probe() { # $1: 1 when the shimmed reader is present, $2: the XDG_STATE_HOME to use
     printf '#!/usr/bin/env bash\nexit %s\n' "$(( $1 == 1 ? 0 : 1 ))" > "$WORK/bin/koompi-hw-fingerprint"
     chmod +x "$WORK/bin/koompi-hw-fingerprint"
-    (cd "$WORK/shell" && PATH="$WORK/bin:$PATH" PROBE_READER="$1" \
-        XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$2" XDG_CACHE_HOME="$WORK/xdg/cache" \
-        timeout 60 qs -p command_tree_probe.qml 2>&1)
+    nested_qs command_tree_probe.qml PROBE_READER="$1" \
+        XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$2" XDG_CACHE_HOME="$WORK/xdg/cache"
 }
 
 for run in 0 1; do
@@ -232,6 +254,8 @@ for run in 0 1; do
     if ! grep -q "PROBE OK" <<< "$plain"; then
         echo "--- probe output ---" >&2
         grep -vE "qmlscanner|^\s*$" <<< "$plain" >&2
+        echo "--- kwin ---" >&2
+        tail -20 "$WORK/kwin.log" >&2
         fail "the CommandTree probe did not pass with $label"
     fi
 done
@@ -296,16 +320,17 @@ ShellRoot {
 }
 QML
 
-out="$(cd "$WORK/shell" && env -u HYPRLAND_INSTANCE_SIGNATURE PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" \
+out="$(nested_qs recent_probe.qml KOOMPI_SHELLD="$WORK/bin/koompi-shelld" \
     XDG_CONFIG_HOME="$RECENT/config" XDG_STATE_HOME="$RECENT/state" XDG_CACHE_HOME="$RECENT/cache" \
-    XDG_DATA_HOME="$RECENT/data" XDG_DATA_DIRS="$RECENT/data" \
-    timeout 60 qs -p recent_probe.qml 2>&1)"
+    XDG_DATA_HOME="$RECENT/data" XDG_DATA_DIRS="$RECENT/data")"
 plain="${out//$'\e'\[*([0-9;])m/}"
 printf -- '--- recent apps ---\n'
 grep -E '^ DEBUG qml: (PASS|FAIL|VIEW|PROBE)' <<< "$plain" | sed 's/^ DEBUG qml: //' || true
 if ! grep -q "PROBE OK" <<< "$plain"; then
     echo "--- probe output ---" >&2
     grep -vE "qmlscanner|^\s*$" <<< "$plain" >&2
+    echo "--- kwin ---" >&2
+    tail -20 "$WORK/kwin.log" >&2
     fail "the recent apps probe did not pass"
 fi
 

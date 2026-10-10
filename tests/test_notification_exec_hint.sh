@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # J43: the shell honours koompi-notify-send's "koompi-exec-argv" hint. Static: the
 # invocation is the exact `bash -lc 'exec "$@"' --` form the sender's contract names,
-# and the click path calls it. Live: the Notifications singleton is driven under a
-# private bus (dbus-run-session, so the session's notification server is never
-# displaced), fed a real --exec hint and a malformed one through busctl, and the
-# argv it runs must land on disk with its spaces and dashes intact.
+# and the click path calls it. Live: the Notifications singleton is driven in a
+# headless KWin on a private bus (dbus-run-session, so the session's notification
+# server is never displaced), fed a real --exec hint and a malformed one through
+# busctl, and the argv it runs must land on disk with its spaces and dashes intact.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -57,13 +57,14 @@ else
     echo "skip: no Qt 6 qmllint at $QMLLINT"
 fi
 
-for tool in qs dbus-run-session busctl jq; do
+for tool in qs kwin_wayland dbus-run-session busctl jq; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, static checks only"; exit 0; }
 done
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-mkdir -p "$WORK/shell" "$WORK/xdg/config" "$WORK/xdg/state" "$WORK/xdg/cache"
+mkdir -p "$WORK/shell" "$WORK/xdg/config" "$WORK/xdg/state" "$WORK/xdg/cache" "$WORK/home" "$WORK/rt"
+chmod 700 "$WORK/rt"
 for entry in "$SHELL_ROOT"/*; do
     ln -s "$entry" "$WORK/shell/$(basename -- "$entry")"
 done
@@ -156,14 +157,26 @@ ShellRoot {
 }
 QML
 
-out="$(cd "$WORK/shell" && PROBE_WORK="$WORK" \
+cat > "$WORK/inner.sh" <<SH
+#!/usr/bin/env bash
+cd "$WORK/shell" || exit 1
+timeout 60 qs -p exec_hint_probe.qml > "$WORK/qs.log" 2>&1
+SH
+chmod +x "$WORK/inner.sh"
+
+env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
+    HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" PROBE_WORK="$WORK" \
     XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" XDG_CACHE_HOME="$WORK/xdg/cache" \
-    timeout 60 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- qs -p exec_hint_probe.qml 2>&1)"
+    timeout 120 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 800 \
+        --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
+out="$(cat -- "$WORK/qs.log" 2> /dev/null)"
 echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | sed -n 's/^ DEBUG qml: //p' | grep -E '^(PASS|FAIL|PROBE)' || true
 
 if ! grep -q "PROBE OK" <<< "$out"; then
     echo "--- probe output ---" >&2
     echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -vE "qmlscanner|^\s*$" >&2
+    echo "--- kwin ---" >&2
+    tail -20 "$WORK/kwin.log" >&2
     exit 1
 fi
 grep -q "Ignoring malformed koompi-exec-argv hint" <<< "$out" || fail "the malformed hint was not logged"

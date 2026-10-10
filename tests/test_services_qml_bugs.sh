@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # The services fixed in J18, driven for real without touching the session:
-# singletons load from a symlinked shell root with XDG_* in a temp dir, and the
-# binaries they call are PATH shims that log what they were asked. Services
-# that need the bus, keyring, clipboard or audio are checked at the source line.
+# singletons load from a symlinked shell root with XDG_* in a temp dir inside a
+# headless KWin on a private bus, and the binaries they call are PATH shims that
+# log what they were asked. Services that need the bus, keyring, clipboard or
+# audio are checked at the source line.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -49,10 +50,14 @@ if ! command -v qs > /dev/null 2>&1; then
     echo "skip: quickshell (qs) not installed, static checks only"
     exit 0
 fi
+for tool in kwin_wayland dbus-run-session; do
+    command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, static checks only"; exit 0; }
+done
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-mkdir -p "$WORK/shell" "$WORK/xdg/config/hypr/hyprland/scripts" "$WORK/xdg/state" "$WORK/xdg/cache" "$WORK/bin" "$WORK/out"
+mkdir -p "$WORK/shell" "$WORK/xdg/config/hypr/hyprland/scripts" "$WORK/xdg/state" "$WORK/xdg/cache" "$WORK/bin" "$WORK/out" "$WORK/home" "$WORK/rt"
+chmod 700 "$WORK/rt"
 # LatexRenderer's failure branch runs against this, not against a missing output
 # dir: MicroTeX aborts on an unwritable path (uncaught ios_base::failure), and
 # that coredump is one koompi-crash-watch would announce on every suite run.
@@ -253,15 +258,27 @@ QML
 
 [[ -x /opt/MicroTeX/LaTeX ]] || echo "note: /opt/MicroTeX/LaTeX missing, the L13 render checks will fail"
 
-out="$(cd "$WORK/shell" && PATH="$WORK/bin:$PATH" SHIM_LOG="$WORK/shim.log" SHIM_MODE="$WORK/checkupdates.mode" PROBE_WORK="$WORK" \
+cat > "$WORK/inner.sh" <<SH
+#!/usr/bin/env bash
+cd "$WORK/shell" || exit 1
+timeout 120 qs -p services_probe.qml > "$WORK/qs.log" 2>&1
+SH
+chmod +x "$WORK/inner.sh"
+
+env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
+    HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" PATH="$WORK/bin:$PATH" SHIM_LOG="$WORK/shim.log" SHIM_MODE="$WORK/checkupdates.mode" PROBE_WORK="$WORK" \
     SHIM_BATTERY="$WORK/battery.mode" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" \
     XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" XDG_CACHE_HOME="$WORK/xdg/cache" \
-    timeout 120 qs -p services_probe.qml 2>&1)"
+    timeout 240 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 800 \
+        --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
+out="$(cat -- "$WORK/qs.log" 2> /dev/null)"
 echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | sed -n 's/^ DEBUG qml: //p' | grep -E '^(PASS|FAIL|PROBE)' || true
 
 if ! grep -q "PROBE OK" <<< "$out"; then
     echo "--- probe output ---" >&2
     echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -vE "qmlscanner|^\s*$" >&2
+    echo "--- kwin ---" >&2
+    tail -20 "$WORK/kwin.log" >&2
     exit 1
 fi
 
