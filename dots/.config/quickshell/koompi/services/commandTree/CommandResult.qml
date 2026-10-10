@@ -8,8 +8,10 @@ import qs.modules.common.models
  *
  *   group      the trailing "· Toggles" label on a flat result
  *   stateText  the right-hand state column ("off", "16 px", "3")
+ *   shortcut   the keycaps of the leaf's Hyprland bind, [] when it has none
  */
 LauncherSearchResult {
     property string group: ""
     property string stateText: ""
+    property var shortcut: []
 }

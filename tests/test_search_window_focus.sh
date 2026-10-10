@@ -13,7 +13,7 @@ set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SHELL_ROOT="$REPO_ROOT/dots/.config/quickshell/koompi"
-SEARCH="$SHELL_ROOT/services/LauncherSearch.qml"
+SEARCH="$SHELL_ROOT/services/launcherSearch/WindowRows.qml"
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 

@@ -22,6 +22,8 @@ import Quickshell
  *   state()   optional; the right-hand column ("on", "16 px", "3")
  *   execute() what Enter runs
  *   verb      optional; the selected row's right-hand verb, "Run" by default
+ *   bind      optional; the description of the Hyprland bind whose chord the
+ *             row shows (CommandTree.capsFor)
  *
  * Every condition reads a property some service already keeps. None of them
  * spawns anything, so `when` and `state` are safe to re-evaluate on every
@@ -34,6 +36,7 @@ QtObject {
 
     readonly property var groups: [
         ({ id: "toggles", label: Translation.tr("Toggles") }),
+        ({ id: "capture", label: Translation.tr("Capture") }),
         ({ id: "display", label: Translation.tr("Display") }),
         ({ id: "session", label: Translation.tr("Session") }),
         ({ id: "system", label: Translation.tr("System") })
@@ -62,7 +65,10 @@ QtObject {
         Quickshell.execDetached(["koompi-launch", "--id", id, "--terminal", Config.options.apps.terminal, "--", "bash", "-c", `${script}; read -rsn1 -p 'Done. Press any key to close.'`]);
     }
 
-    readonly property var all: [
+    readonly property Captures captures: Captures {}
+    readonly property var all: root.own.concat(root.captures.all)
+
+    readonly property var own: [
         ({
             id: "toggles.night-light",
             label: Translation.tr("Night light"),
@@ -102,6 +108,7 @@ QtObject {
             group: "toggles",
             icon: "dark_mode",
             keywords: "light theme appearance night day",
+            bind: "Shell: Toggle light/dark mode",
             // services/DarkMode.qml:69 toggle, :18 dark
             state: () => DarkMode.dark ? root.on : root.off,
             execute: () => DarkMode.toggle()
@@ -169,6 +176,7 @@ QtObject {
             group: "session",
             icon: "lock",
             keywords: "lockscreen away secure loginctl",
+            bind: "Session: Lock",
             // modules/common/functions/Session.qml:21
             execute: () => Session.lock()
         }),
@@ -191,6 +199,7 @@ QtObject {
             group: "system",
             icon: "refresh",
             keywords: "restart shell quickshell hyprland qs",
+            bind: "Shell: Restart widgets",
             // dots/.local/bin/koompi-reload:29-34
             execute: () => Quickshell.execDetached(["koompi-reload"])
         }),

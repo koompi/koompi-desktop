@@ -16,7 +16,6 @@ dots/.config/quickshell/koompi/modules/koompi/wallpaperSelector/WallpaperSelecto
 dots/.config/quickshell/koompi/modules/settings/AiConfig.qml	510
 dots/.config/quickshell/koompi/modules/settings/BackgroundConfig.qml	683
 dots/.config/quickshell/koompi/scripts/colors/switchwall.sh	526
-dots/.config/quickshell/koompi/services/LauncherSearch.qml	508
 dots/.config/quickshell/koompi/services/MemoryService.qml	473
 dots/.config/quickshell/koompi/services/ai/Conversation.qml	729
 dots/.config/quickshell/koompi/services/ai/ModelRegistry.qml	403

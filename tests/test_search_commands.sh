@@ -28,15 +28,16 @@ for f in "$TREE" "$ENTRIES" "$CONDITIONS" "$RESULT" "$BASE" "$LAUNCHER" "$ITEM" 
     [[ -f "$f" ]] || fail "missing $f"
 done
 
-# LauncherSearch is allow-listed at 508 and must not grow; the wiring is one line.
+# LauncherSearch was split under the cap (J23); the leaves reach it through two calls.
 allow="$(awk -F'\t' '$1 == "dots/.config/quickshell/koompi/services/LauncherSearch.qml" { print $2 }' "$REPO_ROOT/tests/file-length-allow.txt")"
-[[ "$allow" == "508" ]] || fail "the allow-list entry for LauncherSearch.qml is '$allow', expected 508"
+[[ -z "$allow" ]] || fail "LauncherSearch.qml is still allow-listed at '$allow'; it is under the cap now"
 lines="$(wc -l < "$LAUNCHER")"
-(( lines <= 508 )) || fail "LauncherSearch.qml is $lines lines, cap is 508"
-grep -q 'CommandTree.results(root.query)' "$LAUNCHER" || fail "LauncherSearch.qml does not call CommandTree.results"
-(( $(grep -c 'CommandTree' "$LAUNCHER") == 1 )) || fail "the CommandTree wiring in LauncherSearch.qml is more than one line"
-grep -q 'return root.recentResults();' "$LAUNCHER" || fail "the empty unprefixed query no longer answers with recents"
-echo "ok   static: LauncherSearch.qml is $lines lines, wired in one line, still answers an empty query with recents"
+(( lines <= 400 )) || fail "LauncherSearch.qml is $lines lines, cap is 400"
+grep -q 'CommandTree.results(root.query)' "$LAUNCHER" || fail "LauncherSearch.qml does not call CommandTree.results for the / scope"
+grep -q 'CommandTree.blended(query)' "$LAUNCHER" || fail "LauncherSearch.qml does not blend the command tree into a plain query"
+(( $(grep -c 'CommandTree' "$LAUNCHER") == 2 )) || fail "the CommandTree wiring in LauncherSearch.qml is more than its two calls"
+grep -q 'return root.apps.recent();' "$LAUNCHER" || fail "the empty unprefixed query no longer answers with recents"
+echo "ok   static: LauncherSearch.qml is $lines lines, wired to the command tree in two calls, still answers an empty query with recents"
 
 for f in "$TREE" "$ENTRIES" "$CONDITIONS" "$RESULT" "$ITEM" "$WIDGET"; do
     lines="$(wc -l < "$f")"
@@ -153,7 +154,7 @@ ShellRoot {
         const entries = CommandTree.entries.all;
         const groupIds = CommandTree.entries.groups.map(group => group.id);
 
-        probe.check("entries: the first set is 15 to 20 leaves", [entries.length >= 15, entries.length <= 20, entries.length], [true, true, 17]);
+        probe.check("entries: the set is 20 to 30 leaves", [entries.length >= 20, entries.length <= 30, entries.length], [true, true, 24]);
         probe.check("entries: every leaf has an id, a label, a group and something to run",
             entries.filter(e => !e.id || !e.label || !e.group || typeof e.execute !== "function").map(e => e.id ?? e.label), []);
         probe.check("entries: every group is one of the declared headings",
@@ -312,8 +313,8 @@ ShellRoot {
         probe.check("recent: no row carries the Recent label itself", rows.filter(row => row.type === recent).length, 0);
         LauncherSearch.query = "alp";
         const typed = LauncherSearch.results;
-        probe.check("typed: the app is found under its own App label, with no heading",
-            [typed.some(row => row.name === "Alpha" && row.type === Translation.tr("App")), typed.filter(row => row.heading !== "").length], [true, 0]);
+        probe.check("typed: the app is found under its own App label, and the best match leads under Top Hit",
+            [typed.some(row => row.name === "Alpha" && row.type === Translation.tr("App")), typed[0].name, typed[0].heading], [true, "Alpha", "Top Hit"]);
         console.log(probe.failures === 0 ? "PROBE OK" : "PROBE FAILED " + probe.failures);
         Qt.quit();
     }
@@ -334,4 +335,4 @@ if ! grep -q "PROBE OK" <<< "$plain"; then
     fail "the recent apps probe did not pass"
 fi
 
-echo "ok   command tree: 17 leaves load with a group and a label, no id collides, a false when removes the row, 'nig' reaches night light flat and scoped, and the action scope's empty query groups them under their headings; the empty query lists recent apps under one Recent heading, not a label per row"
+echo "ok   command tree: 24 leaves load with a group and a label, no id collides, a false when removes the row, 'nig' reaches night light flat and scoped, and the action scope's empty query groups them under their headings; the empty query lists recent apps under one Recent heading, not a label per row"

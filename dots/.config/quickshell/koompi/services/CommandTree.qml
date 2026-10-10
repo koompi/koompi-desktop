@@ -1,5 +1,6 @@
 pragma Singleton
 
+import "../modules/koompi/cheatsheet/cheatsheet-binds.js" as CheatsheetBinds
 import qs.services.commandTree
 import qs.modules.common
 import qs.modules.common.models
@@ -75,9 +76,28 @@ Singleton {
         return byLabel.concat(go(root.preparedKeywords).filter(entry => !byLabel.includes(entry)));
     }
 
+    // The chord of the bind an entry names, as the keycaps the cheatsheet draws,
+    // or nothing when the entry has no key (or the bind is not on this machine).
+    function capsFor(entry): var {
+        if (!entry.bind)
+            return [];
+        const bind = HyprlandKeybinds.keybinds.find(candidate => candidate.description === entry.bind);
+        if (!bind)
+            return [];
+        const key = HyprlandKeybinds.keyOf(bind);
+        const mods = CheatsheetBinds.byModOrder(CheatsheetBinds.withoutSent(HyprlandKeybinds.modifiersOf(bind.modmask), key));
+        const names = {
+            Super: Config.options.cheatsheet.superKey || "Super"
+        };
+        return mods.concat([key]).map(name => CheatsheetBinds.keyLabel(name, names));
+    }
+
     function rowFor(entry, heading: string, showGroup: bool): var {
         return rowComp.createObject(null, {
             id: entry.id,
+            key: `command|${entry.id}`,
+            shortcut: root.capsFor(entry),
+            scopePrefix: Config.options.search.prefix.action,
             name: entry.label,
             verb: entry.verb ?? Translation.tr("Run"),
             iconName: entry.icon,
@@ -100,6 +120,11 @@ Singleton {
             }
         }
         return rows;
+    }
+
+    // Every leaf a plain query reaches, for the blended list to cap and count.
+    function blended(search: string): var {
+        return search.trim() === "" ? [] : root.matches(search).map(entry => root.rowFor(entry, "", true));
     }
 
     function results(query: string): var {
