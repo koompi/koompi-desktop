@@ -180,3 +180,4 @@ Founder-only: the pick from J14's mockups; authorising deployment to the live se
   - Alt+Tab is two binds (`0c3ab5ba4`); the J17 worker was stopped.
   - Suite before the PAM fix: 159/4/1 (`test_lock_pam`, journal shared with the J20 worker's suite).
 - Deployed 2026-10-10 20:46 (seat at `f7a81c27b`; suite 159/4/1, only test_manual_references, fixed by a test-only commit): J23 Search with the lead overrides, Alt+Tab binds, session-scoped restart, lock PAM test. Live: files match, Alt+Tab and Alt+Shift+Tab bound, the shell has 0 QML errors, two worker test shells survived the restart, Keep awake kept the founder's on.
+- J18 deployed 2026-10-10 21:10 (suite 162/4/0). Live: the bar draws the desks in use (1, 9) plus a dim new-desk slot (2), 0 QML errors. The seat's own numberMap (Chinese numerals, in every config backup) now shows all the time; left as the founder's choice.
