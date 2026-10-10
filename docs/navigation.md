@@ -177,7 +177,7 @@ Many shell binds have a second copy guarded by `qs ipc call TEST_ALIVE ||` that 
 | `Super+M` | media controls |
 | `Super+G` | widget overlay |
 | `Super+J` | bar |
-| `Ctrl+Alt+Delete` | session menu |
+| `Ctrl+Alt+Delete` | session menu: every tile is labelled; Shut down, Restart and Restart to firmware setup count down ten seconds first, and Escape or any other key cancels |
 | `Ctrl+Super+T` | wallpaper selector |
 | `Ctrl+Super+Alt+T` | random wallpaper |
 | `Ctrl+Super+Shift+D` | light/dark mode |

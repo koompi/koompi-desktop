@@ -69,7 +69,7 @@ Which one is live is shown in the top strip.
 | --- | --- |
 | `Super+L` | lock the screen |
 | `Super+Shift+L` | sleep |
-| `Ctrl+Alt+Delete` | the session menu: lock, sleep, log out, task manager, shut down, restart |
+| `Ctrl+Alt+Delete` | the session menu: lock, sleep, log out, restart, shut down, task manager, firmware setup; restart and shut down wait ten seconds, Escape cancels |
 | `Ctrl+Shift+Alt+Super+Delete` | shut down, no menu, no question |
 
 Closing the lid locks the screen unless an external monitor is attached.

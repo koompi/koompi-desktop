@@ -90,4 +90,5 @@ The **Keep awake** tile in the right-hand panel stops all four while it is on.
 `Super+Q` does, and pressing `Alt+F4` tells you so instead of ignoring you.
 
 `Ctrl+Alt+Delete` is not a rescue key.
-It opens the session menu: lock, sleep, log out, task manager, shut down, restart.
+It opens the session menu: lock, sleep, log out, restart, shut down, task manager.
+Restart and shut down count down ten seconds on screen, with Cancel selected; Escape or any other key stops the count, and "Shut down now" skips the wait.
