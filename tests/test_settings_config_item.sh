@@ -43,6 +43,7 @@ import Quickshell
 import QtQuick
 import qs.services
 import qs.modules.common
+import qs.modules.settings
 
 ShellRoot {
     id: probe
