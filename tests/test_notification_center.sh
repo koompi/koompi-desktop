@@ -147,7 +147,7 @@ note groups_after_clear "$(call probe groups)"
 
 notify-send -a alpha "alpha again" "back"
 sleep 1
-for _ in 1 2 3 4 5; do keys -k Tab; [[ $(call probe focused) == nc-group-* ]] && break; done
+for _ in $(seq 1 60); do keys -k Tab; [[ $(call probe focused) == nc-group-* ]] && break; done
 note focus_tab "$(call probe focused)"
 keys -k Return
 note expanded_after_enter "$(call probe expanded alpha)"

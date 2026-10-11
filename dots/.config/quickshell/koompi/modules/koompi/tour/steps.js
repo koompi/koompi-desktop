@@ -54,7 +54,7 @@ const steps = [
     {
         icon: "notifications",
         title: "What is waiting for you",
-        body: "Your notifications, grouped by app, with a clear button on each group. Messages from the computer itself sit in a System group at the bottom of the list. Below them: your next events, the weather, your to-do list and a timer. The switches for sound, brightness, Wi-Fi and the rest are in the Control Center, on Super+Alt+N.",
+        body: "The switches for Wi-Fi, Bluetooth, sound, brightness and the rest, with your notifications under them, grouped by app with a clear button on each group. Messages from the computer itself sit in a System group. Below that: your next events, the weather, your to-do list and a timer. Click Wi-Fi, Bluetooth or Sound to pick a network or device.",
         keys: ["Super", "N"],
         demo: "sidebarRightOpen"
     },

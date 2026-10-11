@@ -2,12 +2,13 @@
 
 ## Wi-Fi
 
-Click the sliders glyph left of the clock, or press `Super+Alt+N`, for the Control Center.
-The tile marked **Internet** shows the network you are on.
+Click the sliders glyph left of the clock, or press `Super+N`, for the panel on the right.
+The **Wi-Fi** row at the top shows the network you are on.
 
-Click the tile to turn Wi-Fi off and on.
-Right-click it and the list of networks in range appears.
+Click the row and the list of networks in range opens under it.
 Pick one, type the password if it wants one, and you are on.
+
+The switch at the row's right end turns Wi-Fi off and on.
 
 The same list lives in Settings under Network, along with a rescan button and the state of your wired connection.
 `Super+I`, then Network.

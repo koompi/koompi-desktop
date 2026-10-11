@@ -1,29 +1,30 @@
 #!/usr/bin/env bash
-# J20: the Control Center. The real ControlCenter in a probe shell, Hyprland nested in a headless KWin on a
-# private bus, real keys through wtype. It reads back, over IPC:
-#   - the fixed modules, in order, and Battery absent when Battery.available is false
-#   - every toggle reading "On" or "Off" in words
+# J53: the quick settings head the one right panel. The real SidebarRight in a probe shell, Hyprland nested in a
+# headless KWin on a private bus (1366x768), real keys through wtype. It reads back, over IPC:
+#   - the Control Center rows and the notification groups in one panel, in that order, and no quickshell:controlCenter layer
+#   - the first notification group on screen without scrolling at 1366x768
+#   - `controlCenter module wifi` opens the panel with the Wi-Fi list expanded
+#   - a click or Enter on a row with choices expands its list and does not flip it; its switch flips it
+#   - one list open at a time; Escape folds the open list, a second Escape closes the panel
 #   - Space on Do Not Disturb flips Notifications.silent and the row reads On
-#   - module("wifi") shows the network page; Escape goes back to the list; Escape again closes
 #   - the Edit page adds an optional module to the list, and it is stored in controlCenter.extraModules
-#   - opening the Control Center closes the right panel, and opening the right panel closes it
-#   - Reduce Motion takes the page slide away (a crossfade is all that is left)
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SHELL_ROOT="$REPO_ROOT/dots/.config/quickshell/koompi"
 CC="$SHELL_ROOT/modules/koompi/controlCenter"
+SR="$SHELL_ROOT/modules/koompi/sidebarRight"
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
-[[ -f "$CC/ControlCenter.qml" ]] || fail "modules/koompi/controlCenter/ControlCenter.qml does not exist"
-grep -q 'namespace: "quickshell:controlCenter"' "$CC/ControlCenter.qml" || fail "the layer namespace is not quickshell:controlCenter"
-grep -q 'name: "controlCenterToggle"' "$CC/ControlCenter.qml" || fail "no controlCenterToggle GlobalShortcut"
-grep -q 'target: "controlCenter"' "$CC/ControlCenter.qml" || fail "no controlCenter IPC target"
-grep -q 'GlobalFocusGrab.addDismissable' "$CC/ControlCenter.qml" || fail "the window does not register with GlobalFocusGrab"
-grep -q 'WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None' "$CC/ControlCenter.qml" || fail "keyboard focus is not gated on controlCenterOpen"
-grep -q 'PanelLoader { component: ControlCenter {} }' "$SHELL_ROOT/panelFamilies/KoompiFamily.qml" || fail "KoompiFamily does not load the Control Center"
-echo "ok   source: namespace, shortcut, IPC target, focus grab, gated keyboard focus, family entry"
+[[ -e "$CC/ControlCenter.qml" ]] && fail "the standalone Control Center window still exists"
+grep -rqF 'quickshell:controlCenter' "$SHELL_ROOT" "$REPO_ROOT/dots/.config/hypr" && fail "something still names the quickshell:controlCenter layer"
+grep -rq 'controlCenterOpen' "$SHELL_ROOT" && fail "controlCenterOpen still exists; nothing may open a second panel"
+grep -q 'ControlCenter {}' "$SHELL_ROOT/panelFamilies/KoompiFamily.qml" && fail "KoompiFamily still loads a Control Center"
+grep -q 'target: "controlCenter"' "$SR/SidebarRight.qml" || fail "the controlCenter IPC alias is gone"
+grep -q 'name: "controlCenterToggle"' "$SR/SidebarRight.qml" || fail "the controlCenterToggle shortcut alias is gone"
+grep -qF 'SUPER + ALT + N' "$REPO_ROOT/dots/.config/hypr/hyprland/keybinds.lua" && fail "Super+Alt+N is still bound"
+echo "ok   source: no standalone layer, no controlCenterOpen, IPC and shortcut kept as aliases of the one panel, no Super+Alt+N"
 
 for tool in Hyprland hyprctl kwin_wayland qs dbus-run-session jq wtype; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, static checks only"; exit 0; }
@@ -43,7 +44,7 @@ for entry in "$SHELL_ROOT"/*; do
 done
 
 cat > "$HOME_DIR/.config/hypr/hyprland.lua" <<'LUA'
-hl.monitor({ output = "", mode = "1280x800", position = "auto", scale = 1 })
+hl.monitor({ output = "", mode = "1366x768", position = "auto", scale = 1 })
 hl.config({ misc = { disable_watchdog_warning = true }, ecosystem = { no_update_news = true, no_donation_nag = true } })
 LUA
 
@@ -55,29 +56,43 @@ cat > "$WORK/shell/cc_probe.qml" <<'QML'
 import qs
 import qs.services
 import qs.modules.common
-import qs.modules.koompi.controlCenter
+import qs.modules.koompi.sidebarRight
 import QtQuick
 import Quickshell
 import Quickshell.Io
 
 ShellRoot {
-    ControlCenter {
-        id: cc
+    SidebarRight {
+        id: sr
     }
+    Component.onCompleted: void Notifications.silent
 
-    function rows() {
+    property int wifiFlips: 0
+
+    function walk(item, out, seen) {
+        if (!item || seen.has(item)) return;
+        seen.add(item);
+        out.push(item);
+        for (const child of item.children ?? []) walk(child, out, seen);
+        if (item.contentItem) walk(item.contentItem, out, seen);
+    }
+    function all() {
         const out = [];
-        const column = cc.content?.mainPage.column;
-        for (const child of column?.children ?? []) {
-            const row = child.objectName ? child : child.item;
-            if (row && row.objectName)
-                out.push(row);
-        }
+        walk(sr.content, out, new Set());
         return out;
     }
-
-    function row(name) {
-        return rows().find(r => r.objectName === name) ?? null;
+    function named(name) {
+        return all().find(i => i.objectName === name) ?? null;
+    }
+    function rows() {
+        return all().filter(i => /^cc-(extra-)?[A-Za-z]+$/.test(i.objectName ?? "") && !/^cc-(output|input)$/.test(i.objectName) && i.visible)
+            .sort((a, b) => {
+                const pa = a.mapToItem(sr.content, 0, 0), pb = b.mapToItem(sr.content, 0, 0);
+                return Math.round(pa.y) - Math.round(pb.y) || pa.x - pb.x;
+            });
+    }
+    function y(item) {
+        return item ? Math.round(item.mapToItem(sr.content.body.contentItem, 0, 0).y) : -1;
     }
 
     IpcHandler {
@@ -87,35 +102,44 @@ ShellRoot {
             return rows().map(r => r.objectName).join(",");
         }
         function words(): string {
-            return rows().filter(r => r.hasToggle && r.visible).map(r => `${r.objectName}=${r.stateWord}`).join(",");
+            return rows().filter(r => r.hasToggle && !r.hasSwitch).map(r => `${r.objectName}=${r.stateWord}`).join(",");
         }
-        function word(name: string): string {
-            return row(name)?.stateWord ?? "missing";
+        function order(): string {
+            const first = all().find(i => (i.objectName ?? "").startsWith("nc-group-") && i.visible);
+            return `wifi<group:${y(named("cc-wifi")) < y(first)} group<upnext:${y(first) < y(named("w-upnext"))} edit<group:${y(named("cc-edit")) < y(first)}`;
+        }
+        function firstGroup(): string {
+            const g = all().find(i => (i.objectName ?? "").startsWith("nc-group-") && i.visible);
+            if (!g) return "none";
+            const body = sr.content.body;
+            const bottom = y(g) + g.height - body.contentY;
+            return `scrolled=${Math.round(body.contentY)} bottomGap=${Math.round(body.height - bottom)} fits=${bottom <= body.height && y(g) >= body.contentY}`;
         }
         function focused(): string {
-            const item = cc.content?.Window.window?.activeFocusItem;
+            const item = sr.content?.Window.window?.activeFocusItem;
             return item ? (item.objectName || `${item}`.replace(/_QMLTYPE.*/, "")) : "none";
         }
-        function page(): string {
-            return cc.content ? `[${cc.content.page}]` : "[nocontent]";
+        function expanded(): string {
+            return `[${sr.content?.head.expanded}] open=${GlobalStates.sidebarRightOpen} drawer=[${sr.content?.drawer}]`;
         }
-        function pageType(): string {
-            return `${cc.content?.body.item}`.replace(/_QMLTYPE.*/, "");
+        function watch(): void {
+            named("cc-wifi").activated.connect(() => wifiFlips++);
+        }
+        function word(name: string): string {
+            return named(name)?.stateWord ?? "missing";
+        }
+        function flips(): string {
+            return `${wifiFlips}`;
+        }
+        function click(name: string): void {
+            const item = named(name);
+            if (item.activate) item.activate(); else item.opened();
         }
         function flags(): string {
-            return `cc=${GlobalStates.controlCenterOpen} sidebar=${GlobalStates.sidebarRightOpen} silent=${Notifications.silent}`;
-        }
-        function sidebar(open: bool): void {
-            GlobalStates.sidebarRightOpen = open;
+            return `sidebar=${GlobalStates.sidebarRightOpen} silent=${Notifications.silent}`;
         }
         function extras(): string {
             return Config.options.controlCenter.extraModules.join(",");
-        }
-        function slide(): string {
-            return `${cc.content?.slide}`;
-        }
-        function reduceMotion(on: bool): void {
-            Config.options.appearance.reduceMotion = on;
         }
     }
 }
@@ -137,68 +161,65 @@ note() { printf '%s %s\n' "$1" "$2" >> "$WORK/readings"; }
 # wtype's first keysym takes Escape's keycode, so a throwaway Shift goes first
 keys() { wtype -k Shift_R "$@"; sleep 0.8; }
 
-call controlCenter open
-sleep 2
+for app in alpha beta alpha gamma; do
+    notify-send -a "$app" "$app note" "body"
+done
+sleep 1.5
+call sidebarRight open
+sleep 2.5
 note modules "$(call probe modules)"
 note words "$(call probe words)"
+note order "$(call probe order)"
+note group_fit "$(call probe firstGroup)"
+note layers "$(hyprctl layers -j | jq -r '[.. | .namespace? // empty] | sort | join(",")')"
 note focus_open "$(call probe focused)"
 
+call probe watch
 keys -k Down
-note focus_down1 "$(call probe focused)"
+note focus_down "$(call probe focused)"
 keys -k space
 note dnd_after_space "$(call probe word cc-dnd) $(call probe flags)"
 keys -k space
-note dnd_after_second_space "$(call probe word cc-dnd) $(call probe flags)"
+note dnd_after_second_space "$(call probe flags)"
+keys -k Up
+note focus_up "$(call probe focused)"
+
+keys -k Return
+note wifi_enter "$(call probe expanded) flips=$(call probe flips)"
+keys -k Tab
+note wifi_tab "$(call probe focused)"
+keys -k space
+note wifi_space "flips=$(call probe flips)"
+keys -k Escape
+note wifi_escape "$(call probe expanded)"
+keys -k Escape
+sleep 0.5
+note panel_escape "$(call probe expanded)"
 
 call controlCenter module wifi
 sleep 1.5
-note wifi_page "$(call probe page) $(call probe pageType)"
+note module_wifi "$(call probe expanded)"
+call probe click cc-sound
+sleep 0.8
+note one_at_a_time "$(call probe expanded)"
 keys -k Escape
 sleep 0.5
-note wifi_escape "$(call probe page) $(call probe flags)"
+note sound_escape "$(call probe expanded)"
 keys -k Escape
 sleep 0.5
-note main_escape "$(call probe flags)"
 
 call controlCenter open
 sleep 1.5
-keys -k Right
-sleep 1
-note right_opens "$(call probe page) $(call probe pageType)"
-keys -k BackSpace
-sleep 0.5
-note backspace_back "$(call probe page) $(call probe focused)"
-
-for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do keys -k Down; [[ $(call probe focused) == cc-edit ]] && break; done
-note focus_edit "$(call probe focused)"
-keys -k Return
-sleep 1
-note edit_page "$(call probe page)"
+call probe click cc-edit
+sleep 1.2
+note edit_focus "$(call probe focused) $(call probe expanded)"
 keys -k Down -k Space
 sleep 1
 note edit_stored "$(call probe extras)"
 keys -k Escape
-sleep 0.8
+sleep 1
 note modules_after_edit "$(call probe modules)"
-keys -k Escape
-sleep 0.5
-
-call probe sidebar true
-sleep 0.5
-call controlCenter open
-sleep 1
-note open_closes_sidebar "$(call probe flags)"
-call probe sidebar true
-sleep 0.5
-note sidebar_closes_cc "$(call probe flags)"
-call probe sidebar false
-
-call controlCenter open
-sleep 1
-note slide_default "$(call probe slide)"
-call probe reduceMotion true
-sleep 0.5
-note slide_reduced "$(call probe slide)"
+call controlCenter close
 
 cp "$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" "$WORK/hyprland-run.log" 2> /dev/null
 kill "$qs_pid" 2> /dev/null
@@ -211,7 +232,7 @@ env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY WORK="$WORK" RE
     HOME="$HOME_DIR" XDG_RUNTIME_DIR="$RUN" XDG_CONFIG_HOME="$HOME_DIR/.config" \
     XDG_STATE_HOME="$HOME_DIR/.local/state" XDG_CACHE_HOME="$HOME_DIR/.cache" XDG_DATA_HOME="$HOME_DIR/.local/share" \
     PATH="$WORK/bin:$PATH" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
-    timeout 240 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1480 --height 1000 \
+    timeout 240 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1366 --height 768 \
         --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
 
 grep '^nested Hyprland:' "$WORK/kwin.log" | sed 's/^/note: /'
@@ -223,32 +244,33 @@ expect() { # $1: reading, $2: wanted, $3: what it proves
 
 [[ -s "$WORK/readings" ]] || { dump; fail "setup: the probe recorded nothing"; }
 
-expect modules "cc-wifi,cc-bluetooth,cc-dnd,cc-keepAwake,cc-brightness,cc-nightLight,cc-darkMode,cc-sound,cc-edit" \
-    "the fixed modules, in order, with Battery and Now Playing absent"
-echo "ok   probe: Wi-Fi, Bluetooth, Do Not Disturb, Keep awake, Display, Sound, Edit in order; no Battery without a battery"
-expect words "cc-wifi=Off,cc-dnd=Off,cc-keepAwake=Off,cc-nightLight=Off,cc-darkMode=On" "every toggle states On or Off in words"
-echo "ok   probe: every toggle row reads On or Off in words"
-expect focus_open "cc-wifi" "the first module takes the keyboard when the panel opens"
-expect focus_down1 "cc-dnd" "Down moves to the next visible module"
-echo "ok   probe: opens on Wi-Fi, Down lands on Do Not Disturb (the hidden Bluetooth is skipped)"
-expect dnd_after_space "On cc=true sidebar=false silent=true" "Space on Do Not Disturb"
-expect dnd_after_second_space "Off cc=true sidebar=false silent=false" "Space on Do Not Disturb again"
-echo "ok   probe: Space flips Notifications.silent and the row reads On, then Off"
-expect wifi_page "[wifi] CcWifiPage" "module(\"wifi\")"
-expect wifi_escape "[] cc=true sidebar=false silent=false" "Escape from a detail page"
-expect main_escape "cc=false sidebar=false silent=false" "Escape from the list"
-echo "ok   probe: module(\"wifi\") shows the network page, Escape goes back, Escape again closes"
-expect right_opens "[wifi] CcWifiPage" "Right on the Wi-Fi row"
-expect backspace_back "[] cc-wifi" "Backspace from a detail page returns to the row it left"
-echo "ok   probe: Right opens a module's page, Backspace returns focus to the same row"
-expect focus_edit "cc-edit" "arrows reach the Edit row"
-expect edit_page "[edit]" "Enter on Edit"
+expect modules "cc-wifi,cc-dnd,cc-keepAwake,cc-nightLight,cc-darkMode,cc-brightness,cc-sound,cc-edit" \
+    "the rows, in order, with Bluetooth, Battery and Now Playing absent"
+expect words "cc-dnd=Off,cc-keepAwake=Off,cc-nightLight=Off,cc-darkMode=On" "every plain toggle states On or Off in words"
+echo "ok   probe: the Control Center rows lead the one panel, toggles read On or Off in words"
+expect order "wifi<group:true group<upnext:true edit<group:true" "rows, then notification groups, then the cards"
+expect layers "quickshell:sidebarRight" "the layers: the panel is one, and no controlCenter layer"
+echo "ok   probe: rows, groups and cards in that order on one layer; no quickshell:controlCenter"
+group_fit="$(reading group_fit)"
+[[ "$group_fit" == *"scrolled=0"*"fits=true" ]] || { dump; fail "the first notification group is not on screen unscrolled at 1366x768: '$group_fit'"; }
+echo "ok   probe: the first notification group is on screen without scrolling at 1366x768 ($group_fit)"
+expect focus_open "cc-wifi" "the first row takes the keyboard when the panel opens"
+expect focus_down "cc-dnd" "Down moves to the next visible row"
+expect dnd_after_space "On sidebar=true silent=true" "Space on Do Not Disturb"
+expect dnd_after_second_space "sidebar=true silent=false" "Space on Do Not Disturb again"
+expect focus_up "cc-wifi" "Up goes back"
+echo "ok   probe: opens on Wi-Fi, Down lands on Do Not Disturb, Space flips it"
+expect wifi_enter "[wifi] open=true drawer=[] flips=0" "Enter on the Wi-Fi row expands its list and does not flip Wi-Fi"
+expect wifi_tab "cc-wifi-switch" "Tab from the row reaches its switch"
+expect wifi_space "flips=1" "Space on the switch flips Wi-Fi"
+expect wifi_escape "[] open=true drawer=[]" "Escape folds the open list first"
+expect panel_escape "[] open=false drawer=[]" "a second Escape closes the panel"
+echo "ok   probe: Enter expands, Tab reaches the switch, Space flips only there; Escape folds, Escape closes"
+expect module_wifi "[wifi] open=true drawer=[]" "controlCenter module wifi"
+expect one_at_a_time "[sound] open=true drawer=[]" "opening Sound folds Wi-Fi"
+expect sound_escape "[] open=true drawer=[]" "Escape folds the Sound list"
+echo "ok   probe: module wifi opens the panel on the Wi-Fi list; one list open at a time"
+expect edit_focus "drawer-back [] open=true drawer=[edit]" "the Edit page opens over the panel"
 expect edit_stored "screenRecord" "a checked module is stored in controlCenter.extraModules"
-expect modules_after_edit "cc-wifi,cc-bluetooth,cc-dnd,cc-keepAwake,cc-brightness,cc-nightLight,cc-darkMode,cc-sound,cc-extra-screenRecord,cc-edit" "the module chosen in Edit"
+expect modules_after_edit "cc-wifi,cc-dnd,cc-keepAwake,cc-nightLight,cc-darkMode,cc-brightness,cc-sound,cc-extra-screenRecord,cc-edit" "the module chosen in Edit"
 echo "ok   probe: Edit lists the optional modules, Space shows one, and it joins the list above Edit"
-expect open_closes_sidebar "cc=true sidebar=false silent=false" "opening the Control Center with the right panel open"
-expect sidebar_closes_cc "cc=false sidebar=true silent=false" "opening the right panel with the Control Center open"
-echo "ok   probe: opening either panel closes the other"
-expect slide_default "36" "the page slide"
-expect slide_reduced "0" "the page slide under Reduce Motion"
-echo "ok   probe: Reduce Motion removes the slide, leaving a crossfade"

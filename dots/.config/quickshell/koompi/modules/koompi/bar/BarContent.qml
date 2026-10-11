@@ -143,8 +143,8 @@ Item { // Bar content region
 
     FocusedScrollMouseArea { // Right side | scroll to change volume
         id: barRightSideMouseArea
-        // Hover and wheel only. The clock and the Control Center glyph own their clicks; a
-        // strip-wide toggle would open the Notification Center, which marks every notification read.
+        // Hover and wheel only. The clock and the sliders glyph own their clicks; a
+        // strip-wide toggle would open the panel, which marks every notification read.
         acceptedButtons: Qt.NoButton
 
         anchors {
@@ -252,25 +252,25 @@ Item { // Bar content region
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            BarPanelButton { // Control Center
+            BarPanelButton { // quick settings
                 id: controlCenterButton
                 objectName: "controlCenterButton"
                 colBackground: Appearance.colors.colBarElementBackground
-                toggled: GlobalStates.controlCenterOpen
-                tooltip: Translation.tr("Control Center")
-                onClicked: GlobalStates.controlCenterOpen = !GlobalStates.controlCenterOpen
+                toggled: GlobalStates.sidebarRightOpen
+                tooltip: Translation.tr("Quick settings")
+                onClicked: GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen
 
                 contentItem: MaterialSymbol {
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     text: "tune"
-                    fill: GlobalStates.controlCenterOpen ? 1 : 0
+                    fill: GlobalStates.sidebarRightOpen ? 1 : 0
                     iconSize: Appearance.font.pixelSize.larger
                     color: controlCenterButton.colText
                 }
             }
 
-            BarPanelButton { // clock: opens the Notification Center
+            BarPanelButton { // clock: opens the same panel
                 objectName: "clockButton"
                 Layout.rightMargin: Appearance.rounding.screenRounding - Appearance.spacing.small
                 rightPadding: 10 // room for the unread dot beside the digits

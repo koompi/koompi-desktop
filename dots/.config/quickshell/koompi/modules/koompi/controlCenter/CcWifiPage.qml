@@ -14,6 +14,25 @@ ColumnLayout {
 
     Component.onCompleted: Network.rescanWifi()
 
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.leftMargin: Appearance.spacing.normal
+        Layout.rightMargin: Appearance.spacing.normal
+        StyledText {
+            Layout.fillWidth: true
+            font.pixelSize: Appearance.font.pixelSize.smaller
+            font.weight: Font.DemiBold
+            color: Appearance.colors.colSubtext
+            text: Network.wifiEnabled ? Translation.tr("Available networks") : Translation.tr("Wi-Fi is off")
+        }
+        CcSwitch {
+            objectName: "cc-wifi-list-switch"
+            checked: Network.wifiEnabled
+            label: Translation.tr("Wi-Fi")
+            onFlipped: Network.toggleWifi()
+        }
+    }
+
     StyledIndeterminateProgressBar {
         visible: Network.wifiScanning
         Layout.fillWidth: true
@@ -35,7 +54,7 @@ ColumnLayout {
     }
 
     CcLinkRow {
-        buttonText: Translation.tr("More Wi-Fi settings")
+        buttonText: Translation.tr("More settings…")
         page: "network"
     }
 }

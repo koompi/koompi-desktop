@@ -34,13 +34,13 @@ From left to right:
 - which keyboard layout is live, English or Khmer
 - Wi-Fi
 - the battery, as a glyph with its percentage beside it, on a laptop
-- the Control Center glyph, a row of sliders
+- the quick settings glyph, a row of sliders
 - the clock
 
 Each of these is its own target.
 A click on a light turns that mode off or undoes the mute, and a click on the update glyph opens its list.
-Nothing else on the strip opens a panel: **the Control Center glyph** opens the Control Center, with the switches and sliders, and **the clock** opens the Notification Center.
-Each is drawn pressed in while its panel is open, and opening one closes the other.
+Nothing else on the strip opens a panel: **the sliders glyph** and **the clock** both open the one panel on the right, with the switches and sliders on top and your notifications under them.
+Both are drawn pressed in while it is open.
 
 Unread notifications show as a small dot on the clock.
 Do Not Disturb is its own light, and the dot stays away while it is on.

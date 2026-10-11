@@ -50,7 +50,7 @@ Singleton {
             // the recorder's own picker cannot appear under the panel, and record.sh stops a running recording itself
             mainAction: () => {
                 if (!ScreenRecording.active)
-                    GlobalStates.controlCenterOpen = false;
+                    GlobalStates.sidebarRightOpen = false;
                 Quickshell.execDetached(["bash", "-c", 'sleep 0.3; exec "$@"', "koompi-record", Directories.recordScriptPath]);
             }
         }

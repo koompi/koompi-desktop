@@ -26,7 +26,6 @@ QuickToggleModel {
     altAction: () => {
         Quickshell.execDetached(["bash", "-c", "flatpak run com.github.wwmm.easyeffects || easyeffects"])
         GlobalStates.sidebarRightOpen = false
-        GlobalStates.controlCenterOpen = false
     }
 
     tooltipText: Translation.tr("Mic noise reduction | Right-click to open EasyEffects")

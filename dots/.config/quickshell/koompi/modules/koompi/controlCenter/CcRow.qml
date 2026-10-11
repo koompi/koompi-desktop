@@ -13,9 +13,15 @@ Item {
     property bool hasToggle: true
     property bool toggled: false
     property bool hasDetail: false
+    // a row with choices: a click opens its list, and the on/off is the switch at its right end
+    property bool expandable: false
+    property bool expanded: false
+    property bool hasSwitch: false
+    // half-width tiles carry the word under the title, where it cannot squeeze the title
+    property bool stackState: false
     property string onWord: Translation.tr("On")
     property string offWord: Translation.tr("Off")
-    property bool activateOpens: !hasToggle
+    property bool activateOpens: !hasToggle || expandable
     readonly property string stateWord: !hasToggle ? "" : toggled ? onWord : offWord
     property alias trailing: trailingRow.data
 
@@ -38,14 +44,8 @@ Item {
         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
             root.activate();
             event.accepted = true;
-        } else if (event.key === Qt.Key_Right && root.hasDetail) {
+        } else if (event.key === Qt.Key_Right && (root.hasDetail || root.expandable)) {
             root.opened();
-            event.accepted = true;
-        } else if (event.key === Qt.Key_Down) {
-            root.nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason);
-            event.accepted = true;
-        } else if (event.key === Qt.Key_Up) {
-            root.nextItemInFocusChain(false).forceActiveFocus(Qt.TabFocusReason);
             event.accepted = true;
         }
     }
@@ -106,7 +106,7 @@ Item {
                 elide: Text.ElideRight
                 font.pixelSize: Appearance.font.pixelSize.smaller
                 color: Appearance.colors.colSubtext
-                text: root.detail
+                text: root.detail.length > 0 || !root.stackState ? root.detail : root.stateWord
             }
         }
 
@@ -117,18 +117,26 @@ Item {
 
         StyledText {
             objectName: "state"
-            visible: root.hasToggle
+            visible: root.hasToggle && !root.hasSwitch && !root.stackState
             font.pixelSize: Appearance.font.pixelSize.small
             font.weight: root.toggled ? Font.Bold : Font.Normal
             color: root.toggled ? Appearance.colors.colPrimary : Appearance.colors.colSubtext
             text: root.stateWord
         }
 
+        CcSwitch {
+            objectName: root.objectName + "-switch"
+            visible: root.hasSwitch
+            checked: root.toggled
+            label: root.title
+            onFlipped: root.activated()
+        }
+
         MaterialSymbol {
-            visible: root.hasDetail
+            visible: root.hasDetail || root.expandable
             iconSize: 20
             color: Appearance.colors.colSubtext
-            text: "chevron_right"
+            text: root.expandable ? (root.expanded ? "expand_less" : "expand_more") : "chevron_right"
 
             MouseArea {
                 anchors {

@@ -59,9 +59,8 @@ hl.bind("SUPER + H", hl.dsp.exec_cmd(appScratch .. " whatsapp 'web.whatsapp.com'
 hl.bind("SUPER + Y", hl.dsp.exec_cmd(appScratch .. " telegram 'org\\.telegram\\.desktop|TelegramDesktop' koompi-launch --id telegram Telegram"), { description = "App: Telegram widget" })
 hl.bind("SUPER + grave", hl.dsp.exec_cmd(appScratch .. " term 'term-scratch' 'koompi-launch --id term-scratch wezterm start --class term-scratch'"), { description = "App: Terminal widget" })
 hl.bind("SUPER + backslash", hl.dsp.exec_cmd(appScratch .. " sysmon 'sysmon-scratch' koompi-launch --id sysmon " .. hyprScripts .. "/launch_sysmon.sh"), { description = "App: System monitor widget" })
-hl.bind("SUPER + N", hl.dsp.global("quickshell:sidebarRightToggle"), { description = "Shell: Toggle right sidebar" })
+hl.bind("SUPER + N", hl.dsp.global("quickshell:sidebarRightToggle"), { description = "Shell: Quick settings and notifications" })
 -- SUPER + ALT + C, D and T open the panel straight onto a page; the same chord again backs out.
-hl.bind("SUPER + ALT + N", hl.dsp.global("quickshell:controlCenterToggle"), { description = "Shell: Control Center" })
 hl.bind("SUPER + ALT + C", hl.dsp.global("quickshell:sidebarRightCalendar"), { description = "Shell: Right sidebar - calendar" })
 hl.bind("SUPER + ALT + D", hl.dsp.global("quickshell:sidebarRightTodo"), { description = "Shell: Right sidebar - to-do list" })
 hl.bind("SUPER + ALT + T", hl.dsp.global("quickshell:sidebarRightTimer"), { description = "Shell: Right sidebar - timer" })

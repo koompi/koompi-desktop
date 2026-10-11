@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # J22: the bar's right end is in one fixed order and wired to the two panels.
-# Left to right: mode lights, update glyph, Control Center glyph, clock. The clock
-# toggles the Notification Center, the glyph the Control Center, and there is no
+# Left to right: mode lights, update glyph, sliders glyph, clock. The clock and the
+# glyph both toggle the one right panel, and there is no
 # panel button. Headless: KWin's virtual backend hosts a nested shell; the probe
 # forces the modes on, clicks the real buttons (QML click()) and reads the item
 # tree. BAR_SHOT=<path> keeps the bar image with every mode lit.
@@ -20,9 +20,8 @@ if grep -rn 'rightSidebarButton' "$SHELL_ROOT" --include='*.qml' >&2; then
     fail "something still names rightSidebarButton, the panel button this job removes"
 fi
 grep -q 'sidebarRightOpen = !GlobalStates.sidebarRightOpen' "$BAR/BarContent.qml" || fail "BarContent.qml: the clock does not toggle sidebarRightOpen"
-grep -q 'controlCenterOpen = !GlobalStates.controlCenterOpen' "$BAR/BarContent.qml" || fail "BarContent.qml: the glyph does not toggle controlCenterOpen"
+grep -q 'controlCenterOpen' "$BAR/BarContent.qml" "$VBAR/VerticalBarContent.qml" && fail "a bar button still names controlCenterOpen; there is one panel"
 grep -q 'sidebarRightOpen = !GlobalStates.sidebarRightOpen' "$VBAR/VerticalBarContent.qml" || fail "VerticalBarContent.qml: the clock does not toggle sidebarRightOpen"
-grep -q 'controlCenterOpen = !GlobalStates.controlCenterOpen' "$VBAR/VerticalBarContent.qml" || fail "VerticalBarContent.qml: the glyph does not toggle controlCenterOpen"
 for f in "$BAR/ClockWidgetPopup.qml"; do
     grep -qi 'uptime' "$f" && fail "$(basename "$f") still shows uptime; it lives in About"
 done
@@ -111,18 +110,15 @@ ShellRoot {
         const clock = probe.findNamed(win.contentItem, "clockButton");
         const cc = probe.findNamed(win.contentItem, "controlCenterButton");
         GlobalStates.sidebarRightOpen = false;
-        GlobalStates.controlCenterOpen = false;
         clock.click();
-        probe.verdict(GlobalStates.sidebarRightOpen && !GlobalStates.controlCenterOpen, "clock click opens the Notification Center only");
-        probe.verdict(clock.toggled && !cc.toggled, "clock is drawn toggled while it is open");
+        probe.verdict(GlobalStates.sidebarRightOpen, "clock click opens the one panel");
+        probe.verdict(clock.toggled && cc.toggled, "clock and glyph are both drawn toggled while it is open");
+        clock.click();
+        probe.verdict(!GlobalStates.sidebarRightOpen && !clock.toggled && !cc.toggled, "a second clock click closes it");
         cc.click();
-        probe.verdict(GlobalStates.controlCenterOpen && !GlobalStates.sidebarRightOpen, "glyph click opens the Control Center and closes the Notification Center");
-        probe.verdict(cc.toggled && !clock.toggled, "glyph is drawn toggled while the Control Center is open");
+        probe.verdict(GlobalStates.sidebarRightOpen && clock.toggled && cc.toggled, "glyph click opens the same panel");
         cc.click();
-        probe.verdict(!GlobalStates.controlCenterOpen && !GlobalStates.sidebarRightOpen, "glyph click again closes the Control Center");
-        clock.click();
-        clock.click();
-        probe.verdict(!GlobalStates.sidebarRightOpen, "clock click again closes the Notification Center");
+        probe.verdict(!GlobalStates.sidebarRightOpen, "a second glyph click closes it");
     }
 
     function checkDot(win) {

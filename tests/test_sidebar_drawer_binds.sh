@@ -27,7 +27,7 @@ count="$(wc -l <<< "$pages")"
 # Every page must be dispatched by name. The last branch is an unguarded default,
 # so a page absent here does not fall through to nothing, it falls through to the timer.
 while read -r page; do
-    grep -q "drawerPage === \"$page\"" "$CONTENT" \
+    grep -qE "drawerPage === \"$page\"|case \"$page\":" "$CONTENT" \
         || fail "page '$page' is opened by a bind but SidebarRightContent never dispatches on it, so it opens the timer instead"
 done <<< "$pages"
 
@@ -52,10 +52,9 @@ while read -r chord; do
         || fail "a drawer bind has no description and will not appear in the cheatsheet: $chord"
 done < <(grep 'quickshell:sidebarRight\(Calendar\|Todo\|Timer\)' "$BINDS")
 
-# Super+Alt+N moved to the Control Center when the panel gave its controls up.
-n_bind="$(grep -F 'SUPER + ALT + N' "$BINDS")"
-grep -q 'quickshell:controlCenterToggle' <<< "$n_bind" || fail "SUPER + ALT + N does not dispatch quickshell:controlCenterToggle: $n_bind"
-grep -q 'description = "Shell: Control Center"' <<< "$n_bind" || fail "SUPER + ALT + N is not described as 'Shell: Control Center': $n_bind"
+# One panel on the right: Super+Alt+N is gone and controlCenterToggle is only an alias.
+grep -qF 'SUPER + ALT + N' "$BINDS" && fail "SUPER + ALT + N is still bound"
+grep -q 'controlCenterToggle' "$BINDS" && fail "keybinds.lua still dispatches controlCenterToggle"
 grep -q 'sidebarRightControls' "$BINDS" "$SIDEBAR" "$CONTENT" && fail "sidebarRightControls is still named somewhere"
 
-printf 'ok: 3 drawer pages dispatched, 3 shortcuts bound, all described, Super+Alt+N opens the Control Center\n'
+printf 'ok: 3 drawer pages dispatched, 3 shortcuts bound, all described, Super+Alt+N is unbound\n'

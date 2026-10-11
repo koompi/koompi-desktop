@@ -11,6 +11,8 @@ Item {
     property string detail
     property real value: 0
     property bool hasDetail: false
+    property bool expandable: false
+    property bool expanded: false
 
     signal moved(real value)
     signal opened
@@ -29,12 +31,6 @@ Item {
             event.accepted = true;
         } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) && root.hasDetail) {
             root.opened();
-            event.accepted = true;
-        } else if (event.key === Qt.Key_Down) {
-            root.nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason);
-            event.accepted = true;
-        } else if (event.key === Qt.Key_Up) {
-            root.nextItemInFocusChain(false).forceActiveFocus(Qt.TabFocusReason);
             event.accepted = true;
         }
     }
@@ -106,7 +102,7 @@ Item {
                 visible: root.hasDetail
                 iconSize: 20
                 color: Appearance.colors.colSubtext
-                text: "chevron_right"
+                text: root.expandable ? (root.expanded ? "expand_less" : "expand_more") : "chevron_right"
                 MouseArea {
                     anchors {
                         fill: parent

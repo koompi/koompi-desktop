@@ -8,6 +8,7 @@ Rectangle {
     property string title
     property alias sourceComponent: body.sourceComponent
     property bool shown: false
+    property alias backButton: backButton
     signal dismissed
 
     property real dragX: 0
@@ -56,6 +57,8 @@ Rectangle {
             spacing: Appearance.spacing.normal
 
             RippleButton {
+                id: backButton
+                objectName: "drawer-back"
                 implicitWidth: 32
                 implicitHeight: 32
                 buttonRadius: 16

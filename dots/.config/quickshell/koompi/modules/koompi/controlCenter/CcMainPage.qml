@@ -7,42 +7,43 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Mpris
 
-Flickable {
+Item {
     id: root
 
     property alias column: column
     property var brightnessMonitor: null
+    // the row whose list is open: "wifi", "bluetooth", "sound", "power" or ""
+    property string expanded: ""
+    property var powerRow: null
     signal openPage(string name)
 
-    function reveal(item): void {
-        if (!item || !column.contains(column.mapFromItem(item, 0, 0)))
-            return;
-        const top = item.mapToItem(column, 0, 0).y;
-        const bottom = top + item.height;
-        if (top < root.contentY)
-            root.contentY = Math.max(0, top - Appearance.spacing.normal);
-        else if (bottom > root.contentY + root.height)
-            root.contentY = Math.min(root.contentHeight - root.height, bottom - root.height + Appearance.spacing.normal);
+    readonly property var owners: ({
+            "wifi": wifiRow,
+            "bluetooth": bluetoothRow,
+            "sound": soundRow
+        })
+
+    function toggleExpanded(name: string): void {
+        root.expanded = root.expanded === name ? "" : name;
+    }
+
+    // folds the open list and hands the keys back to its row; false when none was open
+    function fold(): bool {
+        const name = root.expanded;
+        if (name.length === 0)
+            return false;
+        root.expanded = "";
+        (root.owners[name] ?? root.powerRow)?.forceActiveFocus(Qt.TabFocusReason);
+        return true;
     }
 
     function focusFirst(): void {
-        column.children.find(item => item.visible && item.activeFocusOnTab)?.forceActiveFocus(Qt.TabFocusReason);
+        wifiRow.forceActiveFocus(Qt.TabFocusReason);
     }
 
-    clip: true
-    contentWidth: width
-    contentHeight: column.implicitHeight
-    boundsBehavior: Flickable.StopAtBounds
     implicitHeight: column.implicitHeight
 
     Component.onCompleted: Hyprsunset.fetchState()
-
-    Connections {
-        target: root.Window.window
-        function onActiveFocusItemChanged() {
-            root.reveal(root.Window.window.activeFocusItem);
-        }
-    }
 
     ColumnLayout {
         id: column
@@ -50,42 +51,90 @@ Flickable {
         spacing: Appearance.spacing.small
 
         CcRow {
+            id: wifiRow
             objectName: "cc-wifi"
             icon: Network.materialSymbol
             title: Translation.tr("Wi-Fi")
             detail: Network.wifiEnabled ? (Network.networkName || Translation.tr("Not connected")) : ""
             toggled: Network.wifiEnabled
-            hasDetail: true
+            expandable: true
+            hasSwitch: true
+            expanded: root.expanded === "wifi"
             onActivated: Network.toggleWifi()
-            onOpened: root.openPage("wifi")
+            onOpened: root.toggleExpanded("wifi")
+        }
+        CcExpansion {
+            objectName: "cc-list-wifi"
+            open: root.expanded === "wifi"
+            bodyHeight: 230
+            sourceComponent: CcWifiPage {}
         }
 
         CcRow {
+            id: bluetoothRow
             objectName: "cc-bluetooth"
             visible: BluetoothStatus.available
             icon: BluetoothStatus.connected ? "bluetooth_connected" : BluetoothStatus.enabled ? "bluetooth" : "bluetooth_disabled"
             title: Translation.tr("Bluetooth")
             detail: BluetoothStatus.enabled ? (BluetoothStatus.firstActiveDevice?.alias ?? Translation.tr("Not connected")) : ""
             toggled: BluetoothStatus.enabled
-            hasDetail: true
+            expandable: true
+            hasSwitch: true
+            expanded: root.expanded === "bluetooth"
             onActivated: BluetoothStatus.setEnabled(!BluetoothStatus.enabled)
-            onOpened: root.openPage("bluetooth")
+            onOpened: root.toggleExpanded("bluetooth")
+        }
+        CcExpansion {
+            objectName: "cc-list-bluetooth"
+            open: root.expanded === "bluetooth" && BluetoothStatus.available
+            bodyHeight: 230
+            sourceComponent: CcBluetoothPage {}
         }
 
-        CcRow {
-            objectName: "cc-dnd"
-            icon: "do_not_disturb_on"
-            title: Translation.tr("Do Not Disturb")
-            toggled: Notifications.silent
-            onActivated: Notifications.silent = !Notifications.silent
-        }
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: Appearance.spacing.small
+            rowSpacing: Appearance.spacing.small
+            uniformCellWidths: true
 
-        CcRow {
-            objectName: "cc-keepAwake"
-            icon: "coffee"
-            title: Translation.tr("Keep awake")
-            toggled: Idle.inhibit
-            onActivated: Idle.toggleInhibit()
+            CcRow {
+                objectName: "cc-dnd"
+                stackState: true
+                icon: "do_not_disturb_on"
+                title: Translation.tr("Do Not Disturb")
+                toggled: Notifications.silent
+                onActivated: Notifications.silent = !Notifications.silent
+            }
+
+            CcRow {
+                objectName: "cc-keepAwake"
+                stackState: true
+                icon: "coffee"
+                title: Translation.tr("Keep awake")
+                toggled: Idle.inhibit
+                onActivated: Idle.toggleInhibit()
+            }
+
+            CcRow {
+                objectName: "cc-nightLight"
+                stackState: true
+                icon: Config.options.light.night.automatic ? "night_sight_auto" : "bedtime"
+                title: Translation.tr("Night Light")
+                toggled: Hyprsunset.temperatureActive
+                hasDetail: true
+                onActivated: Hyprsunset.toggleTemperature()
+                onOpened: root.openPage("display")
+            }
+
+            CcRow {
+                objectName: "cc-darkMode"
+                stackState: true
+                icon: DarkMode.automatic ? "brightness_auto" : "contrast"
+                title: Translation.tr("Dark mode")
+                toggled: DarkMode.dark
+                onActivated: DarkMode.toggle()
+            }
         }
 
         CcSliderRow {
@@ -98,38 +147,26 @@ Flickable {
             onOpened: root.openPage("display")
         }
 
-        CcRow {
-            objectName: "cc-nightLight"
-            icon: Config.options.light.night.automatic ? "night_sight_auto" : "bedtime"
-            title: Translation.tr("Night Light")
-            detail: Config.options.light.night.automatic ? Translation.tr("Automatic") : ""
-            toggled: Hyprsunset.temperatureActive
-            hasDetail: true
-            onActivated: Hyprsunset.toggleTemperature()
-            onOpened: root.openPage("display")
-        }
-
-        CcRow {
-            objectName: "cc-darkMode"
-            icon: DarkMode.automatic ? "brightness_auto" : "contrast"
-            title: Translation.tr("Dark mode")
-            detail: DarkMode.automatic ? Translation.tr("Automatic") : ""
-            toggled: DarkMode.dark
-            onActivated: DarkMode.toggle()
-        }
-
         CcSliderRow {
+            id: soundRow
             objectName: "cc-sound"
             icon: Audio.sink?.audio?.muted ? "volume_off" : "volume_up"
             title: Translation.tr("Sound")
             detail: Audio.sink ? Audio.friendlyDeviceName(Audio.sink) : Translation.tr("No output device")
             value: Audio.sink?.audio?.volume ?? 0
             hasDetail: true
+            expandable: true
+            expanded: root.expanded === "sound"
             onMoved: v => {
                 if (Audio.sink?.audio)
                     Audio.sink.audio.volume = v;
             }
-            onOpened: root.openPage("sound")
+            onOpened: root.toggleExpanded("sound")
+        }
+        CcExpansion {
+            objectName: "cc-list-sound"
+            open: root.expanded === "sound"
+            sourceComponent: CcSoundPage {}
         }
 
         Loader {
@@ -176,9 +213,26 @@ Flickable {
 
         Repeater {
             model: Config.options.controlCenter.extraModules
-            delegate: CcExtraRow {
+            delegate: ColumnLayout {
+                id: extra
                 required property string modelData
-                type: modelData
+                Layout.fillWidth: true
+                spacing: Appearance.spacing.small
+
+                CcExtraRow {
+                    id: extraRow
+                    type: extra.modelData
+                    expandable: extra.modelData === "powerProfile"
+                    expanded: root.expanded === "power"
+                    onOpened: root.toggleExpanded("power")
+                    Component.onCompleted: if (expandable)
+                        root.powerRow = extraRow
+                }
+                CcExpansion {
+                    objectName: "cc-list-power"
+                    open: extra.modelData === "powerProfile" && root.expanded === "power"
+                    sourceComponent: CcPowerPage {}
+                }
             }
         }
 

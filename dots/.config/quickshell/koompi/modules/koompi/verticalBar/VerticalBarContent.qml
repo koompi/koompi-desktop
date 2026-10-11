@@ -136,7 +136,7 @@ Item { // Bar content region
             vertical: true
             padding: 8
             
-            Bar.BarPanelButton { // clock: opens the Notification Center
+            Bar.BarPanelButton { // clock: opens the same panel
                 objectName: "clockButton"
                 vertical: true
                 Layout.fillWidth: true
@@ -172,7 +172,7 @@ Item { // Bar content region
 
     FocusedScrollMouseArea { // Bottom section | scroll to change volume
         id: barBottomSectionMouseArea
-        // Clicks belong to the Control Center button below. This parent exists only for hover and wheel input.
+        // Clicks belong to the sliders button below. This parent exists only for hover and wheel input.
         acceptedButtons: Qt.NoButton
 
         anchors {
@@ -224,21 +224,21 @@ Item { // Bar content region
                 color: Appearance.colors.colOnLayer0
             }
 
-            Bar.BarPanelButton { // Control Center
+            Bar.BarPanelButton { // quick settings
                 id: controlCenterButton
                 objectName: "controlCenterButton"
                 colBackground: Appearance.colors.colBarElementBackground
                 vertical: true
                 Layout.bottomMargin: Appearance.rounding.screenRounding
-                toggled: GlobalStates.controlCenterOpen
-                tooltip: Translation.tr("Control Center")
-                onClicked: GlobalStates.controlCenterOpen = !GlobalStates.controlCenterOpen
+                toggled: GlobalStates.sidebarRightOpen
+                tooltip: Translation.tr("Quick settings")
+                onClicked: GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen
 
                 contentItem: MaterialSymbol {
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     text: "tune"
-                    fill: GlobalStates.controlCenterOpen ? 1 : 0
+                    fill: GlobalStates.sidebarRightOpen ? 1 : 0
                     iconSize: Appearance.font.pixelSize.larger
                     color: controlCenterButton.colText
                 }

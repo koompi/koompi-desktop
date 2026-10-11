@@ -16,6 +16,7 @@ Scope {
 
     // a drawer asked for before the content exists; the content takes it as it is built
     property string pendingDrawer: ""
+    property string pendingModule: ""
     readonly property var content: surface.item?.content ?? null
 
     function takePendingDrawer(): string {
@@ -28,6 +29,16 @@ Scope {
         if (root.pinned)
             return;
         GlobalStates.sidebarRightOpen = false;
+    }
+
+    function showModule(name: string): void {
+        if (["wifi", "bluetooth", "sound", "power", "display", "nowPlaying", "battery", "edit"].indexOf(name) < 0)
+            return;
+        if (root.content)
+            root.content.showModule(name);
+        else
+            root.pendingModule = name;
+        GlobalStates.sidebarRightOpen = true;
     }
 
     function showDrawer(page: string): void {
@@ -106,17 +117,21 @@ Scope {
                 focus: GlobalStates.sidebarRightOpen
                 Keys.onPressed: event => {
                     if (event.key === Qt.Key_Escape) {
-                        if (sidebarContentLoader.item?.drawer.length > 0) {
-                            sidebarContentLoader.item.drawer = "";
+                        if (sidebarContentLoader.item?.back())
                             return;
-                        }
                         root.hide();
                     }
                 }
 
                 sourceComponent: SidebarRightContent {}
 
-                onLoaded: item.drawer = root.takePendingDrawer()
+                onLoaded: {
+                    item.drawer = root.takePendingDrawer();
+                    const module = root.pendingModule;
+                    root.pendingModule = "";
+                    if (module.length > 0)
+                        item.showModule(module);
+                }
             }
         }
     }
@@ -139,6 +154,33 @@ Scope {
         function drawer(page: string): void {
             root.showDrawer(page);
         }
+    }
+
+    IpcHandler {
+        target: "controlCenter"
+
+        function toggle(): void {
+            GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen;
+        }
+
+        function open(): void {
+            GlobalStates.sidebarRightOpen = true;
+        }
+
+        function close(): void {
+            GlobalStates.sidebarRightOpen = false;
+        }
+
+        function module(name: string): void {
+            root.showModule(name);
+        }
+    }
+
+    GlobalShortcut {
+        name: "controlCenterToggle"
+        description: "Toggles the right panel on press (the old Control Center name)"
+
+        onPressed: GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen
     }
 
     GlobalShortcut {

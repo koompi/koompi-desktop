@@ -15,8 +15,7 @@ Five roles, and nothing else may claim a primary gesture or a bare `Super` chord
 | --- | --- | --- | --- | --- |
 | Search | "take me to a thing" | `SearchPanel.qml` | `Super` release | `searchOpen` |
 | Overview | "where are my windows" | `OverviewPanel.qml` | `Super+Tab`, 4-finger up/down | `overviewOpen` |
-| Today | "what is waiting for me" | Notification Center, right sidebar, `SidebarRight.qml` | `Super+N` | `sidebarRightOpen` |
-| Today | "what can I switch" | Control Center, `modules/koompi/controlCenter/ControlCenter.qml` | `controlCenterToggle`, IPC `controlCenter` | `controlCenterOpen` |
+| Today | "what is waiting for me, what can I switch" | the right panel, `SidebarRight.qml`: quick settings, then notifications | `Super+N` | `sidebarRightOpen` |
 | Now | "what is my work doing" | left sidebar, `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 | Launchpad | "show me everything installed" | `Launchpad.qml` | 4-finger spread only | `launchpadOpen` |
 
@@ -46,7 +45,7 @@ Notifications come first, grouped by app, each group with its own clear button (
 A System group follows, collapsed: the senders in `notifications.systemApps` (KOOMPI and the kernel's memory notices by default) land there, identical summaries fold into one row with a count such as "Memory shortage avoided ×6", and a system notice never toasts louder than normal urgency.
 Below that, four cards: Up next (the next three events across today and tomorrow), Weather (place, condition, now, today's high and low), To-do (the first three unfinished items) and Timer (the running timer, or "Start a timer").
 The Up next, To-do and Timer cards open the Calendar, To Do and Timer drawer pages, which are built only while a page is open (`Super+Alt+C`, `D` and `T` open them directly).
-The sliders, toggles and `Super+Alt+N` moved to the Control Center, the other surface of the role.
+The quick settings head the same panel; see "The quick settings" below.
 
 ## Entry points
 
@@ -59,8 +58,7 @@ The horizontal bar and the vertical bar are alternative bars, so a given session
 | Surface | Keyboard | Bar | Corner | Gesture | IPC |
 | --- | --- | --- | --- | --- | --- |
 | Left sidebar | `Super+A` | one button, hidden unless AI or translator is enabled | top-left | none | yes |
-| Notification Center (right sidebar) | `Super+N` | the clock, drawn toggled while open; a dot on it while notifications are unread | top-right | none | yes |
-| Control Center | `Super+Alt+N`, the global shortcut `controlCenterToggle` | its own sliders glyph (`tune`), left of the clock, drawn toggled while open | none | none | yes, `controlCenter` |
+| Right panel (quick settings and notifications) | `Super+N` | the clock and the sliders glyph (`tune`) left of it, both drawn toggled while open; a dot on the clock while notifications are unread | top-right | none | yes, `sidebarRight`; `controlCenter` is an alias |
 | Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up or down | yes |
 | Search | `Super` | none | none | none | yes |
 | Launchpad | none, by decision | none | none | 4-finger spread and close | yes |
@@ -76,8 +74,8 @@ The update badge is deliberately not part of any panel button: it used to sit in
 It is its own item with its own hit area, shows a glyph and never a count, and the upgrade runs only from the popup's Update now button, which opens a floating terminal running `koompi update` through Hyprland's Lua `hl.dsp.exec_cmd`.
 A bar popup hangs under the widget it belongs to and is clamped to the screen the bar is on, so the clock at the far right gets a popup that ends at the screen edge instead of running off it.
 
-The bar's right end reads, left to right: tray extras (tray, media, agent usage, a running pomodoro), the mode lights (recording, microphone in use, mic muted, volume muted, keep awake, night light, Do Not Disturb, dictation), the update glyph, the input source, Wi-Fi, the battery as a glyph with its percent, the Control Center glyph, the clock.
-Every one is its own hit area, and the only two that open a panel are the Control Center glyph and the clock.
+The bar's right end reads, left to right: tray extras (tray, media, agent usage, a running pomodoro), the mode lights (recording, microphone in use, mic muted, volume muted, keep awake, night light, Do Not Disturb, dictation), the update glyph, the input source, Wi-Fi, the battery as a glyph with its percent, the sliders glyph, the clock.
+Every one is its own hit area, and the only two that open a panel are the sliders glyph and the clock; both open the one right panel.
 No strip-wide section takes a click: the right section of the horizontal bar, and both the top and bottom sections of the vertical bar, are `acceptedButtons: Qt.NoButton`, which leaves them hover and scroll-to-change-volume or brightness, wheel behaviours that survive it.
 The vertical bar has the same wiring: the sliders glyph at the bottom, the clock as a button in the middle group.
 Text on the bar reaches 4.5:1 against the bar over the worst wallpaper pixel (`tests/test_bar_contrast.sh`); that does not hold with `bar.showBackground` off.
@@ -167,7 +165,6 @@ Many shell binds have a second copy guarded by `qs ipc call TEST_ALIVE ||` that 
 | `Super+A` | left sidebar |
 | `Super+Alt+A` | detach left sidebar |
 | `Super+N` | right sidebar |
-| `controlCenterToggle` (`Super+Alt+N` once the right-panel job rebinds it; today that chord still opens the right sidebar's controls page) | Control Center |
 | `Super+,` | dismiss the newest notification toast (it stays in the right sidebar's history) |
 | `Super+Shift+,` | dismiss every toast |
 | `Super+Alt+,` | open the newest toast: its default action, then dismissed |
@@ -315,20 +312,21 @@ The migration `sdata/migrations/*-custom-keybind-descriptions.sh` brings the des
 | `Super+Escape` | cancel dictation |
 | `Super+Alt+K` | Kiri settings |
 
-## The Control Center
+## The quick settings
 
-The machine's switches, in one 360 px panel under the bar, on the focused monitor, with the layer namespace `quickshell:controlCenter`.
-It is a surface of the Today role beside the right sidebar, and opening either closes the other (`GlobalStates.qml`).
-The window is built by `LazySurface` when `controlCenterOpen` turns on; the `GlobalShortcut` `controlCenterToggle` and the `controlCenter` IPC target (`toggle`, `open`, `close`, `module <name>`) live in the always-built `ControlCenter.qml`.
-`module` takes `wifi`, `bluetooth`, `display`, `sound`, `nowPlaying` or `battery` and opens that page.
+The machine's switches head the right panel (`Super+N`, layer `quickshell:sidebarRight`), above the notifications and the cards; the whole panel scrolls as one.
+There is no separate Control Center window and no `Super+Alt+N`.
+The `controlCenter` IPC target (`toggle`, `open`, `close`, `module <name>`) and the `controlCenterToggle` global shortcut are aliases that open this panel; `module` takes `wifi`, `bluetooth`, `sound` or `power` (expands that row's list) or `display`, `nowPlaying`, `battery` or `edit` (opens that page over the panel).
 
-The modules, top to bottom: Wi-Fi, Bluetooth (only with an adapter), Do Not Disturb, Keep awake, Display (brightness, Night Light, Dark mode), Sound (volume and the output device), Now Playing (only while a player exists), Battery (only on battery hardware), the optional modules the user chose, and Edit.
-Every switch shows its state three ways: the filled glyph on an accent plate, and the word On or Off.
+The rows, top to bottom: Wi-Fi, Bluetooth (only with an adapter), Do Not Disturb, Keep awake, Night Light, Dark mode, Brightness, Sound (volume and the output device), Now Playing (only while a player exists), Battery (only on battery hardware), the optional modules the user chose, and Edit.
+A row with choices (Wi-Fi, Bluetooth, Sound, Power profile) expands an inline list when clicked, one open at a time, and its on and off is a separate switch at its right end: Wi-Fi networks to connect to (a password prompt when needed), Bluetooth devices to connect or disconnect, sound outputs and inputs, power modes.
+Wi-Fi, Bluetooth and Sound end their list in a "More settings..." link that opens that Settings page through `koompi-settings <page>`.
+A row with no choices toggles on click, and shows its state as a filled glyph on an accent plate and the word On or Off.
 The one-shot captures (screen snip, colour picker, identify music, on-screen keyboard) are not here; they have keys and are Search commands.
 
-Keys: Up and Down (or Tab) move between modules, Space or Enter flips a switch, Right or a click on the chevron opens the module's page, Left and Right set a slider (Enter opens its page), Escape or Backspace goes back from a page, and Escape on the list closes the panel; a click outside closes it too.
-A page slides in over the list inside the same window; with Reduce Motion on it crossfades instead.
-Pages reuse the Wi-Fi network list, the Bluetooth device list and the per-app volume mixer from the right sidebar, and each ends in a "More ... settings" link that opens that Settings page through `koompi-settings <page>`.
+Keys: Tab and the arrows walk the panel from the first row through the notifications to the cards; Enter on a row with choices expands it, the arrows move inside the list, Enter picks, and Tab reaches the row's switch, where Space flips it.
+Escape folds the open list first; a second Escape closes the panel.
+Display, Now Playing, Battery and Edit open as pages over the panel, like the Calendar drawer, and Escape or Back returns.
 
 Edit lists every optional module with Shown or Hidden: Screen recording (on while a recording runs), Game mode, Power profile, Mic noise reduction (EasyEffects), Cloudflare WARP, Anti-flashbang and Audio input.
 The choice is `controlCenter.extraModules`, seeded once by `sdata/migrations/*-control-center-modules.sh` from the types in the user's stored `sidebar.quickToggles.android.toggles`.
@@ -376,7 +374,6 @@ Conformance as of 2026-07-30:
 | Search | dismissable | gated on `searchOpen` |
 | Overview | dismissable | gated on `overviewOpen` |
 | Right sidebar | dismissable | gated on `sidebarRightOpen` |
-| Control Center | dismissable | gated on `controlCenterOpen` |
 | Left sidebar | dismissable | unconditional `OnDemand`, harmless because the window is gated on `sidebarLeftOpen` |
 | Wallpaper selector | dismissable | unconditional `OnDemand`, window gated by its loader |
 | Media controls | dismissable | not set |
@@ -475,8 +472,7 @@ Two of them gain a second surface, and no new role is created.
 | Today | the right sidebar becomes the Notification Center: date, notifications grouped by app, a System group, then the next events, weather, to-do and timer | `SidebarRight.qml` | `Super+N`, the clock | `sidebarRightOpen` |
 | Now | the left sidebar becomes one assistant: a 420 px drawer that opens the same thread in the Intelligence window | `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 
-The Control Center and the Notification Center are one role on two surfaces because they answer one question, what the machine is doing, from the same edge.
-Opening either closes the other.
+Quick settings and notifications answer one question, what the machine is doing, so they share one panel on the right edge.
 The app switcher joins Overview rather than founding a role: it answers "where are my windows" for the one window you want, and it claims no `Super` chord.
 
 ### Entry points
@@ -484,12 +480,12 @@ The app switcher joins Overview rather than founding a role: it answers "where a
 | Surface | Keyboard | Bar | Corner | Gesture | IPC |
 | --- | --- | --- | --- | --- | --- |
 | App switcher | `Alt+Tab`, `Alt+Shift+Tab` while held; a quick tap switches to the previous app without drawing | none | none | none | yes, `appSwitcher` |
-| Notification Center | `Super+N` | the clock; a dot on it while notifications are unread | top-right | none | yes, `sidebarRight` |
+| Right panel | `Super+N` | the clock and the sliders glyph; a dot on the clock while notifications are unread | top-right | none | yes, `sidebarRight` |
 | Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up or down toggles it | yes |
 | Assistant drawer | `Super+A`; its header's Open in window hands the thread to `Super+Shift+I`'s window | one button, as today | top-left | none | yes |
 
 The panel button that wrapped the status indicators is gone.
-The clock and the Control Center glyph are the only bar targets that open a panel, and the update glyph keeps its own hit area beside them.
+The clock and the sliders glyph are the only bar targets that open a panel, and the update glyph keeps its own hit area beside them.
 `Super+Alt+A` (detach left sidebar) is removed: the assistant comes in two sizes, the drawer and the Intelligence window.
 
 ### Keyboard map
