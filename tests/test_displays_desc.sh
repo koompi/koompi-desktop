@@ -165,5 +165,16 @@ persist eDP-1 60
 [[ "$(keys)" == '"desc:BOE 0x0CE0" ' ]] || fail "a disabled monitor with no old rule got one: $(keys)"
 end_case "a disabled monitor keeps its old rule and gets none otherwise"
 
+fresh
+printf -- '-- old\n\nhl.monitor({\n    output = "desc:WAM HDMI 18250023",\n    mode = "1920x1080@60",\n    position = "1920x0",\n    scale = 1.25,\n    vrr = 1,\n    bitdepth = 10,\n    cm = "hdr",\n    icc = "/home/x/a b.icc"\n})\n' > "$lua"
+persist HDMI-A-1
+grep -qE '^    vrr = 1,?$' "$lua" && grep -q '^    bitdepth = 10,$' "$lua" && grep -q '^    cm = "hdr",$' "$lua" && grep -qF '    icc = "/home/x/a b.icc"' "$lua" \
+    || fail "hand-written vrr, bitdepth, cm or icc were dropped from the saved rule: $(cat "$lua")"
+first="$(cat "$lua")"
+persist HDMI-A-1
+[[ "$(cat "$lua")" == "$first" ]] || fail "a second save changed a rule with hand-written keys: $(cat "$lua")"
+[[ -z "${luac_path:-}" ]] || "$luac_path" -p "$lua" || fail "the file with carried keys is not valid lua"
+end_case "hand-written vrr, bitdepth, cm and icc survive a save"
+
 (( failed )) && exit 1
 echo "ok   displays desc: rules follow the display, absent displays keep theirs, mirrors follow their source, the same monitors write the same file"
