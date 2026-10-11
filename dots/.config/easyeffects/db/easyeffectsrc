@@ -1,7 +1,8 @@
 # Seed only. EasyEffects owns this file from its first run and drops comments.
-# Stock plugin defaults: rnnoise denoises the mic, the limiter catches peaks.
+# The mic goes through RNNoise; the speakers get no effects. (The limiter that sat
+# here needs lsp-plugins-lv2, which nothing installs, so it never ran.)
 [StreamInputs]
 plugins=rnnoise#0
 
 [StreamOutputs]
-plugins=limiter#0
+plugins=

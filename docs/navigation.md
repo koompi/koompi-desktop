@@ -330,7 +330,7 @@ Keys: Up and Down (or Tab) move between modules, Space or Enter flips a switch, 
 A page slides in over the list inside the same window; with Reduce Motion on it crossfades instead.
 Pages reuse the Wi-Fi network list, the Bluetooth device list and the per-app volume mixer from the right sidebar, and each ends in a "More ... settings" link that opens that Settings page through `koompi-settings <page>`.
 
-Edit lists every optional module with Shown or Hidden: Screen recording (on while a recording runs), Game mode, Power profile, EasyEffects, Cloudflare WARP, Anti-flashbang and Audio input.
+Edit lists every optional module with Shown or Hidden: Screen recording (on while a recording runs), Game mode, Power profile, Mic noise reduction (EasyEffects), Cloudflare WARP, Anti-flashbang and Audio input.
 The choice is `controlCenter.extraModules`, seeded once by `sdata/migrations/*-control-center-modules.sh` from the types in the user's stored `sidebar.quickToggles.android.toggles`.
 `tests/test_control_center.sh` drives all of this with real keys in a nested Hyprland.
 
