@@ -52,11 +52,14 @@ run_suite() {
 opens_empty() {
     local name=$1 bin=$2
     [[ -x "$bin" ]] || return 0
-    [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] \
-        || { skip "no compositor; cannot check the $name startup payload"; return 0; }
     printf -- '--- %s startup payload\n' "$name"
-    local got
-    got=$(dbus-run-session -- sh -c "sleep 5 | timeout 5 '$bin' 2> /dev/null | head -n 1")
+    local got status
+    got=$("$ROOT/tests/with-nested-hyprland.sh" dbus-run-session --config-file="$ROOT/tests/private-bus.conf" -- sh -c "sleep 10 | timeout 10 '$bin' 2> /dev/null | head -n 1")
+    status=$?
+    if [[ $status == 77 ]]; then
+        skip "no Hyprland or kwin_wayland; cannot check the $name startup payload"
+        return 0
+    fi
     [[ $got == '{"items":[],"gen":1}' ]] \
         || fail "$name daemon opened with '$got', not the empty payload the shell waits for"
     ran=$((ran + 1))
@@ -65,6 +68,11 @@ opens_empty() {
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
+if command -v zig > /dev/null; then
+    printf -- '--- zig build (zig daemon)\n'
+    ( cd "$ROOT/dots/.config/quickshell/koompi/scripts/global-menu" && zig build ) > "$tmp/zig.log" 2>&1 \
+        || { tail -20 "$tmp/zig.log"; fail "the zig daemon did not build"; }
+fi
 run_suite zig "$ZIG_BIN"
 # Build the rust daemon here when cargo can, so the conformance suite (and its
 # RegisterWindow timing check) runs from a clean checkout and in CI, and always

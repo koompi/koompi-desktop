@@ -21,6 +21,7 @@ trap 'rm -rf "$tmp"' EXIT
 fake="$tmp/repo"
 mkdir -p "$fake/sdata/dist-arch"
 cp -a "$REPO_ROOT/dots" "$fake/dots"
+cp -a "$REPO_ROOT/sdata/migrations" "$fake/sdata/migrations"
 cp -a "$REPO_ROOT/sdata/dist-arch/koompi-shell" "$fake/sdata/dist-arch/"
 cp -a "$REPO_ROOT/sdata/dist-arch/koompi-hyprland-config" "$fake/sdata/dist-arch/"
 

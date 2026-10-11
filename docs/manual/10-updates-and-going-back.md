@@ -9,9 +9,9 @@ koompi update
 That is the whole thing.
 There are two ways a KOOMPI desktop can be installed, and the command works out which one you have and does the right thing for it.
 
-When updates are waiting, a count appears in the top strip.
-Click it and the same command runs in a terminal window.
-Middle-click it to check again.
+When updates are waiting, an update icon appears in the top strip.
+Click it for a card that says how many packages can be updated, then press Update now and the same command runs in a terminal window.
+Check again, or a middle-click on the icon, looks again.
 
 Useful flags:
 
@@ -38,6 +38,13 @@ That means a better default shipped later would never reach you, so each update 
 
 Your own choices win every time there is a disagreement.
 
+## One-time fixes
+
+Some fixes cannot reach a machine that is already set up, because they change files in your own home folder.
+Those ship as small one-time fixes, and each update runs the ones you have not had yet, in the same window, before it restarts the shell.
+`koompi update --dry-run` lists them.
+If one fails, the update says which and ends with an error, and the fix is offered again when you next log in.
+
 ## Snapshots
 
 On a KOOMPI OS install, the disk is btrfs and the system can be photographed before it changes.
@@ -55,6 +62,27 @@ It prints the remaining steps and leaves them to you, because rolling a running 
 
 On a machine that is not btrfs, or was installed from a git checkout, every one of these commands says so and exits without doing anything.
 Nothing breaks; there is simply nothing to snapshot.
+
+## Going back on a git install
+
+A machine installed from a checkout (`./setup install`) has no snapshot, so going back is by hand.
+There is no single command for it.
+
+Every install and update copies what it is about to change into a hidden folder in your home directory (its name ends in `dots-backup`), one subfolder per run, so your own edits are never the only copy.
+The shell and Hyprland trees are mirrored from the checkout, so putting the checkout back puts them back:
+
+```sh
+cd "$(cat ~/.local/state/koompi/repo-path)"
+git log --oneline -10          # find the commit you want
+git checkout <commit>
+./setup update                 # a detached checkout is not pulled, only re-applied
+```
+
+To follow upstream again, `git checkout <branch>` and run `koompi update`.
+The config defaults an update merged stay merged: copy `~/.config/koompi/config.json.bak-<timestamp>` over `config.json` to undo that.
+One-time fixes are not reversed.
+
+`./setup uninstall` removes the files the installer recorded and leaves your packages alone.
 
 ## When something is wrong
 

@@ -42,8 +42,8 @@ hl.bind("SUPER_L", hl.dsp.global("quickshell:workspaceNumber"),
 hl.bind("SUPER_R", hl.dsp.global("quickshell:workspaceNumber"),
     { ignore_mods = true, transparent = true, release = true }) -- # [hidden]
 hl.bind("SUPER + Tab", hl.dsp.global("quickshell:overviewWorkspacesToggle"), { description = "Shell: Toggle overview" })
-hl.bind("SUPER + V", hl.dsp.global("quickshell:overviewClipboardToggle"), { description = "Utilities: Clipboard history >> clipboard" })
-hl.bind("SUPER + Period", hl.dsp.global("quickshell:overviewEmojiToggle"), { description = "Utilities: Emoji >> clipboard" })
+hl.bind("SUPER + V", hl.dsp.global("quickshell:overviewClipboardToggle"), { description = "Utilities: Clipboard history" })
+hl.bind("SUPER + Period", hl.dsp.global("quickshell:overviewEmojiToggle"), { description = "Utilities: Emoji picker" })
 hl.bind("SUPER + A", hl.dsp.global("quickshell:sidebarLeftToggle"), { description = "Shell: Toggle left sidebar" })
 hl.bind("SUPER + ALT + A", hl.dsp.global("quickshell:sidebarLeftToggleDetach"), { description = "Shell: Detach left sidebar" })
 -- The full window grabs the keyboard exclusively, so without a chord that closes
@@ -54,17 +54,13 @@ hl.bind("SUPER + SHIFT + W", app("brave", "brave"), { description = "App: Brave 
 -- Okular has no plugin API, so enrolment cannot live in its menus; a global
 -- bind is the nearest thing that works while a PDF is focused.
 hl.bind("SUPER + SHIFT + E", app("koompi-signature", "koompi-signature capture"), { description = "App: Capture signature" })
-hl.bind("SUPER + SHIFT + D", hl.dsp.exec_cmd(appScratch .. " discord 'discord' koompi-launch --id discord discord"), { description = "App: Discord widget" })
-hl.bind("SUPER + H", hl.dsp.exec_cmd(appScratch .. " whatsapp 'web.whatsapp.com' koompi-launch --id whatsapp " .. hyprScripts .. "/launch_whatsapp_web.sh"), { description = "App: WhatsApp widget" })
-hl.bind("SUPER + T", hl.dsp.exec_cmd(appScratch .. " telegram 'org\\.telegram\\.desktop|TelegramDesktop' koompi-launch --id telegram " .. hyprScripts .. "/launch_telegram.sh"), { description = "App: Telegram widget" })
-hl.bind("SUPER + grave", hl.dsp.exec_cmd(appScratch .. " term 'term-scratch' 'koompi-launch --id term-scratch wezterm start --class term-scratch'"), { description = "App: Terminal widget" })
-hl.bind("SUPER + backslash", hl.dsp.exec_cmd(appScratch .. " sysmon 'sysmon-scratch' koompi-launch --id sysmon " .. hyprScripts .. "/launch_sysmon.sh"), { description = "App: System monitor widget" })
--- SUPER + O is reserved for Quickwork and stays unbound until it exists.
--- The left sidebar keeps SUPER + A.
-hl.bind("SUPER + N", hl.dsp.global("quickshell:sidebarRightToggle"), { description = "Shell: Toggle right sidebar" })
--- SUPER + ALT is one level deeper than SUPER + N: the panel opens straight onto
--- the page instead of onto its summary. Same chord again backs out.
-hl.bind("SUPER + ALT + N", hl.dsp.global("quickshell:sidebarRightControls"), { description = "Shell: Right sidebar - all controls" })
+hl.bind("SUPER + SHIFT + D", hl.dsp.exec_cmd(appScratch .. " discord 'discord' koompi-launch --id discord discord"), { description = "Scratchpad: Discord" })
+hl.bind("SUPER + H", hl.dsp.exec_cmd(appScratch .. " whatsapp 'web.whatsapp.com' koompi-launch --id whatsapp " .. hyprScripts .. "/launch_whatsapp_web.sh"), { description = "Scratchpad: WhatsApp" })
+hl.bind("SUPER + T", hl.dsp.exec_cmd(appScratch .. " telegram 'org\\.telegram\\.desktop|TelegramDesktop' koompi-launch --id telegram " .. hyprScripts .. "/launch_telegram.sh"), { description = "Scratchpad: Telegram" })
+hl.bind("SUPER + grave", hl.dsp.exec_cmd(appScratch .. " term 'term-scratch' 'koompi-launch --id term-scratch wezterm start --class term-scratch'"), { description = "Scratchpad: Terminal" })
+hl.bind("SUPER + backslash", hl.dsp.exec_cmd(appScratch .. " sysmon 'sysmon-scratch' koompi-launch --id sysmon " .. hyprScripts .. "/launch_sysmon.sh"), { description = "Scratchpad: System monitor" })
+hl.bind("SUPER + N", hl.dsp.global("quickshell:sidebarRightToggle"), { description = "Shell: Quick settings and notifications" })
+-- SUPER + ALT + C, D and T open the panel straight onto a page; the same chord again backs out.
 hl.bind("SUPER + ALT + C", hl.dsp.global("quickshell:sidebarRightCalendar"), { description = "Shell: Right sidebar - calendar" })
 hl.bind("SUPER + ALT + D", hl.dsp.global("quickshell:sidebarRightTodo"), { description = "Shell: Right sidebar - to-do list" })
 hl.bind("SUPER + ALT + T", hl.dsp.global("quickshell:sidebarRightTimer"), { description = "Shell: Right sidebar - timer" })
@@ -104,8 +100,8 @@ hl.bind("CTRL + SUPER + ALT + T", hl.dsp.global("quickshell:wallpaperSelectorRan
 hl.bind("CTRL + SUPER + SHIFT + D", hl.dsp.global("quickshell:toggleLightDark"),
     { description = "Shell: Toggle light/dark mode" })
 hl.bind("CTRL + SUPER + T", hl.dsp.exec_cmd(qsIsAlive .. " || " .. qsScripts .. "/colors/switchwall.sh")) -- # [hidden] fallback
--- Wayland override needed: env.lua sets xcb session-wide and the respawned shell
--- maps no layer surfaces at all. killall -w so it does not race the old instance.
+-- pinned to wayland as in execs.lua: a shell on xcb maps no layer surfaces at all
+-- killall -w so it does not race the old instance
 hl.bind("CTRL + SUPER + R", hl.dsp.exec_cmd(
         "killall -w global-menu-daemon qs quickshell; hyprctl reload; env QT_QPA_PLATFORM=wayland qs -c $qsConfig &"),
     { description = "Shell: Restart widgets" })
@@ -124,7 +120,7 @@ hl.bind("SUPER + SHIFT + A", hl.dsp.global("quickshell:regionSearch"), { descrip
 hl.bind("SUPER + SHIFT + A", hl.dsp.exec_cmd(qsIsAlive .. " || pidof slurp || " .. hyprScripts .. "/snip_to_search.sh")) -- # [hidden] fallback
 --# OCR
 hl.bind("SUPER + SHIFT + X", hl.dsp.global("quickshell:regionOcr"),
-    { description = "Utilities: Character recognition >> clipboard" })
+    { description = "Utilities: Copy text from the screen" })
 hl.bind("SUPER + SHIFT + T", hl.dsp.global("quickshell:screenTranslate"),
     { description = "Utilities: Translate screen content" })
 hl.bind("SUPER + SHIFT + X", hl.dsp.exec_cmd( -- # [hidden] fallback
@@ -133,7 +129,7 @@ hl.bind("SUPER + SHIFT + X", hl.dsp.exec_cmd( -- # [hidden] fallback
 ))
 --# Color picker
 hl.bind("SUPER + SHIFT + C", hl.dsp.exec_cmd("hyprpicker -a"),
-    { description = "Utilities: Pick color #RRGGBB >> clipboard" })
+    { description = "Utilities: Pick a color and copy its hex code" })
 --# Recording stuff
 hl.bind("SUPER + SHIFT + R", hl.dsp.global("quickshell:regionRecord"),
     { locked = true, description = "Utilities: Record region (no sound)" })
@@ -150,7 +146,7 @@ local grimhyprctl = "grim -o \"$(hyprctl activeworkspace -j | jq -r '.monitor')\
 -- Print opens the snip UI so you can drag a region or hit "Full screen", rather
 -- than silently grabbing everything. SHIFT + Print keeps the old one-shot grab.
 hl.bind("Print", hl.dsp.global("quickshell:regionScreenshot"),
-    { locked = true, description = "Utilities: Screenshot (region or full screen)" })
+    { locked = true, description = "Utilities: Screen snip" })
 hl.bind("Print", hl.dsp.exec_cmd(qsIsAlive .. " || (" ..
     "d=$(xdg-user-dir PICTURES)/Screenshots/\"$(date '+%Y-%m-%d')\" && mkdir -p \"$d\" && " ..
     "f=\"$d\"/Screenshot_\"$(date '+%Y-%m-%d_%H.%M.%S')\".png && " ..
@@ -160,11 +156,11 @@ hl.bind("SHIFT + Print", hl.dsp.exec_cmd(
     "d=$(xdg-user-dir PICTURES)/Screenshots/\"$(date '+%Y-%m-%d')\" && mkdir -p \"$d\" && " ..
     "f=\"$d\"/Screenshot_\"$(date '+%Y-%m-%d_%H.%M.%S')\".png && " ..
     grimhyprctl .. " \"$f\" && wl-copy < \"$f\" && notify-send 'Screenshot saved' \"$f\" -i \"$f\""
-), { locked = true, description = "Utilities: Screenshot whole screen >> file + clipboard" })
+), { locked = true, description = "Utilities: Screenshot the whole screen, save and copy it, with a notification" })
 hl.bind("CTRL + Print", hl.dsp.exec_cmd(
     "d=$(xdg-user-dir PICTURES)/Screenshots/\"$(date '+%Y-%m-%d')\" && mkdir -p \"$d\" && " ..
     grimhyprctl .. " \"$d\"/Screenshot_\"$(date '+%Y-%m-%d_%H.%M.%S')\".png"
-), { locked = true, non_consuming = true, description = "Utilities: Screenshot >> clipboard & file" })
+), { locked = true, non_consuming = true, description = "Utilities: Screenshot the whole screen, save and copy it, silently" })
 hl.bind("CTRL + Print", hl.dsp.exec_cmd(grimhyprctl .. " - | wl-copy"), { locked = true, non_consuming = true }) -- # [hidden] clipboard half of the bind above
 --# AI
 hl.bind("SUPER + SHIFT + ALT + mouse:273", hl.dsp.exec_cmd(hyprScripts .. "/ai/primary-buffer-query.sh"),
@@ -223,19 +219,15 @@ hl.bind("SUPER + mouse:272", hl.dsp.global("quickshell:snapPreviewDrag")) -- # [
 hl.bind("SUPER + mouse:274", hl.dsp.window.drag(), { mouse = true, description = "Window: Move" })
 hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Window: Resize" })
 --#/# bind = SUPER + ←/↑/→/↓,, -- Focus in direction
-for i = 1, 4 do
-    local arrowkey = { "Left", "Right", "Up", "Down" }
-    local focusdir = { "l", "r", "u", "d" }
-    hl.bind("SUPER + " .. arrowkey[i], hl.dsp.focus({ direction = focusdir[i] }),
-        { description = "Window: Focus " .. arrowkey[i] })
+for _, f in ipairs({ { "Left", "l" }, { "Right", "r" }, { "Up", "u" }, { "Down", "d" }, { "BracketLeft", "l", "Left" }, { "BracketRight", "r", "Right" } }) do
+    hl.bind("SUPER + " .. f[1], hl.dsp.focus({ direction = f[2] }), { description = "Window: Focus " .. (f[3] or f[1]) })
 end
-for i = 1, 2 do
-    local arrowkey = { "BracketLeft", "BracketRight" }
-    local focusdir = { "l", "r" }
-    local descdir = { "Left", "Right" }
-    hl.bind("SUPER + " .. arrowkey[i], hl.dsp.focus({ direction = focusdir[i] }),
-        { description = "Window: Focus " .. descdir[i] })
-end
+-- Alt+Tab has no switcher: the overview (Super+Tab) is the picker; Alt+Tab flips to the window used before, on any workspace
+hl.bind("ALT + Tab", function()
+    local last = hl.get_last_window()
+    if last then hl.dispatch(hl.dsp.focus({ window = "address:" .. last.address })) end
+end, { description = "Window: Back to the previous window" })
+hl.bind("ALT + SHIFT + Tab", hl.dsp.window.cycle_next(), { description = "Window: Next window on this workspace" })
 --#/# bind = SUPER + SHIFT, ←/↑/→/↓,, -- Move in direction
 for i = 1, 4 do
     local arrowkey = { "Left", "Right", "Up", "Down" }
@@ -251,7 +243,7 @@ hl.bind("ALT + F4",
     end,
     { non_consuming = true }) -- # [hidden] a hint, not an action
 hl.bind("SUPER + Q", hl.dsp.window.close(), { description = "Window: Close" })
-hl.bind("SUPER + SHIFT + ALT + Q", hl.dsp.exec_cmd("hyprctl kill"), { description = "Window: Forcefully zap a window" })
+hl.bind("SUPER + SHIFT + ALT + Q", hl.dsp.exec_cmd("hyprctl kill"), { description = "Window: Force quit" })
 
 --# Window split ratio
 --#/# binde = SUPER, ;/',, -- Adjust split ratio
@@ -296,7 +288,7 @@ end
 --# #/# bind = SUPER+SHIFT, Scroll ↑/↓,, -- Send to workspace left/right
 for i = 1, 4 do
     local key = { "SUPER + SHIFT + mouse_", "SUPER + ALT + mouse_" }
-    local keycombos = { key[1] .. "down", key[1] .. "up", key[2] .. "down", key[2] .. "up" }
+    local keycombos = { key[1] .. "up", key[1] .. "down", key[2] .. "up", key[2] .. "down" }
     local prefix = { "r-", "r+", "r-", "r+" }
     local descdir = { "left", "right", "left", "right" }
     hl.bind(keycombos[i], hl.dsp.window.move({ workspace = prefix[i] .. "1" }),
@@ -318,8 +310,7 @@ for i = 1, 4 do
 end
 
 hl.bind("SUPER + ALT + S",
-    hl.dsp.window.move({ workspace = "special:special", follow = false }), { description = "Window: Send to scratchpad" })
-hl.bind("CTRL + SUPER + S", hl.dsp.workspace.toggle_special("special"), { description = "Workspace: Toggle scratchpad" })
+    hl.dsp.window.move({ workspace = "special:special", follow = false }), { description = "Scratchpad: Send window" })
 
 --##! Workspace
 --# Switching
@@ -368,7 +359,7 @@ for i = 1, 4 do
 end
 --#/# bind = SUPER, Scroll ↑/↓,, -- Focus left/right
 for i = 1, 4 do
-    local key = { "SUPER + mouse_up", "SUPER + mouse_down" }
+    local key = { "SUPER + mouse_down", "SUPER + mouse_up" }
     local keycombos = { key[1], key[2], "CTRL + " .. key[1], "CTRL + " .. key[2] }
     local prefix = { "+", "-", "r+", "r-" }
     local descdir = { "right", "left", "right", "left" }
@@ -376,8 +367,8 @@ for i = 1, 4 do
         { description = "Workspace: Focus " .. descdir[i] })
 end
 --## Special
-hl.bind("SUPER + S", hl.dsp.workspace.toggle_special("special"), { description = "Workspace: Toggle scratchpad" })
-hl.bind("SUPER + mouse:275", hl.dsp.workspace.toggle_special("special"), { description = "Workspace: Toggle scratchpad" })
+hl.bind("SUPER + S", hl.dsp.workspace.toggle_special("special"), { description = "Scratchpad: Toggle" })
+hl.bind("SUPER + mouse:275", hl.dsp.workspace.toggle_special("special"), { description = "Scratchpad: Toggle" })
 for i = 1, 4 do
     local key = { "BracketLeft", "BracketRight", "Up", "Down" }
     local prefix = { "-1", "+1", "r-5", "r+5" }

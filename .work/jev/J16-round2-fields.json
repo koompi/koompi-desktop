@@ -1,0 +1,25 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "j16_round2": "J16 round 2 (refresh rate per monitor in Settings > Displays) is verified in code review: koompi-displays rate switches and arms a guard; keep saves only a rate the monitor still runs; revert, or 15 s without an answer (a setsid timer that outlives Settings), puts the old mode back; saved rules are keyed desc:<monitor description> so they follow a display across ports. Renders at 1920x1200 and 1366x768, one and two monitors, dark and light.",
+    "confirm_look": "While the Keep this refresh rate? question shows (up to 15 s), the page disables the Refresh rate and Position selection groups (enabled: false). The shared selection button only changes its toggled look when disabled: the selected pill (the new 75 Hz, and the current Right of) drops from primary fill with white text to a washed-out pill that is nearly unreadable in the light palette and dim in the dark one, while the unselected pills (60 Hz, 59.94 Hz, Left of, Above, Below) keep their normal enabled look. So during the question nothing reads as selected, the running rate looks unavailable, and the other options look clickable though clicks do nothing. These two lines are the only disabled selection groups in the tree. The question box under the row names the new and old rates and has Keep and Revert. macOS and Windows show the same question as a modal dialog over unchanged controls.",
+    "desc_rule_fields": "Hyprland applies only the last matching monitor rule, and a desc: rule is a separate rule from a port rule (measured in nested Hyprland 0.56.2: a user's own port rule kept its transform when monitors.lua added a same-named port rule, and lost it when the new rule was desc:-keyed). J16 therefore writes transform into every saved rule. mirror, vrr, bitdepth, cm and icc set in a user's own rule for that display are overridden once a desc: rule exists; hyprctl monitors -j reports only mirrorOf of those. KOOMPI ships vrr = 0 globally and no per-monitor rules; the founder's hypr/custom has no monitor rules; the Displays page sets none of these fields.",
+    "reselect": "Round 1 called the tool on every click, so clicking the already-selected rate saved the layout (a pin as a side effect). Round 2: clicking the selected rate does nothing; a terminal user can still run koompi display rate <monitor> <hz> then koompi display keep.",
+    "first_ask": "Asked once: J16_desc_rule_fields ESCALATE transform_and_mirror=0.45 transform_only=0.38 need_more_facts=0.17 (jev-1.13.0). Added facts and two options below.",
+    "save_scope": "Every Keep or Place rewrites the saved rule of every connected display, not only the one changed, so a field a user hand-wrote for any connected display is overridden after the first Keep or Place anywhere. Example: a projector mirrored in hypr/custom becomes an extended display after the user changes the laptop panel's refresh rate.",
+    "field_sources": "The Displays page offers no mirror, vrr, bitdepth, cm or icc control; those exist only in rules a user wrote by hand in ~/.config/hypr/custom (Lua code). hyprctl monitors -j reports mirrorOf, so mirror can be carried exactly; vrr, bitdepth, cm and icc cannot be read back from the compositor, only by pattern-matching the user's Lua files."
+  },
+  "questions": {
+    "J16_desc_rule_fields": {
+      "type": "choice",
+      "instructions": "A desc:-keyed saved rule overrides a user's own rule for that display wholesale, and every save rewrites all connected displays. Which fields should the saved rule carry beyond mode, position and scale?",
+      "criteria": {
+        "transform_only": "As built: transform only. Strongest case: the field the Displays page itself could leave wrong; no shipped config or the founder's sets the others. Cost: any hand-written mirror, vrr, bitdepth, cm or icc on any connected display is lost silently on the first Keep or Place.",
+        "transform_and_mirror": "Also write mirror from hyprctl's mirrorOf (about five lines). Strongest case: a mirrored projector or TV stays mirrored, the one other field the compositor reports back. Cost: hand-written vrr, bitdepth, cm and icc are still dropped silently.",
+        "transform_and_mirror_then_rest": "Carry transform and mirror now, and record the other four (read from the user's own rules) as an open item with the failing case named, for a later job. Strongest case: the cheap exact fix lands now and the user-file parsing is designed on its own. Cost: until then those four are dropped silently, and the item depends on someone picking it up.",
+        "port_key_when_user_rule": "Keep a display on its port key (the old merge behaviour) when hypr/custom mentions its port or description, found by pattern match, and desc:-key the rest. Strongest case: nothing a user wrote is overridden. Cost: pattern-matching user Lua code is fragile, and the displays of exactly the users who customise stop following across ports.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

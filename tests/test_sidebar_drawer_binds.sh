@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The four right-sidebar drawer binds are three files wide: a chord in
+# The three right-sidebar drawer binds are three files wide: a chord in
 # keybinds.lua names a GlobalShortcut in SidebarRight.qml, which calls
 # showDrawer() with a page string that SidebarRightContent.qml dispatches on.
 #
@@ -22,18 +22,18 @@ pages="$(grep -oE 'showDrawer\("[a-z]+"\)' "$SIDEBAR" | grep -oE '"[a-z]+"' | tr
 [[ -n "$pages" ]] || fail "no showDrawer() calls in SidebarRight.qml; the drawer binds are gone"
 
 count="$(wc -l <<< "$pages")"
-[[ "$count" -eq 4 ]] || fail "expected 4 drawer pages, found $count: $(tr '\n' ' ' <<< "$pages")"
+[[ "$count" -eq 3 ]] || fail "expected 3 drawer pages, found $count: $(tr '\n' ' ' <<< "$pages")"
 
 # Every page must be dispatched by name. The last branch is an unguarded default,
 # so a page absent here does not fall through to nothing, it falls through to the timer.
 while read -r page; do
-    grep -q "drawerPage === \"$page\"" "$CONTENT" \
+    grep -qE "drawerPage === \"$page\"|case \"$page\":" "$CONTENT" \
         || fail "page '$page' is opened by a bind but SidebarRightContent never dispatches on it, so it opens the timer instead"
 done <<< "$pages"
 
 # Every shortcut the shell declares must have a chord, and every chord a shortcut.
-shortcuts="$(grep -oE 'name: "sidebarRight(Controls|Calendar|Todo|Timer)"' "$SIDEBAR" | grep -oE 'sidebarRight[A-Za-z]+' | sort -u)"
-[[ "$(wc -l <<< "$shortcuts")" -eq 4 ]] || fail "expected 4 drawer GlobalShortcuts, found: $(tr '\n' ' ' <<< "$shortcuts")"
+shortcuts="$(grep -oE 'name: "sidebarRight(Calendar|Todo|Timer)"' "$SIDEBAR" | grep -oE 'sidebarRight[A-Za-z]+' | sort -u)"
+[[ "$(wc -l <<< "$shortcuts")" -eq 3 ]] || fail "expected 3 drawer GlobalShortcuts, found: $(tr '\n' ' ' <<< "$shortcuts")"
 
 while read -r name; do
     grep -q "quickshell:$name" "$BINDS" \
@@ -43,13 +43,18 @@ done <<< "$shortcuts"
 while read -r name; do
     grep -q "name: \"$name\"" "$SIDEBAR" \
         || fail "keybinds.lua dispatches 'quickshell:$name' but no GlobalShortcut declares it"
-done < <(grep -oE 'quickshell:sidebarRight(Controls|Calendar|Todo|Timer)' "$BINDS" | sed 's/quickshell://' | sort -u)
+done < <(grep -oE 'quickshell:sidebarRight(Calendar|Todo|Timer)' "$BINDS" | sed 's/quickshell://' | sort -u)
 
 # A bind with no description is invisible in the cheatsheet, which is how the
 # welcome-guide reopen bind went unnoticed.
 while read -r chord; do
     grep -q "description" <<< "$chord" \
         || fail "a drawer bind has no description and will not appear in the cheatsheet: $chord"
-done < <(grep 'quickshell:sidebarRight\(Controls\|Calendar\|Todo\|Timer\)' "$BINDS")
+done < <(grep 'quickshell:sidebarRight\(Calendar\|Todo\|Timer\)' "$BINDS")
 
-printf 'ok: 4 drawer pages dispatched, 4 shortcuts bound, all described\n'
+# One panel on the right: Super+Alt+N is gone and controlCenterToggle is only an alias.
+grep -qF 'SUPER + ALT + N' "$BINDS" && fail "SUPER + ALT + N is still bound"
+grep -q 'controlCenterToggle' "$BINDS" && fail "keybinds.lua still dispatches controlCenterToggle"
+grep -q 'sidebarRightControls' "$BINDS" "$SIDEBAR" "$CONTENT" && fail "sidebarRightControls is still named somewhere"
+
+printf 'ok: 3 drawer pages dispatched, 3 shortcuts bound, all described, Super+Alt+N is unbound\n'

@@ -1,0 +1,32 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "job": "J06, UX audit F8: external monitors at their highest refresh rate",
+    "ask": "The catch-all hl.monitor in dots/.config/hypr/hyprland/general.lua:2-7 uses mode=preferred. Make external monitors run their highest refresh rate at the preferred resolution. The lead suggested highrr.",
+    "hyprland": "0.56.2 installed at /usr/bin/Hyprland. hl.monitor mode accepts preferred, highres, highrr, maxwidth, or WxH@R (read from CMonitorRuleParser::parseMode in the binary; /usr/share/hypr/stubs/hl.meta.lua only types it as a string). There is no keyword for the highest refresh at the preferred resolution.",
+    "highrr_decoded": "CMonitor::applyMonitorRule in /usr/bin/Hyprland (comparator at 0x71d890): every listed mode is sorted by refresh in mHz descending, and resolution only breaks an exact tie. The first sorted mode that passes a test commit is applied.",
+    "founder_hdmi_monitor": "WAM 9088 on HDMI-A-1 (edid-decode /sys/class/drm/card0-HDMI-A-1/edid). Preferred 1920x1080@60.00. It also lists 1920x1080@74.97 and the legacy VESA 75 Hz timings 1024x768@75.03, 1280x1024@75.02, 1152x864@75.00, 800x600@75, 640x480@75. /sys/class/drm/card0-HDMI-A-1/modes shows 1024x768 three times and 1280x1024 twice.",
+    "highrr_result": "Replicated with libstdc++ std::sort and the decoded comparator, not run inside Hyprland: 1024x768@75.03 is tried first, then 1280x1024@75.02. 1920x1080@74.97 is not in the top three. The monitor would be set to 1024x768.",
+    "highres_result": "Same replication: 1920x1080@74.97 first. Decoded rule: a mode strictly larger in both dimensions sorts first, same size sorts by higher refresh. Modes larger in only one dimension (3840x2160 against 4096x2160) compare equal, so their order is the list order. A display whose largest listed mode is not its native one (a projector that lists 1080p over a WXGA panel) would be moved off native; no such display is on this machine, so that part is reasoning, not measurement.",
+    "laptop_panel": "BOE 3296 on eDP-1 has exactly one mode, 1920x1200@60.003. Every keyword resolves to it.",
+    "saved_rules": "Verified in the nested harness in both orders: a named hl.monitor rule beats the catch-all. ~/.config/hypr/monitors.lua is required after general.lua (hyprland.lua:41-43) and is written by dots/.local/bin/koompi-displays place, with the refresh rate current at save time. A user who already has that file keeps their saved rate whatever the catch-all says.",
+    "settings_displays": "modules/settings/DisplaysConfig.qml shows WxH@Hz read-only and offers only a placement dropdown. There is no refresh-rate chooser.",
+    "harness_limit": "The nested Hyprland output reports availableModes [], so no keyword's mode choice can be exercised there. Only that a rule loads can be proved (hyprctl configerrors, or Hyprland --verify-config offline, which exits 1 with hl.monitor: error applying field 'mode' for a bad value).",
+    "ownership": "J06 owns general.lua (monitor rule) and its test. general.lua is at its 371-line ratchet in tests/file-length-allow.txt and J10 also edits it. An exact solution needs a new hyprland/refresh.lua and a require line in hyprland.lua, which J06 does not own.",
+    "live_modes_confirmed": "The lead read hyprctl monitors -j on the live seat (read-only), 2026-10-07: HDMI-A-1 (WAM) runs 1920x1080@60.00 and lists 1920x1080@74.97 but also 1280x1024@75.03, 1024x768@75.03, 1152x864@75.00, 800x600@75.00 and 640x480@75.00, so every 75 Hz legacy timing outranks 1920x1080@74.97 under highrr's refresh-first sort. eDP-1 lists only 1920x1200@60.00. The replicated highrr result is confirmed by the compositor's own mode list.",
+    "audience": "KOOMPI ships to schools and offices that plug laptops into classroom TVs and projectors. Many 1080p TVs and projectors advertise a 3840x2160@30 input mode larger than their panel; highres sorts a mode strictly larger in both dimensions first, so it would pick that downscaled 30 Hz mode."
+  },
+  "questions": {
+    "J06_catchall": {
+      "type": "choice",
+      "instructions": "Which behaviour should the catch-all monitor rule ship for external monitors?",
+      "criteria": {
+        "keep_preferred": "Leave the catch-all at preferred and make F8 a per-monitor choice in Settings > Displays, a refresh-rate row that writes the saved rule, as a Phase 1 job. Strongest case: nothing can drop a display below its EDID-preferred mode, projectors and TVs included, and the founder's monitor reaches 75 Hz the moment he picks it; no user can regress.",
+        "highres_catchall": "Change the catch-all to highres: one word at general.lua:4 plus a test that fails on preferred. Strongest case: it gives 1920x1080@74.97 on the founder's monitor and the single 60 Hz mode on the laptop panel, with no new code. Cost: a display whose largest listed mode is not native is moved off native. Added by the lead: on a 1080p TV or projector that advertises 3840x2160@30, highres picks the 30 Hz downscaled mode, a regression for the classroom displays KOOMPI is plugged into.",
+        "lua_exact_handler": "Build a Lua handler on monitor.added and config.reloaded in a new hyprland/refresh.lua that raises the refresh only at the resolution the monitor already runs, skipping monitors with a saved rule, with a test that runs the founder's real mode list through lua. Strongest case: exactly the stated goal, and the resolution never changes so it is safe on every display. Cost: a second modeset on every connect, the Lua available_modes format and the event payload are unverified here, it cannot be run against a multi-mode output in the harness, and the live check needs the founder's authorisation.",
+        "highrr_catchall": "Use highrr as briefed: one word at general.lua:4. Strongest case: it does raise the refresh and is the keyword the plan named. Measured cost: on 0.56.2 it would set the founder's monitor to 1024x768@75.03.",
+        "need_more_facts": "Ask for more facts first before choosing. The founder's live mode list has now been read (see live_modes_confirmed), so the remaining unknowns are the Lua available_modes format and monitor.added payload for lua_exact_handler."
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "j12": "J12 moved two login costs to first use: the clipboard list relists only while something that reads it is open, and koompi-agent-memd starts when the assistant is first used. It listed the remaining login daemons the shell does not start: hyprsunset and easyeffects.",
+    "hyprsunset": "Measured on the founder's seat: Pss 0.2 MB plus 0.4 MB swap. The shell queries it at login for the night-light state.",
+    "easyeffects_now": "KOOMPI ships easyeffects by default (koompi-audio PKGBUILD, debian and fedora lists), and execs.lua:24 starts it in service mode at every login. The right sidebar's EasyEffects quick toggle means 'is the process running': off kills it, on starts it in service mode. The login start brings it back, so turning it off never survives a login.",
+    "easyeffects_cost": "Measured on the founder's seat now: Pss 31.1 MB resident plus 29.8 MB in swap. PipeWire lists Easy Effects Sink, Source and Filter nodes. The seat has no EasyEffects output presets, so it runs with no effects configured.",
+    "context": "The campaign is cutting what runs without being used (J07 lazy surfaces: the shell from about 430 MB to under 300 MB; J12: clipboard and memory daemon on demand). KOOMPI targets low-RAM laptops. macOS runs no audio-effects daemon by default; an effects app runs once the user installs and enables it."
+  },
+  "questions": {
+    "J12_easyeffects_login": {
+      "type": "choice",
+      "instructions": "What should start EasyEffects?",
+      "criteria": {
+        "remember_toggle": "execs.lua stops starting it; the shell remembers the quick toggle and starts EasyEffects at login only if the user left it on. Every install starts with it off; turning it on once sticks. Strongest case: nothing runs that the user did not ask for (61 MB on the seat, with no presets), and the toggle's off finally survives a login. Cost: a user who relied on effects being on at every login turns them on once after the update.",
+        "leave_at_login": "Keep starting it at every login. Strongest case: no behaviour change for anyone using presets. Cost: 61 MB and three PipeWire nodes on every machine whether or not effects are used, and the toggle's off is undone at each login.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J12_hyprsunset_login": {
+      "type": "choice",
+      "instructions": "hyprsunset runs from login (0.6 MB measured). What should J12 do?",
+      "criteria": {
+        "leave": "Leave it. Strongest case: under 1 MB, and the night-light state read at login needs it.",
+        "on_demand": "Start it only when night light or gamma is set. Strongest case: one fewer process. Cost: changes how the night-light state is read at login, for under 1 MB.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

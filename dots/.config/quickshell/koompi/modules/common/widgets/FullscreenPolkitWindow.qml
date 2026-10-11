@@ -11,16 +11,18 @@ import Quickshell.Wayland
 Scope {
     id: root
     required property Component contentComponent
-    
-    Loader {
-        active: PolkitService.active
-        sourceComponent: Variants {
+
+    LazySurface {
+        open: PolkitService.active
+        keepWarm: 0
+
+        component: Variants {
             model: Quickshell.screens
             delegate: PanelWindow {
                 id: panelWindow
                 required property var modelData
                 screen: modelData
-                
+
                 anchors {
                     top: true
                     left: true

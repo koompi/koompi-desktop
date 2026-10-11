@@ -4,7 +4,7 @@
 #
 # systemd-coredump journals every crash it handles, core kept or not, under one
 # MESSAGE_ID with COREDUMP_* fields (systemd.journal-fields(7)). This follows
-# them and raises one critical toast per crashed program whose click runs
+# them and raises one plain-worded toast per crashed program whose click runs
 # koompi-crash-diagnose with the facts as argv words, never a reparsed string
 # (omarchy bin/omarchy-crash-watch). The diagnosis is the local model's or
 # nobody's; nothing here or there talks to the network.
@@ -62,12 +62,44 @@ notification_server_ready() {
         org.freedesktop.DBus NameHasOwner s org.freedesktop.Notifications 2>/dev/null)" == "b true" ]]
 }
 
+# [Desktop Entry] group only: its [Desktop Action] groups carry a Name= and Exec= too
+app_name() {
+    local name=$1 dir found
+    local -a dirs shared
+    IFS=: read -ra shared <<<"${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+    dirs=("${XDG_DATA_HOME:-$HOME/.local/share}" "${shared[@]}")
+    for dir in "${dirs[@]}"; do
+        compgen -G "$dir/applications/*.desktop" >/dev/null || continue
+        found="$(WANT="$name" awk '
+            function check() {
+                if (!done && nm != "" && bin == ENVIRON["WANT"] && !hidden) { print nm; done = 1; exit }
+            }
+            FNR == 1 { check(); grp = ""; nm = ""; bin = ""; hidden = 0 }
+            /^\[/ { grp = $0; next }
+            grp != "[Desktop Entry]" { next }
+            /^Name=/ && nm == "" { nm = substr($0, 6) }
+            /^Hidden=true/ { hidden = 1 }
+            /^Exec=/ && bin == "" {
+                ex = substr($0, 6)
+                while (ex ~ /^(env|[A-Za-z_][A-Za-z0-9_]*=[^ \t]*)[ \t]+/) sub(/^[^ \t]+[ \t]+/, "", ex)
+                if (substr(ex, 1, 1) == "\"") { ex = substr(ex, 2); sub(/".*/, "", ex) }
+                else sub(/[ \t].*/, "", ex)
+                n = split(ex, parts, "/"); bin = parts[n]
+            }
+            END { check() }
+        ' "$dir"/applications/*.desktop)"
+        if [[ -n $found ]]; then printf '%s\n' "$found"; return 0; fi
+    done
+    printf '%s\n' "${name^}"
+}
+
 announce() {
-    local name=$1 pid=$2 comm=$3 exe=$4 signal=$5 tries
+    local name=$1 pid=$2 comm=$3 exe=$4 signal=$5 tries app
+    app="$(app_name "$name")"
     local -a argv=(
-        "$sender" -a KOOMPI -u critical
-        "Process crashed: $name"
-        "$signal. Click to diagnose with the local model."
+        "$sender" -a KOOMPI -u normal
+        "$app closed unexpectedly"
+        "Click to find out why. The check runs on this computer."
         --exec "$diagnose" "$pid" "$comm" "$exe" "$signal"
     )
     if (( dry_run )); then
@@ -103,12 +135,15 @@ fi
         # A field that is not valid UTF-8 comes as a byte array and @tsv refuses
         # it; the read then fails the pid check and the entry is reported, not
         # silently dropped.
-        IFS=$'\t' read -r uid comm pid exe signal < <(
+        IFS=$'\t' read -r uid comm pid exe signal rundir < <(
             jq -r '[(.COREDUMP_UID // ._UID // "-"),
                     (.COREDUMP_COMM // "-"),
                     (.COREDUMP_PID // "-"),
                     (.COREDUMP_EXE // "-"),
-                    (.COREDUMP_SIGNAL_NAME // "-")] | @tsv' <<<"$entry" 2>/dev/null
+                    (.COREDUMP_SIGNAL_NAME // "-"),
+                    ((.COREDUMP_ENVIRON | if type == "string" then
+                        (split("\n") | map(select(startswith("XDG_RUNTIME_DIR="))) | first // "" | ltrimstr("XDG_RUNTIME_DIR="))
+                      else "" end) | if . == "" then "-" else . end)] | @tsv' <<<"$entry" 2>/dev/null
         )
         if [[ ! ${pid:-} =~ ^[0-9]+$ ]]; then
             echo "koompi-crash-watch: journal entry without a usable COREDUMP_PID, skipped" >&2
@@ -119,6 +154,13 @@ fi
         # entry cannot announce another user's crash either.
         [[ $uid =~ ^[0-9]+$ ]] || continue
         (( uid == UID )) || continue
+
+        # a nested test session's crash carries its own runtime dir; no
+        # XDG_RUNTIME_DIR in the environ keeps the announcement
+        if [[ -n ${rundir:-} && $rundir != - && $rundir != "${XDG_RUNTIME_DIR:-/run/user/$UID}" ]]; then
+            echo "koompi-crash-watch: crash of $comm (pid $pid) ran in foreign XDG_RUNTIME_DIR $rundir, not announced" >&2
+            continue
+        fi
 
         # comm is truncated to 15 characters; the executable's basename is not.
         name=$comm

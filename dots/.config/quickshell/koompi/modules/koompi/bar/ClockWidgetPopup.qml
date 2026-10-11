@@ -9,7 +9,6 @@ StyledPopup {
     keyIndex: 4 // Super+Ctrl+4; the order is listed in Bar.qml
     property string formattedDate: Qt.locale().toString(DateTime.clock.date, "dddd, MMMM dd, yyyy")
     property string formattedTime: DateTime.time
-    property string formattedUptime: DateTime.uptime
     property string todosSection: getUpcomingTodos()
 
     function getUpcomingTodos() {
@@ -41,12 +40,6 @@ StyledPopup {
         StyledPopupHeaderRow {
             icon: "calendar_month"
             label: root.formattedDate
-        }
-
-        StyledPopupValueRow {
-            icon: "timelapse"
-            label: Translation.tr("System uptime:")
-            value: root.formattedUptime
         }
 
         // Tasks

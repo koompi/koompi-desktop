@@ -174,10 +174,10 @@ Singleton {
     transition: QtObject {
         id: transition
 
-        property int velocity: 850
+        property int velocity: Appearance.reduceMotion ? 100000 : 850
 
         // Waffle keeps its own curves, which are what give it a different
-        // character, but shares the shell's one duration ladder.
+        // character, but shares the shell's one duration ladder, and with it reduce motion.
         property QtObject duration: Appearance.animationDuration
 
         property QtObject easing: QtObject {
@@ -254,7 +254,7 @@ Singleton {
 
         property Component longMovement: Component {
             NumberAnimation {
-                duration: 1000
+                duration: Appearance.reduceMotion ? 0 : 1000
                 easing.type: Easing.BezierSpline
                 easing.bezierCurve: transition.easing.bezierCurve.easeIn
             }

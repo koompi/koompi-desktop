@@ -16,7 +16,7 @@ Button {
     property real buttonRadius: Appearance?.rounding?.small ?? 4
     property real buttonRadiusPressed: buttonRadius
     property real buttonEffectiveRadius: root.down ? root.buttonRadiusPressed : root.buttonRadius
-    property int rippleDuration: 1200
+    property int rippleDuration: Appearance?.reduceMotion ? 0 : 1200
     property bool rippleEnabled: true
     property var downAction // When left clicking (down)
     property var releaseAction // When left clicking (release)
@@ -156,9 +156,6 @@ Button {
             height: ripple.implicitHeight
             opacity: 0
             visible: width > 0 && height > 0
-
-            property real implicitWidth: 0
-            property real implicitHeight: 0
 
             Behavior on opacity {
                 animation: Appearance?.animation.elementMoveFast.colorAnimation.createObject(this)

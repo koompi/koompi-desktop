@@ -12,7 +12,7 @@ AppButton {
 
     required property var appEntry
     readonly property bool isSeparator: appEntry.appId === "SEPARATOR"
-    property var desktopEntry: DesktopEntries.heuristicLookup(appEntry.appId)
+    property var desktopEntry: appEntry.appId ? DesktopEntries.heuristicLookup(appEntry.appId) : null
 
     Timer {
         // Retry looking up the desktop entry if it failed (e.g. database not loaded yet)
@@ -22,7 +22,7 @@ AppButton {
         repeat: true
         onTriggered: {
             retryCount--;
-            root.desktopEntry = DesktopEntries.heuristicLookup(root.appEntry.appId);
+            root.desktopEntry = root.appEntry.appId ? DesktopEntries.heuristicLookup(root.appEntry.appId) : null;
         }
     }
 
@@ -35,7 +35,8 @@ AppButton {
     multiple: appEntry.toplevels.length > 1
     checked: active
     iconName: AppSearch.guessIcon(appEntry.appId)
-    tryCustomIcon: false
+    plated: true
+    label: root.desktopEntry?.name ?? appEntry.appId
     
     onHoverTimedOut: {
         root.hoverPreviewRequested()
@@ -47,14 +48,14 @@ AppButton {
             root.hoverPreviewRequested()
         } else if (root.appEntry.toplevels.length === 1) {
             root.appEntry.toplevels[0].activate()
-        } else {
-            root.desktopEntry.execute()
+        } else if (root.desktopEntry) {
+            LauncherSearch.launch(root.desktopEntry)
         }
     }
 
     middleClickAction: () => {
         if (root.desktopEntry) {
-            desktopEntry.execute()
+            LauncherSearch.launch(root.desktopEntry)
         }
     }
 
@@ -105,7 +106,7 @@ AppButton {
                 iconName: action.icon,
                 text: action.name,
                 action: () => {
-                    action.execute()
+                    LauncherSearch.launch(root.desktopEntry, action.command)
                 }
             })).concat({ type: "separator" }) : []),
             {
@@ -114,7 +115,7 @@ AppButton {
                 monochromeIcon: false,
                 action: () => {
                     if (root.desktopEntry) {
-                        root.desktopEntry.execute()
+                        LauncherSearch.launch(root.desktopEntry)
                     }
                 }
             },

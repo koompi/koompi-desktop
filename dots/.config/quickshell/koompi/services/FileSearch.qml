@@ -1,5 +1,7 @@
 pragma Singleton
 
+import "launcherSearch/file-format.js" as FileFormat
+import qs
 import qs.modules.common
 import qs.modules.common.functions
 import QtQuick
@@ -42,6 +44,31 @@ Singleton {
         return path.startsWith(home + "/") ? "~" + path.slice(home.length) : path;
     }
 
+    // The path whose Quick Look is up, "" when none is. koompi-quicklook toggles,
+    // so a second Space on the same file takes it down again.
+    property string quicklookPath: ""
+
+    function toggleQuicklook(path) {
+        Quickshell.execDetached(["koompi-quicklook", path]);
+        root.quicklookPath = root.quicklookPath === path ? "" : path;
+    }
+
+    function closeQuicklook(): bool {
+        if (root.quicklookPath === "")
+            return false;
+        root.quicklookPath = "";
+        Quickshell.execDetached(["koompi-quicklook", "close"]);
+        return true;
+    }
+
+    Connections {
+        target: GlobalStates
+        function onSearchOpenChanged() {
+            if (!GlobalStates.searchOpen)
+                root.closeQuicklook();
+        }
+    }
+
     function open(path) {
         Quickshell.execDetached(["xdg-open", path]);
     }
@@ -77,8 +104,10 @@ Singleton {
             // keeps it out of fd's regex engine too.
             // fd matches basenames; a query with a separator in it is someone
             // typing a path, so match the whole path instead.
+            // one pipeline: fd's first 30 hits go to a single stat, so the dates cost no process per row
             const pathArgs = search.includes("/") ? ["--full-path"] : [];
-            findProc.command = [root.findBinary, "--fixed-strings", "--hidden", "--type", "f", "--max-results", "30", "--exclude", ".git", "--exclude", ".cache", "--exclude", "node_modules", ...pathArgs, search, FileUtils.trimFileProtocol(Directories.home)];
+            const find = [root.findBinary, "--fixed-strings", "--hidden", "--type", "f", "--exclude", ".git", "--exclude", ".cache", "--exclude", "node_modules", ...pathArgs, search, FileUtils.trimFileProtocol(Directories.home)];
+            findProc.command = ["bash", "-c", '"$@" | head -n 30 | tr "\\n" "\\0" | xargs -0 -r stat --printf "%Y\\t%n\\n" --', "fd-stat", ...find];
             findProc.running = true;
         }
     }
@@ -87,10 +116,7 @@ Singleton {
         id: findProc
         stdout: StdioCollector {
             onStreamFinished: {
-                root.files = text.split("\n").filter(line => line.length > 0).map(path => ({
-                    path: path,
-                    name: path.slice(path.lastIndexOf("/") + 1)
-                }));
+                root.files = FileFormat.parseStat(text);
             }
         }
     }

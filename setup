@@ -64,7 +64,7 @@ Install and update options:
   -n, --dry-run    Print what would happen and change nothing
 
 Supported distros: Arch (and derivatives), Fedora, Debian, Ubuntu.
-Anything else can still use --no-deps; see docs/dependencies.md.
+Anything else can still use --no-deps; see sdata/deps-info.md.
 EOF
 }
 

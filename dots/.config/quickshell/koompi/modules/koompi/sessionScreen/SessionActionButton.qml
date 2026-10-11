@@ -9,7 +9,9 @@ RippleButton {
     property string buttonIcon
     property string buttonText
     property bool keyboardDown: false
+    property bool compact: false
     property real size: 120
+    readonly property bool labelVisible: label.visible && label.text.length > 0 && label.width > 0
 
     buttonRadius: (button.focus || button.down) ? size / 2 : Appearance.rounding.verylarge
     colBackground: button.keyboardDown ? Appearance.colors.colSecondaryContainerActive : 
@@ -21,8 +23,8 @@ RippleButton {
         Appearance.m3colors.m3onPrimary : Appearance.colors.colOnLayer0
 
     Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
-    background.implicitHeight: size
-    background.implicitWidth: size
+    background.implicitHeight: compact ? 56 : size
+    background.implicitWidth: compact ? Math.max(size, contentRow.implicitWidth + 40) : size
 
     Behavior on buttonRadius {
         animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
@@ -42,17 +44,30 @@ RippleButton {
         }
     }
 
-    contentItem: MaterialSymbol {
-        id: icon
-        anchors.fill: parent
-        color: button.colText
-        horizontalAlignment: Text.AlignHCenter
-        iconSize: 45
-        text: buttonIcon
-    }
+    contentItem: Item {
+        GridLayout {
+            id: contentRow
+            anchors.centerIn: parent
+            columns: button.compact ? 2 : 1
+            columnSpacing: 10
+            rowSpacing: 6
 
-    StyledToolTip {
-        text: buttonText
+            MaterialSymbol {
+                Layout.alignment: Qt.AlignHCenter
+                color: button.colText
+                iconSize: button.compact ? 26 : 40
+                text: button.buttonIcon
+            }
+            StyledText {
+                id: label
+                Layout.alignment: Qt.AlignHCenter
+                Layout.maximumWidth: button.compact ? implicitWidth : button.size - 12
+                color: button.colText
+                elide: Text.ElideRight
+                font.pixelSize: Appearance.font.pixelSize.normal
+                horizontalAlignment: Text.AlignHCenter
+                text: button.buttonText
+            }
+        }
     }
-
 }

@@ -19,4 +19,5 @@ depends=(
   #   dots/.local/bin/koompi-remotedesktop-portal
   #   dots/.config/quickshell/koompi/scripts/thumbnails/thumbgen.py
   python-gobject
+  python-opencv
 )

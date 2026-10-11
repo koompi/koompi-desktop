@@ -14,6 +14,13 @@ koompi settings bluetooth
 koompi settings power
 ```
 
+## Less movement
+
+Settings, then Quick, then Reduce motion.
+With it on, panels, menus and buttons stop sliding and simply fade in a blink, and windows and desks appear without any animation.
+The icon and name of a program that is starting stop pulsing and stay a little dim until its window arrives.
+It is off by default.
+
 ## The list of every shortcut
 
 `Super+/`.
@@ -62,7 +69,7 @@ Which one is live is shown in the top strip.
 | --- | --- |
 | `Super+L` | lock the screen |
 | `Super+Shift+L` | sleep |
-| `Ctrl+Alt+Delete` | the session menu: lock, sleep, log out, task manager, shut down, restart |
+| `Ctrl+Alt+Delete` | the session menu: lock, sleep, log out, restart, shut down, task manager, firmware setup; restart and shut down wait ten seconds, Escape cancels |
 | `Ctrl+Shift+Alt+Super+Delete` | shut down, no menu, no question |
 
 Closing the lid locks the screen unless an external monitor is attached.

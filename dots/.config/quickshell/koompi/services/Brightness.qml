@@ -67,7 +67,7 @@ Singleton {
 
         required property ShellScreen screen
 
-        readonly property var panel: ShellServices.brightnessPanel(monitor.screen.name)
+        readonly property var panel: ShellServices.brightnessPanel(monitor.screen?.name ?? "")
         readonly property bool ready: monitor.panel !== null
         readonly property bool isDdc: monitor.panel?.backend === "ddc"
         readonly property int rawMaxBrightness: monitor.panel?.raw_max ?? 100

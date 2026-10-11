@@ -3,36 +3,26 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 
-MaterialSymbol {
+// the dot on the clock while notifications wait; the count only if bar.indicators.notifications.showUnreadCount is on
+Rectangle {
     id: root
+    objectName: "unreadDot"
     readonly property bool showUnreadCount: Config.options.bar.indicators.notifications.showUnreadCount
-    text: Notifications.silent ? "notifications_paused" : "notifications"
-    iconSize: Appearance.font.pixelSize.larger
-    color: rightSidebarButton.colText
+    color: Appearance.colors.colOnLayer0
 
-    Rectangle {
-        id: notifPing
-        visible: !Notifications.silent && Notifications.unread > 0
-        anchors {
-            right: parent.right
-            top: parent.top
-            rightMargin: root.showUnreadCount ? 0 : 1
-            topMargin: root.showUnreadCount ? 0 : 3
-        }
-        radius: Appearance.rounding.full
-        color: Appearance.colors.colOnLayer0
-        z: 1
+    visible: !Notifications.silent && Notifications.unread > 0
+    radius: Appearance.rounding.full
+    implicitHeight: root.showUnreadCount ? Math.max(countText.implicitWidth, countText.implicitHeight) : 7
+    implicitWidth: implicitHeight
+    border.width: 1
+    border.color: Appearance.colors.colBarWorstCase
 
-        implicitHeight: root.showUnreadCount ? Math.max(notificationCounterText.implicitWidth, notificationCounterText.implicitHeight) : 8
-        implicitWidth: implicitHeight
-
-        StyledText {
-            id: notificationCounterText
-            visible: root.showUnreadCount
-            anchors.centerIn: parent
-            font.pixelSize: Appearance.font.pixelSize.smallest
-            color: Appearance.colors.colLayer0
-            text: Notifications.unread
-        }
+    StyledText {
+        id: countText
+        visible: root.showUnreadCount
+        anchors.centerIn: parent
+        font.pixelSize: Appearance.font.pixelSize.smallest
+        color: Appearance.colors.colBarWorstCase
+        text: Notifications.unread
     }
 }

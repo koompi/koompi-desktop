@@ -259,11 +259,11 @@ Rectangle {
 
                 Repeater {
                     model: root.desktopEntries.slice(3, 7)
-                    delegate: WAppIcon {
+                    delegate: AppIconPlate {
                         required property DesktopEntry modelData
-                        tryCustomIcon: false
                         iconName: modelData.icon
-                        implicitSize: 16
+                        label: modelData.name
+                        size: 16
                     }
                 }
             }
@@ -279,7 +279,7 @@ Rectangle {
 
         onClicked: {
             GlobalStates.searchOpen = false;
-            desktopEntry.execute();
+            LauncherSearch.launch(desktopEntry);
         }
 
         contentItem: Item {
@@ -290,11 +290,11 @@ Rectangle {
                     easing.bezierCurve: Looks.transition.easing.bezierCurve.easeIn
                 }
             }
-            WAppIcon {
+            AppIconPlate {
                 anchors.centerIn: parent
-                tryCustomIcon: false
                 iconName: smallGridAppButton.desktopEntry.icon
-                implicitSize: 34
+                label: smallGridAppButton.desktopEntry.name
+                size: 34
             }
         }
 

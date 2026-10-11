@@ -6,7 +6,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 
 /**
- * A nice wrapper for date and time strings.
+ * Keep awake: the idle inhibitor behind the sidebar switch, the bar indicator and `idle inhibit`.
  */
 Singleton {
     id: root
@@ -14,24 +14,32 @@ Singleton {
     property alias inhibit: idleInhibitor.enabled
     inhibit: false
 
-    // The [q] keeps the regex from matching the literal pattern text inside the
-    // bash wrapper's own cmdline below. Keeps exactly zero or one inhibitor
-    // alive across toggle-offs and shell reloads, which used to leak them.
+    // pid file: a restarted shell stops the inhibitor its predecessor left
+    readonly property string inhibitorPidFile: `${Quickshell.env("XDG_RUNTIME_DIR")}/koompi-keep-awake.pid`
+    // [q]: the wrapper's own cmdline carries this text and must not match it
     readonly property string inhibitorPattern: "who=[q]uickshell --why=Keep system awake"
 
     onInhibitChanged: {
-        if (!root.inhibit) Quickshell.execDetached(["pkill", "-f", root.inhibitorPattern]);
+        if (!root.inhibit) root.stopInhibitor();
     }
+
+    // restore the saved switch and stop a predecessor's inhibitor; a states.json that loads before
+    // this singleton exists (every machine that has run the shell) fires no readyChanged here
+    function restore() {
+        if (!Persistent.isNewHyprlandInstance) {
+            root.inhibit = Persistent.states.idle.inhibit;
+        } else {
+            Persistent.states.idle.inhibit = root.inhibit;
+        }
+        if (!root.inhibit) root.stopInhibitor();
+    }
+
+    Component.onCompleted: if (Persistent.ready) root.restore()
 
     Connections {
         target: Persistent
         function onReadyChanged() {
-            if (!Persistent.isNewHyprlandInstance) {
-                root.inhibit = Persistent.states.idle.inhibit;
-            } else {
-                Persistent.states.idle.inhibit = root.inhibit;
-            }
-            if (!root.inhibit) Quickshell.execDetached(["pkill", "-f", root.inhibitorPattern]);
+            if (Persistent.ready) root.restore();
         }
     }
 
@@ -59,6 +67,13 @@ Singleton {
         }
     }
 
+    // a recorded pid may have been reused: kill it only while its cmdline still matches
+    readonly property string stopInhibitorScript: `pid=$(cat "$1" 2>/dev/null); [[ $pid =~ ^[0-9]+$ ]] && tr '\\0' ' ' 2>/dev/null < "/proc/$pid/cmdline" | grep -qE "$2" && kill "$pid"; rm -f "$1"`
+
+    function stopInhibitor() {
+        Quickshell.execDetached(["bash", "-c", root.stopInhibitorScript, "bash", root.inhibitorPidFile, root.inhibitorPattern]);
+    }
+
     // The Wayland inhibitor below only works while its surface is mapped, which
     // is unreliable on Hyprland (the 1x1 window often never maps). Back it with a
     // systemd idle inhibitor, which hypridle honors directly.
@@ -68,8 +83,8 @@ Singleton {
     Process {
         running: root.inhibit
         command: ["bash", "-c",
-            "pkill -f 'who=[q]uickshell --why=Keep system awake'; " +
-            "exec systemd-inhibit --what=idle:sleep:handle-lid-switch --mode=block --who=quickshell --why='Keep system awake' sleep infinity"]
+            `${root.stopInhibitorScript}; echo $$ > "$1"; exec systemd-inhibit --what=idle:sleep:handle-lid-switch --mode=block --who=quickshell --why='Keep system awake' sleep infinity`,
+            "bash", root.inhibitorPidFile, root.inhibitorPattern]
     }
 
     IdleInhibitor {

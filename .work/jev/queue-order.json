@@ -1,0 +1,24 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "running": "J04 round 4, J09 round 2, J10, J12, J14, J16 (six slots full).",
+    "j07": "Lazy surfaces: the component Phase 2 (J17-J24) and J11, J25, J27, J38 build on. Long: its memory measurement takes the heavy lock about 15 minutes per run. Converts the cheatsheet last, after J04 merges.",
+    "j42": "Session target and login items: on a fresh install graphical-session.target never starts (no idle lock, no crash watch, no portals), and on every seat login items and fcitx5 never start. Small: one unit, one execs.lua line, two overrides, one test. Not visible on the founder's seat except login items.",
+    "j13": "Launch feedback plus the empty-desktop identity fix. Needs J09 merged (round 2 running).",
+    "j43": "Restore and dock matching. Needs J09 merged. The dock and restore are both off by default.",
+    "j15": "Harness wedge and update test flake: every nested test and hyprshot.sh can fail one run in ten or worse; holds the heavy lock for its load runs.",
+    "others": "J08 screen corners (hot corners dead on the live seat), J41 crash watch filter (stops test crashes toasting the live seat after deploy), J28 wallpaper gallery, J29 overlay labels: independent and small to medium."
+  },
+  "questions": {
+    "queue_order": {
+      "type": "choice",
+      "instructions": "In what order should the waiting jobs take the next free slots?",
+      "criteria": {
+        "hub_then_breakage": "J07, J42, J13, J15, J43, J41, J08, J28, J29. Strongest case: the hub starts first because the most work waits on it, and the fresh-install breakage follows at once.",
+        "breakage_then_hub": "J42, J07, J13, J15, J43, J41, J08, J28, J29. Strongest case: a broken fresh install outranks a performance hub, and J42 is small so J07 starts soon after.",
+        "harness_first": "J15, J07, J42, J13, J43, J41, J08, J28, J29. Strongest case: every other job's verification runs through the flaky harness.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

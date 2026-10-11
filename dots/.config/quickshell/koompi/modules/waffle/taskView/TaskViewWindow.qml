@@ -93,12 +93,12 @@ WMouseAreaButton {
             id: titleBar
             opacity: root.drag.active ? 0 : 1
             spacing: 8
-            WAppIcon {
+            AppIconPlate {
                 Layout.leftMargin: 10
                 Layout.alignment: Qt.AlignVCenter
                 iconName: root.iconName
-                implicitSize: 16
-                tryCustomIcon: false
+                label: root.hyprlandClient?.class ?? ""
+                size: 16
             }
             WText {
                 Layout.fillWidth: true

@@ -1,0 +1,24 @@
+{
+  "project": "koompi-desktop",
+  "lead_pick": {"J48_quickshell_source": "arch_quickshell_package"},
+  "state": {
+    "problem": "A fresh Arch install builds koompi-quickshell-git (sdata/dist-arch/koompi-quickshell-git/PKGBUILD) from a pinned quickshell commit. On today's toolchain (gcc 16, Qt 6.11) the old pin and v0.3.1 both fail to moc; J48 reproduced it in a clean container. Every fresh install dies at this step.",
+    "seat": "The founder's machine does not run koompi-quickshell-git. It runs Arch's official package `quickshell 0.3.1-1` from [extra]. Every test in tests/ and every nested run this campaign ran against that 0.3.1.",
+    "pinned_pkg_does": "Builds quickshell from source; pins qt6-base and qt6-declarative to the exact build-time versions because quickshell links Qt's private ABI (pacman then blocks Qt upgrades until a rebuild); also pulls ~15 extra runtime deps the shell needs (qt6-5compat, qt6-multimedia, qt6-positioning, kirigami, kdialog, syntax-highlighting, etc.). No source patches.",
+    "arch_pkg": "[extra] quickshell 0.3.1-1, rebuilt by Arch with each Qt bump, so the private-ABI problem is Arch's to keep in step. Does not pull the koompi extra deps; those would move into a small koompi meta package or install-deps.sh.",
+    "J48_change": "Commit 20e836c9b moves the pin to v0.3.2 (4f508be5), which compiles. Nobody has run the shell on 0.3.2; the seat is 0.3.1, so fresh installs would run a version no test covered.",
+    "reversibility": "All on dev; nothing deployed. A fresh-install path change, not a seat change."
+  },
+  "questions": {
+    "J48_quickshell_source": {
+      "type": "choice",
+      "instructions": "Where should a fresh KOOMPI install get Quickshell from?",
+      "criteria": {
+        "arch_quickshell_package": "Depend on Arch's [extra] quickshell and keep the extra deps in a koompi meta package. Strongest case: it is exactly what the seat and every test run, Arch keeps it built against current Qt, and no pin or rebuild after Qt bumps is ours to maintain.",
+        "pin_v032": "Merge J48's pin move to v0.3.2. Strongest case: keeps the existing packaging and its Qt version lock; v0.3.2 compiles today. Cost: fresh installs run an untested Quickshell, and the next gcc or Qt bump can break the pin again.",
+        "pin_v032_after_test": "Merge the v0.3.2 pin only after the full suite runs against a locally built 0.3.2. Strongest case: keeps the packaging and closes the test gap. Cost: an extra build and suite run, and the pin still breaks on future toolchain bumps.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

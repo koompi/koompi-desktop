@@ -1,0 +1,783 @@
+diff --git a/dots/.config/hypr/hyprland/keybinds.lua b/dots/.config/hypr/hyprland/keybinds.lua
+index da234215b..67f172c97 100644
+--- a/dots/.config/hypr/hyprland/keybinds.lua
++++ b/dots/.config/hypr/hyprland/keybinds.lua
+@@ -383,6 +383,39 @@ for i = 1, 4 do
+     hl.bind("CTRL + SUPER + " .. key[i], hl.dsp.focus({ workspace = prefix[i] }), { description = "Workspace: " .. desc[i] })
+ end
+ 
++--##! App switcher
++-- Alt+Tab enters the appswitcher submap, so Tab, Q, Escape and the arrows mean switcher actions only while Alt is held;
++-- releasing Alt commits and leaves it. The submap is left from Lua too, so a dead shell cannot strand the keyboard in it.
++local function switcherEnd(action)
++    return function()
++        hl.dispatch(hl.dsp.global("quickshell:appSwitcher" .. action))
++        hl.dispatch(hl.dsp.submap("reset"))
++    end
++end
++local function switcherEnter(chord, action, shift)
++    hl.bind(chord, hl.dsp.global("quickshell:appSwitcher" .. action),
++        { description = shift and "Window: Cycle this app's windows (hold Alt)" or "Window: Switch windows (hold Alt)" })
++    hl.bind(chord, function() hl.dispatch(hl.dsp.submap("appswitcher")) end) -- # [hidden] enter the submap
++end
++switcherEnter("ALT + Tab", "Next", false)
++switcherEnter("ALT + SHIFT + Tab", "Prev", false)
++switcherEnter("ALT + grave", "SameNext", true)
++switcherEnter("ALT + SHIFT + grave", "SamePrev", true)
++hl.define_submap("appswitcher", function()
++    hl.bind("ALT + Tab", hl.dsp.global("quickshell:appSwitcherNext"), { repeating = true }) -- # [hidden]
++    hl.bind("ALT + SHIFT + Tab", hl.dsp.global("quickshell:appSwitcherPrev"), { repeating = true }) -- # [hidden]
++    hl.bind("ALT + grave", hl.dsp.global("quickshell:appSwitcherSameNext"), { repeating = true }) -- # [hidden]
++    hl.bind("ALT + SHIFT + grave", hl.dsp.global("quickshell:appSwitcherSamePrev"), { repeating = true }) -- # [hidden]
++    hl.bind("ALT + Right", hl.dsp.global("quickshell:appSwitcherNext"), { repeating = true }) -- # [hidden]
++    hl.bind("ALT + Left", hl.dsp.global("quickshell:appSwitcherPrev"), { repeating = true }) -- # [hidden]
++    hl.bind("ALT + Down", hl.dsp.global("quickshell:appSwitcherDown")) -- # [hidden]
++    hl.bind("ALT + Up", hl.dsp.global("quickshell:appSwitcherUp")) -- # [hidden]
++    hl.bind("ALT + Q", hl.dsp.global("quickshell:appSwitcherClose")) -- # [hidden]
++    hl.bind("ALT + Escape", switcherEnd("Cancel")) -- # [hidden]
++    hl.bind("ALT_L", switcherEnd("Commit"), { release = true, ignore_mods = true }) -- # [hidden]
++    hl.bind("ALT_R", switcherEnd("Commit"), { release = true, ignore_mods = true }) -- # [hidden]
++end)
++
+ --##! Virtual machines
+ hl.define_submap("virtual-machine", function()
+     hl.bind("SUPER + ALT + F1", function()
+diff --git a/dots/.config/quickshell/koompi/GlobalStates.qml b/dots/.config/quickshell/koompi/GlobalStates.qml
+index da729faee..06e83b648 100644
+--- a/dots/.config/quickshell/koompi/GlobalStates.qml
++++ b/dots/.config/quickshell/koompi/GlobalStates.qml
+@@ -9,6 +9,7 @@ pragma ComponentBehavior: Bound
+ 
+ Singleton {
+     id: root
++    property bool appSwitcherOpen: false
+     property bool barOpen: true
+     property bool cheatsheetOpen: false
+     property bool crosshairOpen: false
+diff --git a/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/AppSwitcher.qml b/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/AppSwitcher.qml
+new file mode 100644
+index 000000000..c6cbcf58d
+--- /dev/null
++++ b/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/AppSwitcher.qml
+@@ -0,0 +1,247 @@
++import qs
++import qs.services
++import qs.modules.common
++import "app-switcher-model.js" as Model
++import QtQuick
++import Quickshell
++import Quickshell.Io
++import Quickshell.Hyprland
++
++// Alt+Tab. The keys, the state and the IPC live here and answer with no window; the window is built on the
++// first press and only drawn once Alt has been held for showDelay, so a quick tap draws nothing.
++Scope {
++    id: root
++    readonly property bool built: surface.item !== null
++
++    property bool active: false
++    // Alt+grave: the same walk over one app's windows, never drawn
++    property bool quiet: false
++    property var entries: []
++    property int index: 0
++    property var kin: []
++    property int rowIndex: 0
++    property bool rowShown: false
++    property bool rowFocus: false
++    property string screenName: ""
++    property int showDelay: 120
++    property int rowDelay: 300
++
++    readonly property var current: root.entries[root.index] ?? null
++    readonly property var picked: root.entries[root.rowFocus ? root.kin[root.rowIndex] : root.index] ?? null
++
++    function appOf(win) {
++        const entry = DesktopEntries.heuristicLookup(win.class);
++        return {
++            id: entry?.id ?? win.class,
++            name: entry?.name ?? win.class,
++            icon: entry?.icon ?? AppSearch.guessIcon(win.class)
++        };
++    }
++
++    function begin(dir: int, sameApp: bool): void {
++        const here = Hyprland.focusedWorkspace?.id ?? HyprlandData.activeWorkspace?.id ?? -1;
++        let list = Model.build(HyprlandData.windowList, here, win => root.appOf(win));
++        if (sameApp)
++            list = Model.ofApp(list, Model.focusedAppId(list));
++        if (list.length === 0)
++            return;
++        root.screenName = Hyprland.focusedMonitor?.name ?? "";
++        root.entries = list;
++        root.index = Model.startIndex(list.length, dir);
++        root.quiet = sameApp;
++        root.active = true;
++        root.rowFocus = false;
++        root.reselect();
++        if (!sameApp)
++            showTimer.restart();
++    }
++
++    function reselect(): void {
++        root.rowShown = false;
++        root.kin = root.current ? Model.siblings(root.entries, root.current.appId) : [];
++        root.rowIndex = Math.max(0, root.kin.indexOf(root.index));
++        rowTimer.stop();
++        if (!root.quiet && root.kin.length > 1)
++            rowTimer.restart();
++    }
++
++    function move(dir: int): void {
++        if (!root.active) {
++            root.begin(dir, false);
++        } else if (root.rowFocus) {
++            root.rowIndex = Model.step(root.rowIndex, root.kin.length, dir);
++        } else {
++            root.index = Model.step(root.index, root.entries.length, dir);
++            root.reselect();
++        }
++    }
++
++    function moveSameApp(dir: int): void {
++        if (root.active)
++            root.move(dir);
++        else
++            root.begin(dir, true);
++    }
++
++    function down(): void {
++        if (!root.active || root.quiet || root.kin.length < 2)
++            return;
++        rowTimer.stop();
++        root.rowShown = true;
++        root.rowFocus = true;
++    }
++
++    function up(): void {
++        root.rowFocus = false;
++        root.rowIndex = Math.max(0, root.kin.indexOf(root.index));
++    }
++
++    function finish(): void {
++        showTimer.stop();
++        rowTimer.stop();
++        root.active = false;
++        root.rowShown = false;
++        root.rowFocus = false;
++        GlobalStates.appSwitcherOpen = false;
++        Hyprland.dispatch('hl.dsp.submap("reset")');
++    }
++
++    function commit(): void {
++        if (!root.active)
++            return;
++        const target = root.picked?.address ?? "";
++        root.finish();
++        if (target !== "")
++            Hyprland.dispatch(`hl.dsp.focus({ window = "address:${target}" })`);
++    }
++
++    function cancel(): void {
++        if (root.active)
++            root.finish();
++    }
++
++    function closeSelected(): void {
++        const target = root.picked?.address ?? "";
++        if (!root.active || target === "")
++            return;
++        Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${target}" })`);
++        const left = Model.without(root.entries, target, root.index);
++        if (left.entries.length === 0) {
++            root.finish();
++            return;
++        }
++        root.rowFocus = false;
++        root.entries = left.entries;
++        root.index = left.index;
++        root.reselect();
++        if (root.kin.length > 1)
++            root.rowShown = true;
++    }
++
++    Timer {
++        id: showTimer
++        interval: root.showDelay
++        onTriggered: GlobalStates.appSwitcherOpen = root.active && !root.quiet
++    }
++
++    Timer {
++        id: rowTimer
++        interval: root.rowDelay
++        onTriggered: root.rowShown = root.active && root.kin.length > 1
++    }
++
++    LazySurface {
++        id: surface
++        open: root.active
++        component: AppSwitcherWindow {
++            switcher: root
++        }
++    }
++
++    IpcHandler {
++        target: "appSwitcher"
++
++        function next(): void {
++            root.move(1);
++        }
++
++        function prev(): void {
++            root.move(-1);
++        }
++
++        function commit(): void {
++            root.commit();
++        }
++
++        function cancel(): void {
++            root.cancel();
++        }
++
++        function selection(): string {
++            return root.current?.appId ?? "";
++        }
++
++        function window(): string {
++            return root.picked?.address ?? "";
++        }
++
++        function shown(): bool {
++            return GlobalStates.appSwitcherOpen;
++        }
++    }
++
++    GlobalShortcut {
++        name: "appSwitcherNext"
++        description: "Alt+Tab: next window"
++        onPressed: root.move(1)
++    }
++
++    GlobalShortcut {
++        name: "appSwitcherPrev"
++        description: "Alt+Shift+Tab: previous window"
++        onPressed: root.move(-1)
++    }
++
++    GlobalShortcut {
++        name: "appSwitcherSameNext"
++        description: "Alt+grave: next window of this app"
++        onPressed: root.moveSameApp(1)
++    }
++
++    GlobalShortcut {
++        name: "appSwitcherSamePrev"
++        description: "Alt+Shift+grave: previous window of this app"
++        onPressed: root.moveSameApp(-1)
++    }
++
++    GlobalShortcut {
++        name: "appSwitcherDown"
++        description: "Switcher: choose among this app's windows"
++        onPressed: root.down()
++    }
++
++    GlobalShortcut {
++        name: "appSwitcherUp"
++        description: "Switcher: back to the apps"
++        onPressed: root.up()
++    }
++
++    GlobalShortcut {
++        name: "appSwitcherClose"
++        description: "Switcher: close the selected window"
++        onPressed: root.closeSelected()
++    }
++
++    GlobalShortcut {
++        name: "appSwitcherCancel"
++        description: "Switcher: cancel"
++        onPressed: root.cancel()
++    }
++
++    GlobalShortcut {
++        name: "appSwitcherCommit"
++        description: "Alt released: go to the selected window"
++        onPressed: root.commit()
++        onReleased: root.commit()
++    }
++}
+diff --git a/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/AppSwitcherTile.qml b/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/AppSwitcherTile.qml
+new file mode 100644
+index 000000000..ebad019bf
+--- /dev/null
++++ b/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/AppSwitcherTile.qml
+@@ -0,0 +1,46 @@
++import qs.modules.common
++import qs.modules.common.widgets
++import QtQuick
++
++Rectangle {
++    id: root
++
++    required property var entry
++    property bool selected: false
++    readonly property real iconSize: 56
++
++    implicitWidth: 92
++    implicitHeight: 92
++    radius: Appearance.rounding.small
++    color: root.selected ? Appearance.colors.colPrimaryContainer : "transparent"
++
++    AppIconPlate {
++        anchors.centerIn: parent
++        iconName: root.entry.icon
++        label: root.entry.appName
++        size: root.iconSize
++    }
++
++    Rectangle {
++        visible: !root.entry.here
++        anchors {
++            top: parent.top
++            right: parent.right
++            margins: 4
++        }
++        width: Math.max(height, badgeText.implicitWidth + 10)
++        height: 20
++        radius: height / 2
++        color: Appearance.colors.colSecondaryContainer
++        border.width: 1
++        border.color: Appearance.colors.colLayer0Border
++
++        StyledText {
++            id: badgeText
++            anchors.centerIn: parent
++            text: root.entry.workspace
++            font.pixelSize: Appearance.font.pixelSize.smaller
++            color: Appearance.m3colors.m3onSecondaryContainer
++        }
++    }
++}
+diff --git a/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/AppSwitcherWindow.qml b/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/AppSwitcherWindow.qml
+new file mode 100644
+index 000000000..08f3655fa
+--- /dev/null
++++ b/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/AppSwitcherWindow.qml
+@@ -0,0 +1,129 @@
++import qs
++import qs.modules.common
++import qs.modules.common.widgets
++import QtQuick
++import QtQuick.Layouts
++import Quickshell
++import Quickshell.Wayland
++
++PanelWindow {
++    id: win
++
++    required property var switcher
++    readonly property real tileStep: 100
++    readonly property real maxGrid: Math.max(win.tileStep * 4, (win.screen?.width ?? 1280) - 160)
++    readonly property int columns: Math.max(1, Math.min(win.switcher.entries.length, Math.floor((win.maxGrid + 8) / win.tileStep)))
++    readonly property real gridWidth: win.columns * win.tileStep - 8
++
++    visible: GlobalStates.appSwitcherOpen
++    screen: Quickshell.screens.find(s => s.name === win.switcher.screenName) ?? Quickshell.screens[0] ?? null
++    color: "transparent"
++    exclusionMode: ExclusionMode.Ignore
++    implicitWidth: panel.width
++    implicitHeight: panel.height
++    mask: Region {}
++    WlrLayershell.namespace: "quickshell:appSwitcher"
++    WlrLayershell.layer: WlrLayer.Overlay
++    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
++
++    Rectangle {
++        id: panel
++        objectName: "appSwitcherPanel"
++        width: Math.max(win.gridWidth, win.tileStep * 4 - 8) + 40
++        height: content.implicitHeight + 40
++        radius: Appearance.rounding.windowRounding
++        color: Appearance.colors.colLayer0
++        border.width: 1
++        border.color: Appearance.colors.colLayer0Border
++
++        ColumnLayout {
++            id: content
++            anchors {
++                left: parent.left
++                right: parent.right
++                top: parent.top
++                margins: 20
++            }
++            spacing: 14
++
++            Flow {
++                Layout.alignment: Qt.AlignHCenter
++                Layout.preferredWidth: win.gridWidth
++                spacing: 8
++
++                Repeater {
++                    model: win.switcher.entries
++                    delegate: AppSwitcherTile {
++                        required property var modelData
++                        required property int index
++                        entry: modelData
++                        selected: index === win.switcher.index
++                    }
++                }
++            }
++
++            ColumnLayout {
++                Layout.fillWidth: true
++                spacing: 2
++
++                StyledText {
++                    Layout.fillWidth: true
++                    horizontalAlignment: Text.AlignHCenter
++                    elide: Text.ElideRight
++                    font.pixelSize: Appearance.font.pixelSize.larger
++                    font.weight: Font.Medium
++                    text: win.switcher.current?.appName ?? ""
++                }
++
++                StyledText {
++                    Layout.fillWidth: true
++                    horizontalAlignment: Text.AlignHCenter
++                    elide: Text.ElideRight
++                    color: Appearance.colors.colSubtext
++                    text: {
++                        const entry = win.switcher.picked;
++                        if (!entry)
++                            return "";
++                        return entry.here ? entry.title : Translation.tr("Workspace %1").arg(entry.workspace) + "  ·  " + entry.title;
++                    }
++                }
++            }
++
++            Row {
++                id: windowRow
++                objectName: "appSwitcherWindows"
++                Layout.alignment: Qt.AlignHCenter
++                visible: win.switcher.rowShown
++                spacing: 8
++
++                Repeater {
++                    model: win.switcher.kin
++                    delegate: Rectangle {
++                        id: chip
++                        required property int modelData
++                        required property int index
++                        readonly property var entry: win.switcher.entries[chip.modelData]
++                        readonly property bool chosen: chip.index === win.switcher.rowIndex
++                        width: Math.min(220, chipText.implicitWidth + 24)
++                        height: 32
++                        radius: Appearance.rounding.full
++                        color: chip.chosen && win.switcher.rowFocus ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer2
++                        border.width: chip.chosen ? 2 : 0
++                        border.color: Appearance.colors.colPrimary
++
++                        StyledText {
++                            id: chipText
++                            anchors {
++                                fill: parent
++                                leftMargin: 12
++                                rightMargin: 12
++                            }
++                            elide: Text.ElideRight
++                            text: (chip.entry?.here ? "" : chip.entry?.workspace + "  ") + (chip.entry?.title ?? "")
++                        }
++                    }
++                }
++            }
++        }
++    }
++}
+diff --git a/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/app-switcher-model.js b/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/app-switcher-model.js
+new file mode 100644
+index 000000000..eb6cecdbb
+--- /dev/null
++++ b/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/app-switcher-model.js
+@@ -0,0 +1,81 @@
++.pragma library
++
++// Windows the switcher walks, most recent first. The current workspace's windows lead
++// because tiles sit side by side there; windows elsewhere follow, marked with their workspace.
++
++function rank(win) {
++    return win.focusHistoryID < 0 ? 1000000 : win.focusHistoryID;
++}
++
++function switchable(win) {
++    if (!win.mapped || win.hidden)
++        return false;
++    const ws = win.workspace;
++    return !!ws && ws.id >= 0 && String(ws.name).indexOf("special") !== 0;
++}
++
++// appOf(win) -> { id, name, icon }
++function build(windows, currentWorkspace, appOf) {
++    const entries = [];
++    for (const win of windows) {
++        if (!switchable(win))
++            continue;
++        const app = appOf(win);
++        entries.push({
++            address: win.address,
++            appId: app.id,
++            appName: app.name,
++            icon: app.icon,
++            title: win.title,
++            workspace: win.workspace.id,
++            here: win.workspace.id === currentWorkspace,
++            rank: rank(win)
++        });
++    }
++    entries.sort((a, b) => {
++        if (a.here !== b.here)
++            return a.here ? -1 : 1;
++        if (a.rank !== b.rank)
++            return a.rank - b.rank;
++        return a.address < b.address ? -1 : 1;
++    });
++    return entries;
++}
++
++function step(index, count, dir) {
++    return count > 0 ? ((index + dir) % count + count) % count : 0;
++}
++
++// the first press lands on the previous window, the first Shift press on the oldest
++function startIndex(count, dir) {
++    return step(0, count, dir);
++}
++
++function focusedAppId(entries) {
++    let best = null;
++    for (const entry of entries)
++        if (best === null || entry.rank < best.rank)
++            best = entry;
++    return best ? best.appId : "";
++}
++
++// Alt+grave: the focused app's windows only, in the same order
++function ofApp(entries, appId) {
++    return entries.filter(entry => entry.appId === appId);
++}
++
++// indexes of every window of one app, for the row under the selection
++function siblings(entries, appId) {
++    const out = [];
++    entries.forEach((entry, i) => {
++        if (entry.appId === appId)
++            out.push(i);
++    });
++    return out;
++}
++
++// the entry list after one window closes, and where the selection lands
++function without(entries, address, index) {
++    const next = entries.filter(entry => entry.address !== address);
++    return { entries: next, index: next.length === 0 ? 0 : Math.min(index, next.length - 1) };
++}
+diff --git a/dots/.config/quickshell/koompi/panelFamilies/KoompiFamily.qml b/dots/.config/quickshell/koompi/panelFamilies/KoompiFamily.qml
+index 6a9f8cb73..d5856241a 100644
+--- a/dots/.config/quickshell/koompi/panelFamilies/KoompiFamily.qml
++++ b/dots/.config/quickshell/koompi/panelFamilies/KoompiFamily.qml
+@@ -3,6 +3,7 @@ import Quickshell
+ 
+ import qs.modules.common
+ import qs.services
++import qs.modules.koompi.appSwitcher
+ import qs.modules.koompi.background
+ import qs.modules.koompi.bar
+ import qs.modules.koompi.cheatsheet
+@@ -34,6 +35,7 @@ import qs.modules.koompi.wallpaperSelector
+ import qs.modules.koompi.scratchpadDismiss
+ 
+ Scope {
++    PanelLoader { component: AppSwitcher {} }
+     PanelLoader { extraCondition: !Config.options.bar.vertical; component: Bar {} }
+     PanelLoader { component: Background {} }
+     PanelLoader { component: Cheatsheet {} }
+diff --git a/tests/test_app_switcher_binds.sh b/tests/test_app_switcher_binds.sh
+new file mode 100644
+index 000000000..16393562d
+--- /dev/null
++++ b/tests/test_app_switcher_binds.sh
+@@ -0,0 +1,83 @@
++#!/usr/bin/env bash
++# Alt+Tab binds (docs/navigation.md, App switcher): replayed from the shipped keybinds.lua under a recording `hl`.
++# The Alt chords dispatch the switcher's global shortcuts, share one cheatsheet description, enter the
++# appswitcher submap, and inside it Tab, Q, Escape, the arrows and both Alt releases mean switcher actions.
++# Super+Tab stays the overview. Every global the binds name is declared by a GlobalShortcut in the shell.
++set -uo pipefail
++
++REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
++HYPR="$REPO_ROOT/dots/.config/hypr"
++SWITCHER="$REPO_ROOT/dots/.config/quickshell/koompi/modules/koompi/appSwitcher"
++
++fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
++
++command -v lua > /dev/null 2>&1 || { echo "skip: lua not installed, binds not replayed"; exit 0; }
++
++WORK="$(mktemp -d)"
++trap 'rm -rf "$WORK"' EXIT
++
++cat > "$WORK/replay.lua" <<'LUA'
++package.path = arg[1] .. "/?.lua;" .. arg[1] .. "/?/init.lua;" .. package.path
++local submap, records = "", {}
++local function proxy(path)
++    return setmetatable({}, {
++        __index = function(_, k) return proxy(path .. "." .. tostring(k)) end,
++        __call = function(_, a) return { expr = path .. "(" .. tostring(type(a) == "string" and a or "") .. ")" } end,
++    })
++end
++local anything
++anything = setmetatable({}, {
++    __index = function(_, k) if type(k) == "number" then return nil end return anything end,
++    __call = function() return anything end,
++})
++hl = setmetatable({}, { __index = function() return anything end })
++hl.dsp = proxy("dsp")
++hl.dispatch = function() end
++function hl.bind(keys, dispatcher, opts)
++    opts = opts or {}
++    records[#records + 1] = {
++        keys = keys, submap = submap, description = opts.description or "", release = opts.release and 1 or 0,
++        ignore_mods = opts.ignore_mods and 1 or 0, repeating = opts.repeating and 1 or 0,
++        expr = type(dispatcher) == "table" and dispatcher.expr or "function",
++    }
++end
++function hl.define_submap(name, fn)
++    local previous = submap
++    submap = name
++    fn()
++    submap = previous
++end
++require("hyprland.keybinds")
++for _, r in ipairs(records) do
++    print(table.concat({ r.keys, r.submap, r.expr, r.description, r.release, r.ignore_mods, r.repeating }, "|"))
++end
++LUA
++
++(cd "$WORK" && lua replay.lua "$HYPR") > "$WORK/binds.txt" 2> "$WORK/err.txt" || { cat "$WORK/err.txt" >&2; fail "keybinds.lua did not replay under the recording hl"; }
++
++has() { grep -qxF -- "$1" "$WORK/binds.txt"; }
++want() { has "$2" || { cat "$WORK/binds.txt" | grep -i 'alt' >&2; fail "$1: missing '$2'"; }; }
++
++want "Alt+Tab is the switcher" 'ALT + Tab||dsp.global(quickshell:appSwitcherNext)|Window: Switch windows (hold Alt)|0|0|0'
++want "Alt+Shift+Tab is the switcher, same description" 'ALT + SHIFT + Tab||dsp.global(quickshell:appSwitcherPrev)|Window: Switch windows (hold Alt)|0|0|0'
++want "Alt+grave cycles this app" "ALT + grave||dsp.global(quickshell:appSwitcherSameNext)|Window: Cycle this app's windows (hold Alt)|0|0|0"
++want "Alt+Shift+grave cycles this app backwards" "ALT + SHIFT + grave||dsp.global(quickshell:appSwitcherSamePrev)|Window: Cycle this app's windows (hold Alt)|0|0|0"
++want "Alt+Tab also enters the submap" 'ALT + Tab||function||0|0|0'
++want "Alt+Shift+grave also enters the submap" 'ALT + SHIFT + grave||function||0|0|0'
++want "Tab steps inside the submap" 'ALT + Tab|appswitcher|dsp.global(quickshell:appSwitcherNext)||0|0|1'
++want "Shift+Tab steps back inside the submap" 'ALT + SHIFT + Tab|appswitcher|dsp.global(quickshell:appSwitcherPrev)||0|0|1'
++want "Right steps" 'ALT + Right|appswitcher|dsp.global(quickshell:appSwitcherNext)||0|0|1'
++want "Left steps back" 'ALT + Left|appswitcher|dsp.global(quickshell:appSwitcherPrev)||0|0|1'
++want "Down opens the window row" 'ALT + Down|appswitcher|dsp.global(quickshell:appSwitcherDown)||0|0|0'
++want "Up leaves the window row" 'ALT + Up|appswitcher|dsp.global(quickshell:appSwitcherUp)||0|0|0'
++want "Q closes" 'ALT + Q|appswitcher|dsp.global(quickshell:appSwitcherClose)||0|0|0'
++want "Escape cancels and leaves the submap" 'ALT + Escape|appswitcher|function||0|0|0'
++want "left Alt release commits and leaves the submap" 'ALT_L|appswitcher|function||1|1|0'
++want "right Alt release commits and leaves the submap" 'ALT_R|appswitcher|function||1|1|0'
++want "Super+Tab stays the overview" 'SUPER + Tab||dsp.global(quickshell:overviewWorkspacesToggle)|Shell: Toggle overview|0|0|0'
++echo "ok   keybinds.lua: Alt+Tab, Alt+grave, the appswitcher submap, both Alt releases, Super+Tab untouched"
++
++while IFS= read -r name; do
++    grep -q "name: \"$name\"" "$SWITCHER/AppSwitcher.qml" || fail "a bind dispatches quickshell:$name but AppSwitcher.qml declares no such GlobalShortcut"
++done < <(grep -o 'appSwitcher[A-Za-z]*' "$HYPR/hyprland/keybinds.lua" | sort -u | grep -v '^appSwitcher$')
++echo "ok   every global the binds name is a GlobalShortcut in AppSwitcher.qml"
+diff --git a/tests/test_app_switcher_model.sh b/tests/test_app_switcher_model.sh
+new file mode 100644
+index 000000000..9cd70402c
+--- /dev/null
++++ b/tests/test_app_switcher_model.sh
+@@ -0,0 +1,85 @@
++#!/usr/bin/env bash
++# Alt+Tab walks windows, current workspace first, most recent first (docs/navigation.md, App switcher).
++# The ordering, the wrap and the first-press index are modules/koompi/appSwitcher/app-switcher-model.js, run here
++# on a window list shaped like koompi-shelld's `clients`: focusHistoryID, class, workspace, one special-workspace window.
++set -uo pipefail
++
++REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
++MODEL="$REPO_ROOT/dots/.config/quickshell/koompi/modules/koompi/appSwitcher/app-switcher-model.js"
++
++fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
++
++[[ -f "$MODEL" ]] || fail "missing ${MODEL#"$REPO_ROOT"/}"
++if grep -nE '\.(flatMap|flat|at|replaceAll|findLast|toSorted|toReversed)\(|Object\.(hasOwn|fromEntries)' "$MODEL"; then
++    fail "app-switcher-model.js uses a method the Quickshell JS engine lacks"
++fi
++if command -v bun > /dev/null 2>&1; then RUNNER=bun
++elif command -v node > /dev/null 2>&1; then RUNNER=node
++else echo "skip: neither bun nor node installed, app-switcher-model.js not run"; exit 0
++fi
++
++WORK="$(mktemp -d)"
++trap 'rm -rf "$WORK"' EXIT
++sed '/^\.pragma /d' "$MODEL" > "$WORK/model.mjs"
++printf '\nexport { build, step, startIndex, focusedAppId, ofApp, siblings, without };\n' >> "$WORK/model.mjs"
++
++cat > "$WORK/run.mjs" <<'EOF'
++import { build, step, startIndex, focusedAppId, ofApp, siblings, without } from "./model.mjs";
++
++let failed = 0;
++const check = (name, cond, extra = "") => {
++    if (!cond) { console.error(`FAIL: ${name} ${extra}`); failed++; }
++};
++const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
++
++const win = (address, cls, title, ws, hist, extra = {}) => ({
++    address, class: cls, title, mapped: true, hidden: false, focusHistoryID: hist,
++    workspace: { id: ws, name: String(ws) }, ...extra,
++});
++const windows = [
++    win("0xa1", "kitty", "shell", 1, 3),
++    win("0xb1", "firefox", "docs", 1, 1),
++    win("0xa2", "kitty", "logs", 1, 0),
++    win("0xc1", "okular", "paper", 2, 2),
++    win("0xd1", "kitty", "other", 3, 4),
++    win("0xe1", "pavucontrol", "scratch", -98, 5, { workspace: { id: -98, name: "special:magic" } }),
++    win("0xf1", "gimp", "never focused", 1, -1),
++    win("0x01", "zoom", "unmapped", 1, 6, { mapped: false }),
++];
++const appOf = w => ({ id: w.class, name: w.class, icon: w.class });
++const entries = build(windows, 1, appOf);
++const order = list => list.map(e => e.address);
++
++check("current workspace first, most recent first, then the rest by recency, never-focused last of its group",
++    same(order(entries), ["0xa2", "0xb1", "0xa1", "0xf1", "0xc1", "0xd1"]), JSON.stringify(order(entries)));
++check("a special-workspace window is skipped", !order(entries).includes("0xe1"));
++check("an unmapped window is skipped", !order(entries).includes("0x01"));
++check("windows elsewhere are marked, windows here are not",
++    same(entries.map(e => e.here), [true, true, true, true, false, false]));
++check("an entry carries its workspace number", entries[4].workspace === 2 && entries[5].workspace === 3);
++
++check("the first press lands on index 1, the previous window", startIndex(entries.length, 1) === 1);
++check("the first Shift press lands on the oldest", startIndex(entries.length, -1) === entries.length - 1);
++check("one window: the first press stays on it", startIndex(1, 1) === 0);
++check("next wraps past the end", step(entries.length - 1, entries.length, 1) === 0);
++check("prev wraps past the start", step(0, entries.length, -1) === entries.length - 1);
++check("next steps by one", step(2, entries.length, 1) === 3);
++check("an empty list steps to 0", step(0, 0, 1) === 0);
++
++check("the focused app is the one with the most recent window", focusedAppId(entries) === "kitty");
++check("Alt+grave walks only the focused app's windows, current workspace first",
++    same(order(ofApp(entries, "kitty")), ["0xa2", "0xa1", "0xd1"]));
++check("siblings are the indexes of one app's windows", same(siblings(entries, "kitty"), [0, 2, 5]));
++
++const left = without(entries, "0xa2", 0);
++check("closing a window drops it and keeps the selection in range",
++    !order(left.entries).includes("0xa2") && left.index === 0);
++check("closing the last entry leaves index 0", without(entries.slice(0, 1), "0xa2", 0).index === 0);
++check("closing the final window empties the list", without(entries.slice(0, 1), "0xa2", 0).entries.length === 0);
++check("closing the last row moves the selection back", without(entries, "0xd1", 5).index === 4);
++
++if (failed) process.exit(1);
++console.log("ok   app-switcher-model: order, skips, first-press index, wrap, Alt+grave, close");
++EOF
++
++cd "$WORK" && "$RUNNER" run.mjs || fail "app-switcher-model.js"

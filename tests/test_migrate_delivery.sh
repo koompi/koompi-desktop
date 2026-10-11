@@ -18,10 +18,23 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 SHIMS="$TEST_ROOT/shims"; mkdir -p "$SHIMS"
 HYPRCTL_LOG="$TEST_ROOT/hyprctl.log"; BUSCTL_LOG="$TEST_ROOT/busctl.log"; SENT="$TEST_ROOT/sent.txt"
 REAL_RSYNC="$(command -v rsync)" || { echo "skip: rsync not installed"; exit 0; }
+AUTORELOAD="$TEST_ROOT/autoreload"; WRITES="$TEST_ROOT/writes.log"
+# Hyprland 0.56 on the Lua config: keyword prints that line and changes nothing, eval sets the option and answers ok
 cat > "$SHIMS/hyprctl" <<SHIM
 #!/usr/bin/env bash
 printf '%s\n' "\$*" >> "$HYPRCTL_LOG"
-[[ "\$1" == -j ]] && echo '{"option": "misc:disable_autoreload", "bool": false, "set": false }'
+case "\${1:-}" in
+    -j) echo "{\"option\": \"misc:disable_autoreload\", \"bool\": \$(cat "$AUTORELOAD"), \"set\": false}" ;;
+    keyword) echo "keyword can't work with non-legacy parsers. Use eval." ;;
+    eval)
+        [[ -e "$TEST_ROOT/eval-fails" ]] && { echo "error: unknown config key 'misc.disable_autoreload'" >&2; exit 7; }
+        case "\$2" in
+            *'disable_autoreload = true'*) echo true > "$AUTORELOAD" ;;
+            *'disable_autoreload = false'*) echo false > "$AUTORELOAD" ;;
+            *) echo "error: unexpected eval: \$2" >&2; exit 7 ;;
+        esac
+        echo ok ;;
+esac
 exit 0
 SHIM
 cat > "$SHIMS/busctl" <<SHIM
@@ -36,6 +49,7 @@ printf '%s\n' "\$@" > "$SENT"
 SHIM
 cat > "$SHIMS/rsync" <<SHIM
 #!/usr/bin/env bash
+[[ "\$1" == -n* ]] || printf 'disable_autoreload=%s\n' "\$(cat "$AUTORELOAD")" >> "$WRITES"
 if [[ -e "$TEST_ROOT/rsync-fail" && "\$1" != -n* ]]; then echo "rsync: simulated failure" >&2; exit 23; fi
 exec "$REAL_RSYNC" "\$@"
 SHIM
@@ -47,6 +61,8 @@ export PATH="$SHIMS:$PATH"
 # copies of both have drifted.
 export KOOMPI_MIGRATE_SKEL="$TEST_ROOT/skel" KOOMPI_MIGRATE_XDG="$TEST_ROOT/xdg"
 export HOME="$TEST_ROOT/home"
+export XDG_CONFIG_HOME="$HOME/.config" XDG_STATE_HOME="$HOME/.local/state"
+unset KOOMPI_STATE_DIR KOOMPI_CONFIG_FILE
 export KOOMPI_MIGRATE_MIGRATIONS_DIR="$TEST_ROOT/migrations"
 mkdir -p "$KOOMPI_MIGRATE_SKEL/.config/hypr/hyprland" "$KOOMPI_MIGRATE_MIGRATIONS_DIR"
 printf 'shipped = 2\n' > "$KOOMPI_MIGRATE_SKEL/.config/hypr/hyprland/general.lua"
@@ -57,20 +73,54 @@ reset_home() {
     cp -r "$KOOMPI_MIGRATE_SKEL/.config" "$HOME/.config"
     printf 'shipped = 1\n' > "$HOME/.config/hypr/hyprland/general.lua"
     printf 'listener {\n    timeout = 60\n}\n' > "$HOME/.config/hypr/hypridle.conf"
-    : > "$HYPRCTL_LOG"; rm -f "$TEST_ROOT/rsync-fail"
+    : > "$HYPRCTL_LOG"; : > "$WRITES"; echo false > "$AUTORELOAD"; rm -f "$TEST_ROOT/rsync-fail"
 }
+GET='-j getoption misc:disable_autoreload'
+PAUSE='eval hl.config({ misc = { disable_autoreload = true } })'
+RESUME='eval hl.config({ misc = { disable_autoreload = false } })'
+written_paused() { [[ -s "$WRITES" ]] && ! grep -qvx 'disable_autoreload=true' "$WRITES"; }
 
-# 1. Autoreload paused before the sync, reload issued, option restored after.
+# 1. Autoreload paused while the sync writes, reload issued, option restored after.
 reset_home
 HYPRLAND_INSTANCE_SIGNATURE=shim "$MIGRATE" --apply > "$TEST_ROOT/out" 2>&1 || fail "--apply failed: $(cat "$TEST_ROOT/out")"
-expected=$'-j getoption misc:disable_autoreload\nkeyword misc:disable_autoreload 1\nreload\nkeyword misc:disable_autoreload false'
+written_paused || fail "the sync wrote while Hyprland's autoreload was on: $(cat "$WRITES")"
+[[ "$(cat "$AUTORELOAD")" == false ]] || fail "the autoreload option was not put back: $(cat "$AUTORELOAD")"
+expected="$GET"$'\n'"$PAUSE"$'\nreload\n'"$RESUME"
 [[ "$(cat "$HYPRCTL_LOG")" == "$expected" ]] || fail "hyprctl sequence on success: $(cat "$HYPRCTL_LOG")"
 [[ "$(cat "$HOME/.config/hypr/hyprland/general.lua")" == 'shipped = 2' ]] || fail "hyprland/ was not synced"
+
+# 1b. KOOMPI_MIGRATE_NO_RELOAD: the guard stays, the reload and the restart advice go (koompi update reloads once, last).
+reset_home
+HYPRLAND_INSTANCE_SIGNATURE=shim KOOMPI_MIGRATE_NO_RELOAD=1 "$MIGRATE" --apply > "$TEST_ROOT/out" 2>&1 || fail "--apply failed under KOOMPI_MIGRATE_NO_RELOAD: $(cat "$TEST_ROOT/out")"
+written_paused || fail "the sync wrote while Hyprland's autoreload was on, under KOOMPI_MIGRATE_NO_RELOAD: $(cat "$WRITES")"
+[[ "$(cat "$AUTORELOAD")" == false ]] || fail "the autoreload option was not put back under KOOMPI_MIGRATE_NO_RELOAD: $(cat "$AUTORELOAD")"
+expected="$GET"$'\n'"$PAUSE"$'\n'"$RESUME"
+[[ "$(cat "$HYPRCTL_LOG")" == "$expected" ]] || fail "hyprctl sequence under KOOMPI_MIGRATE_NO_RELOAD: $(cat "$HYPRCTL_LOG")"
+[[ "$(cat "$HOME/.config/hypr/hyprland/general.lua")" == 'shipped = 2' ]] || fail "hyprland/ was not synced under KOOMPI_MIGRATE_NO_RELOAD"
+grep -q 'Restart the shell' "$TEST_ROOT/out" && fail "the closing line sends the user off to restart a shell the update restarts: $(cat "$TEST_ROOT/out")"
+grep -q '^koompi-migrate: done\.$' "$TEST_ROOT/out" || fail "no plain closing line under KOOMPI_MIGRATE_NO_RELOAD: $(cat "$TEST_ROOT/out")"
+
+# 1c. A user who runs with autoreload off gets it back off, not on.
+reset_home; echo true > "$AUTORELOAD"
+HYPRLAND_INSTANCE_SIGNATURE=shim "$MIGRATE" --apply > "$TEST_ROOT/out" 2>&1 || fail "--apply failed with autoreload already off: $(cat "$TEST_ROOT/out")"
+[[ "$(cat "$AUTORELOAD")" == true ]] || fail "a user's disable_autoreload=true was turned back on: $(cat "$AUTORELOAD")"
+expected="$GET"$'\n'"$PAUSE"$'\nreload\n'"$PAUSE"
+[[ "$(cat "$HYPRCTL_LOG")" == "$expected" ]] || fail "hyprctl sequence with autoreload already off: $(cat "$HYPRCTL_LOG")"
+
+# 1d. A pause that does not take stops the sync before it writes anything.
+reset_home; touch "$TEST_ROOT/eval-fails"
+if HYPRLAND_INSTANCE_SIGNATURE=shim "$MIGRATE" --apply > "$TEST_ROOT/out" 2>&1; then fail "--apply went on although hyprctl could not pause the autoreload"; fi
+rm -f "$TEST_ROOT/eval-fails"
+[[ ! -s "$WRITES" ]] || fail "the sync wrote although the autoreload could not be paused: $(cat "$WRITES")"
+[[ "$(cat "$HOME/.config/hypr/hyprland/general.lua")" == 'shipped = 1' ]] || fail "hyprland/ was rewritten without the guard"
+grep -q 'could not pause' "$TEST_ROOT/out" || fail "no word on why the sync stopped: $(cat "$TEST_ROOT/out")"
 
 # 2. rsync fails mid-sync: the EXIT trap still restores the option, no reload.
 reset_home; touch "$TEST_ROOT/rsync-fail"
 if HYPRLAND_INSTANCE_SIGNATURE=shim "$MIGRATE" --apply > "$TEST_ROOT/out" 2>&1; then fail "--apply succeeded with a failing rsync"; fi
-expected=$'-j getoption misc:disable_autoreload\nkeyword misc:disable_autoreload 1\nkeyword misc:disable_autoreload false'
+written_paused || fail "the failing sync attempt ran while Hyprland's autoreload was on: $(cat "$WRITES")"
+[[ "$(cat "$AUTORELOAD")" == false ]] || fail "a failed sync left the autoreload option off: $(cat "$AUTORELOAD")"
+expected="$GET"$'\n'"$PAUSE"$'\n'"$RESUME"
 [[ "$(cat "$HYPRCTL_LOG")" == "$expected" ]] || fail "hyprctl sequence on rsync failure: $(cat "$HYPRCTL_LOG")"
 
 # 3. Outside Hyprland: no hyprctl at all, and a line saying so.

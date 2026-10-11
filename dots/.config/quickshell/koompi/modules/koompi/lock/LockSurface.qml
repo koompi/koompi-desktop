@@ -32,7 +32,7 @@ MouseArea {
     // Everything that is lock furniture leaves; the wallpaper stays and drops its blur,
     // veil and zoom, so the last frame here matches the first frame of the desktop.
     readonly property bool unlocking: parent?.lockUnlocking ?? false
-    readonly property int exitDuration: parent?.lockExitDuration ?? 350
+    readonly property int exitDuration: parent?.lockExitDuration ?? Appearance.animation.elementMoveExit.duration
     readonly property string wallpaperPath: root.context.wallpaperForScreen(root.screenName)
 
     readonly property bool requirePasswordToPower: Config.options.lock.security.requirePasswordToPower
@@ -415,7 +415,7 @@ MouseArea {
                         }
                         // A reader that is actually sampling says so.
                         SequentialAnimation on opacity {
-                            running: root.context.fingerprintState === LockContext.FingerprintEnum.Scanning
+                            running: root.context.fingerprintState === LockContext.FingerprintEnum.Scanning && !Appearance.reduceMotion
                             loops: Animation.Infinite
                             alwaysRunToEnd: true
                             NumberAnimation {

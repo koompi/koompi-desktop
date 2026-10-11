@@ -40,6 +40,7 @@ Turn the whole thing off in Settings under AI if you would rather it kept nothin
 ## Talking instead of typing
 
 Dictation needs the `koompi-kiri` package and a voice model on disk.
+Kiri itself lives at github.com/koompiai/kiri; `koompi-kiri` builds it from there, and the installer does that for you.
 The models are hundreds of megabytes, so nothing is downloaded until you ask:
 
 ```sh

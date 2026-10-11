@@ -10,6 +10,7 @@ trap 'rm -rf "$TEST_ROOT"' EXIT
 
 export KOOMPI_MIGRATE_MIGRATIONS_DIR="$TEST_ROOT/migrations"
 export HOME="$TEST_ROOT/home"
+unset XDG_STATE_HOME KOOMPI_STATE_DIR
 mkdir -p "$KOOMPI_MIGRATE_MIGRATIONS_DIR" "$HOME"
 
 printf 'echo ran-a >> %q\n' "$LOG" > "$KOOMPI_MIGRATE_MIGRATIONS_DIR/1000-a.sh"

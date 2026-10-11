@@ -18,7 +18,7 @@ depends=(
   # Khmer input. KOOMPI is a Cambodian desktop and could not type Khmer out of
   # the box; the shell's own UI stays English (LEDGER, 2026-07-30). fcitx5
   # ships its own XDG autostart and exports XMODIFIERS itself, and the session
-  # already starts xdg-desktop-autostart.target, so packages are the whole fix.
+  # target wants xdg-desktop-autostart.target, so packages are the whole fix.
   fcitx5
   fcitx5-configtool
   fcitx5-gtk

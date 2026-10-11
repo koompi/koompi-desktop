@@ -5,9 +5,13 @@
 # there is none. journalctl, busctl, coredumpctl and curl are PATH shims that
 # log their argv and play fixtures, and koompi-notify-send is shimmed as a
 # sibling (the tools prefer the sibling to PATH), so nothing here reads the
-# real journal, talks to the bus, or reaches a server. Proves: the journal
-# match, the per-program dedupe window, KOOMPI_CRASH_IGNORE, own-machinery and
-# other-uid skips, the exact --exec argv, --once --dry-run sending nothing,
+# real journal, talks to the bus, or reaches a server. XDG_DATA_HOME and
+# XDG_DATA_DIRS point at fixture desktop entries, so the machine's own
+# applications never name a toast. Proves: the journal match, the per-program
+# dedupe window, KOOMPI_CRASH_IGNORE, own-machinery and other-uid skips, the
+# exact --exec argv, the plain-worded normal-urgency toast titled by the desktop
+# entry's Name= (user dir before shared dirs, the [Desktop Entry] group only,
+# Hidden skipped) or else the capitalised program name, --once --dry-run sending nothing,
 # the report's contents and mode, coredumpctl used read-only, curl aimed only
 # at 127.0.0.1, the no-local-model refusal, the unit's shape, and the
 # setup_services enable line.
@@ -33,6 +37,38 @@ mkdir -p "$WORK/bin" "$WORK/tools" "$WORK/state"
 cp "$BIN/koompi-crash-watch" "$BIN/koompi-crash-diagnose" "$WORK/tools/"
 export WORK
 export PATH="$WORK/bin:$PATH"
+export XDG_DATA_HOME="$WORK/data"
+export XDG_DATA_DIRS="$WORK/shared1:$WORK/shared2"
+mkdir -p "$XDG_DATA_HOME/applications" "$WORK/shared1/applications" "$WORK/shared2/applications"
+
+desktop() { # desktop <dir> <file> <body>
+    printf '%s\n' "$3" > "$1/applications/$2"
+}
+desktop "$XDG_DATA_HOME" firefox.desktop '[Desktop Entry]
+Name=Firefox Web Browser
+Exec=/usr/lib/firefox/firefox %u
+[Desktop Action new-window]
+Name=Open a New Window
+Exec=/usr/lib/firefox/firefox --new-window'
+desktop "$WORK/shared1" firefox.desktop '[Desktop Entry]
+Name=Firefox From A Shared Dir
+Exec=firefox %u'
+desktop "$WORK/shared1" microtex.desktop '[Desktop Entry]
+Name=MicroTeX Editor
+Exec=env GDK_BACKEND=x11 "/opt/MicroTeX/LaTeX" %f'
+desktop "$XDG_DATA_HOME" files.desktop '[Desktop Entry]
+Name=Files
+Exec=filesapp %U
+[Desktop Action terminal]
+Name=Open Terminal Here
+Exec=termapp'
+desktop "$XDG_DATA_HOME" hidden.desktop '[Desktop Entry]
+Name=Gone
+Exec=hiddenapp
+Hidden=true'
+desktop "$WORK/shared2" other.desktop '[Desktop Entry]
+Name=Other App
+Exec=/usr/bin/otherapp --flag'
 
 # --- shims -------------------------------------------------------------------
 
@@ -107,8 +143,9 @@ entry() {
 WATCH="$WORK/tools/koompi-crash-watch"
 DIAGNOSE="$WORK/tools/koompi-crash-diagnose"
 sep=$'\x1f'
-expected_firefox="-a${sep}KOOMPI${sep}-u${sep}critical${sep}Process crashed: firefox${sep}SIGSEGV. Click to diagnose with the local model.${sep}--exec${sep}$DIAGNOSE${sep}4242${sep}firefox${sep}/usr/lib/firefox/firefox${sep}SIGSEGV${sep}"
-expected_noexe="-a${sep}KOOMPI${sep}-u${sep}critical${sep}Process crashed: noexe${sep}SIGBUS. Click to diagnose with the local model.${sep}--exec${sep}$DIAGNOSE${sep}4600${sep}noexe${sep}-${sep}SIGBUS${sep}"
+body="Click to find out why. The check runs on this computer."
+expected_firefox="-a${sep}KOOMPI${sep}-u${sep}normal${sep}Firefox Web Browser closed unexpectedly${sep}${body}${sep}--exec${sep}$DIAGNOSE${sep}4242${sep}firefox${sep}/usr/lib/firefox/firefox${sep}SIGSEGV${sep}"
+expected_noexe="-a${sep}KOOMPI${sep}-u${sep}normal${sep}Noexe closed unexpectedly${sep}${body}${sep}--exec${sep}$DIAGNOSE${sep}4600${sep}noexe${sep}-${sep}SIGBUS${sep}"
 
 # --- 1. the follow: match, dedupe, ignore, skips, exact argv -----------------
 
@@ -142,7 +179,7 @@ echo "ok   dedupe: KOOMPI_CRASH_DEDUPE_SECONDS=0 announces the duplicate (3 toas
 
 rm -f "$WORK"/*.argv "$WORK/notify.log"
 "$WATCH" >/dev/null 2>&1 || fail "watch (no ignore) failed"
-grep -q "Process crashed: LaTeX" "$WORK/notify.log" || fail "LaTeX was not announced without KOOMPI_CRASH_IGNORE"
+grep -q "MicroTeX Editor closed unexpectedly" "$WORK/notify.log" || fail "LaTeX was not announced without KOOMPI_CRASH_IGNORE"
 echo "ok   ignore: the regex is the only thing keeping LaTeX quiet"
 
 # --- 4. no notification server: bounded wait, nothing sent, said so ----------
@@ -169,6 +206,51 @@ grep -q -- '--follow' "$WORK/journalctl.argv" && fail "--once still follows"
 echo "ok   --once --dry-run: reads the newest entry, prints the argv, sends nothing"
 
 "$WATCH" --bogus >/dev/null 2>&1; (( $? == 64 )) || fail "an unknown argument is not exit 64"
+
+# --- 5b. the title: desktop entry name, else the capitalised program ---------
+
+title_is() { # title_is <comm> <exe> <title>: what --once --dry-run would announce
+    local out
+    entry "$UID" "$1" 5000 "$2" SIGSEGV > "$WORK/fixture.jsonl"
+    out="$("$WATCH" --once --dry-run 2>&1)" || fail "--once --dry-run for $1 failed: $out"
+    [[ "$out" == *" -u normal $(printf '%q' "$3") $(printf '%q' "$body") --exec "* ]] \
+        || fail "$1 was not announced as '$3' at normal urgency: $out"
+}
+title_is firefox /usr/lib/firefox/firefox "Firefox Web Browser closed unexpectedly"
+title_is LaTeX /opt/MicroTeX/LaTeX "MicroTeX Editor closed unexpectedly"
+title_is otherapp /usr/bin/otherapp "Other App closed unexpectedly"
+title_is termapp /usr/bin/termapp "Termapp closed unexpectedly"
+title_is hiddenapp /usr/bin/hiddenapp "Hiddenapp closed unexpectedly"
+title_is chrome /opt/google/chrome/chrome "Chrome closed unexpectedly"
+title_is noexe -  "Noexe closed unexpectedly"
+echo "ok   title: Name= of the entry whose Exec binary crashed (user dir first, env and quoted Exec, second shared dir), else the capitalised name; no entry from an action group or a Hidden one; normal urgency, no signal in the text"
+
+# --- 5c. a foreign XDG_RUNTIME_DIR in COREDUMP_ENVIRON is skipped, said so ----
+
+own_dir="$WORK/runtime"
+mkdir -p "$own_dir"; chmod 700 "$own_dir"
+export XDG_RUNTIME_DIR="$own_dir"
+environ_entry() { # environ_entry <environ text>
+    entry "$UID" nested 6000 /usr/bin/nested SIGSEGV | jq -c --arg e "$1" '. + {COREDUMP_ENVIRON: $e}'
+}
+rm -f "$WORK/notify.log"
+environ_entry $'HOME=/tmp/h\nXDG_RUNTIME_DIR=/tmp/hr.test\nPATH=/usr/bin' > "$WORK/fixture.jsonl"
+err="$("$WATCH" 2>&1 >/dev/null)"
+[[ -e "$WORK/notify.log" ]] && fail "a crash from XDG_RUNTIME_DIR=/tmp/hr.test was announced"
+grep -q 'nested (pid 6000).*foreign XDG_RUNTIME_DIR /tmp/hr.test' <<<"$err" || fail "the foreign-runtime-dir skip was silent: $err"
+rm -f "$WORK/notify.log"
+environ_entry $'HOME=/tmp/h\nXDG_RUNTIME_DIR='"$own_dir"$'\nPATH=/usr/bin' > "$WORK/fixture.jsonl"
+"$WATCH" >/dev/null 2>&1
+[[ "$(wc -l < "$WORK/notify.log")" == 1 ]] || fail "a crash with the watcher's own runtime dir was not announced once"
+rm -f "$WORK/notify.log"
+environ_entry $'HOME=/tmp/h\nPATH=/usr/bin' > "$WORK/fixture.jsonl"
+"$WATCH" >/dev/null 2>&1
+[[ "$(wc -l < "$WORK/notify.log")" == 1 ]] || fail "an environ without XDG_RUNTIME_DIR was not announced"
+rm -f "$WORK/notify.log"
+entry "$UID" nested 6000 /usr/bin/nested SIGSEGV > "$WORK/fixture.jsonl"
+"$WATCH" >/dev/null 2>&1
+[[ "$(wc -l < "$WORK/notify.log")" == 1 ]] || fail "an entry without COREDUMP_ENVIRON was not announced"
+echo "ok   environ: foreign XDG_RUNTIME_DIR skipped and logged; own dir, none, or no environ announced"
 
 # --- 6. diagnose: report written, model absent -> refusal --------------------
 

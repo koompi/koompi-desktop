@@ -31,13 +31,19 @@ hl.window_rule({match = {title = "^(.*)(wants to save)$" },                  cen
 hl.window_rule({match = {title = "^(.*)(wants to save)$" },                  float = true})
 hl.window_rule({match = {title = "^(.*)(wants to open)$" },                  center = true})
 hl.window_rule({match = {title = "^(.*)(wants to open)$" },                  float = true})
+-- Chromium's profile error box ("Something went wrong when opening your
+-- profile") is a bare toplevel with no app_id, so only the title can match it.
+-- Tiled it stretches a two-line message across the whole monitor.
+hl.window_rule({match = {title = "^(Profile error occurred)$" },             center = true})
+hl.window_rule({match = {title = "^(Profile error occurred)$" },             float = true})
 -- Portal file choosers by CLASS: apps pass their own dialog titles (Zed's
 -- "Open Folder", localized titles), so the title list above cannot cover them.
 hl.window_rule({match = {class = "^(xdg-desktop-portal-gtk)$" },             float = true})
 hl.window_rule({match = {class = "^(xdg-desktop-portal-gtk)$" },             center = true})
 hl.window_rule({match = {class = "^(xdg-desktop-portal-gtk)$" },             size = {"(monitor_w*0.60)", "(monitor_h*0.65)"} })
-hl.window_rule({match = {class = "^(kdialog)$" },                            float = true})
-hl.window_rule({match = {class = "^(kdialog)$" },                            center = true})
+-- a qt app reports another class on wayland than on xcb: match both forms
+hl.window_rule({match = {class = "^(kdialog|org\\.kde\\.kdialog)$" },        float = true})
+hl.window_rule({match = {class = "^(kdialog|org\\.kde\\.kdialog)$" },        center = true})
 hl.window_rule({match = {class = "^(blueberry\\.py)$" },                     float = true})
 hl.window_rule({match = {class = "^(guifetch)$" },                           float = true}) -- FlafyDev/guifetch
 hl.window_rule({match = {class = "^(pavucontrol)$" },                        float = true})
@@ -61,33 +67,25 @@ hl.window_rule({match = {title = "^(KOOMPI Settings)$" },                    cen
 hl.window_rule({match = {title = ".*Shell conflicts.*" },                    float = true})
 hl.window_rule({match = {class = "^(Zotero)$" },                             float = true})
 hl.window_rule({match = {class = "^(Zotero)$" },                             size = {"(monitor_w*0.45)", "(monitor_h*0.45)"} })
--- Telegram (SUPER + T): rules_telegram.lua, its own file for the file-length cap.
--- Discord: SUPER + SHIFT + D
-hl.window_rule({match = {class = "^(discord)$" },                            workspace = "special:discord silent"})
-hl.window_rule({match = {class = "^(discord)$" },                            float = true})
-hl.window_rule({match = {class = "^(discord)$" },                            size = {overlayW, overlayH} })
-hl.window_rule({match = {class = "^(discord)$" },                            center = true})
--- WhatsApp Web: SUPER + SHIFT + W  (browser app-window, class contains web.whatsapp.com)
-hl.window_rule({match = {class = ".*web\\.whatsapp\\.com.*" },               workspace = "special:whatsapp silent"})
-hl.window_rule({match = {class = ".*web\\.whatsapp\\.com.*" },               float = true})
-hl.window_rule({match = {class = ".*web\\.whatsapp\\.com.*" },               size = {overlayW, overlayH} })
-hl.window_rule({match = {class = ".*web\\.whatsapp\\.com.*" },               center = true})
--- Each uses a unique --class so it never collides with the SUPER + Return terminal.
-hl.window_rule({match = {class = "^(term-scratch)$" },                       workspace = "special:term silent"})
-hl.window_rule({match = {class = "^(term-scratch)$" },                       float = true})
--- monitor_h-52 = 40px bar reserve + 2*(5 gap + 1 border), so the panel lines up
--- edge-for-edge with a tiled window. monitor_* not window_*: those evaluate before
--- the size rule and fall back to centered.
-hl.window_rule({match = {class = "^(term-scratch)$" },                       size = {"(monitor_w*0.42)", "(monitor_h-52)"} })
-hl.window_rule({match = {class = "^(term-scratch)$" },                       move = {"(monitor_w*0.58-16)", "(46)"} })
--- koompi-launch-tui windows (class TUI.<app-id>): floated like the portal chooser;
--- a named rule below still wins for its own app-id, later rules apply last.
+-- koompi-launch-tui windows (class TUI.<app-id>): floated like the portal chooser
 hl.window_rule({match = {class = "^TUI\\." },                                 float = true})
 hl.window_rule({match = {class = "^TUI\\." },                                 center = true})
 hl.window_rule({match = {class = "^TUI\\." },                                 size = {"(monitor_w*0.60)", "(monitor_h*0.65)"} })
--- System monitor: SUPER + backslash (scripts/launch_sysmon.sh, via koompi-launch-tui)
-hl.window_rule({match = {class = "^(TUI\\.sysmon-scratch)$" },                workspace = "special:sysmon silent"})
-hl.window_rule({match = {class = "^(TUI\\.sysmon-scratch)$" },                size = {"(monitor_w*0.7)", "(min(monitor_w*0.45, monitor_h*0.8))"} })
+-- later rules win, so the widgets come after the TUI one
+-- app widgets (toggle_app_scratchpad.sh): one special workspace each, all floating, centred, 70% x 70%.
+-- Telegram (SUPER + T) is a side panel, not a centred widget: rules_telegram.lua.
+local widgets = {
+    { special = "discord",  match = { class = "^(discord)$" } },
+    { special = "whatsapp", match = { class = ".*web\\.whatsapp\\.com.*" } },
+    { special = "term",     match = { class = "^(term-scratch)$" } },
+    { special = "sysmon",   match = { class = "^(TUI\\.sysmon-scratch)$" } },
+}
+for _, w in ipairs(widgets) do
+    hl.window_rule({match = w.match, workspace = "special:" .. w.special .. " silent"})
+    hl.window_rule({match = w.match, float = true})
+    hl.window_rule({match = w.match, size = {"(monitor_w*0.7)", "(monitor_h*0.7)"} })
+    hl.window_rule({match = w.match, center = true})
+end
 
 -- Normal browser classes only, never the chrome --app widget class, so the
 -- WhatsApp/Telegram/Discord widgets stay on their special workspaces.
@@ -128,6 +126,10 @@ hl.workspace_rule({ workspace = "special:discord", gaps_out = 30 })
 hl.workspace_rule({ workspace = "special:whatsapp", gaps_out = 30 })
 hl.workspace_rule({ workspace = "special:term", gaps_out = 30 })
 hl.workspace_rule({ workspace = "special:sysmon", gaps_out = 30 })
+-- one tiled window fills its space; s[false] keeps scratchpads and their 30px gap out of it; w[tv1] re-insets the tile when a second float opens, w[t1] does not
+hl.workspace_rule({ workspace = "w[t1]s[false]", gaps_out = 0, gaps_in = 0 })
+-- square corners too: rounded corners flush against the screen edge show wallpaper in each corner
+hl.window_rule({ match = { float = false, workspace = "w[t1]s[false]" }, border_size = 0, rounding = 0 })
 
 -- ######## Layer rules ########
 hl.layer_rule({ match = { namespace = ".*" }, xray = true})
@@ -209,12 +211,11 @@ hl.layer_rule({ match = { namespace = "quickshell:screenshot" }, no_anim = true}
 hl.layer_rule({ match = { namespace = "quickshell:session" }, blur = true})
 hl.layer_rule({ match = { namespace = "quickshell:session" }, no_anim = true})
 hl.layer_rule({ match = { namespace = "quickshell:session" }, ignore_alpha = 0})
-hl.layer_rule({ match = { namespace = "quickshell:sidebarRight" }, animation = "slide right"})
+hl.layer_rule({ match = { namespace = "quickshell:sidebarRight" }, no_anim = true}) -- the shell slides it out from under the bar
 hl.layer_rule({ match = { namespace = "quickshell:sidebarLeft" }, animation = "slide left"})
 hl.layer_rule({ match = { namespace = "quickshell:verticalBar" }, animation = "slide"})
 hl.layer_rule({ match = { namespace = "quickshell:osk" }, order = -1})
 -- Quickshell: waffles
-hl.layer_rule({ match = { namespace = "quickshell:wallpaperSelector" }, animation = "slide top"})
 hl.layer_rule({ match = { namespace = "quickshell:wNotificationCenter" }, no_anim = true})
 hl.layer_rule({ match = { namespace = "quickshell:wOnScreenDisplay" }, no_anim = true})
 hl.layer_rule({ match = { namespace = "quickshell:wStartMenu" }, no_anim = true})

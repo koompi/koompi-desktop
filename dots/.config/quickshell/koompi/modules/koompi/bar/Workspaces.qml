@@ -11,6 +11,7 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Widgets
 import Qt5Compat.GraphicalEffects
+import "../../common/functions/workspace-slots.js" as Slots
 
 Item {
     id: root
@@ -21,9 +22,22 @@ Item {
     readonly property int effectiveActiveWorkspaceId: monitor?.activeWorkspace?.id ?? 1
     readonly property bool focusingThisMonitor: Hyprland.focusedMonitor?.id === root.monitor?.id
     
-    readonly property int workspacesShown: Config.options.bar.workspaces.shown
+    // dynamic draws only the desks in use over Hyprland's group of ten; the
+    // desk numbers never change either way
+    readonly property bool dynamicSlots: Config.options.bar.workspaces.dynamic
+    readonly property int workspacesShown: dynamicSlots ? 10 : Config.options.bar.workspaces.shown
     readonly property int workspaceGroup: Math.floor((effectiveActiveWorkspaceId - 1) / root.workspacesShown)
-    property list<bool> workspaceOccupied: []
+    readonly property int groupBase: workspaceGroup * root.workspacesShown
+    property var occupiedIds: []
+    readonly property var slotInfo: dynamicSlots
+        ? Slots.slots(occupiedIds, effectiveActiveWorkspaceId, workspacesShown)
+        : Slots.fixed(effectiveActiveWorkspaceId, workspacesShown)
+    readonly property var slotIds: slotInfo.ids
+    readonly property int newSlotId: slotInfo.newId
+    property real drawnLength: slotIds.length * workspaceButtonWidth
+    Behavior on drawnLength {
+        animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+    }
     property int widgetPadding: 4
     // Pitch, and therefore the pointer target, of one workspace button. A bar
     // height wide so every button is a bar-height square to click; the pills
@@ -32,12 +46,16 @@ Item {
     property int workspaceVisualSize: 26
     property real activeWorkspaceMargin: 2
     property real workspaceIconSize: workspaceVisualSize * 0.69
-    property int workspaceIndexInGroup: (effectiveActiveWorkspaceId - 1) % root.workspacesShown
+    property int workspaceIndexInGroup: Math.max(0, slotIds.indexOf(effectiveActiveWorkspaceId))
 
     property bool showNumbers: false
     Timer {
         id: showNumbersTimer
-        interval: (Config?.options.bar.autoHide.showWhenPressingSuper.delay ?? 100)
+        // showNumberDelay, not autoHide.showWhenPressingSuper.delay: that one
+        // paces revealing a hidden bar, and Settings offers this one under
+        // "Number show delay when pressing Super". Reading the other left the
+        // spinbox wired to nothing.
+        interval: (Config?.options.bar.workspaces.showNumberDelay ?? 300)
         repeat: false
         onTriggered: {
             root.showNumbers = true
@@ -58,11 +76,39 @@ Item {
         }
     }
 
-    // Function to update workspaceOccupied
     function updateWorkspaceOccupied() {
-        workspaceOccupied = Array.from({ length: root.workspacesShown }, (_, i) => {
-            return Hyprland.workspaces.values.some(ws => ws.id === workspaceGroup * root.workspacesShown + i + 1);
-        })
+        occupiedIds = Hyprland.workspaces.values.map(ws => ws.id);
+    }
+
+    function isSlot(id) {
+        return slotIds.indexOf(id) >= 0;
+    }
+
+    function isOccupied(id) {
+        return occupiedIds.indexOf(id) >= 0;
+    }
+
+    // a lit pill behind an occupied desk, except the active one while no window has focus
+    function pillOn(i) {
+        const id = groupBase + i + 1;
+        return isSlot(id) && isOccupied(id) && !(!activeWindow?.activated && effectiveActiveWorkspaceId === id);
+    }
+
+    // the nearest drawn desk on one side decides whether a pill runs on into it
+    function pillBeside(i, step) {
+        for (let j = i + step; j >= 0 && j < workspacesShown; j += step) {
+            if (isSlot(groupBase + j + 1)) return pillOn(j);
+        }
+        return false;
+    }
+
+    function drawnIds() {
+        const out = [];
+        for (let i = 0; i < numberButtons.count; i++) {
+            const item = numberButtons.itemAt(i);
+            if (item && item.shown) out.push(item.workspaceValue);
+        }
+        return out;
     }
 
     // Occupied workspace updates
@@ -79,12 +125,9 @@ Item {
             updateWorkspaceOccupied();
         }
     }
-    onWorkspaceGroupChanged: {
-        updateWorkspaceOccupied();
-    }
 
-    implicitWidth: root.vertical ? Appearance.sizes.verticalBarWidth : (root.workspaceButtonWidth * root.workspacesShown)
-    implicitHeight: root.vertical ? (root.workspaceButtonWidth * root.workspacesShown) : Appearance.sizes.barHeight
+    implicitWidth: root.vertical ? Appearance.sizes.verticalBarWidth : root.drawnLength
+    implicitHeight: root.vertical ? root.drawnLength : Appearance.sizes.barHeight
 
     // Scroll to switch workspaces
     WheelHandler {
@@ -110,7 +153,10 @@ Item {
     // Workspaces - background
     Grid {
         z: 1
-        anchors.centerIn: parent
+        anchors.left: root.vertical ? undefined : parent.left
+        anchors.top: root.vertical ? parent.top : undefined
+        anchors.verticalCenter: root.vertical ? undefined : parent.verticalCenter
+        anchors.horizontalCenter: root.vertical ? parent.horizontalCenter : undefined
 
         rowSpacing: 0
         columnSpacing: 0
@@ -122,21 +168,25 @@ Item {
 
             Rectangle {
                 z: 1
-                implicitWidth: workspaceButtonWidth
-                implicitHeight: root.workspaceVisualSize
-                radius: (height / 2)
-                property var previousOccupied: (workspaceOccupied[index-1] && !(!activeWindow?.activated && root.effectiveActiveWorkspaceId === index))
-                property var rightOccupied: (workspaceOccupied[index+1] && !(!activeWindow?.activated && root.effectiveActiveWorkspaceId === index+2))
-                property var radiusPrev: previousOccupied ? 0 : (height / 2)
-                property var radiusNext: rightOccupied ? 0 : (height / 2)
+                property real extent: root.isSlot(root.groupBase + index + 1) ? workspaceButtonWidth : 0
+                Behavior on extent {
+                    animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+                }
+                implicitWidth: root.vertical ? root.workspaceVisualSize : extent
+                implicitHeight: root.vertical ? extent : root.workspaceVisualSize
+                radius: (root.workspaceVisualSize / 2)
+                property bool previousOccupied: root.pillBeside(index, -1)
+                property bool rightOccupied: root.pillBeside(index, 1)
+                property real radiusPrev: previousOccupied ? 0 : (root.workspaceVisualSize / 2)
+                property real radiusNext: rightOccupied ? 0 : (root.workspaceVisualSize / 2)
 
                 topLeftRadius: radiusPrev
                 bottomLeftRadius: root.vertical ? radiusNext : radiusPrev
                 topRightRadius: root.vertical ? radiusPrev : radiusNext
                 bottomRightRadius: radiusNext
-                
+
                 color: Appearance.colors.colBarElementBackground
-                opacity: (workspaceOccupied[index] && !(!activeWindow?.activated && root.effectiveActiveWorkspaceId === index+1)) ? 1 : 0
+                opacity: root.pillOn(index) ? 1 : 0
 
                 Behavior on opacity {
                     animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
@@ -148,11 +198,8 @@ Item {
                 Behavior on radiusNext {
                     animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
                 }
-
             }
-
         }
-
     }
 
     // Active workspace
@@ -196,16 +243,32 @@ Item {
         anchors.fill: parent
 
         Repeater {
+            id: numberButtons
             model: root.workspacesShown
 
             Button {
                 id: button
-                property int workspaceValue: workspaceGroup * root.workspacesShown + index + 1
+                objectName: "workspaceSlot" + workspaceValue
+                property int workspaceValue: root.groupBase + index + 1
+                readonly property bool shown: root.isSlot(workspaceValue)
+                readonly property bool isNew: workspaceValue === root.newSlotId
+                property real extent: shown ? root.workspaceButtonWidth : 0
+                Behavior on extent {
+                    animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
+                }
+                enabled: shown
+                clip: true
+                opacity: root.workspaceButtonWidth > 0 ? extent / root.workspaceButtonWidth : 0
                 implicitHeight: vertical ? Appearance.sizes.verticalBarWidth : Appearance.sizes.barHeight
                 implicitWidth: vertical ? Appearance.sizes.verticalBarWidth : Appearance.sizes.verticalBarWidth
                 onPressed: Hyprland.dispatch(`hl.dsp.focus({ workspace = ${workspaceValue}})`)
-                width: vertical ? undefined : root.workspaceButtonWidth
-                height: vertical ? root.workspaceButtonWidth : undefined
+                width: vertical ? undefined : extent
+                height: vertical ? extent : undefined
+
+                StyledToolTip {
+                    extraVisibleCondition: button.isNew
+                    text: Translation.tr("New desk")
+                }
 
                 background: Item {
                     id: workspaceButtonBackground
@@ -213,8 +276,9 @@ Item {
                     implicitHeight: workspaceButtonWidth
                     property var biggestWindow: HyprlandData.biggestWindowForWorkspace(button.workspaceValue)
                     property string mainAppIconName: AppSearch.guessIcon(biggestWindow?.class)
-                    property var mainAppIconSource: Quickshell.iconPath(mainAppIconName, "image-missing")
+                    // with empty desks hidden a slot's place no longer says its number, so the number is drawn
                     readonly property bool showLabel: root.showNumbers || Config.options?.bar.workspaces.alwaysShowNumbers
+                        || Config.options?.bar.workspaces.dynamic
                     readonly property bool showIcon: !showLabel
                         && Config.options?.bar.workspaces.showAppIcons
                         && !!biggestWindow
@@ -236,7 +300,7 @@ Item {
                         elide: Text.ElideRight
                         color: (root.effectiveActiveWorkspaceId == button.workspaceValue) ? 
                             Appearance.colors.colOnLayer0 : 
-                            (workspaceOccupied[index] ? Appearance.colors.colOnLayer0 : 
+                            (root.isOccupied(button.workspaceValue) ? Appearance.colors.colOnLayer0 : 
                                 Appearance.colors.colOnLayer1Inactive)
 
                         Behavior on opacity {
@@ -245,7 +309,7 @@ Item {
                     }
                     Rectangle { // Dot instead of ws number
                         id: wsDot
-                        opacity: (!workspaceButtonBackground.showLabel && !workspaceButtonBackground.showIcon) ? 1 : 0
+                        opacity: (!workspaceButtonBackground.showLabel && !workspaceButtonBackground.showIcon) ? (button.isNew ? 0.45 : 1) : 0
                         visible: opacity > 0
                         anchors.centerIn: parent
                         width: root.workspaceVisualSize * 0.18
@@ -253,7 +317,7 @@ Item {
                         radius: width / 2
                         color: (root.effectiveActiveWorkspaceId == button.workspaceValue) ? 
                             Appearance.colors.colOnLayer0 : 
-                            (workspaceOccupied[index] ? Appearance.colors.colOnLayer0 : 
+                            (root.isOccupied(button.workspaceValue) ? Appearance.colors.colOnLayer0 : 
                                 Appearance.colors.colOnLayer1Inactive)
 
                         Behavior on opacity {
@@ -266,15 +330,16 @@ Item {
                         height: root.workspaceVisualSize
                         opacity: workspaceButtonBackground.showIcon ? 1 : 0
                         visible: opacity > 0
-                        IconImage {
+                        AppIconPlate {
                             id: mainAppIcon
                             anchors.bottom: parent.bottom
                             anchors.right: parent.right
                             anchors.bottomMargin: (root.workspaceVisualSize - workspaceIconSize) / 2
                             anchors.rightMargin: (root.workspaceVisualSize - workspaceIconSize) / 2
 
-                            source: workspaceButtonBackground.mainAppIconSource
-                            implicitSize: workspaceIconSize
+                            iconName: workspaceButtonBackground.mainAppIconName
+                            label: workspaceButtonBackground.biggestWindow?.class ?? ""
+                            size: workspaceIconSize
 
                             Behavior on opacity {
                                 animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
@@ -285,7 +350,7 @@ Item {
                             Behavior on anchors.rightMargin {
                                 animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
                             }
-                            Behavior on implicitSize {
+                            Behavior on size {
                                 animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
                             }
                         }

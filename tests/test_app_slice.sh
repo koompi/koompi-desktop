@@ -21,6 +21,13 @@ fail() { printf 'FAIL: %s\n' "$1" >&2; failed=1; }
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
+# koompi-launch tells the running shell what is opening; this must never be the live one
+mkdir -p "$tmp/bin"
+printf '#!/usr/bin/env bash\nexit 255\n' > "$tmp/bin/qs"
+chmod +x "$tmp/bin/qs"
+export PATH="$tmp/bin:$PATH"
+export XDG_RUNTIME_DIR="${KOOMPI_TEST_LIVE_RUNTIME_DIR:-${XDG_RUNTIME_DIR:-}}"
+
 cat > "$tmp/argdump" <<'EOF'
 #!/usr/bin/env bash
 {
@@ -131,13 +138,17 @@ else
 fi
 
 # 8. the shell's launch paths use it: no DesktopEntry.execute() left at the
-#    Search, Launchpad and dock call sites, and every App: bind goes through app()
+#    Search, Launchpad, dock and waffle call sites, and every App: bind goes through app()
 for qml in services/LauncherSearch.qml modules/koompi/launchpad/LaunchpadContent.qml modules/koompi/dock/DockAppButton.qml; do
     file="$SHELL_ROOT/$qml"
     if grep -nE '(entry|desktopEntry|action)\??\.execute\(\)' "$file"; then
         fail "$qml still calls DesktopEntry.execute(), which cannot reach app.slice"
     fi
 done
+# a LauncherSearchResult row's execute already is LauncherSearch.launch; these four receivers hold one, or the button that runs it
+offenders="$(grep -rnE '\.execute\(' --include='*.qml' "$SHELL_ROOT/modules/waffle" | grep -vE '(root\.entry|resultPreview\.entry|modelData|resultList\.currentItem\?)\.execute\(')"
+[[ -z $offenders ]] || fail "waffle calls execute() on something that may be a DesktopEntry, which cannot reach app.slice; use LauncherSearch.launch(entry), or add a LauncherSearchResult receiver to this list:
+$offenders"
 grep -q 'koompi-launch' "$SHELL_ROOT/services/LauncherSearch.qml" || fail "LauncherSearch.qml no longer launches through koompi-launch"
 grep -q 'LauncherSearch.launch(' "$SHELL_ROOT/modules/koompi/launchpad/LaunchpadContent.qml" || fail "LaunchpadContent.qml does not use LauncherSearch.launch"
 grep -q 'LauncherSearch.launch(' "$SHELL_ROOT/modules/koompi/dock/DockAppButton.qml" || fail "DockAppButton.qml does not use LauncherSearch.launch"

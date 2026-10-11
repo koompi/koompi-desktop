@@ -46,7 +46,7 @@ Item { // Bar content region
 
     FocusedScrollMouseArea { // Top section | scroll to change brightness
         id: barTopSectionMouseArea
-        // Clicks belong to the dedicated sidebar button below, as in the
+        // Clicks belong to the left sidebar button below, as in the
         // horizontal bar. This parent exists only for hover and wheel input.
         acceptedButtons: Qt.NoButton
         anchors.top: parent.top
@@ -136,9 +136,25 @@ Item { // Bar content region
             vertical: true
             padding: 8
             
-            VerticalClockWidget {
+            Bar.BarPanelButton { // clock: opens the same panel
+                objectName: "clockButton"
+                vertical: true
                 Layout.fillWidth: true
-                Layout.fillHeight: false
+                toggled: GlobalStates.sidebarRightOpen
+                onClicked: GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen
+
+                contentItem: VerticalClockWidget {
+                    color: GlobalStates.sidebarRightOpen ? Appearance.m3colors.m3onSecondaryContainer : Appearance.colors.colOnLayer0
+                }
+
+                Bar.NotificationUnreadCount {
+                    anchors {
+                        right: parent.right
+                        top: parent.top
+                        rightMargin: 2
+                        topMargin: 2
+                    }
+                }
             }
 
             HorizontalBarSeparator {
@@ -156,9 +172,7 @@ Item { // Bar content region
 
     FocusedScrollMouseArea { // Bottom section | scroll to change volume
         id: barBottomSectionMouseArea
-        // Clicks belong to the dedicated sidebar button below. The tray sits in
-        // this section too, so a click that missed a tray icon used to open the
-        // right sidebar. This parent exists only for hover and wheel input.
+        // Clicks belong to the sliders button below. This parent exists only for hover and wheel input.
         acceptedButtons: Qt.NoButton
 
         anchors {
@@ -190,100 +204,39 @@ Item { // Bar content region
                 invertSide: Config?.options.bar.bottom
             }
 
-            RippleButton { // Right sidebar button
-                id: rightSidebarButton
+            Bar.ModeIndicators {
+                vertical: true
+                realSpacing: 6
+                Layout.alignment: Qt.AlignHCenter
+            }
 
-                Layout.alignment: Qt.AlignBottom | Qt.AlignHCenter
+            Bar.HyprlandXkbIndicator {
+                vertical: true
+                Layout.alignment: Qt.AlignHCenter
+                color: Appearance.colors.colOnLayer0
+            }
+
+            Bar.NetworkIndicator {
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            Bar.BarPanelButton { // quick settings
+                id: controlCenterButton
+                objectName: "controlCenterButton"
+                colBackground: Appearance.colors.colBarElementBackground
+                vertical: true
                 Layout.bottomMargin: Appearance.rounding.screenRounding
-                Layout.fillHeight: false
-
-                implicitHeight: indicatorsColumnLayout.implicitHeight + 4 * 2
-                implicitWidth: indicatorsColumnLayout.implicitWidth + 6 * 2
-
-                buttonRadius: Appearance.rounding.full
-                colBackground: barBottomSectionMouseArea.hovered ? Appearance.colors.colLayer1Hover : ColorUtils.transparentize(Appearance.colors.colLayer1Hover, 1)
-                colBackgroundHover: Appearance.colors.colLayer1Hover
-                colRipple: Appearance.colors.colLayer1Active
-                colBackgroundToggled: Appearance.colors.colSecondaryContainer
-                colBackgroundToggledHover: Appearance.colors.colSecondaryContainerHover
-                colRippleToggled: Appearance.colors.colSecondaryContainerActive
                 toggled: GlobalStates.sidebarRightOpen
-                property color colText: toggled ? Appearance.m3colors.m3onSecondaryContainer : Appearance.colors.colOnLayer0
+                tooltip: Translation.tr("Quick settings")
+                onClicked: GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen
 
-                Behavior on colText {
-                    animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
-                }
-
-                onPressed: {
-                    GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen;
-                }
-
-                ColumnLayout {
-                    id: indicatorsColumnLayout
-                    anchors.centerIn: parent
-                    property real realSpacing: 6
-                    spacing: 0
-
-                    Revealer {
-                        vertical: true
-                        reveal: Audio.sink?.audio?.muted ?? false
-                        Layout.fillWidth: true
-                        Layout.bottomMargin: reveal ? indicatorsColumnLayout.realSpacing : 0
-                        Behavior on Layout.bottomMargin {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-                        }
-                        MaterialSymbol {
-                            text: "volume_off"
-                            iconSize: Appearance.font.pixelSize.larger
-                            color: rightSidebarButton.colText
-                        }
-                    }
-                    Revealer {
-                        vertical: true
-                        reveal: Audio.source?.audio?.muted ?? false
-                        Layout.fillWidth: true
-                        Layout.bottomMargin: reveal ? indicatorsColumnLayout.realSpacing : 0
-                        Behavior on Layout.topMargin {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-                        }
-                        MaterialSymbol {
-                            text: "mic_off"
-                            iconSize: Appearance.font.pixelSize.larger
-                            color: rightSidebarButton.colText
-                        }
-                    }
-                    Bar.HyprlandXkbIndicator {
-                        vertical: true
-                        Layout.alignment: Qt.AlignHCenter
-                        Layout.bottomMargin: indicatorsColumnLayout.realSpacing
-                        color: rightSidebarButton.colText
-                    }
-                    Revealer {
-                        vertical: true
-                        reveal: Notifications.silent || Notifications.unread > 0
-                        Layout.fillWidth: true
-                        Layout.bottomMargin: reveal ? indicatorsColumnLayout.realSpacing : 0
-                        implicitHeight: reveal ? notificationUnreadCount.implicitHeight : 0
-                        implicitWidth: reveal ? notificationUnreadCount.implicitWidth : 0
-                        Behavior on Layout.bottomMargin {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-                        }
-                        Bar.NotificationUnreadCount {
-                            id: notificationUnreadCount
-                        }
-                    }
-                    MaterialSymbol {
-                        text: Network.materialSymbol
-                        iconSize: Appearance.font.pixelSize.larger
-                        color: rightSidebarButton.colText
-                    }
-                    MaterialSymbol {
-                        Layout.topMargin: indicatorsColumnLayout.realSpacing
-                        visible: BluetoothStatus.available
-                        text: BluetoothStatus.connected ? "bluetooth_connected" : BluetoothStatus.enabled ? "bluetooth" : "bluetooth_disabled"
-                        iconSize: Appearance.font.pixelSize.larger
-                        color: rightSidebarButton.colText
-                    }
+                contentItem: MaterialSymbol {
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    text: "tune"
+                    fill: GlobalStates.sidebarRightOpen ? 1 : 0
+                    iconSize: Appearance.font.pixelSize.larger
+                    color: controlCenterButton.colText
                 }
             }
         }

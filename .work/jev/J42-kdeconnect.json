@@ -1,0 +1,23 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "decided": "J42_autostart_scope autostart_hide_duplicates p=0.98 (jev-1.13.0): hyprland-session.target Wants=xdg-desktop-autostart.target, so XDG login items start at login as on every desktop; nm-applet (duplicates the shell's network panel) and geoclue-demo-agent (Weather starts it on demand since b63a85283) are hidden with Hidden=true user overrides.",
+    "kdeconnect_found": "J42's worker found a third system login item the decision did not cover: /etc/xdg/autostart/org.kde.kdeconnect.daemon.desktop (Exec=/usr/bin/kdeconnectd, no OnlyShowIn or NotShowIn). After J42, kdeconnectd starts at every login on a fresh install.",
+    "kdeconnect_in_koompi": "kdeconnect is a KOOMPI default app (koompi-apps PKGBUILD:100, debian and fedora app lists). KOOMPI's firewall profile opens 1714-1764 tcp+udp for it by default (installer post_install: ufw allow KOOMPI-KDEConnect), and koompi-remotedesktop-portal carries an allowlist so KDE Connect's Remote Input (phone as touchpad and keyboard) works on Hyprland. The shell itself has no KDE Connect UI.",
+    "history": "Docs dropped in b6a9b83fd recorded: 'KDE Connect was already removed from required KOOMPI core session startup' (KOOMPI's own exec of kdeconnect-indicator) and 'KDE/GNOME desktop infrastructure is not a required part of the core session'. The founder's seat hides the login item with a Hidden=true copy (2026-07-21, comment 'Disabled for KOOMPI core session; launch KDE Connect manually if needed').",
+    "activation": "kdeconnectd is D-Bus activated: without the login item it starts when a client calls org.kde.kdeconnect, such as the KDE Connect app. On the founder's seat it runs anyway this boot: activated 0.7 s after Chrome started at login, despite the hidden login item (the caller is unconfirmed).",
+    "cost_measured": "On the founder's seat now: Pss 5.3 MB resident plus 9.6 MB in swap (SwapPss). While running it listens on 1714-1764 and announces the PC on the LAN.",
+    "platforms": "macOS keeps its phone link (Continuity, Handoff, AirDrop) on at all times. Plasma starts kdeconnectd at login through this same login item. Windows starts Phone Link at login."
+  },
+  "questions": {
+    "J42_kdeconnect_login": {
+      "type": "choice",
+      "instructions": "After J42, kdeconnectd's own login item starts it at every login on a fresh install. What should KOOMPI ship?",
+      "criteria": {
+        "leave_autostart": "Ship nothing; the daemon's login item runs, as on Plasma. Strongest case: KDE Connect is a default app whose value is a phone that reaches the PC at any time (send files, clipboard, notifications, Remote Input), KOOMPI already opens its firewall ports, and login items now work like macOS Login Items; the earlier removal was KOOMPI's own exec of the indicator, not the app's login item. Cost: a LAN-visible daemon at every login on every machine, including ones that never pair a phone (5.3 MB resident and 9.6 MB swap measured).",
+        "hide_kdeconnect": "Ship a third Hidden=true override, like nm-applet and geoclue. Strongest case: keeps the earlier line that KDE infrastructure is not part of the core session and matches the founder's own seat; nothing listens on the LAN until KDE Connect is opened. Cost: a paired phone cannot reach the PC until the user opens KDE Connect in that session, while the firewall keeps its ports open for a daemon that usually is not running.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

@@ -1,20 +1,31 @@
 pragma Singleton
 
+import "launcherSearch/ranking.js" as Ranking
+import qs.services.launcherSearch
 import qs.modules.common
 import qs.modules.common.models
 import qs.modules.common.functions
 import QtQuick
-import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
-import Quickshell.Hyprland
 
+/**
+ * Search's one ranked list. A plain query asks every provider and blends the
+ * answers under section headings (launcherSearch/ranking.js); a query that
+ * starts with a sigil is that sigil's own list, so the sigils stay as filters.
+ */
 Singleton {
     id: root
 
     property string query: ""
 
+    signal scopeSwitched
+
     readonly property list<string> allPrefixes: [Config.options.search.prefix.action, Config.options.search.prefix.app, Config.options.search.prefix.clipboard, Config.options.search.prefix.emojis, Config.options.search.prefix.file, Config.options.search.prefix.math, Config.options.search.prefix.settings, Config.options.search.prefix.shellCommand, Config.options.search.prefix.webSearch, Config.options.search.prefix.window]
+
+    function isPlain(query: string): bool {
+        return query !== "" && !root.allPrefixes.some(prefix => query.startsWith(prefix));
+    }
 
     function ensurePrefix(prefix) {
         if (root.allPrefixes.some(i => root.query.startsWith(i))) {
@@ -22,6 +33,12 @@ Singleton {
         } else {
             root.query = prefix + root.query;
         }
+    }
+
+    // "Show all N": the same words, inside the sigil that lists the whole set
+    function showScope(prefix: string) {
+        root.ensurePrefix(prefix);
+        root.scopeSwitched();
     }
 
     // https://specifications.freedesktop.org/menu/latest/category-registry.html
@@ -35,108 +52,31 @@ Singleton {
         return acc;
     }, []).sort()
 
-    // Load user action scripts from ~/.config/koompi/actions/
-    // Uses FolderListModel to auto-reload when scripts are added/removed
-    property var userActionScripts: {
-        const actions = [];
-        for (let i = 0; i < userActionsFolder.count; i++) {
-            const fileName = userActionsFolder.get(i, "fileName");
-            const filePath = userActionsFolder.get(i, "filePath");
-            if (fileName && filePath) {
-                const actionName = fileName.replace(/\.[^/.]+$/, ""); // strip extension
-                actions.push({
-                    action: actionName,
-                    execute: ((path) => (args) => {
-                        Quickshell.execDetached([path, ...(args ? args.split(" ") : [])]);
-                    })(FileUtils.trimFileProtocol(filePath.toString()))
-                });
-            }
-        }
-        return actions;
-    }
+    readonly property LauncherActions launcherActions: LauncherActions {}
+    readonly property AppRows apps: AppRows {}
+    readonly property WindowRows windows: WindowRows {}
+    readonly property SettingsRows settings: SettingsRows {}
+    readonly property ClipboardRows clipboard: ClipboardRows {}
+    readonly property FileRows files: FileRows {}
+    readonly property Translator translator: Translator {}
 
-    FolderListModel {
-        id: userActionsFolder
-        folder: Qt.resolvedUrl(Directories.userActions)
-        showDirs: false
-        showHidden: false
-        sortField: FolderListModel.Name
-    }
-
-    property var searchActions: [
-        {
-            action: "accentcolor",
-            execute: args => {
-                Quickshell.execDetached([Directories.wallpaperSwitchScriptPath, "--noswitch", "--color", ...(args != '' ? [`${args}`] : [])]);
-            }
-        },
-        {
-            action: "dark",
-            execute: () => {
-                DarkMode.setMode(true);
-            }
-        },
-        {
-            action: "light",
-            execute: () => {
-                DarkMode.setMode(false);
-            }
-        },
-        {
-            action: "randomwallpaper",
-            execute: () => {
-                Quickshell.execDetached([Quickshell.shellPath("scripts/colors/random/random_library_wall.sh")]);
-            }
-        },
-        {
-            action: "superpaste",
-            execute: args => {
-                if (!/^(\d+)/.test(args.trim())) {
-                    // Invalid if doesn't start with numbers
-                    Quickshell.execDetached(["notify-send", Translation.tr("Superpaste"), Translation.tr("Usage: <tt>%1superpaste NUM_OF_ENTRIES[i]</tt>\nSupply <tt>i</tt> when you want images\nExamples:\n<tt>%1superpaste 4i</tt> for the last 4 images\n<tt>%1superpaste 7</tt> for the last 7 entries").arg(Config.options.search.prefix.action), "-a", "Shell"]);
-                    return;
-                }
-                const syntaxMatch = /^(?:(\d+)(i)?)/.exec(args.trim());
-                const count = syntaxMatch[1] ? parseInt(syntaxMatch[1]) : 1;
-                const isImage = !!syntaxMatch[2];
-                Cliphist.superpaste(count, isImage);
-            }
-        },
-        {
-            action: "todo",
-            execute: args => {
-                Todo.addTask(args);
-            }
-        },
-        {
-            action: "wallpaper",
-            execute: () => {
-                Hyprland.dispatch(`hl.dsp.global("quickshell:wallpaperSelectorToggle")`)
-            }
-        },
-        {
-            action: "wipeclipboard",
-            execute: () => {
-                Cliphist.wipe();
-            }
-        },
-    ]
-
-    // Combined built-in and user actions
-    property var allActions: searchActions.concat(userActionScripts)
-
+    property var allActions: root.launcherActions.all
     property string mathResult: ""
-    property bool clipboardWorkSafetyActive: {
-        const enabled = Config.options.workSafety.enable.clipboard;
-        const sensitiveNetwork = (StringUtils.stringListContainsSubstring(Network.networkName.toLowerCase(), Config.options.workSafety.triggerCondition.networkNameKeywords));
-        return enabled && sensitiveNetwork;
-    }
 
-    function containsUnsafeLink(entry) {
-        if (entry == undefined)
-            return false;
-        const unsafeKeywords = Config.options.workSafety.triggerCondition.linkKeywords;
-        return StringUtils.stringListContainsSubstring(entry.toLowerCase(), unsafeKeywords);
+    // the Top Hit of the query last answered, so a late row cannot displace it
+    readonly property var pinned: ({
+            query: "",
+            key: ""
+        })
+
+    onQueryChanged: {
+        const prefix = Config.options.search.prefix;
+        const scopedFile = root.query.startsWith(prefix.file);
+        const plain = root.isPlain(root.query);
+        FileSearch.query = scopedFile ? StringUtils.cleanPrefix(root.query, prefix.file) : plain ? root.query : "";
+        root.translator.request(plain ? (Ranking.translateText(root.query, "translate") ?? "") : "");
+        if (plain || root.query.startsWith(prefix.math))
+            nonAppResultsTimer.restart();
     }
 
     Timer {
@@ -166,118 +106,20 @@ Singleton {
         }
     }
 
-    readonly property var preparedWindows: HyprlandData.windowList.map(window => ({
-        name: Fuzzy.prepare(`${window.title} ${window.class}`),
-        entry: window
-    }))
-
-    // Window titles run long enough that subsequence matching finds a query in
-    // almost any of them, so this scope needs a floor the app list does not.
-    readonly property real windowScoreThreshold: 0.5
-
     function windowResults(search: string): var {
-        const matches = search.trim() === "" ? HyprlandData.windowList : Fuzzy.go(search, preparedWindows, {
-            all: true,
-            key: "name",
-            threshold: root.windowScoreThreshold
-        }).map(r => r.obj.entry);
-        return matches.map(window => resultComp.createObject(null, {
-            name: window.title,
-            type: Translation.tr("Window"),
-            verb: Translation.tr("Switch"),
-            iconName: AppSearch.guessIcon(window.class),
-            iconType: LauncherSearchResult.IconType.System,
-            execute: () => {
-                Hyprland.dispatch(`focuswindow address:${window.address}`);
-            }
-        }));
-    }
-
-    readonly property var preparedSettingsPages: SettingsPages.list.map(page => ({
-        name: Fuzzy.prepare(`${page.name} ${SettingsPages.pageArg(page)}`),
-        entry: page
-    }))
-
-    function settingsResults(search: string): var {
-        const matches = search.trim() === "" ? SettingsPages.list : Fuzzy.go(search, preparedSettingsPages, {
-            all: true,
-            key: "name"
-        }).map(r => r.obj.entry);
-        return matches.map(page => resultComp.createObject(null, {
-            name: page.name,
-            type: Translation.tr("Settings"),
-            verb: Translation.tr("Open"),
-            iconName: page.icon,
-            iconType: LauncherSearchResult.IconType.Material,
-            execute: () => {
-                SettingsPages.open(page);
-            }
-        }));
-    }
-
-    function fileResults(entries, type): var {
-        return entries.map(file => resultComp.createObject(null, {
-            rawValue: file.path,
-            name: FileSearch.displayPath(file.path),
-            type: type,
-            verb: Translation.tr("Open"),
-            iconName: "draft",
-            iconType: LauncherSearchResult.IconType.Material,
-            fontType: LauncherSearchResult.FontType.Monospace,
-            execute: () => {
-                FileSearch.open(file.path);
-            },
-            actions: [resultComp.createObject(null, {
-                    name: Translation.tr("Show folder"),
-                    iconName: "folder_open",
-                    iconType: LauncherSearchResult.IconType.Material,
-                    execute: () => {
-                        FileSearch.revealParent(file.path);
-                    }
-                })]
-        }));
+        return root.windows.rows(search);
     }
 
     // DesktopEntry.execute() cannot be wrapped; koompi-launch puts the app in app.slice for oomd
     function launch(entry, command = entry.command) {
-        const argv = ["koompi-launch", "--id", entry.id];
+        const argv = ["koompi-launch", "--registered", "--id", entry.id];
         if (entry.workingDirectory)
             argv.push("--cwd", entry.workingDirectory);
         if (entry.runInTerminal)
             argv.push("--terminal", Config.options.apps.terminal);
+        LaunchFeedback.begin(entry);
         Quickshell.execDetached([...argv, "--", ...command]);
     }
-
-    function appResult(entry, type): var {
-        return resultComp.createObject(null, {
-            type: type,
-            id: entry.id,
-            name: entry.name,
-            iconName: entry.icon,
-            iconType: LauncherSearchResult.IconType.System,
-            verb: Translation.tr("Open"),
-            execute: () => {
-                // Shared with the Launchpad, so what is reached for here also
-                // orders that grid, and comes back as a recent result below.
-                LaunchpadUsage.record(entry.id);
-                root.launch(entry);
-            },
-            comment: entry.comment,
-            runInTerminal: entry.runInTerminal,
-            genericName: entry.genericName,
-            keywords: entry.keywords,
-            actions: entry.actions.map(action => {
-                return resultComp.createObject(null, {
-                    name: action.name,
-                    iconName: action.icon,
-                    iconType: LauncherSearchResult.IconType.System,
-                    execute: () => root.launch(entry, action.command)
-                });
-            })
-        });
-    }
-
-    readonly property int recentLimit: 6
 
     // The scopes worth teaching, in the order they earn their place. Math,
     // commands and web search are left out because they already answer without
@@ -302,6 +144,10 @@ Singleton {
         ({
                 prefix: Config.options.search.prefix.emojis,
                 label: Translation.tr("Emoji")
+            }),
+        ({
+                prefix: Config.options.search.prefix.action,
+                label: Translation.tr("Commands")
             })
     ]
 
@@ -312,93 +158,14 @@ Singleton {
         return hit ? hit.label : "";
     }
 
-    // What the panel shows before anything is typed: the apps actually reached
-    // for lately, scored by the same frecency the Launchpad orders by. An
-    // account that has launched nothing yet gets an empty list, and the panel
-    // stays the resting pill it has always been.
-    function recentResults(): var {
-        return AppSearch.list.filter(entry => LaunchpadUsage.score(entry.id) > 0).sort((a, b) => LaunchpadUsage.score(b.id) - LaunchpadUsage.score(a.id)).slice(0, root.recentLimit).map(entry => root.appResult(entry, Translation.tr("Recent")));
+    Component {
+        id: resultComp
+        LauncherSearchResult {}
     }
 
-    property list<var> results: {
-        // Search results are handled here
-        ////////////////// Skip? //////////////////
-        if (root.query == "")
-            return root.recentResults();
-
-        ///////////// Special cases ///////////////
-        if (root.query.startsWith(Config.options.search.prefix.clipboard)) {
-            // Clipboard
-            const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.clipboard);
-            return Cliphist.fuzzyQuery(searchString).map((entry, index, array) => {
-                const mightBlurImage = Cliphist.entryIsImage(entry) && root.clipboardWorkSafetyActive;
-                let shouldBlurImage = mightBlurImage;
-                if (mightBlurImage) {
-                    shouldBlurImage = shouldBlurImage && (root.containsUnsafeLink(array[index - 1]) || root.containsUnsafeLink(array[index + 1]));
-                }
-                const type = `#${entry.match(/^\s*(\S+)/)?.[1] || ""}`;
-                return resultComp.createObject(null, {
-                    rawValue: entry,
-                    name: StringUtils.cleanCliphistEntry(entry),
-                    verb: "",
-                    type: type,
-                    execute: () => {
-                        Cliphist.copy(entry);
-                    },
-                    actions: [resultComp.createObject(null, {
-                            name: Translation.tr("Copy"),
-                            iconName: "content_copy",
-                            iconType: LauncherSearchResult.IconType.Material,
-                            execute: () => {
-                                Cliphist.copy(entry);
-                            }
-                        }), resultComp.createObject(null, {
-                            name: Translation.tr("Delete"),
-                            iconName: "delete",
-                            iconType: LauncherSearchResult.IconType.Material,
-                            execute: () => {
-                                Cliphist.deleteEntry(entry);
-                            }
-                        })],
-                    blurImage: shouldBlurImage
-                });
-            }).filter(Boolean);
-        } else if (root.query.startsWith(Config.options.search.prefix.emojis)) {
-            // Clipboard
-            const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.emojis);
-            return Emojis.fuzzyQuery(searchString).map(entry => {
-                const emoji = entry.match(/^\s*(\S+)/)?.[1] || "";
-                return resultComp.createObject(null, {
-                    rawValue: entry,
-                    name: entry.replace(/^\s*\S+\s+/, ""),
-                    iconName: emoji,
-                    iconType: LauncherSearchResult.IconType.Text,
-                    verb: Translation.tr("Copy"),
-                    type: Translation.tr("Emoji"),
-                    execute: () => {
-                        Quickshell.clipboardText = entry.match(/^\s*(\S+)/)?.[1];
-                    }
-                });
-            }).filter(Boolean);
-        } else if (root.query.startsWith(Config.options.search.prefix.window)) {
-            // Open windows
-            return root.windowResults(StringUtils.cleanPrefix(root.query, Config.options.search.prefix.window));
-        } else if (root.query.startsWith(Config.options.search.prefix.settings)) {
-            // Settings pages
-            return root.settingsResults(StringUtils.cleanPrefix(root.query, Config.options.search.prefix.settings));
-        } else if (root.query.startsWith(Config.options.search.prefix.file)) {
-            // Recent documents first, because they need no disk search to answer,
-            // then whatever fd has finished finding for the same string.
-            const searchString = StringUtils.cleanPrefix(root.query, Config.options.search.prefix.file);
-            FileSearch.query = searchString;
-            const recents = FileSearch.fuzzyRecents(searchString);
-            const seen = recents.map(entry => entry.path);
-            return root.fileResults(recents, Translation.tr("Recent")).concat(root.fileResults(FileSearch.files.filter(file => !seen.includes(file.path)), Translation.tr("File")));
-        }
-
-        ////////////////// Init ///////////////////
-        nonAppResultsTimer.restart();
-        const mathResultObject = resultComp.createObject(null, {
+    function mathRow(): var {
+        return resultComp.createObject(null, {
+            key: "math",
             name: root.mathResult,
             verb: Translation.tr("Copy"),
             type: Translation.tr("Math result"),
@@ -409,8 +176,11 @@ Singleton {
                 Quickshell.clipboardText = root.mathResult;
             }
         });
-        const appResultObjects = AppSearch.fuzzyQuery(StringUtils.cleanPrefix(root.query, Config.options.search.prefix.app)).map(entry => root.appResult(entry, Translation.tr("App")));
-        const commandResultObject = resultComp.createObject(null, {
+    }
+
+    function commandRow(): var {
+        return resultComp.createObject(null, {
+            key: "shell",
             name: StringUtils.cleanPrefix(root.query, Config.options.search.prefix.shellCommand).replace("file://", ""),
             verb: Translation.tr("Run"),
             type: Translation.tr("Command"),
@@ -427,7 +197,11 @@ Singleton {
                 Quickshell.execDetached(["koompi-launch", "--id", cleanedCommand.trim().split(/\s+/)[0].split("/").pop(), "--", "bash", "-c", cleanedCommand.trim().startsWith('sudo') ? `${Config.options.apps.terminal} fish -C '${cleanedCommand}'` : cleanedCommand]);
             }
         });
-        const webSearchResultObject = resultComp.createObject(null, {
+    }
+
+    function webRow(): var {
+        return resultComp.createObject(null, {
+            key: "web",
             name: StringUtils.cleanPrefix(root.query, Config.options.search.prefix.webSearch),
             verb: Translation.tr("Search"),
             type: Translation.tr("Web search"),
@@ -442,67 +216,128 @@ Singleton {
                 Quickshell.execDetached(["koompi-launch", "xdg-open", url]);
             }
         });
-        const launcherActionObjects = root.allActions.map(action => {
-            const actionString = `${Config.options.search.prefix.action}${action.action}`;
-            if (actionString.startsWith(root.query) || root.query.startsWith(actionString)) {
-                return resultComp.createObject(null, {
-                    name: root.query.startsWith(actionString) ? root.query : actionString,
-                    verb: Translation.tr("Run"),
-                    type: Translation.tr("Action"),
-                    iconName: 'settings_suggest',
-                    iconType: LauncherSearchResult.IconType.Material,
-                    execute: () => {
-                        action.execute(root.query.split(" ").slice(1).join(" "));
-                    }
-                });
-            }
-            return null;
-        }).filter(Boolean);
-
-        //////// Prioritized by prefix /////////
-        let result = [];
-        const startsWithNumber = /^\d/.test(root.query);
-        const startsWithMathPrefix = root.query.startsWith(Config.options.search.prefix.math);
-        const startsWithShellCommandPrefix = root.query.startsWith(Config.options.search.prefix.shellCommand);
-        const startsWithWebSearchPrefix = root.query.startsWith(Config.options.search.prefix.webSearch);
-        if (startsWithNumber || startsWithMathPrefix) {
-            result.push(mathResultObject);
-        } else if (startsWithShellCommandPrefix) {
-            result.push(commandResultObject);
-        } else if (startsWithWebSearchPrefix) {
-            result.push(webSearchResultObject);
-        }
-
-        //////// Command tree, then apps ///////
-        result = result.concat(CommandTree.results(root.query), appResultObjects);
-
-        // Windows and settings are small in-memory sets, so they answer without a prefix.
-        // Files need a disk search and stay behind theirs.
-        // ponytail: capped so they cannot drown the app list. The prefixes give
-        // the full set when someone actually wants it.
-        if (!root.query.startsWith(Config.options.search.prefix.app)) {
-            result = result.concat(root.windowResults(root.query).slice(0, 5));
-            result = result.concat(root.settingsResults(root.query).slice(0, 3));
-        }
-
-        ////////// Launcher actions ////////////
-        result = result.concat(launcherActionObjects);
-
-        /// Math result, command, web search ///
-        if (Config.options.search.prefix.showDefaultActionsWithoutPrefix) {
-            if (!startsWithShellCommandPrefix)
-                result.push(commandResultObject);
-            if (!startsWithNumber && !startsWithMathPrefix)
-                result.push(mathResultObject);
-            if (!startsWithWebSearchPrefix)
-                result.push(webSearchResultObject);
-        }
-
-        return result;
     }
 
-    Component {
-        id: resultComp
-        LauncherSearchResult {}
+    function actionRows(): var {
+        return root.allActions.map(action => {
+            const actionString = `${Config.options.search.prefix.action}${action.action}`;
+            if (!actionString.startsWith(root.query) && !root.query.startsWith(actionString))
+                return null;
+            return resultComp.createObject(null, {
+                key: `action|${action.action}`,
+                name: root.query.startsWith(actionString) ? root.query : actionString,
+                verb: Translation.tr("Run"),
+                type: Translation.tr("Action"),
+                iconName: 'settings_suggest',
+                iconType: LauncherSearchResult.IconType.Material,
+                execute: () => {
+                    action.execute(root.query.split(" ").slice(1).join(" "));
+                }
+            });
+        }).filter(Boolean);
+    }
+
+    function moreRow(total: int, prefix: string, id: string): var {
+        if (prefix === "")
+            return null;
+        return resultComp.createObject(null, {
+            key: `more|${id}`,
+            name: Translation.tr("Show all %1").arg(total),
+            verb: Translation.tr("Show"),
+            iconName: "unfold_more",
+            iconType: LauncherSearchResult.IconType.Material,
+            keepOpen: true,
+            execute: () => root.showScope(prefix)
+        });
+    }
+
+    // A sigil is a filter: the one provider it names, the way it always listed.
+    function scopedResults(): var {
+        const prefix = Config.options.search.prefix;
+        const clean = sigil => StringUtils.cleanPrefix(root.query, sigil);
+        if (root.query.startsWith(prefix.clipboard))
+            return root.clipboard.rows(clean(prefix.clipboard));
+        if (root.query.startsWith(prefix.emojis))
+            return root.clipboard.emojis(clean(prefix.emojis));
+        if (root.query.startsWith(prefix.window))
+            return root.windows.rows(clean(prefix.window));
+        if (root.query.startsWith(prefix.settings))
+            return root.settings.rows(clean(prefix.settings));
+        if (root.query.startsWith(prefix.file))
+            return root.files.scoped(clean(prefix.file));
+        if (root.query.startsWith(prefix.action))
+            return CommandTree.results(root.query).concat(root.actionRows());
+        if (root.query.startsWith(prefix.app))
+            return root.apps.matches(clean(prefix.app));
+        if (root.query.startsWith(prefix.math))
+            return [root.mathRow()];
+        if (root.query.startsWith(prefix.shellCommand))
+            return [root.commandRow()];
+        return [root.webRow()];
+    }
+
+    function blendedResults(): var {
+        const query = root.query;
+        const translateText = Ranking.translateText(query, "translate");
+        const startsWithNumber = /^\d/.test(query);
+        const math = Ranking.mathWorthShowing(query, root.mathResult) ? root.mathRow() : null;
+        if (math && startsWithNumber)
+            math.tier = 100;
+        const commands = (translateText !== null ? [root.translator.row(translateText)] : []).concat(Ranking.rankRows(CommandTree.blended(query).concat(root.settings.rows(query)), query));
+        const found = Ranking.blend({
+            query: query,
+            topTitle: Translation.tr("Top Hit"),
+            pinnedTop: root.pinned.query === query ? root.pinned.key : "",
+            makeMore: root.moreRow,
+            sections: [
+                {
+                    id: "apps",
+                    title: Translation.tr("Applications"),
+                    rows: root.apps.matches(query),
+                    top: true,
+                    prefix: Config.options.search.prefix.app
+                },
+                {
+                    id: "windows",
+                    title: Translation.tr("Windows"),
+                    rows: root.windows.rows(query),
+                    top: true,
+                    prefix: Config.options.search.prefix.window
+                },
+                {
+                    id: "commands",
+                    title: Translation.tr("Commands and Settings"),
+                    rows: commands,
+                    top: true,
+                    prefix: Config.options.search.prefix.action
+                },
+                {
+                    id: "files",
+                    title: Translation.tr("Files"),
+                    rows: Ranking.rankRows(root.files.blended(query), query),
+                    top: true,
+                    prefix: Config.options.search.prefix.file
+                },
+                {
+                    id: "calc",
+                    title: Translation.tr("Calculator"),
+                    rows: math ? [math] : [],
+                    top: startsWithNumber
+                }
+                // no clipboard section: what was copied (a password, a token) shows only under its prefix, never while typing
+            ],
+            tail: Config.options.search.prefix.showDefaultActionsWithoutPrefix ? [root.commandRow(), root.webRow()] : []
+        });
+        root.pinned.query = query;
+        root.pinned.key = found.topKey;
+        return found.rows;
+    }
+
+    property list<var> results: {
+        if (root.query == "")
+            return root.apps.recent();
+        if (root.isPlain(root.query))
+            return root.blendedResults();
+        return root.scopedResults();
     }
 }

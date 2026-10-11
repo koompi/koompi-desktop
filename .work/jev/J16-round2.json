@@ -1,0 +1,39 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "j16_round2": "J16 round 2 (refresh rate per monitor in Settings > Displays) is verified in code review: koompi-displays rate switches and arms a guard; keep saves only a rate the monitor still runs; revert, or 15 s without an answer (a setsid timer that outlives Settings), puts the old mode back; saved rules are keyed desc:<monitor description> so they follow a display across ports. Renders at 1920x1200 and 1366x768, one and two monitors, dark and light.",
+    "confirm_look": "While the Keep this refresh rate? question shows (up to 15 s), the page disables the Refresh rate and Position selection groups (enabled: false). The shared selection button only changes its toggled look when disabled: the selected pill (the new 75 Hz, and the current Right of) drops from primary fill with white text to a washed-out pill that is nearly unreadable in the light palette and dim in the dark one, while the unselected pills (60 Hz, 59.94 Hz, Left of, Above, Below) keep their normal enabled look. So during the question nothing reads as selected, the running rate looks unavailable, and the other options look clickable though clicks do nothing. These two lines are the only disabled selection groups in the tree. The question box under the row names the new and old rates and has Keep and Revert. macOS and Windows show the same question as a modal dialog over unchanged controls.",
+    "desc_rule_fields": "Hyprland applies only the last matching monitor rule, and a desc: rule is a separate rule from a port rule (measured in nested Hyprland 0.56.2: a user's own port rule kept its transform when monitors.lua added a same-named port rule, and lost it when the new rule was desc:-keyed). J16 therefore writes transform into every saved rule. mirror, vrr, bitdepth, cm and icc set in a user's own rule for that display are overridden once a desc: rule exists; hyprctl monitors -j reports only mirrorOf of those. KOOMPI ships vrr = 0 globally and no per-monitor rules; the founder's hypr/custom has no monitor rules; the Displays page sets none of these fields.",
+    "reselect": "Round 1 called the tool on every click, so clicking the already-selected rate saved the layout (a pin as a side effect). Round 2: clicking the selected rate does nothing; a terminal user can still run koompi display rate <monitor> <hz> then koompi display keep."
+  },
+  "questions": {
+    "J16_confirm_selection_look": {
+      "type": "choice",
+      "instructions": "How should the selection groups look and behave while the Keep this refresh rate? question is up?",
+      "criteria": {
+        "keep_enabled_ignore_input": "Leave the groups enabled so the selected pill keeps its normal selected look on the rate now running, and have the page ignore clicks on them until the question is answered. Strongest case: two lines in J16's own page; what the user sees matches what runs, as with the modal dialogs on macOS and Windows. Cost: a click on another pill during the question does nothing, with the question box right below as the only explanation.",
+        "fix_shared_disabled_style": "Keep them disabled and change the shared selection button so a disabled toggled pill stays recognisably selected and disabled unselected pills dim. Strongest case: disabled reads as disabled and the selection stays visible, for any future disabled group too. Cost: a shared widget changes for every selection group in the shell, with a wider render check.",
+        "leave_it": "Ship as is. Strongest case: the question box names the new rate and it lasts at most 15 s. Cost: every refresh-rate change shows the running rate as if unavailable and the others as clickable.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J16_desc_rule_fields": {
+      "type": "choice",
+      "instructions": "A desc:-keyed saved rule overrides a user's own rule for that display wholesale. Which fields should the saved rule carry beyond mode, position and scale?",
+      "criteria": {
+        "transform_only": "As built: transform only. Strongest case: it is the field the Displays page itself can leave wrong (a rotated screen un-rotated by the first save); no shipped config or the founder's sets the others. Cost: a user who hand-wrote mirror, vrr, bitdepth, cm or icc for that display loses it after the first Keep or Place, silently.",
+        "transform_and_mirror": "Also write mirror from hyprctl's mirrorOf (about five lines). Strongest case: a mirrored display stays mirrored, the one other field the compositor reports back. Cost: vrr, bitdepth, cm and icc are still dropped.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J16_reselect_current_rate": {
+      "type": "choice",
+      "instructions": "What should clicking the already-selected refresh rate do?",
+      "criteria": {
+        "nothing": "As built: nothing. Strongest case: every settings UI treats re-clicking the current choice as a no-op; the round 1 pin was a side effect, and keep saves explicitly now.",
+        "pin_current": "Save the current rate to monitors.lua without a question. Strongest case: a user can make the running rate explicit in one click. Cost: a hidden behaviour that writes a file on a click that changes nothing visible.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

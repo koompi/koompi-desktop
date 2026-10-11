@@ -4,6 +4,7 @@ import Qt5Compat.GraphicalEffects
 import org.kde.kirigami as Kirigami
 import qs.services
 import qs.modules.common
+import qs.modules.common.widgets
 import qs.modules.waffle.looks
 
 BarButton {
@@ -12,7 +13,8 @@ BarButton {
     required property string iconName
     property bool multiple: false
     property bool separateLightDark: false
-    property alias tryCustomIcon: iconWidget.tryCustomIcon
+    property bool plated: false
+    property string label: ""
     leftInset: 2
     rightInset: 2
     implicitWidth: height - topInset - bottomInset + leftInset + rightInset
@@ -56,8 +58,8 @@ BarButton {
         id: contentItem
         anchors.centerIn: root.background
 
-        implicitHeight: iconWidget.implicitHeight
-        implicitWidth: iconWidget.implicitWidth
+        implicitHeight: root.plated ? appPlate.implicitHeight : iconWidget.implicitHeight
+        implicitWidth: root.plated ? appPlate.implicitWidth : iconWidget.implicitWidth
 
         Behavior on scale {
             NumberAnimation {
@@ -68,9 +70,19 @@ BarButton {
 
         WAppIcon {
             id: iconWidget
+            visible: !root.plated
             anchors.centerIn: parent
-            iconName: root.iconName
+            iconName: root.plated ? "" : root.iconName
             separateLightDark: root.separateLightDark
+        }
+
+        AppIconPlate {
+            id: appPlate
+            visible: root.plated
+            anchors.centerIn: parent
+            iconName: root.plated ? root.iconName : ""
+            label: root.label
+            size: 26
         }
     }
 

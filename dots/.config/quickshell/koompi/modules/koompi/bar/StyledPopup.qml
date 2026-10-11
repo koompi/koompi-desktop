@@ -70,20 +70,29 @@ LazyLoader {
         function barEdgeOffset(barExtent) {
             return barExtent - Appearance.sizes.elevationMargin + barEdgeGap;
         }
+        // the whole window, shadow allowance included, stays on the bar's screen
+        function clampToScreen(wanted, extent, screenExtent) {
+            if (wanted === undefined || !(screenExtent > 0)) return wanted;
+            return Math.max(0, Math.min(wanted, screenExtent - extent));
+        }
         margins {
             left: {
-                if (!Config.options.bar.vertical) return root.QsWindow?.mapFromItem(
-                    root.hoverTarget,
-                    (root.hoverTarget.width - popupBackground.implicitWidth) / 2, 0
-                ).x;
+                if (!Config.options.bar.vertical) return popupWindow.clampToScreen(
+                    root.QsWindow?.mapFromItem(
+                        root.hoverTarget,
+                        root.hoverTarget.width / 2 - Appearance.sizes.elevationMargin - popupBackground.implicitWidth / 2, 0
+                    ).x,
+                    popupWindow.implicitWidth, root.barWindow?.screen?.width);
                 return Appearance.sizes.verticalBarWidth
             }
             top: {
                 if (!Config.options.bar.vertical) return popupWindow.barEdgeOffset(Appearance.sizes.barHeight);
-                return root.QsWindow?.mapFromItem(
-                    root.hoverTarget,
-                    (root.hoverTarget.height - popupBackground.implicitHeight) / 2, 0
-                ).y;
+                return popupWindow.clampToScreen(
+                    root.QsWindow?.mapFromItem(
+                        root.hoverTarget,
+                        0, root.hoverTarget.height / 2 - Appearance.sizes.elevationMargin - popupBackground.implicitHeight / 2
+                    ).y,
+                    popupWindow.implicitHeight, root.barWindow?.screen?.height);
             }
             right: popupWindow.barEdgeOffset(Appearance.sizes.verticalBarWidth)
             bottom: popupWindow.barEdgeOffset(Appearance.sizes.barHeight)

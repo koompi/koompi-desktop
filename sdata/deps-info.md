@@ -199,37 +199,20 @@ Tips:
 
 
 # Actual packages
-## illogical-impulse-quickshell-git
-- Pinned commit.
-- Also with extra dependencies (mainly Qt things) needed by the illogical-impulse Quickshell config.
-
-Extra dependencies.
-- `qt6-base`
-- `qt6-declarative`
-- `qt6-5compat`
-- `qt6-avif-image-plugin`
-- `qt6-imageformats`
-- `qt6-multimedia`
-- `qt6-positioning`
-- `qt6-quicktimeline`
-- `qt6-sensors`
-- `qt6-svg`
-- `qt6-tools`
-- `qt6-translations`
-- `qt6-virtualkeyboard`
-- `qt6-wayland`
-- `kirigami`
-- `kdialog`
-- `syntax-highlighting`
-- `vulkan-headers`
-- `libdrm`
-- `cpptrace`
-- `jemalloc`
-- `mesa`
+## quickshell (Arch [extra])
+- The shell runs on Arch's own `quickshell` package; there is no pinned source build any more.
+- `koompi-widgets` depends on it, with the Qt modules and KDE pieces the shell loads: `qt6-5compat`, `qt6-avif-image-plugin` (AUR), `qt6-imageformats`, `qt6-multimedia`, `qt6-positioning`, `qt6-quicktimeline`, `qt6-sensors`, `qt6-svg`, `qt6-tools`, `qt6-translations`, `qt6-virtualkeyboard`, `qt6-wayland`, `kirigami`, `kdialog`, `syntax-highlighting`.
+- `koompi-widgets` conflicts with and replaces the old `koompi-quickshell-git`.
 
 ## illogical-impulse-bibata-modern-classic-bin
 - [source](https://github.com/ful1e5/Bibata_Cursor)
 - Used in Hyprland config, not necessary.
+
+## koompi-icons
+- [source](https://github.com/vinceliuice/WhiteSur-icon-theme), GPL-3.0, pinned release `2026-09-10`
+- The icon theme: WhiteSur with green folders, installed as `koompi-icons` (light) and `koompi-icons-dark`.
+- Set by `switchwall.sh` and `kde-material-you-colors/config.conf`; `tests/test_icon_theme.sh` fails if they drift.
+- Debian and Fedora get it from the same release through `install_koompi_icons` in `sdata/lib/from-source.sh`.
 
 ## illogical-impulse-microtex-git
 - [source](https://github.com/NanoMichael/MicroTeX)

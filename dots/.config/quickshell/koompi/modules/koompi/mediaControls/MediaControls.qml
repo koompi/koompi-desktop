@@ -14,6 +14,7 @@ import Quickshell.Hyprland
 
 Scope {
     id: root
+    readonly property bool built: surface.item !== null
     property bool visible: false
     readonly property MprisPlayer activePlayer: MprisController.activePlayer
     readonly property var realPlayers: MprisController.players
@@ -23,6 +24,35 @@ Scope {
     readonly property real widgetHeight: Appearance.sizes.mediaControlsHeight
     property real popupRounding: Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 1
     readonly property list<real> visualizerPoints: Cava.points
+
+    // mpris drops a player when it quits, so keep what it was as strings
+    property var lastPlayer: null
+    readonly property var lastEntry: {
+        const scanned = DesktopEntries.applications.values.length > 0;
+        const name = root.lastPlayer?.entry || root.lastPlayer?.name;
+        return name && scanned ? DesktopEntries.heuristicLookup(name) : null;
+    }
+
+    function remember() {
+        if (root.activePlayer)
+            root.lastPlayer = {
+                name: root.activePlayer.identity,
+                entry: root.activePlayer.desktopEntry
+            };
+    }
+
+    onActivePlayerChanged: root.remember()
+    Component.onCompleted: root.remember()
+
+    function openLastPlayer() {
+        const entry = root.lastEntry;
+        const window = HyprlandData.windowList.find(win => win.class && DesktopEntries.heuristicLookup(win.class)?.id === entry.id);
+        if (window)
+            Hyprland.dispatch(`hl.dsp.focus({ window = "address:${window.address}" })`);
+        else
+            LauncherSearch.launch(entry);
+        GlobalStates.mediaControlsOpen = false;
+    }
 
     function filterDuplicatePlayers(players) {
         let filtered = [];
@@ -56,16 +86,12 @@ Scope {
     // cava moved to services/Cava.qml: the sidebar's player card draws the same
     // spectrum, and a process each would mean two of them whenever both are open.
 
-    Loader {
-        id: mediaControlsLoader
-        active: GlobalStates.mediaControlsOpen
-        onActiveChanged: {
-            if (!mediaControlsLoader.active && root.realPlayers.length === 0) {
-                GlobalStates.mediaControlsOpen = false;
-            }
-        }
+    LazySurface {
+        id: surface
+        open: GlobalStates.mediaControlsOpen
+        keepWarm: 0
 
-        sourceComponent: PanelWindow {
+        component: PanelWindow {
             id: panelWindow
             visible: true
 
@@ -152,15 +178,22 @@ Scope {
                         ColumnLayout {
                             id: placeholderLayout
                             anchors.centerIn: parent
+                            spacing: 10
 
                             StyledText {
-                                text: Translation.tr("No active player")
+                                Layout.alignment: Qt.AlignHCenter
+                                text: Translation.tr("Nothing playing")
                                 font.pixelSize: Appearance.font.pixelSize.large
                             }
-                            StyledText {
-                                color: Appearance.colors.colSubtext
-                                text: Translation.tr("Make sure your player has MPRIS support\nor try turning off duplicate player filtering")
-                                font.pixelSize: Appearance.font.pixelSize.small
+                            DialogButton {
+                                Layout.alignment: Qt.AlignHCenter
+                                visible: !!root.lastEntry
+                                buttonText: Translation.tr("Open %1").arg(root.lastEntry?.name ?? "")
+                                colBackground: Appearance.colors.colSecondaryContainer
+                                colBackgroundHover: Appearance.colors.colSecondaryContainerHover
+                                colRipple: Appearance.colors.colSecondaryContainerActive
+                                colText: Appearance.m3colors.m3onSecondaryContainer
+                                onClicked: root.openLastPlayer()
                             }
                         }
                     }
@@ -173,17 +206,17 @@ Scope {
         target: "mediaControls"
 
         function toggle(): void {
-            mediaControlsLoader.active = !mediaControlsLoader.active;
-            if (mediaControlsLoader.active)
+            GlobalStates.mediaControlsOpen = !GlobalStates.mediaControlsOpen;
+            if (GlobalStates.mediaControlsOpen)
                 Notifications.timeoutAll();
         }
 
         function close(): void {
-            mediaControlsLoader.active = false;
+            GlobalStates.mediaControlsOpen = false;
         }
 
         function open(): void {
-            mediaControlsLoader.active = true;
+            GlobalStates.mediaControlsOpen = true;
             Notifications.timeoutAll();
         }
     }

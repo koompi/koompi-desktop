@@ -75,13 +75,15 @@ Scope {
                 id: dismissWin
                 screen: dismissLoader.modelData
 
-                // Scratchpad window rect in global (compositor) coordinates.
-                // Default is a huge rect so the subtract covers the whole screen
-                // (= no input blocked) until real geometry is loaded.
-                property int scratchX: dismissLoader.monitor?.x ?? 0
-                property int scratchY: dismissLoader.monitor?.y ?? 0
-                property int scratchW: 9999
-                property int scratchH: 9999
+                // Scratchpad window rects in monitor-local coordinates, one per client
+                // on the special workspace (Telegram opens its call panel as a second
+                // toplevel). Empty until real geometry is loaded.
+                property var scratchRects: []
+
+                Component {
+                    id: holeComponent
+                    Region { intersection: Intersection.Subtract }
+                }
 
                 WlrLayershell.layer: WlrLayer.Overlay
                 WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
@@ -90,18 +92,15 @@ Scope {
                 color: "transparent"
                 anchors { top: true; bottom: true; left: true; right: true }
 
-                // While scratchW/H = 9999, before geometry loads, the subtract covers the whole
-                // screen and the overlay is fully passthrough.
+                // While scratchRects is empty, before geometry loads, a single 9999x9999
+                // subtract covers the whole screen and the overlay is fully passthrough.
                 mask: Region {
                     width: dismissWin.width
                     height: dismissWin.height
-                    Region {
-                        x: dismissWin.scratchX - (dismissLoader.monitor?.x ?? 0)
-                        y: dismissWin.scratchY - (dismissLoader.monitor?.y ?? 0)
-                        width: dismissWin.scratchW
-                        height: dismissWin.scratchH
-                        intersection: Intersection.Subtract
-                    }
+                    regions: (dismissWin.scratchRects.length > 0
+                        ? dismissWin.scratchRects
+                        : [{ x: 0, y: 0, width: 9999, height: 9999 }]
+                    ).map(r => holeComponent.createObject(this, r))
                 }
 
                 MouseArea {
@@ -121,13 +120,12 @@ Scope {
                             try {
                                 const clients = JSON.parse(geomData.text)
                                 const ws = dismissLoader.activeWsName
-                                const client = clients.find(c => c.workspace?.name === ws)
-                                if (client) {
-                                    dismissWin.scratchX = client.at[0]
-                                    dismissWin.scratchY = client.at[1]
-                                    dismissWin.scratchW = client.size[0]
-                                    dismissWin.scratchH = client.size[1]
-                                }
+                                const mx = dismissLoader.monitor?.x ?? 0
+                                const my = dismissLoader.monitor?.y ?? 0
+                                // No match leaves the array empty, which is the passthrough fallback
+                                dismissWin.scratchRects = clients
+                                    .filter(c => c.workspace?.name === ws)
+                                    .map(c => ({ x: c.at[0] - mx, y: c.at[1] - my, width: c.size[0], height: c.size[1] }))
                             } catch(e) {}
                         }
                     }
@@ -145,11 +143,12 @@ Scope {
 
                 Component.onCompleted: geomTimer.start()
 
-                // Re-query if the scratchpad window moves or resizes
+                // Re-query if a scratchpad window moves, resizes, opens, closes or
+                // toggles floating (a second toplevel such as a call panel changes the mask)
                 Connections {
                     target: Hyprland
                     function onRawEvent(event) {
-                        if (event.name === "movewindow" || event.name === "movewindowv2") {
+                        if (["movewindow", "movewindowv2", "openwindow", "closewindow", "changefloatingmode"].includes(event.name)) {
                             geomTimer.restart()
                         }
                     }

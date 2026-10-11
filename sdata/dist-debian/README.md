@@ -65,6 +65,7 @@ The correct package name is `yq-go`, which exists in Debian forky/sid and trixie
 | `matugen` | upstream release binary (Debian); PPA (Ubuntu) | no Debian package on any suite |
 | `adw-gtk3` | upstream release tarball | not packaged; GTK apps stay unthemed without it |
 | `bibata-cursor-theme` | upstream release tarball | not packaged |
+| `koompi-icons` | pinned WhiteSur release, built by `sdata/dist-arch/koompi-icons/build-theme.sh` | not packaged; without it apps keep Breeze icons |
 | `hyprshot` | a single upstream bash script | not packaged |
 | `hyprsunset` | source build, Ubuntu only | in Debian backports; in no Ubuntu archive or PPA. Its build deps are all in resolute universe, so this is minutes, not a Wayland rebuild |
 | `zig` | `ziglang.org` release tarball | **neither release can supply one.** See below |

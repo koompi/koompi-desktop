@@ -27,10 +27,14 @@ if ! command -v qs > /dev/null 2>&1; then
     echo "skip: quickshell (qs) not installed, static checks only"
     exit 0
 fi
+for tool in kwin_wayland dbus-run-session; do
+    command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, static checks only"; exit 0; }
+done
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-mkdir -p "$WORK/shell" "$WORK/chats"
+mkdir -p "$WORK/shell" "$WORK/chats" "$WORK/home" "$WORK/rt"
+chmod 700 "$WORK/rt"
 
 # A symlink farm rather than a copy: the real tree carries 378 MB of assets.
 for entry in "$SHELL_ROOT"/*; do
@@ -366,12 +370,24 @@ cat > "$WORK/chats/legacy-tool.json" <<'JSON'
   {"role":"assistant","rawContent":"Hyprland is a Wayland compositor.","done":true}]}
 JSON
 
-out="$(J03_CHATS_DIR="$WORK/chats" timeout 120 qs -p "$WORK/shell/threads_probe.qml" 2>&1)"
+cat > "$WORK/inner.sh" <<SH
+#!/usr/bin/env bash
+timeout 120 qs -p "$WORK/shell/threads_probe.qml" > "$WORK/qs.log" 2>&1
+SH
+chmod +x "$WORK/inner.sh"
+
+env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
+    HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" J03_CHATS_DIR="$WORK/chats" \
+    timeout 180 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 800 \
+        --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
+out="$(cat -- "$WORK/qs.log" 2> /dev/null)"
 echo "$out" | sed -n 's/.*qml\x1b\[0m: //p;s/^ DEBUG qml: //p' | grep -E '^(PASS|FAIL|PROBE)' || true
 
 if ! grep -q "PROBE OK" <<< "$out"; then
     echo "--- probe output ---" >&2
     echo "$out" >&2
+    echo "--- kwin ---" >&2
+    tail -20 "$WORK/kwin.log" >&2
     exit 1
 fi
 

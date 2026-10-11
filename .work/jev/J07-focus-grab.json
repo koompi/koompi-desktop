@@ -1,0 +1,19 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "regression": "J07 (surfaces built on open, kept two minutes) measured in the nested harness: a cheatsheet built on open maps in about 100 ms but paints nothing for 8 s or more, with the shell's main thread at 99-100% CPU throughout; the old persistent window paints in 1.3 s and a warm reopen in 1 s. Of seven variants only one avoids it: asking for keyboard focus 150 ms after the window is visible (commit 2dcae7a61 of 2026-07-30 records the same slowness for a per-open cheatsheet that asked for focus while mapping).",
+    "mechanism": "services/GlobalFocusGrab.qml: the shared HyprlandFocusGrab's windows binding calls hasActive(w.contentItem), which walks every descendant item reading activeFocus and children. A binding depends on every property it reads, so while a 5000-item window is built every added child re-runs the binding and every run walks the whole tree: quadratic work on the main thread. hasActive has one caller, that binding, always with a window's contentItem; a window's contentItem is the root focus scope, so its activeFocus alone is true exactly when any item in the window has active focus. J07 has a confirming batch queued (evaluation and visit counts, a cheap-walk copy, a no-grab copy).",
+    "scope": "GlobalFocusGrab.qml is outside J07's file list; no running worker touches it. Every dismissable surface (sidebars, launchpad, cheatsheet, search) goes through this grab."
+  },
+  "questions": {
+    "J07_focus_grab_fix": {
+      "type": "choice",
+      "instructions": "How should the cold-cheatsheet storm be fixed?",
+      "criteria": {
+        "fix_grab_binding": "Let J07 change the binding to read w.contentItem.activeFocus (and drop the walk), with a test that the grab's window list is unchanged for focus inside and outside each dismissable surface, and the cold cheatsheet painting within a second. Strongest case: removes the quadratic cause for every surface built on open, one line in one service, its only caller. Cost: a shared service changes inside J07's job, so every grab-using surface needs the dismiss check.",
+        "workaround_in_cheatsheet": "J07 asks for keyboard focus after the cheatsheet's first frame, inside Cheatsheet.qml only, and the service line becomes a separate item. Strongest case: stays inside J07's files. Cost: keeps the quadratic binding for every other surface built on open (launchpad, sidebars, search), and a timing delay hides the cause.",
+        "need_more_facts": "Wait for J07's confirming batch before deciding."
+      }
+    }
+  }
+}

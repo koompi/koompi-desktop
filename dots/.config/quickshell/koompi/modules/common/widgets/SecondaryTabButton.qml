@@ -10,7 +10,7 @@ TabButton {
     id: root
     property string buttonText
     property string buttonIcon
-    property int rippleDuration: 1200
+    property int rippleDuration: Appearance.reduceMotion ? 0 : 1200
     property int tabContentWidth: buttonBackground.width - buttonBackground.radius*2
 
     property color colBackground: ColorUtils.transparentize(Appearance.colors.colSurfaceContainer)
@@ -114,9 +114,6 @@ TabButton {
             width: ripple.implicitWidth
             height: ripple.implicitHeight
             opacity: 0
-
-            property real implicitWidth: 0
-            property real implicitHeight: 0
             visible: width > 0 && height > 0
 
             Behavior on opacity {

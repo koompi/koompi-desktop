@@ -11,7 +11,8 @@ Singleton {
     property alias options: configOptionsJsonAdapter
     property bool ready: false
     property int readWriteDelay: 50 // milliseconds
-    property bool blockWrites: false
+    // an edit made while an async write is in flight is undone when it lands
+    property bool blockWrites: true
 
     // The config file was re-read. Raised even when no value ended up different,
     // which is the only hint anything gets that a file named by a path in here
@@ -215,6 +216,7 @@ Singleton {
             property JsonObject appearance: JsonObject {
                 property bool extraBackgroundTint: true
                 property int fakeScreenRounding: 2 // 0: None | 1: Always | 2: When not fullscreen
+                property bool reduceMotion: false // spatial animations stop, fades take 100 ms; Hyprland's animations go off (services/HyprlandModes.qml)
                 property JsonObject fonts: JsonObject {
                     property int baseSize: 16 // px; the shell's `normal` step, set by `koompi-theme text-size` together with GTK and the terminal
                     property string main: "Google Sans Flex"
@@ -262,13 +264,9 @@ Singleton {
                 property string bluetooth: "~/.local/bin/koompi-settings bluetooth"
                 property string changePassword: `~/.config/hypr/hyprland/scripts/launch_first_available.sh "kitty -1 --hold=yes fish -i -c passwd" "foot fish -i -c passwd" "alacritty -e fish -i -c passwd" "wezterm start -- fish -i -c passwd"`
                 property string addUser: `~/.config/hypr/hyprland/scripts/launch_first_available.sh "kitty -1 --hold=yes koompi-useradd" "foot koompi-useradd" "alacritty -e koompi-useradd" "wezterm start -- koompi-useradd"`
-                // nm-connection-editor is NetworkManager's own editor, so advanced
-                // network settings no longer route through a Plasma control module.
                 property string network: "nm-connection-editor"
                 property string manageUser: "~/.local/bin/koompi-settings account"
                 property string networkEthernet: "nm-connection-editor"
-                // plasma-systemmonitor is not part of this desktop, so the old
-                // default silently launched nothing. btop in a terminal always works.
                 property string taskManager: `~/.config/hypr/hyprland/scripts/launch_first_available.sh "kitty -1 fish -c btop"`
                 property string terminal: "kitty -1" // This is only for shell actions
                 property string update: "kitty -1 --hold=yes fish -i -c 'pkexec pacman -Syu'"
@@ -412,11 +410,12 @@ Singleton {
                 property list<string> screenList: [] // List of names, like "eDP-1", find out with 'hyprctl monitors' command
                 property JsonObject workspaces: JsonObject {
                     property bool monochromeIcons: true
+                    property bool dynamic: true // draw only the desks in use; false is the fixed row of `shown`
                     property int shown: 10
                     property bool showAppIcons: true
                     property bool alwaysShowNumbers: false
                     property int showNumberDelay: 300 // milliseconds
-                    property list<string> numberMap: ["1", "2"] // Characters to show instead of numbers on workspace indicator
+                    property list<string> numberMap: [] // [] is plain numbers; anything else must match a BarConfig preset or Settings shows none selected
                     property bool useNerdFont: false
                 }
                 property JsonObject weather: JsonObject {
@@ -464,9 +463,10 @@ Singleton {
 
             property JsonObject conflictKiller: JsonObject {
                 property bool autoKillNotificationDaemons: false
-                property bool autoKillTrays: false
             }
 
+            // extraModules: quick-toggle types under the fixed modules, seeded once from sidebar.quickToggles
+            property JsonObject controlCenter: JsonObject { property list<string> extraModules: [] }
             property JsonObject crosshair: JsonObject {
                 // Valorant crosshair format. Use https://www.vcrdb.net/builder
                 property string code: "0;P;d;1;0l;10;0o;2;1b;0"
@@ -554,10 +554,8 @@ Singleton {
 
             property JsonObject notifications: JsonObject {
                 property int timeout: 7000
-                property JsonObject monitor: JsonObject {
-                    property bool enable: false
-                    property string name: "" // Name of the monitor to show notifications on, like "eDP-1". Find out with 'hyprctl monitors' command
-                }
+                property list<string> systemApps: ["KOOMPI", "Linux Kernel", "oom_notifier"] // senders (app name or x-kde-appname) grouped under System
+                property JsonObject monitor: JsonObject { property bool enable: false; property string name: "" } // name like "eDP-1", see hyprctl monitors
             }
 
             property JsonObject osd: JsonObject {
@@ -581,7 +579,7 @@ Singleton {
 
             property JsonObject overview: JsonObject {
                 property bool enable: true
-                property real scale: 0.18 // Relative to screen size
+                property real scale: 0.18 // inert with rows, columns and the order/icon switches: one cell per desk
                 property real rows: 2
                 property real columns: 5
                 property bool orderRightLeft: false

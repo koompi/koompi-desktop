@@ -35,15 +35,16 @@ RippleButton {
     property string cliphistRawString: entry?.rawValue ?? ""
     property bool blurImage: entry?.blurImage ?? false
 
-    // Rows out of the command tree carry three fields no other provider sets
+    // Rows out of the command tree carry two fields no other provider sets
     // (services/commandTree/CommandResult.qml). Read through a var so the
     // lookup stays dynamic on every row that has none of them.
     readonly property var commandFields: root.entry
     readonly property string itemGroup: root.commandFields?.group ?? ""
     readonly property string itemState: root.commandFields?.stateText ?? ""
-    // Set on the first row of each group in the action scope's grouped view, so
-    // a heading costs no extra row and the arrow keys still only meet leaves.
-    readonly property string itemHeading: root.commandFields?.heading ?? ""
+    // Set on the first row of each group (the action scope's grouped view, the
+    // recent apps), so a heading costs no extra row and the arrow keys still
+    // only meet results.
+    readonly property string itemHeading: root.entry?.heading ?? ""
     readonly property real headingHeight: root.itemHeading === "" ? 0 : headingText.implicitHeight + root.buttonVerticalPadding * 2
     
     visible: root.entryShown
@@ -51,7 +52,13 @@ RippleButton {
     property int buttonHorizontalPadding: 10
     property int buttonVerticalPadding: 6
     property bool keyboardDown: false
-    readonly property bool selected: (root.hovered || root.focus)
+    // the pointer anywhere over the row, including over its own buttons
+    HoverHandler {
+        id: rowHover
+    }
+    readonly property bool selected: (root.hovered || root.focus || rowHover.hovered)
+    readonly property int smallText: Math.max(12, Appearance.font.pixelSize.smaller)
+    readonly property var shortcutCaps: root.commandFields?.shortcut ?? []
 
     implicitHeight: rowLayout.implicitHeight + root.buttonVerticalPadding * 2 + root.headingHeight
     implicitWidth: rowLayout.implicitWidth + root.buttonHorizontalPadding * 2
@@ -125,13 +132,14 @@ RippleButton {
         anchors.topMargin: root.buttonVerticalPadding
         anchors.leftMargin: root.horizontalMargin + root.buttonHorizontalPadding
         text: root.itemHeading
-        font.pixelSize: Appearance.font.pixelSize.smaller
+        font.pixelSize: root.smallText
         font.weight: Font.DemiBold
         color: Appearance.colors.colSubtext
     }
 
     onClicked: {
-        GlobalStates.searchOpen = false
+        if (!root.entry?.keepOpen)
+            GlobalStates.searchOpen = false
         root.itemExecute()
     }
     Keys.onPressed: (event) => {
@@ -144,6 +152,9 @@ RippleButton {
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
             root.keyboardDown = true
             root.clicked()
+            event.accepted = true;
+        } else if (event.key === Qt.Key_Space && event.modifiers === Qt.NoModifier && (root.entry?.previewPath ?? "") !== "") {
+            FileSearch.toggleQuicklook(root.entry.previewPath)
             event.accepted = true;
         }
     }
@@ -182,10 +193,10 @@ RippleButton {
 
         Component {
             id: iconImageComponent
-            IconImage {
-                source: Quickshell.iconPath(root.iconName, "image-missing")
-                width: 35
-                height: 35
+            AppIconPlate {
+                iconName: root.iconName
+                label: root.itemName
+                size: 32
             }
         }
 
@@ -214,7 +225,9 @@ RippleButton {
             Layout.alignment: Qt.AlignVCenter
             spacing: 0
             StyledText {
-                font.pixelSize: Appearance.font.pixelSize.smaller
+                Layout.fillWidth: true
+                elide: Text.ElideMiddle
+                font.pixelSize: root.smallText
                 color: root.selected ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colSubtext
                 visible: root.itemType && root.itemType != Translation.tr("App")
                 text: root.itemType
@@ -273,7 +286,7 @@ RippleButton {
         StyledText {
             Layout.fillWidth: false
             visible: root.itemState !== ""
-            font.pixelSize: Appearance.font.pixelSize.smaller
+            font.pixelSize: root.smallText
             color: root.selected ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colSubtext
             horizontalAlignment: Text.AlignRight
             text: root.itemState
@@ -284,10 +297,25 @@ RippleButton {
         StyledText {
             Layout.fillWidth: false
             visible: root.itemGroup !== ""
-            font.pixelSize: Appearance.font.pixelSize.smaller
+            font.pixelSize: root.smallText
             color: root.selected ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colSubtext
             horizontalAlignment: Text.AlignRight
             text: `· ${root.itemGroup}`
+        }
+
+        // The chord that does the same thing, so the key gets learned
+        Row {
+            visible: root.shortcutCaps.length > 0
+            Layout.fillWidth: false
+            spacing: 3
+            Repeater {
+                model: root.shortcutCaps
+                delegate: KeyboardKey {
+                    required property string modelData
+                    key: modelData
+                    pixelSize: root.smallText
+                }
+            }
         }
 
         // Action text
@@ -301,50 +329,36 @@ RippleButton {
             text: root.itemClickActionName
         }
 
+        // Only the row under the cursor offers its other actions, each by name
         RowLayout {
-            Layout.alignment: Qt.AlignTop
-            Layout.topMargin: root.buttonVerticalPadding
-            Layout.bottomMargin: -root.buttonVerticalPadding // Why is this necessary? Good question.
+            Layout.alignment: Qt.AlignVCenter
+            visible: root.selected
             spacing: 4
             Repeater {
-                model: (root.entry.actions ?? []).slice(0, 4)
+                model: root.selected ? (root.entry.actions ?? []).slice(0, 4) : []
                 delegate: RippleButton {
                     id: actionButton
                     required property var modelData
-                    property var iconType: modelData.iconType
-                    property string iconName: modelData.iconName ?? ""
-                    implicitHeight: 34
-                    implicitWidth: 34
-
+                    implicitHeight: 30
+                    implicitWidth: actionLabel.implicitWidth + 20
+                    buttonRadius: Appearance.rounding.full
+                    colBackground: Appearance.colors.colSecondaryContainer
                     colBackgroundHover: Appearance.colors.colSecondaryContainerHover
                     colRipple: Appearance.colors.colSecondaryContainerActive
 
-                    contentItem: Item {
-                        id: actionContentItem
-                        anchors.centerIn: parent
-                        Loader {
-                            anchors.centerIn: parent
-                            active: actionButton.iconType === LauncherSearchResult.IconType.Material || actionButton.iconName === ""
-                            sourceComponent: MaterialSymbol {
-                                text: actionButton.iconName || "video_settings"
-                                font.pixelSize: Appearance.font.pixelSize.hugeass
-                                color: root.colForeground
-                            }
-                        }
-                        Loader {
-                            anchors.centerIn: parent
-                            active: actionButton.iconType === LauncherSearchResult.IconType.System && actionButton.iconName !== ""
-                            sourceComponent: IconImage {
-                                source: Quickshell.iconPath(actionButton.iconName)
-                                implicitSize: 20
-                            }
-                        }
+                    contentItem: StyledText {
+                        id: actionLabel
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.pixelSize: root.smallText
+                        color: Appearance.colors.colOnSecondaryContainer
+                        text: actionButton.modelData.name
                     }
 
-                    onClicked: modelData.execute()
-
-                    StyledToolTip {
-                        text: modelData.name
+                    onClicked: {
+                        if (!actionButton.modelData.keepOpen)
+                            GlobalStates.searchOpen = false
+                        actionButton.modelData.execute()
                     }
                 }
             }

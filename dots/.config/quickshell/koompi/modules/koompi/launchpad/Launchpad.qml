@@ -8,42 +8,61 @@ import Quickshell.Wayland
 
 Scope {
     id: launchpadScope
+    readonly property bool built: surface.item !== null
 
-    PanelWindow {
-        id: panelWindow
-        visible: GlobalStates.launchpadOpen
+    LazySurface {
+        id: surface
+        open: GlobalStates.launchpadOpen
 
-        // Opens where the user is looking. Resolved on the way in rather than
-        // bound live, so the surface never migrates mid-session.
-        property var targetScreen: Quickshell.screens[0] ?? null
-        screen: targetScreen
+        component: PanelWindow {
+            id: panelWindow
+            visible: GlobalStates.launchpadOpen
 
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
-        }
-        color: "transparent"
-        exclusionMode: ExclusionMode.Ignore
-        WlrLayershell.namespace: "quickshell:launchpad"
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: GlobalStates.launchpadOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+            // one-shot: arrive() replaces this binding, so the surface never migrates mid-session
+            property var targetScreen: panelWindow.focusedScreen()
+            screen: targetScreen
+            // lets the content fade in on a cold open too
+            property bool shown: false
 
-        Connections {
-            target: GlobalStates
-            function onLaunchpadOpenChanged() {
-                if (GlobalStates.launchpadOpen) {
-                    panelWindow.targetScreen = Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0] ?? null;
-                    content.reset();
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
+            }
+            color: "transparent"
+            exclusionMode: ExclusionMode.Ignore
+            WlrLayershell.namespace: "quickshell:launchpad"
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.keyboardFocus: GlobalStates.launchpadOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+            function focusedScreen() {
+                return Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0] ?? null;
+            }
+
+            function arrive() {
+                panelWindow.targetScreen = panelWindow.focusedScreen();
+                content.reset();
+            }
+
+            Component.onCompleted: {
+                panelWindow.arrive();
+                panelWindow.shown = true;
+            }
+
+            Connections {
+                target: GlobalStates
+                function onLaunchpadOpenChanged() {
+                    if (GlobalStates.launchpadOpen)
+                        panelWindow.arrive();
                 }
             }
-        }
 
-        LaunchpadContent {
-            id: content
-            anchors.fill: parent
-            active: GlobalStates.launchpadOpen
+            LaunchpadContent {
+                id: content
+                anchors.fill: parent
+                active: panelWindow.shown && GlobalStates.launchpadOpen
+            }
         }
     }
 

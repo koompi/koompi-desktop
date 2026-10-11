@@ -26,13 +26,34 @@ run() {
 }
 
 # kept in step with sdata/lib/common.sh, which the installed scripts cannot source
+# this session's processes of a binary: same uid and XDG_RUNTIME_DIR. A nested test shell runs with a
+# runtime dir of its own (tests/run.sh, the hyprshot and shellshot tools), and a restart must not kill it
+session_pids() {
+    local pid rt
+    while read -r pid; do
+        [[ -n "$pid" ]] || continue
+        rt="$(tr '\0' '\n' 2>/dev/null < "/proc/$pid/environ" | sed -n 's/^XDG_RUNTIME_DIR=//p')"
+        if [[ "$rt" == "${XDG_RUNTIME_DIR:-}" ]]; then printf '%s\n' "$pid"; fi
+    done < <(pgrep -u "$(id -u)" -x -- "$1" 2>/dev/null)
+    return 0
+}
+
 stop_processes() {
-    local name
+    local name pids waited
     for name in "$@"; do
-        printf '%s     $ killall -w -q %s%s\n' "${C_DIM}" "$name" "${C_RST}"
+        printf '%s     $ stop this session'"'"'s %s%s\n' "${C_DIM}" "$name" "${C_RST}"
         [[ "$DRY_RUN" == true ]] && continue
-        pgrep -x -- "$name" >/dev/null 2>&1 || continue
-        killall -w -q -- "$name" 2>/dev/null || warn "could not stop $name"
+        pids="$(session_pids "$name")"
+        [[ -n "$pids" ]] || continue
+        # shellcheck disable=SC2086 # one pid per word
+        kill $pids 2>/dev/null || true
+        # like killall -w: wait until they are gone, at most 10 s
+        for ((waited = 0; waited < 100; waited++)); do
+            pids="$(for pid in $pids; do if kill -0 "$pid" 2>/dev/null; then echo "$pid"; fi; done)"
+            [[ -z "$pids" ]] && break
+            sleep 0.1
+        done
+        [[ -z "$pids" ]] || warn "could not stop $name"
     done
     return 0
 }
@@ -44,7 +65,7 @@ count_shells() {
         if tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -qF -- '-c koompi'; then
             n=$((n + 1))
         fi
-    done < <(pgrep -x qs 2>/dev/null)
+    done < <(session_pids qs)
     printf '%s\n' "$n"
 }
 
@@ -187,6 +208,37 @@ apply_hardware_quirks() {
     run sudo "$tool" \
         || warn "a hardware quirk failed; see /var/log/koompi/hardware.log"
     return 0
+}
+
+# main reloads, after the migrations, so ./setup update is told not to
+setup_update() {
+    KOOMPI_SETUP_NO_RELOAD=1 "$1/setup" update "${@:2}" || die "./setup update failed"
+}
+
+# packaged route only (the git route copies the trees in ./setup update); main reloads, so the sync is told not to
+sync_code_trees() {
+    step "Syncing the shell and Hyprland trees"
+    have koompi-migrate || die "koompi-migrate is not on PATH; the shell and Hyprland trees were not synced"
+    if [[ "$DRY_RUN" == true ]]; then
+        info "dry run: would copy the packaged shell and Hyprland trees into your home (koompi-migrate --apply)"
+        return 0
+    fi
+    KOOMPI_MIGRATE_NO_RELOAD=1 run koompi-migrate --apply || die "koompi-migrate --apply failed"
+}
+
+# 1 on a failed migration or a missing koompi-migrate: main still reloads, since a migration is never load-bearing, then fails the update
+run_migrations() {
+    step "Running migrations"
+    have koompi-migrate || { warn "koompi-migrate is not on PATH; the migrations were not run"; return 1; }
+    if [[ "$DRY_RUN" == true ]]; then
+        local pending
+        pending="$(koompi-migrate --pending | paste -sd' ' -)" || pending=""
+        if [[ -n "$pending" ]]; then info "dry run: would run: $pending"; else info "dry run: no migrations pending"; fi
+        return 0
+    fi
+    run koompi-migrate run && return 0
+    warn "a migration failed, and the ones after it are still pending; 'koompi-migrate run' retries them, and the login notice offers them again"
+    return 1
 }
 
 # `koompi update --firmware`: fwupdmgr update, interactively, and nothing else.

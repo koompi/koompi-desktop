@@ -1,0 +1,20 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "finding": "J15 found that test_services_qml_bugs.sh runs its qs probe with the caller's QT_QPA_PLATFORM=wayland, WAYLAND_DISPLAY and XDG_RUNTIME_DIR, so in every full suite it connects to the founder's live Wayland display and writes quickshell runtime files under /run/user/1000. The worker contract forbids any GUI process with the live HOME, XDG_RUNTIME_DIR or WAYLAND_DISPLAY (a window lands on the founder's screen, a crash toasts the desktop). The lead's scan finds seven tests that start qs directly with no offscreen platform, no own runtime dir and no nested KWin: test_ai_model_picker, test_ai_threads, test_cheatsheet_dispatch, test_lock_pam, test_notification_exec_hint, test_search_commands, test_services_qml_bugs (six unconfirmed beyond the pattern). One of them tests the lock path. An isolated run of test_services_qml_bugs (no WAYLAND_DISPLAY, offscreen, its own runtime dir) is queued to show whether such probes work off the live session.",
+    "suite_guard": "tests/run.sh already clears the caller's XDG dirs and stubs easyeffects for every test (J42). The same place could unset WAYLAND_DISPLAY, DISPLAY and HYPRLAND_INSTANCE_SIGNATURE, give each test its own XDG_RUNTIME_DIR, and default QT_QPA_PLATFORM to offscreen; tests that start a nested KWin already set their own. A static check like test_private_bus.sh could hold every qs-starting test to it. A test run on its own outside run.sh would still need its own isolation.",
+    "slots": "Five workers run (J07, J13, J44, J08 round 2, J45); J15 handed back round 3, so one slot is free. J15 built the nested-session harness and found this. Queue head: J41 (crash watch scoping, test shells off the polkit agent, the test that starts the real easyeffects, hyprsunset), then J28, J29."
+  },
+  "questions": {
+    "live_display_tests_routing": {
+      "type": "choice",
+      "instructions": "Who fixes the tests that run qs on the founder's live display, and when?",
+      "criteria": {
+        "j15_round4_now": "Resume J15 now in the free slot: a run.sh guard (no live display, own runtime dir per test, offscreen by default), each of the seven tests confirmed and fixed where the guard breaks it, and a static check that every qs-starting test isolates itself. Strongest case: the violation runs in every suite until fixed, J15 knows the harness and found it, and the slot is free now. Cost: J41 waits one more slot.",
+        "into_j41_now": "Add it to J41 and start J41 in the free slot. Strongest case: J41 owns test shells touching the live session, so one job holds the area. Cost: J41 grows to five items and lands later than either part alone.",
+        "new_job_after_j41": "A new job after J41. Strongest case: J41 starts as planned. Cost: the suites keep touching the live display for longer.",
+        "need_more_facts": "Wait for the isolated run first."
+      }
+    }
+  }
+}

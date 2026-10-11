@@ -24,12 +24,12 @@ WButton {
     verticalPadding: 0
     contentItem: ColumnLayout {
         spacing: 3
-        WAppIcon {
+        AppIconPlate {
             Layout.topMargin: 12
             Layout.alignment: Qt.AlignHCenter
             iconName: root.desktopEntry.icon
-            implicitSize: 34
-            tryCustomIcon: false
+            label: root.desktopEntry.name
+            size: 34
         }
         WText {
             Layout.fillHeight: true

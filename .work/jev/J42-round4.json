@@ -1,0 +1,38 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "j42_round4": "J42 round 4 (in review, tests running): a packaged koompi update now runs koompi-migrate --apply after pacman and before the point-fix migrations, with KOOMPI_MIGRATE_NO_RELOAD so the update's own reload is the only one; a failing --apply stops the update before migrations, reload and hook (as a failing ./setup update does on the git route). It also fixed koompi-migrate's autoreload guard, which used hyprctl keyword, a silent no-op on Hyprland 0.56's Lua config.",
+    "broken_config": "If ~/.config/koompi/config.json is not valid JSON, --apply writes the trees, then exits 1 from its last step (merging new config defaults). On the packaged route the update therefore stops there: new trees on disk, the old shell still running, no migrations, no reload, no post-update hook; a rerun after the user fixes the file completes it. The git route meets the same file in the engine's own defaults merge, warns and carries on.",
+    "double_merge": "On a packaged update the config defaults merge now runs twice: inside --apply and again in the engine. It is idempotent; the cost is one more qs dump of the defaults (a headless qs start).",
+    "xdg_leak": "koompi-migrate and the update engine read XDG_CONFIG_HOME and XDG_STATE_HOME before HOME. Tests point HOME at a scratch dir, but tests/run.sh passes the caller's XDG_* through. With a decoy, three tests wrote into it (one overwrote hypr/hyprland/general.lua); J42 pinned those three. The founder's host exports none of these, so no real file was touched; a developer machine or CI that exports them would be. The other tests were not audited. A run.sh line unsetting XDG_CONFIG_HOME, XDG_STATE_HOME, XDG_DATA_HOME, XDG_CACHE_HOME and KOOMPI_STATE_DIR covers every test; XDG_RUNTIME_DIR and XDG_DATA_DIRS stay."
+  },
+  "questions": {
+    "J42_broken_config_on_sync": {
+      "type": "choice",
+      "instructions": "On a packaged update, what should an unparseable config.json do?",
+      "criteria": {
+        "fail_loud": "As built: the update stops at the sync and exits 1. Strongest case: the user learns the file is broken and one rerun after fixing it completes the update. Cost: an otherwise good update stops halfway (no migrations, reload or hook), and the two routes treat the same file differently.",
+        "warn_like_git_route": "Under the update, a failed defaults merge inside --apply only warns, so only a failed tree sync is fatal; the engine's own merge reports the broken file as on the git route. Strongest case: both routes behave the same on the same file and the update completes. Cost: a switch-dependent exit path in --apply.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J42_double_defaults_merge": {
+      "type": "choice",
+      "instructions": "The defaults merge runs twice on a packaged update. Keep it?",
+      "criteria": {
+        "leave_twice": "Leave it. Strongest case: idempotent, no new branches, the engine's merge is the same on both routes. Cost: one more headless qs start per packaged update.",
+        "skip_engine_merge_after_apply": "The packaged route skips the engine's merge when --apply ran. Strongest case: each update does the work once. Cost: the two routes' merge paths diverge, and an --apply that failed its merge leaves nothing to report it in the engine.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J42_runsh_scrub_xdg": {
+      "type": "choice",
+      "instructions": "Should tests/run.sh clear the caller's XDG and KOOMPI_STATE_DIR variables for every test?",
+      "criteria": {
+        "scrub_in_run_sh": "One line in tests/run.sh unsets XDG_CONFIG_HOME, XDG_STATE_HOME, XDG_DATA_HOME, XDG_CACHE_HOME and KOOMPI_STATE_DIR. Strongest case: every test, audited or not, writes only under its scratch HOME on any machine; a decoy run proves it. Cost: a test that relied on an inherited one breaks and must set its own.",
+        "leave_per_test": "Leave it to each test; J42 pinned the three it found. Strongest case: no suite-wide change. Cost: the unaudited tests can still write into a real config dir on a machine that exports these.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

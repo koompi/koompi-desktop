@@ -1,6 +1,7 @@
 import qs.services
 import qs.modules.common
 import qs.modules.common.functions
+import qs.modules.common.widgets
 import Qt5Compat.GraphicalEffects
 import QtQuick
 import QtQuick.Layouts
@@ -18,7 +19,7 @@ DockButton {
     property bool appIsActive: appToplevel.toplevels.find(t => (t.activated == true)) !== undefined
 
     readonly property bool isSeparator: appToplevel.appId === "SEPARATOR"
-    property var desktopEntry: DesktopEntries.heuristicLookup(appToplevel.appId)
+    property var desktopEntry: appToplevel.appId ? DesktopEntries.heuristicLookup(appToplevel.appId) : null
     enabled: !isSeparator
     implicitWidth: isSeparator ? 1 : implicitHeight - topInset - bottomInset
 
@@ -26,7 +27,7 @@ DockButton {
         target: DesktopEntries
 
         function onApplicationsChanged() {
-            root.desktopEntry = DesktopEntries.heuristicLookup(appToplevel.appId);
+            root.desktopEntry = appToplevel.appId ? DesktopEntries.heuristicLookup(appToplevel.appId) : null;
         }
     }
 
@@ -93,9 +94,10 @@ DockButton {
                     verticalCenter: parent.verticalCenter
                 }
                 active: !root.isSeparator
-                sourceComponent: IconImage {
-                    source: Quickshell.iconPath(AppSearch.guessIcon(appToplevel.appId), "image-missing")
-                    implicitSize: root.iconSize
+                sourceComponent: AppIconPlate {
+                    iconName: AppSearch.guessIcon(appToplevel.appId)
+                    label: root.desktopEntry?.name ?? appToplevel.appId
+                    size: root.iconSize
                 }
             }
 

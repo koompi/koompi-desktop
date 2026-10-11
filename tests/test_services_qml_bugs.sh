@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # The services fixed in J18, driven for real without touching the session:
-# singletons load from a symlinked shell root with XDG_* in a temp dir, and the
-# binaries they call are PATH shims that log what they were asked. Services
-# that need the bus, keyring, clipboard or audio are checked at the source line.
+# singletons load from a symlinked shell root with XDG_* in a temp dir inside a
+# headless KWin on a private bus, and the binaries they call are PATH shims that
+# log what they were asked. Services that need the bus, keyring, clipboard or
+# audio are checked at the source line.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -49,10 +50,14 @@ if ! command -v qs > /dev/null 2>&1; then
     echo "skip: quickshell (qs) not installed, static checks only"
     exit 0
 fi
+for tool in kwin_wayland dbus-run-session; do
+    command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, static checks only"; exit 0; }
+done
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-mkdir -p "$WORK/shell" "$WORK/xdg/config/hypr/hyprland/scripts" "$WORK/xdg/state" "$WORK/xdg/cache" "$WORK/bin" "$WORK/out"
+mkdir -p "$WORK/shell" "$WORK/xdg/config/hypr/hyprland/scripts" "$WORK/xdg/state" "$WORK/xdg/cache" "$WORK/bin" "$WORK/out" "$WORK/home" "$WORK/rt"
+chmod 700 "$WORK/rt"
 # LatexRenderer's failure branch runs against this, not against a missing output
 # dir: MicroTeX aborts on an unwritable path (uncaught ios_base::failure), and
 # that coredump is one koompi-crash-watch would announce on every suite run.
@@ -84,6 +89,27 @@ cat > "$WORK/bin/hyprctl" <<'SH'
 #!/usr/bin/env bash
 printf '{"keyboards":[{"main":true,"layout":"us,kh","variant":"intl,","active_keymap":"English (US, intl., with dead keys)"}]}\n'
 SH
+# the battery comes from this daemon stand-in, so the host's charge never reaches the update check
+cat > "$WORK/bin/koompi-shelld" <<'SH'
+#!/usr/bin/env bash
+printf '{"type":"hello","protocol":1}\n'
+while true; do
+    if [[ "$(cat "$SHIM_BATTERY")" == low ]]; then
+        printf '{"type":"state","service":"power","state":{"on_battery":true,"plugged_in":false,"display":{"present":true,"state":"discharging","charging":false,"percentage":10}}}\n' || exit 0
+    else
+        printf '{"type":"state","service":"power","state":{"on_battery":false,"plugged_in":true,"display":{"present":true,"state":"charging","charging":true,"percentage":80}}}\n' || exit 0
+    fi
+    sleep 0.3
+done
+SH
+cat > "$WORK/bin/notify-send" <<'SH'
+#!/usr/bin/env bash
+printf 'notify-send %s\n' "$1" >> "$SHIM_LOG"
+SH
+cat > "$WORK/bin/koompi-hook" <<'SH'
+#!/usr/bin/env bash
+printf 'koompi-hook %s\n' "$1" >> "$SHIM_LOG"
+SH
 printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/easyeffects"
 printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/flatpak"
 printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/pidof"
@@ -91,6 +117,7 @@ printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/pkill"
 chmod +x "$WORK/bin"/*
 : > "$WORK/shim.log"
 echo failing > "$WORK/checkupdates.mode"
+echo plugged > "$WORK/battery.mode"
 
 cat > "$WORK/shell/services_probe.qml" <<'QML'
 import qs.services
@@ -206,10 +233,21 @@ ShellRoot {
                     probe.latexDone.length === 1 && probe.readFile(probe.latexDone[0]).indexOf("<svg") >= 0, JSON.stringify(probe.latexDone));
                 probe.check("L13 failed render is not marked processed", LatexRenderer.processedHashes.length === 1, JSON.stringify(LatexRenderer.processedHashes));
             } else if (probe.stage === 2) {
+                probe.check("L5 the battery stand-in reads plugged in", Battery.available && !Battery.isLow && Battery.isCharging,
+                    "available=" + Battery.available + " low=" + Battery.isLow + " charging=" + Battery.isCharging);
                 Updates.refresh();
             } else if (probe.stage === 3) {
                 probe.check("L5 a successful check counts the lines", Updates.count === 3, "count=" + Updates.count);
                 probe.check("M14 valid directory applied", Wallpapers.effectiveDirectory === probe.work + "/out", Wallpapers.effectiveDirectory);
+                modeWriter.exec(["bash", "-c", "echo low > '" + probe.work + "/battery.mode'; echo none > '" + probe.work + "/checkupdates.mode'"]);
+            } else if (probe.stage === 4) {
+                probe.check("L5 the battery stand-in reads low and unplugged", Battery.available && Battery.isLow && !Battery.isCharging,
+                    "available=" + Battery.available + " low=" + Battery.isLow + " charging=" + Battery.isCharging);
+                Updates.refresh();
+                probe.check("L5 a low unplugged battery starts no update check", Updates.checking === false);
+            } else if (probe.stage === 5) {
+                probe.check("L5 the skipped check leaves the count", Updates.count === 3, "count=" + Updates.count);
+                probe.check("L5 the low battery warning went to the shims", probe.readFile(probe.work + "/shim.log").indexOf("notify-send ") >= 0);
                 console.log(probe.failures === 0 ? "PROBE OK" : "PROBE FAILED " + probe.failures);
                 Qt.quit();
             }
@@ -220,15 +258,32 @@ QML
 
 [[ -x /opt/MicroTeX/LaTeX ]] || echo "note: /opt/MicroTeX/LaTeX missing, the L13 render checks will fail"
 
-out="$(cd "$WORK/shell" && PATH="$WORK/bin:$PATH" SHIM_LOG="$WORK/shim.log" SHIM_MODE="$WORK/checkupdates.mode" PROBE_WORK="$WORK" \
+cat > "$WORK/inner.sh" <<SH
+#!/usr/bin/env bash
+cd "$WORK/shell" || exit 1
+timeout 120 qs -p services_probe.qml > "$WORK/qs.log" 2>&1
+SH
+chmod +x "$WORK/inner.sh"
+
+env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
+    HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" PATH="$WORK/bin:$PATH" SHIM_LOG="$WORK/shim.log" SHIM_MODE="$WORK/checkupdates.mode" PROBE_WORK="$WORK" \
+    SHIM_BATTERY="$WORK/battery.mode" KOOMPI_SHELLD="$WORK/bin/koompi-shelld" \
     XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$WORK/xdg/state" XDG_CACHE_HOME="$WORK/xdg/cache" \
-    timeout 120 qs -p services_probe.qml 2>&1)"
+    timeout 240 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 800 \
+        --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
+out="$(cat -- "$WORK/qs.log" 2> /dev/null)"
 echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | sed -n 's/^ DEBUG qml: //p' | grep -E '^(PASS|FAIL|PROBE)' || true
 
 if ! grep -q "PROBE OK" <<< "$out"; then
     echo "--- probe output ---" >&2
     echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -vE "qmlscanner|^\s*$" >&2
+    echo "--- kwin ---" >&2
+    tail -20 "$WORK/kwin.log" >&2
     exit 1
 fi
 
-echo "ok   services: cliphist queue, checkupdates exit codes, xkb variants, wallpaper dir validation, easyeffects readback, emoji sloppy search, latex argv and exit code"
+# the probe cannot read its own log, so the skip line is counted here
+skips="$(grep -c '\[Updates\] Battery low, skipping the update check' <<< "$out")"
+[[ "$skips" == 1 ]] || fail "the update check was skipped for a low battery $skips times, once is the low unplugged case"
+
+echo "ok   services: cliphist queue, checkupdates exit codes, update check skipped on a low unplugged battery, xkb variants, wallpaper dir validation, easyeffects readback, emoji sloppy search, latex argv and exit code"

@@ -6,6 +6,7 @@ XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 CACHE_DIR="$XDG_CACHE_HOME/quickshell"
 STATE_DIR="$XDG_STATE_HOME/quickshell"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/icon_theme.sh"
 SHELL_CONFIG_FILE="$XDG_CONFIG_HOME/koompi/config.json"
 terminalscheme="$SCRIPT_DIR/terminal/scheme-base.json"
 # set by hyprland/env.lua inside a session only; same default as env.lua
@@ -35,8 +36,7 @@ handle_qt_app_colors() {
         [[ "$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null)" == *dark* ]] \
             && mode_flag="dark" || mode_flag="light"
     fi
-    local icon_theme="breeze-plus"
-    [[ "$mode_flag" == "dark" ]] && icon_theme="breeze-plus-dark"
+    local icon_theme; icon_theme="$(icon_theme_for "$mode_flag")"
 
     # KDE apps read kdeglobals directly and no KDE tool is in the path, so merge the
     # matugen scheme there ourselves. Plain Qt apps get the qt6ct one via
@@ -84,11 +84,11 @@ pre_process() {
     if [[ "$mode_flag" == "dark" ]]; then
         gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
         gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark'
-        gsettings set org.gnome.desktop.interface icon-theme 'breeze-plus-dark'
+        gsettings set org.gnome.desktop.interface icon-theme "$(icon_theme_for dark)"
     elif [[ "$mode_flag" == "light" ]]; then
         gsettings set org.gnome.desktop.interface color-scheme 'prefer-light'
         gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3'
-        gsettings set org.gnome.desktop.interface icon-theme 'breeze-plus'
+        gsettings set org.gnome.desktop.interface icon-theme "$(icon_theme_for light)"
     fi
 
     if [ ! -d "$CACHE_DIR"/user/generated ]; then

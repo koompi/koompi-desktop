@@ -16,7 +16,7 @@ const commands = [_]Command{
     .{ .name = "settings", .helper = "koompi-settings", .usage = "koompi settings [page]", .summary = "Open KOOMPI Settings" },
     .{ .name = "theme", .helper = "koompi-theme", .usage = "koompi theme [regenerate|mode|scheme|color] ...", .summary = "Apply or change the desktop theme" },
     .{ .name = "wallpaper", .helper = "koompi-wallpaper", .usage = "koompi wallpaper <command> ...", .summary = "Manage workspace wallpapers" },
-    .{ .name = "display", .helper = "koompi-displays", .usage = "koompi display place <monitor> <direction> [anchor]", .summary = "Arrange displays" },
+    .{ .name = "display", .helper = "koompi-displays", .usage = "koompi display place <monitor> <direction> [anchor]\nkoompi display rate <monitor> <hz>\nkoompi display keep\nkoompi display revert", .summary = "Arrange displays" },
     .{ .name = "windows", .helper = "koompi-stacking", .usage = "koompi windows [toggle|on|off|status|clamp|cascade|maximize]", .summary = "Control tiling and stacking mode" },
     .{ .name = "preview", .helper = "koompi-quicklook", .usage = "koompi preview <path|close|kind|drive|install|selftest> ...", .summary = "Open or configure Quick Look" },
     .{ .name = "reload", .helper = "koompi-reload", .usage = "koompi reload", .summary = "Reload Hyprland and restart the shell" },

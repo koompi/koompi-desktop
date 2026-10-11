@@ -43,6 +43,8 @@ Singleton {
         path: root.filePath
 
         watchChanges: true
+        // an edit made while an async write is in flight is undone when it lands
+        blockWrites: true
         onFileChanged: fileReloadTimer.restart()
         onAdapterUpdated: fileWriteTimer.restart()
         onLoaded: root.ready = true
@@ -88,6 +90,11 @@ Singleton {
 
             property JsonObject idle: JsonObject {
                 property bool inhibit: false
+            }
+
+            property JsonObject easyEffects: JsonObject {
+                // on until the user turns it off: the shipped easyeffects db denoises the mic and limits the output
+                property bool enabled: true
             }
 
             property JsonObject overlay: JsonObject {

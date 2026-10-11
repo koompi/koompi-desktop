@@ -2,9 +2,10 @@
 # J48: everything the desktop can do to itself is one flat index of leaves in
 # services/CommandTree.qml, reachable by typing three letters. Groups are
 # headings, not levels: there is no drilling and no back key. The static half
-# reads the sources; the probe half loads the real singleton with `qs -p`,
-# shimming koompi-hw-fingerprint and XDG_STATE_HOME so the two conditions that
-# are not already held by a service can be driven both ways.
+# reads the sources; the probe half loads the real singleton with `qs -p` in a
+# headless KWin on a private bus, shimming koompi-hw-fingerprint and
+# XDG_STATE_HOME so the two conditions that are not already held by a service
+# can be driven both ways.
 set -uo pipefail
 # extglob so the ANSI escapes qs colours its log with can be stripped by a bash
 # replacement instead of a sed round trip.
@@ -16,25 +17,27 @@ TREE="$SHELL_ROOT/services/CommandTree.qml"
 ENTRIES="$SHELL_ROOT/services/commandTree/Entries.qml"
 CONDITIONS="$SHELL_ROOT/services/commandTree/Conditions.qml"
 RESULT="$SHELL_ROOT/services/commandTree/CommandResult.qml"
+BASE="$SHELL_ROOT/modules/common/models/LauncherSearchResult.qml"
 LAUNCHER="$SHELL_ROOT/services/LauncherSearch.qml"
 ITEM="$SHELL_ROOT/modules/koompi/overview/SearchItem.qml"
 WIDGET="$SHELL_ROOT/modules/koompi/overview/SearchWidget.qml"
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
-for f in "$TREE" "$ENTRIES" "$CONDITIONS" "$RESULT" "$LAUNCHER" "$ITEM" "$WIDGET"; do
+for f in "$TREE" "$ENTRIES" "$CONDITIONS" "$RESULT" "$BASE" "$LAUNCHER" "$ITEM" "$WIDGET"; do
     [[ -f "$f" ]] || fail "missing $f"
 done
 
-# LauncherSearch is allow-listed at 508 and must not grow; the wiring is one line.
+# LauncherSearch was split under the cap (J23); the leaves reach it through two calls.
 allow="$(awk -F'\t' '$1 == "dots/.config/quickshell/koompi/services/LauncherSearch.qml" { print $2 }' "$REPO_ROOT/tests/file-length-allow.txt")"
-[[ "$allow" == "508" ]] || fail "the allow-list entry for LauncherSearch.qml is '$allow', expected 508"
+[[ -z "$allow" ]] || fail "LauncherSearch.qml is still allow-listed at '$allow'; it is under the cap now"
 lines="$(wc -l < "$LAUNCHER")"
-(( lines <= 508 )) || fail "LauncherSearch.qml is $lines lines, cap is 508"
-grep -q 'CommandTree.results(root.query)' "$LAUNCHER" || fail "LauncherSearch.qml does not call CommandTree.results"
-(( $(grep -c 'CommandTree' "$LAUNCHER") == 1 )) || fail "the CommandTree wiring in LauncherSearch.qml is more than one line"
-grep -q 'return root.recentResults();' "$LAUNCHER" || fail "the empty unprefixed query no longer answers with recents"
-echo "ok   static: LauncherSearch.qml is $lines lines, wired in one line, still answers an empty query with recents"
+(( lines <= 400 )) || fail "LauncherSearch.qml is $lines lines, cap is 400"
+grep -q 'CommandTree.results(root.query)' "$LAUNCHER" || fail "LauncherSearch.qml does not call CommandTree.results for the / scope"
+grep -q 'CommandTree.blended(query)' "$LAUNCHER" || fail "LauncherSearch.qml does not blend the command tree into a plain query"
+(( $(grep -c 'CommandTree' "$LAUNCHER") == 2 )) || fail "the CommandTree wiring in LauncherSearch.qml is more than its two calls"
+grep -q 'return root.apps.recent();' "$LAUNCHER" || fail "the empty unprefixed query no longer answers with recents"
+echo "ok   static: LauncherSearch.qml is $lines lines, wired to the command tree in two calls, still answers an empty query with recents"
 
 for f in "$TREE" "$ENTRIES" "$CONDITIONS" "$RESULT" "$ITEM" "$WIDGET"; do
     lines="$(wc -l < "$f")"
@@ -54,12 +57,16 @@ echo "ok   static: no timer anywhere, one one-shot probe, nothing spawned per ke
 # The row type is a LauncherSearchResult, so the panel treats a leaf like any
 # other result and the keyboard handling is untouched.
 grep -q '^LauncherSearchResult {' "$RESULT" || fail "CommandResult.qml is not a LauncherSearchResult"
-for prop in group heading stateText; do
+for prop in group stateText; do
     grep -q "property string $prop" "$RESULT" || fail "CommandResult.qml has no $prop"
     grep -q "$prop" "$ITEM" || fail "SearchItem.qml does not read $prop"
 done
+# heading is on every Search row, so the recent apps draw it too
+grep -q 'property string heading' "$BASE" || fail "LauncherSearchResult.qml has no heading"
+grep -q 'property string heading' "$RESULT" && fail "CommandResult.qml redeclares heading"
+grep -q 'entry?.heading' "$ITEM" || fail "SearchItem.qml does not read heading"
 grep -q 'Qt.Key_Return' "$ITEM" || fail "SearchItem.qml lost its Enter handling"
-echo "ok   static: a leaf is a LauncherSearchResult with group, heading and state; Enter is unchanged"
+echo "ok   static: a leaf is a LauncherSearchResult with group and state, heading is on the base row; Enter is unchanged"
 
 QMLLINT=/usr/lib/qt6/bin/qmllint
 if [[ -x "$QMLLINT" ]]; then
@@ -80,11 +87,15 @@ if ! command -v qs > /dev/null 2>&1; then
     echo "skip: quickshell (qs) not installed, static checks only"
     exit 0
 fi
+for tool in kwin_wayland dbus-run-session; do
+    command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, static checks only"; exit 0; }
+done
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/shell" "$WORK/bin" "$WORK/xdg/config" "$WORK/xdg/cache" \
-         "$WORK/reader/koompi/crash" "$WORK/noreader/koompi"
+         "$WORK/reader/koompi/crash" "$WORK/noreader/koompi" "$WORK/home" "$WORK/rt"
+chmod 700 "$WORK/rt"
 for entry in "$SHELL_ROOT"/*; do
     ln -s "$entry" "$WORK/shell/$(basename -- "$entry")"
 done
@@ -143,7 +154,7 @@ ShellRoot {
         const entries = CommandTree.entries.all;
         const groupIds = CommandTree.entries.groups.map(group => group.id);
 
-        probe.check("entries: the first set is 15 to 20 leaves", [entries.length >= 15, entries.length <= 20, entries.length], [true, true, 17]);
+        probe.check("entries: the set is 20 to 30 leaves", [entries.length >= 20, entries.length <= 30, entries.length], [true, true, 24]);
         probe.check("entries: every leaf has an id, a label, a group and something to run",
             entries.filter(e => !e.id || !e.label || !e.group || typeof e.execute !== "function").map(e => e.id ?? e.label), []);
         probe.check("entries: every group is one of the declared headings",
@@ -206,12 +217,29 @@ ShellRoot {
 }
 QML
 
+cat > "$WORK/inner.sh" <<'SH'
+#!/usr/bin/env bash
+cd "$WORK/shell" || exit 1
+timeout 60 qs -p "$PROBE_QML" > "$WORK/qs.log" 2>&1
+SH
+chmod +x "$WORK/inner.sh"
+
+nested_qs() {
+    local probe=$1
+    shift
+    rm -f "$WORK/qs.log"
+    env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY QT_QPA_PLATFORM=wayland KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
+        HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" WORK="$WORK" PROBE_QML="$probe" PATH="$WORK/bin:$PATH" "$@" \
+        timeout 120 dbus-run-session --config-file="$REPO_ROOT/tests/private-bus.conf" -- kwin_wayland --virtual --width 1280 --height 800 \
+            --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
+    cat -- "$WORK/qs.log" 2> /dev/null
+}
+
 run_probe() { # $1: 1 when the shimmed reader is present, $2: the XDG_STATE_HOME to use
     printf '#!/usr/bin/env bash\nexit %s\n' "$(( $1 == 1 ? 0 : 1 ))" > "$WORK/bin/koompi-hw-fingerprint"
     chmod +x "$WORK/bin/koompi-hw-fingerprint"
-    (cd "$WORK/shell" && PATH="$WORK/bin:$PATH" PROBE_READER="$1" \
-        XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$2" XDG_CACHE_HOME="$WORK/xdg/cache" \
-        timeout 60 qs -p command_tree_probe.qml 2>&1)
+    nested_qs command_tree_probe.qml PROBE_READER="$1" \
+        XDG_CONFIG_HOME="$WORK/xdg/config" XDG_STATE_HOME="$2" XDG_CACHE_HOME="$WORK/xdg/cache"
 }
 
 for run in 0 1; do
@@ -227,8 +255,84 @@ for run in 0 1; do
     if ! grep -q "PROBE OK" <<< "$plain"; then
         echo "--- probe output ---" >&2
         grep -vE "qmlscanner|^\s*$" <<< "$plain" >&2
+        echo "--- kwin ---" >&2
+        tail -20 "$WORK/kwin.log" >&2
         fail "the CommandTree probe did not pass with $label"
     fi
 done
 
-echo "ok   command tree: 17 leaves load with a group and a label, no id collides, a false when removes the row, 'nig' reaches night light flat and scoped, and the action scope's empty query groups them under their headings"
+# The empty query's recent apps: one heading above them, not a label on each.
+RECENT="$WORK/recent"
+mkdir -p "$RECENT/data/applications" "$RECENT/state/quickshell/user" "$RECENT/config" "$RECENT/cache"
+for app in alpha bravo charlie delta; do
+    printf '[Desktop Entry]\nType=Application\nName=%s\nExec=%s\n' "${app^}" "$app" > "$RECENT/data/applications/$app.desktop"
+done
+now_ms="$(( $(date +%s) * 1000 ))"
+printf '{"counts":{"alpha":3,"bravo":2,"charlie":1},"lastUsed":{"alpha":%s,"bravo":%s,"charlie":%s}}\n' \
+    "$now_ms" "$now_ms" "$now_ms" > "$RECENT/state/quickshell/user/launchpad-usage.json"
+printf '#!/usr/bin/env bash\nexit 1\n' > "$WORK/bin/koompi-shelld"
+chmod +x "$WORK/bin/koompi-shelld"
+
+cat > "$WORK/shell/recent_probe.qml" <<'QML'
+import qs.services
+import qs.modules.common
+import Quickshell
+import QtQuick
+
+ShellRoot {
+    id: probe
+    property int failures: 0
+
+    function check(label, got, want) {
+        const ok = JSON.stringify(got) === JSON.stringify(want);
+        console.log((ok ? "PASS " : "FAIL ") + label + "  got=" + JSON.stringify(got) + (ok ? "" : " want=" + JSON.stringify(want)));
+        if (!ok) probe.failures++;
+    }
+
+    Timer {
+        interval: 100
+        repeat: true
+        running: true
+        property int waited: 0
+        onTriggered: {
+            waited += interval;
+            if (LauncherSearch.results.length < 3 && waited < 10000)
+                return;
+            running = false;
+            probe.run();
+        }
+    }
+
+    function run() {
+        const rows = LauncherSearch.results;
+        const recent = Translation.tr("Recent");
+        console.log("VIEW  empty query:");
+        rows.forEach(row => console.log("VIEW    " + [row.heading, row.name, row.type].join(" | ")));
+        probe.check("recent: the three used apps, most used first, the unused one absent", rows.map(row => row.name), ["Alpha", "Bravo", "Charlie"]);
+        probe.check("recent: one heading, on the first row", rows.map(row => row.heading), [recent, "", ""]);
+        probe.check("recent: no row carries the Recent label itself", rows.filter(row => row.type === recent).length, 0);
+        LauncherSearch.query = "alp";
+        const typed = LauncherSearch.results;
+        probe.check("typed: the app is found under its own App label, and the best match leads under Top Hit",
+            [typed.some(row => row.name === "Alpha" && row.type === Translation.tr("App")), typed[0].name, typed[0].heading], [true, "Alpha", "Top Hit"]);
+        console.log(probe.failures === 0 ? "PROBE OK" : "PROBE FAILED " + probe.failures);
+        Qt.quit();
+    }
+}
+QML
+
+out="$(nested_qs recent_probe.qml KOOMPI_SHELLD="$WORK/bin/koompi-shelld" \
+    XDG_CONFIG_HOME="$RECENT/config" XDG_STATE_HOME="$RECENT/state" XDG_CACHE_HOME="$RECENT/cache" \
+    XDG_DATA_HOME="$RECENT/data" XDG_DATA_DIRS="$RECENT/data")"
+plain="${out//$'\e'\[*([0-9;])m/}"
+printf -- '--- recent apps ---\n'
+grep -E '^ DEBUG qml: (PASS|FAIL|VIEW|PROBE)' <<< "$plain" | sed 's/^ DEBUG qml: //' || true
+if ! grep -q "PROBE OK" <<< "$plain"; then
+    echo "--- probe output ---" >&2
+    grep -vE "qmlscanner|^\s*$" <<< "$plain" >&2
+    echo "--- kwin ---" >&2
+    tail -20 "$WORK/kwin.log" >&2
+    fail "the recent apps probe did not pass"
+fi
+
+echo "ok   command tree: 24 leaves load with a group and a label, no id collides, a false when removes the row, 'nig' reaches night light flat and scoped, and the action scope's empty query groups them under their headings; the empty query lists recent apps under one Recent heading, not a label per row"

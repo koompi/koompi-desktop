@@ -179,6 +179,21 @@ done
 FAKE_LOGIND=yes run_script status
 (( rc == 0 )) || fail "status with logind yes: exit $rc, wanted 0"
 
+# logind answers inhibited while the shell's own keep-awake is held; that is possible, not "cannot".
+FAKE_LOGIND=inhibited run_script status
+(( rc == 0 )) || fail "status with logind inhibited: exit $rc, wanted 0"
+FAKE_LOGIND=inhibitor-blocked run_script status
+(( rc == 1 )) || fail "status with logind inhibitor-blocked: exit $rc, wanted 1"
+qml_probe="$(sed -n '/id: detectHibernateProc/,/^    }/p' "$REPO_ROOT/dots/.config/quickshell/koompi/services/SessionWarnings.qml" \
+    | sed -n 's/.*command: \["bash", "-c", "\(.*\)"\].*/\1/p' | sed 's/\\"/"/g')"
+[[ -n "$qml_probe" ]] || fail "could not read the CanHibernate probe out of SessionWarnings.qml"
+for a in yes challenge inhibited; do
+    FAKE_LOGIND=$a bash -c "$qml_probe" || fail "SessionWarnings reads logind '$a' as cannot hibernate"
+done
+for a in na no inhibitor-blocked; do
+    FAKE_LOGIND=$a bash -c "$qml_probe" && fail "SessionWarnings reads logind '$a' as can hibernate"
+done
+
 # 9. Callers: post_install.sh order and WARNING-not-abort; system.sh sudo vs --dry-run.
 pi="$REPO_ROOT/installer/src/post_install.sh"
 main_body="$(sed -n '/^main() {/,/^}/p' "$pi")"
@@ -216,5 +231,7 @@ out="$(FAKE_LOGIND=na "$REPO_ROOT/dots/.local/bin/koompi-health" 2>&1)"
 [[ "$out" == *"hibernation: not set up (run: sudo /usr/lib/koompi/hibernation-setup"* ]] || fail "doctor: no 'not set up' line with logind na"
 out="$(FAKE_LOGIND=yes "$REPO_ROOT/dots/.local/bin/koompi-health" 2>&1)"
 [[ "$out" == *"hibernation: available"* ]] || fail "doctor: no 'available' line with logind yes"
+out="$(FAKE_LOGIND=inhibited "$REPO_ROOT/dots/.local/bin/koompi-health" 2>&1)"
+[[ "$out" == *"hibernation: available"* ]] || fail "doctor: no 'available' line with logind inhibited"
 
 echo "ok test_hibernation_setup.sh"

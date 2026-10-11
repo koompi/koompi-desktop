@@ -184,7 +184,7 @@ mod tests {
         }
     }
 
-    /// This seat answers `inhibited` to `CanSuspend` because `Idle.qml:53-58` holds a
+    /// This seat answers `inhibited` to `CanSuspend` because `Idle.qml` holds a
     /// block inhibitor. The QML would draw suspend as impossible; it is not.
     #[test]
     fn inhibited_is_still_possible_which_is_where_the_qml_grep_gets_it_wrong() {

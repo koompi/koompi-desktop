@@ -8,8 +8,13 @@ The KOOMPI star opens the left-hand panel, which holds the assistant.
 `Super+A` does the same.
 
 Next to it is the program you are in: its name, and underneath, what it has open.
+With nothing open it reads Desktop, and nothing under it.
 Click that name for the window's own actions.
+When you start a program, its icon and name appear there at once with "Opening…" under them, and pulse until its window arrives.
+It gives up after eight seconds, so a program that never shows a window does not hold the strip.
 To the right of it, the program's menus - File, Edit, View - if it has them.
+Dolphin, Okular, Konsole and Ark put them there when you open them from Search, from the page of everything installed, or with their key.
+Some other programs keep theirs inside their own window instead.
 
 Scroll anywhere on the left half of the strip to change screen brightness.
 
@@ -20,19 +25,31 @@ Scroll to step through them, right-click for the overview.
 
 ## The right end
 
-The clock sits in the far corner.
-Left of it is a cluster of small icons, and clicking anywhere in that cluster opens the right-hand panel.
+The right end always reads in the same order.
+From left to right:
 
-What appears in the cluster depends on what is happening:
-
-- a coffee cup while **Keep awake** is on, and a click turns it off
-- a moon while **Night light** is on, same again
-- a red microphone while dictation is listening
-- a count of updates waiting, which you can click to install them
+- the tray icons of running programs, then the media that is playing, agent usage and a running pomodoro, each only while it has something to show
+- small lights for things that are on and easy to forget, each only while it is on: a red dot while the screen is being recorded, a microphone while a program is listening, a crossed microphone or speaker while one is muted, a coffee cup for **Keep awake**, a moon for **Night light**, a circle with a bar for **Do Not Disturb**, a red microphone while dictation is listening
+- a glyph with the number of updates waiting, which you can click to install them
 - which keyboard layout is live, English or Khmer
-- a number for notifications you have not read
+- Wi-Fi
+- the battery, as a glyph with its percentage beside it, on a laptop
+- the quick settings glyph, a row of sliders
+- the clock
 
-Battery, the media that is playing, and the tray icons of running programs sit further left again.
+Each of these is its own target.
+A click on a light turns that mode off or undoes the mute, and a click on the update glyph opens its list.
+Nothing else on the strip opens a panel: **the sliders glyph** and **the clock** both open the one panel on the right, with the switches and sliders on top and your notifications under them.
+Both are drawn pressed in while it is open.
+
+Unread notifications show as a small dot on the clock.
+Do Not Disturb is its own light, and the dot stays away while it is on.
+
+Hover the clock for the date and your next tasks.
+The time the computer has been on is in Settings under About.
+
+The strip stays readable on any wallpaper: the text is dimmed on a screen that is not the one you are working on, but never below a clear contrast against even a white or black picture behind it.
+If you turn the strip's background off in Settings, that guarantee goes with it.
 
 Scroll anywhere on the right half of the strip to change the volume.
 
@@ -50,7 +67,7 @@ A notification arrives as a card in the top right and goes away on its own.
 Nothing dismissed is lost.
 The right-hand panel keeps the history either way.
 
-Opening that panel marks everything read, so the unread count clears whether you looked at them or not.
+Opening the Notification Center from the clock marks everything read once it has stayed open for a second, so a panel you open and close at once leaves the dot alone.
 
 For a quiet hour:
 

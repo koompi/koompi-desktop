@@ -1,0 +1,43 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "migrations": "Point-fix migrations are per-user one-time scripts in sdata/migrations/<unix-ts>-<slug>.sh that repair files in an existing home (J04 rewrites shortcut labels in the user's custom keybinds; J42 gives existing homes the new hyprland-session.target and three login-item overrides). koompi-migrate run applies pending ones in order and marks each by name under ~/.local/state/koompi/migrations; docs/agents/migrations.md calls a migration never load-bearing.",
+    "bug_found": "Before J42 round 3 no route delivered them: no package installed sdata/migrations, the copy ./setup installs in ~/.local/bin looked for /home/sdata/migrations, and koompi update never ran koompi-migrate run. The login notice found nothing to offer.",
+    "round3_delivery": "Verified on the rebased tree: the koompi-shell PKGBUILD installs sdata/migrations into /usr/share/koompi/migrations (pkgrel 13); koompi-migrate also reads the checkout ./setup recorded in ~/.local/state/koompi/repo-path; koompi update runs koompi-migrate run once on every route, after pacman or ./setup update and before the shell reload; ./setup update is told not to reload (KOOMPI_SETUP_NO_RELOAD) so the reload comes last. New delivery test fails on dev and passes on the branch; three lead mutations of the route test are each caught; worker full suite 127 passed, 4 skipped (baseline), 0 failed.",
+    "koompi_repo": "The [koompi] pacman repo is a skeleton. A packaged machine's koompi update falls back to the git route through the recorded checkout, so such a machine has two migration sources: the installed package's directory (as old as the package) and the checkout (current). After the repo is published, the package becomes the newer one and a checkout may be left behind.",
+    "sources_now": "Built: koompi-migrate reads every source (the clone it runs from, the recorded checkout, ../share/koompi/migrations beside the binary, /usr/share/koompi/migrations); a name found in several runs once, the first source's copy. Tested with a duplicate across package and checkout and with a recorded checkout that vanished.",
+    "sync_gap": "Separate from point-fix migrations, koompi-migrate --apply syncs the KOOMPI-owned code trees (shell QML in ~/.config/quickshell/koompi, shipped hypr/hyprland modules) from the packaged copy into the home: tar backup first, never touches hypr/custom overrides, machine-local files or config.json values the user set, pauses Hyprland autoreload while writing. /etc/skel only seeds new users, so a pacman upgrade changes nothing in an existing home. The git route copies the trees through ./setup update. The packaged route runs neither: it merges config.json defaults and now the point-fix migrations, not --apply. The doc before this round said existing users pick code-tree changes up at their next koompi update; J42 corrected the doc to match the code. Today the git fallback hides the gap; there is no real packaged machine to exercise either answer on.",
+    "failure_policy_now": "Built: a failing migration stops later ones; the shell still reloads and the post-update hook fires; then koompi update exits 1 naming the migration and does not print that it is up to date; the failed one and later ones stay pending for the login notice and koompi-migrate run. A missing koompi-migrate fails the same way."
+  },
+  "questions": {
+    "J42_migration_sources": {
+      "type": "choice",
+      "instructions": "Where should koompi-migrate look for point-fix migrations?",
+      "criteria": {
+        "read_every_source": "Every source the machine has, a name run once. Strongest case: a packaged machine that falls back to a checkout has a stale package directory and a current checkout, and which one is newer flips once the repo is published; per-name markers mean nothing runs twice; already built and tested. Cost: about ten more lines than one directory, and if two sources ever carried different content under one name the first source's copy wins without a word.",
+        "first_source_wins": "The first source that exists, in a fixed order. Strongest case: one place to look and one rule to explain. Cost: on a packaged machine with a checkout, the source that comes first hides the other's new migrations (package first: the checkout's new fixes never run today; checkout first: the package's never run after publication).",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J42_packaged_code_sync": {
+      "type": "choice",
+      "instructions": "A packaged koompi update does not run the code-tree sync (koompi-migrate --apply), so a packaged home keeps its account-creation shell and hypr/hyprland while the system copy moves. What now?",
+      "criteria": {
+        "run_apply_in_packaged_update": "koompi update's packaged route runs koompi-migrate --apply after pacman and before the point-fix migrations. Strongest case: without it packaged users run an old shell after every update once the repo is published, the same silent non-delivery class as the bug this round fixed; the docs promised it; --apply backs up first and spares overrides, machine-local files and set config values. Cost: an automatic rewrite of the shell tree on every packaged update, verifiable only in scratch homes until a real packaged machine exists.",
+        "leave_manual_documented": "Keep it manual; the docs now say a packaged update needs koompi-migrate --apply. Strongest case: no new automatic writes into homes, and today no machine reaches the packaged route anyway. Cost: after publication, packaged users silently keep an old shell unless they know the command.",
+        "file_for_repo_publication": "Record it in the open-work list (~/.config/koompi/TODO.md) as a blocker for publishing the [koompi] repo, with the failing case named, and wire it then. Strongest case: built and verified when the path can actually run, no code for an unreachable path now. Cost: depends on the note being acted on at publication.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J42_migration_failure": {
+      "type": "choice",
+      "instructions": "What should koompi update do when a point-fix migration fails?",
+      "criteria": {
+        "reload_then_fail": "As built: later migrations wait, the shell reloads and the hook fires, then the update exits 1 naming the failure, and the login notice offers the pending ones again. Strongest case: a migration is never load-bearing, so the new shell runs on unrepaired state, while skipping the reload leaves an old shell on new files; the user still sees the failure and a retry path.",
+        "stop_before_reload": "Exit 1 before the reload and the hook. Strongest case: nothing restarts on half-applied state. Cost: new files on disk with the old shell running until next login, and the post-update hook never fires for this update.",
+        "warn_and_succeed": "Warn, reload, exit 0. Strongest case: a non-load-bearing fix should not fail an otherwise good update. Cost: scripts and the updater read exit 0 as fully up to date while a fix stays pending.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

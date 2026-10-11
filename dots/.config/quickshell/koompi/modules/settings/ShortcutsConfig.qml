@@ -14,8 +14,8 @@ ContentPage {
     property var keyBlacklist: ["SUPER_L", "SUPER_R"]
     property var keySubstitutions: ({
         "Super": "Super",
-        "mouse_up": "Scroll ↓",
-        "mouse_down": "Scroll ↑",
+        "mouse_up": "Scroll ↑",
+        "mouse_down": "Scroll ↓",
         "mouse:272": "LMB",
         "mouse:273": "RMB",
         "mouse:275": "MouseBack",

@@ -11,12 +11,16 @@ loaded by `hyprland.lua`) lets config live in Lua instead — `hl.config({...})`
 shell's dispatch calls were ported onto. Search `hyprland/lib/` before assuming a
 `hl.*` function doesn't exist; it likely does.
 
+A script changes an option in a live session with `hyprctl eval 'hl.config({ ... })'`, which exits non-zero on a Lua error.
+`hyprctl keyword` answers "keyword can't work with non-legacy parsers", exits 0 and changes nothing, so a script that trusts its exit status never notices.
+
 ## `custom/` vs `hyprland/`
 
 `dots/.config/hypr/hyprland.lua` is the entry point and `require`s both trees:
 
-- `hyprland/*.lua` — package-owned. Resynced by `koompi-migrate` / `./setup`; any
-  edit here is silently overwritten on the next install or update.
+- `hyprland/*.lua` — package-owned. Resynced by `./setup update` on the git route and by
+  `koompi-migrate --apply` on the packaged one, which `koompi update` runs; any edit here
+  is silently overwritten on the next install or update.
 - `custom/*.lua` — user-owned. Listed in `sdata/install/files.sh`'s `KEEP_PATHS`:
   written once if absent, never clobbered afterward. Each `custom/*.lua` file is
   `require`d only `if is_file_exists(...)`, so an absent file is simply skipped, not
@@ -28,6 +32,58 @@ If you're an agent asked to change Hyprland behavior for one user's machine, tha
 
 Kiri's voice binds are the concrete example already in the tree:
 `dots/.config/hypr/custom/keybinds.lua` — see `docs/navigation.md`'s Kiri section.
+
+## Session start-up and login items
+
+`hyprland/execs.lua` imports the Wayland environment into the systemd user manager, then runs `systemctl --user start hyprland-session.target`.
+The target ships in `dots/.config/systemd/user/`: `./setup` merges it into `~/.config/systemd/user/` and `/etc/skel` seeds new users with it.
+The user manager reads that directory and the target has no `[Install]` section, so nothing enables it: the first `start` loads it.
+It binds `graphical-session.target`, which hypridle, the crash watcher, touch gestures, the migration notice and the portals hang off, and it wants `xdg-desktop-autostart.target`, which starts every login item.
+`xdg-desktop-autostart.target` refuses a manual start, so a script must never `systemctl --user start` it; `tests/test_session_autostart.sh` fails on that.
+
+Apps set to start at login (`~/.config/autostart`, `/etc/xdg/autostart`) do start, from the next login: systemd generates their units when the user manager starts.
+`OnlyShowIn=` and `NotShowIn=` are read against `XDG_CURRENT_DESKTOP=KOOMPI:Hyprland`.
+KOOMPI hides three that would otherwise start:
+
+- `nm-applet`, because the shell has its own network panel.
+- `geoclue-demo-agent`, because Weather starts it when it needs a location and Weather is off by default.
+- `org.kde.kdeconnect.daemon`, because D-Bus starts `kdeconnectd` when KDE Connect opens, and Remote Input through `koompi-remotedesktop-portal` needs it running.
+
+Each is a file of the same name in `dots/.config/autostart/` with `Hidden=true`, listed in `KEEP_PATHS`: written once if absent, never rewritten.
+To get one back, edit the file to `Hidden=false`; deleting it only brings it back at the next update.
+
+`/etc/skel` seeds new users only and `koompi-migrate` syncs only the shell and `hypr/hyprland`, so an existing home gets the target and the three files from `sdata/migrations/*-session-target-autostart.sh`, which `koompi update` runs (`docs/agents/migrations.md`).
+
+## Options the shell holds
+
+`hyprland/shellOverrides/main.lua` is written by the shell, never by hand, through
+`services/HyprlandConfig.qml` and `scripts/hyprland/hyprconfigurator.py`. It is required last, so
+what is in it wins over `hyprland/` and `custom/`, and removing a line hands the option back to
+whatever those say.
+
+Game mode and Reduce Motion both need `animations:enabled` off, so neither writes it.
+`services/HyprlandModes.qml` is the one writer.
+A mode is a flag there, its `holds` table names the options a mode forces and which modes want each, and an option is held while any mode that wants it is on and reset the moment none does.
+Turning one mode off therefore never undoes another, and a mode's own toggle reads its own flag, never the shared option.
+Game mode has no other store: it reads itself back from that file at start.
+Reduce Motion lives in `config.json`, and the shell writes its hold when it starts.
+
+The file survives an update.
+`sdata/install/files.sh` and `koompi-migrate` both mirror `hyprland/`, and both leave the file alone once it exists (`SYNC_KEEP_PATHS` in the first, an `--exclude` on the hyprland pair in the second), writing the shipped stub only where it is missing.
+`tests/test_hypr_overrides_survive_update.sh` runs both routes against a home that holds Game mode.
+
+`HyprlandConfig` runs the script as a `Process` with argv, one run at a time: what is asked for while one runs is merged into the next run, the last word on a key winning.
+A run that exits non-zero is logged with the script's stderr, and once the runs have drained `HyprlandModes` re-reads the file, so what it believes is applied is what is there.
+The script needs no virtual environment, and exits non-zero with the reason on stderr when it cannot write.
+
+A new mode (Reduce Transparency will hold `decoration:blur:enabled`) is one flag and one `by`
+entry in `HyprlandModes.qml`. `tests/test_hypr_modes.sh` fails when a held option is named in any
+other file of the shell.
+
+Motion has two halves. The shell's is the `animation` roles and the duration ladder in
+`modules/common/Appearance.qml`; Hyprland's is the leaves in `hyprland/general.lua`, where `speed`
+is in tenths of a second. `tests/test_motion.sh` and `tests/test_motion_hypr.sh` hold both to the
+budget in `docs/navigation.md`.
 
 ## Keybinds and the Super release-to-open mechanism
 

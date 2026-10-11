@@ -46,7 +46,7 @@ ContentSection {
         // Config's file watch. One run per settled drag, not one per step.
         Timer {
             id: textSizeApply
-            interval: Appearance.animationDuration.normal
+            interval: 300
             onTriggered: Quickshell.execDetached(["koompi-theme", "text-size", String(Math.round(textSizeSlider.value))])
         }
     }

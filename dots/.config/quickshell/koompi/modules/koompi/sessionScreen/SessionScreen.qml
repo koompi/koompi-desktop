@@ -13,32 +13,116 @@ import Quickshell.Hyprland
 
 Scope {
     id: root
+    readonly property bool built: surface.item !== null
     property var focusedScreen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name)
 
-    Loader {
-        id: sessionLoader
-        active: GlobalStates.sessionOpen
-        onActiveChanged: {
-            if (sessionLoader.active)
-                SessionWarnings.refresh();
-        }
-
-        Connections {
-            target: GlobalStates
-            function onScreenLockedChanged() {
-                if (GlobalStates.screenLocked) {
-                    GlobalStates.sessionOpen = false;
-                }
+    Connections {
+        target: GlobalStates
+        function onScreenLockedChanged() {
+            if (GlobalStates.screenLocked) {
+                GlobalStates.sessionOpen = false;
             }
         }
+    }
 
-        sourceComponent: PanelWindow { // Session menu
+    LazySurface {
+        id: surface
+        open: GlobalStates.sessionOpen
+        keepWarm: 0
+
+        component: PanelWindow { // Session menu
             id: sessionRoot
-            visible: sessionLoader.active
-            property string subtitle
+            visible: GlobalStates.sessionOpen
+            property string pending: ""
+            property var origin: null
+            readonly property var tiles: [sessionLock, sessionSleep, sessionHibernate, sessionLogout, sessionReboot, sessionShutdown, sessionTaskManager, sessionFirmwareReboot]
+            readonly property var texts: ({
+                    "poweroff": {
+                        "many": Translation.tr("Shutting down in %1 seconds"),
+                        "one": Translation.tr("Shutting down in %1 second"),
+                        "now": Translation.tr("Shut down now")
+                    },
+                    "reboot": {
+                        "many": Translation.tr("Restarting in %1 seconds"),
+                        "one": Translation.tr("Restarting in %1 second"),
+                        "now": Translation.tr("Restart now")
+                    },
+                    "firmware": {
+                        "many": Translation.tr("Restarting to firmware setup in %1 seconds"),
+                        "one": Translation.tr("Restarting to firmware setup in %1 second"),
+                        "now": Translation.tr("Restart now")
+                    }
+                })
+
+            Component.onCompleted: {
+                SessionWarnings.refresh();
+                sessionLock.forceActiveFocus();
+            }
 
             function hide() {
+                pending = "";
                 GlobalStates.sessionOpen = false;
+            }
+
+            function begin(kind, tile) {
+                origin = tile;
+                pending = kind;
+            }
+
+            function cancel() {
+                pending = "";
+                (origin ?? sessionLock).forceActiveFocus();
+            }
+
+            function back() {
+                if (pending !== "")
+                    cancel();
+                else
+                    hide();
+            }
+
+            function commit() {
+                const kind = pending;
+                hide();
+                if (kind === "poweroff")
+                    Session.poweroff();
+                else if (kind === "reboot")
+                    Session.reboot();
+                else if (kind === "firmware")
+                    Session.rebootToFirmware();
+            }
+
+            // what the menu shows, for the IPC `state` readout
+            function describe() {
+                const names = ["lock", "sleep", "hibernate", "logout", "restart", "shutdown", "taskmanager", "firmware"];
+                const labelled = pending !== "" ? countdown.item.labelled : tiles.every(t => !t.visible || t.labelVisible);
+                const tile = names[tiles.findIndex(t => t.activeFocus)] ?? "none";
+                const focus = pending !== "" ? "countdown-" + countdown.item.focused : tile;
+                const seconds = pending !== "" ? countdown.item.remaining : 0;
+                return `pending=${pending} remaining=${seconds} focus=${focus} labelled=${labelled}`;
+            }
+
+            // arrows walk the tiles in reading order; up and down hop to the nearest tile in the other row
+            function move(key) {
+                const live = tiles.filter(t => t.visible);
+                const at = live.findIndex(t => t.activeFocus);
+                if (at < 0)
+                    return false;
+                const here = live[at];
+                if (key === Qt.Key_Left || key === Qt.Key_Right) {
+                    live[Math.max(0, Math.min(live.length - 1, at + (key === Qt.Key_Right ? 1 : -1)))].forceActiveFocus();
+                    return true;
+                }
+                if (key !== Qt.Key_Up && key !== Qt.Key_Down)
+                    return false;
+                const inPrimary = here.parent === primaryRow;
+                if (inPrimary === (key === Qt.Key_Up))
+                    return true;
+                const x = here.mapToItem(null, here.width / 2, 0).x;
+                const other = live.filter(t => (t.parent === primaryRow) !== inPrimary);
+                other.sort((l, r) => Math.abs(l.mapToItem(null, l.width / 2, 0).x - x) - Math.abs(r.mapToItem(null, r.width / 2, 0).x - x));
+                other[0].forceActiveFocus();
+                return true;
             }
 
             exclusionMode: ExclusionMode.Ignore
@@ -59,67 +143,50 @@ Scope {
             MouseArea {
                 id: sessionMouseArea
                 anchors.fill: parent
-                onClicked: {
-                    sessionRoot.hide();
-                }
+                onClicked: sessionRoot.back()
             }
 
             ColumnLayout { // Content column
                 id: contentColumn
                 anchors.centerIn: parent
-                spacing: 15
+                spacing: 24
 
                 Keys.onPressed: event => {
-                    if (event.key === Qt.Key_Escape) {
+                    if (sessionRoot.pending !== "") {
+                        event.accepted = countdown.item.handleKey(event);
+                    } else if (event.key === Qt.Key_Escape) {
                         sessionRoot.hide();
+                    } else if (sessionRoot.pending === "" && sessionRoot.move(event.key)) {
+                        event.accepted = true;
                     }
                 }
 
-                ColumnLayout {
+                StyledText {
                     Layout.alignment: Qt.AlignHCenter
-                    spacing: 0
-                    StyledText {
-                        // Title
-                        Layout.alignment: Qt.AlignHCenter
-                        horizontalAlignment: Text.AlignHCenter
-                        font {
-                            family: Appearance.font.family.title
-                            pixelSize: Appearance.font.pixelSize.title
-                            variableAxes: Appearance.font.variableAxes.title
-                        }
-                        text: Translation.tr("Session")
+                    horizontalAlignment: Text.AlignHCenter
+                    visible: sessionRoot.pending === ""
+                    font {
+                        family: Appearance.font.family.title
+                        pixelSize: Appearance.font.pixelSize.title
+                        variableAxes: Appearance.font.variableAxes.title
                     }
-
-                    StyledText {
-                        // Small instruction
-                        Layout.alignment: Qt.AlignHCenter
-                        horizontalAlignment: Text.AlignHCenter
-                        font.pixelSize: Appearance.font.pixelSize.normal
-                        text: Translation.tr("Arrow keys to navigate, Enter to select\nEsc or click anywhere to cancel")
-                    }
+                    text: Translation.tr("Session")
                 }
 
-                GridLayout {
-                    columns: 4
-                    columnSpacing: 15
-                    rowSpacing: 15
+                RowLayout {
+                    id: primaryRow
+                    Layout.alignment: Qt.AlignHCenter
+                    visible: sessionRoot.pending === ""
+                    spacing: 15
 
                     SessionActionButton {
                         id: sessionLock
-                        focus: sessionRoot.visible
                         buttonIcon: "lock"
                         buttonText: Translation.tr("Lock")
                         onClicked: {
                             Session.lock();
                             sessionRoot.hide();
                         }
-                        onFocusChanged: {
-                            if (focus)
-                                sessionRoot.subtitle = buttonText;
-                        }
-                        KeyNavigation.right: sessionSleep
-                        // Shutdown moves under Lock when Hibernate is hidden.
-                        KeyNavigation.down: SessionWarnings.canHibernate ? sessionHibernate : sessionShutdown
                     }
                     SessionActionButton {
                         id: sessionSleep
@@ -129,46 +196,7 @@ Scope {
                             Session.suspend();
                             sessionRoot.hide();
                         }
-                        onFocusChanged: {
-                            if (focus)
-                                sessionRoot.subtitle = buttonText;
-                        }
-                        KeyNavigation.left: sessionLock
-                        KeyNavigation.right: sessionLogout
-                        KeyNavigation.down: sessionShutdown
                     }
-                    SessionActionButton {
-                        id: sessionLogout
-                        buttonIcon: "logout"
-                        buttonText: Translation.tr("Logout")
-                        onClicked: {
-                            Session.logout();
-                            sessionRoot.hide();
-                        }
-                        onFocusChanged: {
-                            if (focus)
-                                sessionRoot.subtitle = buttonText;
-                        }
-                        KeyNavigation.left: sessionSleep
-                        KeyNavigation.right: sessionTaskManager
-                        KeyNavigation.down: sessionReboot
-                    }
-                    SessionActionButton {
-                        id: sessionTaskManager
-                        buttonIcon: "browse_activity"
-                        buttonText: Translation.tr("Task Manager")
-                        onClicked: {
-                            Session.launchTaskManager();
-                            sessionRoot.hide();
-                        }
-                        onFocusChanged: {
-                            if (focus)
-                                sessionRoot.subtitle = buttonText;
-                        }
-                        KeyNavigation.left: sessionLogout
-                        KeyNavigation.down: sessionFirmwareReboot
-                    }
-
                     SessionActionButton {
                         id: sessionHibernate
                         // Without a resume device the button does nothing.
@@ -179,65 +207,67 @@ Scope {
                             Session.hibernate();
                             sessionRoot.hide();
                         }
-                        onFocusChanged: {
-                            if (focus)
-                                sessionRoot.subtitle = buttonText;
-                        }
-                        KeyNavigation.up: sessionLock
-                        KeyNavigation.right: sessionShutdown
                     }
                     SessionActionButton {
-                        id: sessionShutdown
-                        buttonIcon: "power_settings_new"
-                        buttonText: Translation.tr("Shutdown")
+                        id: sessionLogout
+                        buttonIcon: "logout"
+                        buttonText: Translation.tr("Log out")
                         onClicked: {
-                            Session.poweroff();
+                            Session.logout();
                             sessionRoot.hide();
                         }
-                        onFocusChanged: {
-                            if (focus)
-                                sessionRoot.subtitle = buttonText;
-                        }
-                        KeyNavigation.left: sessionHibernate
-                        KeyNavigation.right: sessionReboot
-                        KeyNavigation.up: sessionSleep
                     }
                     SessionActionButton {
                         id: sessionReboot
                         buttonIcon: "restart_alt"
-                        buttonText: Translation.tr("Reboot")
-                        onClicked: {
-                            Session.reboot();
-                            sessionRoot.hide();
-                        }
-                        onFocusChanged: {
-                            if (focus)
-                                sessionRoot.subtitle = buttonText;
-                        }
-                        KeyNavigation.left: sessionShutdown
-                        KeyNavigation.right: sessionFirmwareReboot
-                        KeyNavigation.up: sessionLogout
+                        buttonText: Translation.tr("Restart")
+                        onClicked: sessionRoot.begin("reboot", sessionReboot)
                     }
                     SessionActionButton {
-                        id: sessionFirmwareReboot
-                        buttonIcon: "settings_applications"
-                        buttonText: Translation.tr("Reboot to firmware settings")
-                        onClicked: {
-                            Session.rebootToFirmware();
-                            sessionRoot.hide();
-                        }
-                        onFocusChanged: {
-                            if (focus)
-                                sessionRoot.subtitle = buttonText;
-                        }
-                        KeyNavigation.up: sessionTaskManager
-                        KeyNavigation.left: sessionReboot
+                        id: sessionShutdown
+                        buttonIcon: "power_settings_new"
+                        buttonText: Translation.tr("Shut down")
+                        onClicked: sessionRoot.begin("poweroff", sessionShutdown)
                     }
                 }
 
-                DescriptionLabel {
+                RowLayout {
+                    id: secondaryRow
                     Layout.alignment: Qt.AlignHCenter
-                    text: sessionRoot.subtitle
+                    visible: sessionRoot.pending === ""
+                    spacing: 15
+
+                    SessionActionButton {
+                        id: sessionTaskManager
+                        compact: true
+                        buttonIcon: "browse_activity"
+                        buttonText: Translation.tr("Task manager")
+                        onClicked: {
+                            Session.launchTaskManager();
+                            sessionRoot.hide();
+                        }
+                    }
+                    SessionActionButton {
+                        id: sessionFirmwareReboot
+                        compact: true
+                        buttonIcon: "settings_applications"
+                        buttonText: Translation.tr("Restart to firmware setup")
+                        onClicked: sessionRoot.begin("firmware", sessionFirmwareReboot)
+                    }
+                }
+
+                Loader {
+                    id: countdown
+                    Layout.alignment: Qt.AlignHCenter
+                    active: sessionRoot.pending !== ""
+                    onLoaded: item.takeFocus()
+                    sourceComponent: SessionCountdown {
+                        title: sessionRoot.texts[sessionRoot.pending].many
+                        titleOne: sessionRoot.texts[sessionRoot.pending].one
+                        nowText: sessionRoot.texts[sessionRoot.pending].now
+                        onCancelled: sessionRoot.cancel()
+                        onConfirmed: sessionRoot.commit()
+                    }
                 }
             }
 
@@ -309,6 +339,10 @@ Scope {
 
         function open(): void {
             GlobalStates.sessionOpen = true;
+        }
+
+        function state(): string {
+            return surface.item ? surface.item.describe() : "closed";
         }
     }
 

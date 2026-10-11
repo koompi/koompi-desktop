@@ -13,9 +13,9 @@ are four, and each has exactly one call site.
   returned 0. What changed rides along as environment: `KOOMPI_HOOK_MODE` (`dark` or
   `light`), `KOOMPI_HOOK_SCHEME`, or `KOOMPI_HOOK_COLOR`, one per subcommand;
   `regenerate` sets none of them.
-- `post-update` — from `dots/.local/share/koompi/libexec/update:236`, once per run
-  after either the packaged or the from-git branch completed. Carries
-  `KOOMPI_HOOK_UPDATE_METHOD=packaged` or `=from-git`.
+- `post-update` — from `main` in `dots/.local/share/koompi/libexec/update`, once per run,
+  after either route completed and the migrations ran, whether or not one failed.
+  Carries `KOOMPI_HOOK_UPDATE_METHOD=packaged` or `=from-git`.
 - `battery-low` — from the shell, `services/Battery.qml` (`fireHook`), once when the
   battery falls to `battery.low` (config) while not charging, beside the "Low battery"
   toast. Carries `KOOMPI_HOOK_BATTERY_PERCENT=<0..100>`.

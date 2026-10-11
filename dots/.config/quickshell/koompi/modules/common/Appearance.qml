@@ -6,6 +6,7 @@ pragma ComponentBehavior: Bound
 
 Singleton {
     id: root
+    readonly property bool reduceMotion: Config.options.appearance.reduceMotion
     property QtObject m3colors
     property QtObject animation
     property QtObject animationCurves
@@ -119,12 +120,19 @@ Singleton {
         property color colLayer0Hover: ColorUtils.transparentize(ColorUtils.mix(colLayer0, colOnLayer0, 0.9, root.contentTransparency))
         property color colLayer0Active: ColorUtils.transparentize(ColorUtils.mix(colLayer0, colOnLayer0, 0.8, root.contentTransparency))
         property color colLayer0Border: ColorUtils.mix(root.m3colors.m3outlineVariant, colLayer0, 0.4)
-        // Bar background: fixed, independent of wallpaper theming.
-        // Dark brand-green in dark mode; moonlight white in light mode so dark
-        // foreground text/icons (colOnLayer0/colSubtext) stay legible.
+        // Bar background: fixed, independent of wallpaper theming. Dark brand-green
+        // in dark mode, moonlight white in light mode. Opaque enough that bar text
+        // keeps 4.5:1 over the worst wallpaper pixel (test_bar_contrast.sh).
         property color colBarBackground: m3colors.darkmode
-            ? Qt.rgba(8 / 255, 20 / 255, 14 / 255, 0.75)
-            : Qt.rgba(246 / 255, 248 / 255, 251 / 255, 0.85)
+            ? Qt.rgba(8 / 255, 20 / 255, 14 / 255, 0.85)
+            : Qt.rgba(246 / 255, 248 / 255, 251 / 255, 0.90)
+        // the bar over white (dark bar) or black (light bar): the least contrast its text meets
+        property color colBarWorstCase: Qt.rgba(
+            colBarBackground.a * colBarBackground.r + (1 - colBarBackground.a) * (m3colors.darkmode ? 1 : 0),
+            colBarBackground.a * colBarBackground.g + (1 - colBarBackground.a) * (m3colors.darkmode ? 1 : 0),
+            colBarBackground.a * colBarBackground.b + (1 - colBarBackground.a) * (m3colors.darkmode ? 1 : 0), 1)
+        property color colBarSubtext: ColorUtils.mix(colOnLayer0, colBarWorstCase, 0.8)
+        property color colBarTextInactive: ColorUtils.mix(colOnLayer0, colBarWorstCase, 0.7)
         // Things resting on the bar are a faint veil of the bar's own foreground,
         // not a colour of their own: a lift in dark mode, a shade in light, and
         // subtle in both. Mixing colBarBackground instead would add opacity, and
@@ -277,153 +285,75 @@ Singleton {
     // The one duration ladder. Every animation in the shell picks a step here,
     // through an `animation` role below where one fits the intent. A duration
     // that is not on the ladder is a design decision, not a free number.
+    // With reduce motion on every step but snap is 0, so a step is never a timer interval.
     animationDuration: QtObject {
-        property int snap: 100 // hover and selection tracking
-        property int quick: 150 // a small state flip
-        property int fast: 200 // the default effect
-        property int moderate: 250 // a panel arrives or leaves
-        property int normal: 300 // something changes size
-        property int deliberate: 350 // a small spatial move
-        property int slow: 400 // an entrance that overshoots
-        property int slower: 500 // the default spatial move
-        property int slowest: 650 // a long spatial move
+        property int snap: 100 // hover and selection tracking, the one step reduce motion keeps
+        property int brisk: root.reduceMotion ? 0 : 120 // a small spatial move
+        property int quick: root.reduceMotion ? 0 : 150 // a panel leaves
+        property int fast: root.reduceMotion ? 0 : 200 // a panel arrives, the default effect
+        property int moderate: root.reduceMotion ? 0 : 250
+        property int normal: root.reduceMotion ? 0 : 300 // something changes size
+        property int deliberate: root.reduceMotion ? 0 : 350
+        property int slow: root.reduceMotion ? 0 : 400
+        property int slowest: root.reduceMotion ? 0 : 650 // a long spatial move
     }
 
     animationCurves: QtObject {
-        readonly property list<real> expressiveFastSpatial: [0.42, 1.67, 0.21, 0.90, 1, 1] // Default, 350ms
-        readonly property list<real> expressiveDefaultSpatial: [0.38, 1.21, 0.22, 1.00, 1, 1] // Default, 500ms
-        readonly property list<real> expressiveSlowSpatial: [0.39, 1.29, 0.35, 0.98, 1, 1] // Default, 650ms
-        readonly property list<real> expressiveEffects: [0.34, 0.80, 0.34, 1.00, 1, 1] // Default, 200ms
+        readonly property list<real> expressiveDefaultSpatial: [0.2, 0.7, 0.3, 1, 1, 1] // decelerates, never overshoots
+        readonly property list<real> expressiveFastSpatial: expressiveDefaultSpatial
+        readonly property list<real> expressiveEffects: [0.34, 0.80, 0.34, 1.00, 1, 1]
         readonly property list<real> emphasized: [0.05, 0, 2 / 15, 0.06, 1 / 6, 0.4, 5 / 24, 0.82, 0.25, 1, 1, 1]
         readonly property list<real> emphasizedFirstHalf: [0.05, 0, 2 / 15, 0.06, 1 / 6, 0.4, 5 / 24, 0.82]
         readonly property list<real> emphasizedLastHalf: [5 / 24, 0.82, 0.25, 1, 1, 1]
         readonly property list<real> emphasizedAccel: [0.3, 0, 0.8, 0.15, 1, 1]
         readonly property list<real> emphasizedDecel: [0.05, 0.7, 0.1, 1, 1, 1]
         readonly property list<real> standard: [0.2, 0, 0, 1, 1, 1]
-        readonly property list<real> standardAccel: [0.3, 0, 1, 1, 1, 1]
         readonly property list<real> standardDecel: [0, 0, 0, 1, 1, 1]
-        readonly property list<real> workspaceSlide: [0.25, 0.1, 0.05, 1, 1, 1] // mirror of hyprland/general.lua, 400ms
-        readonly property real expressiveFastSpatialDuration: root.animationDuration.deliberate
-        readonly property real expressiveDefaultSpatialDuration: root.animationDuration.slower
-        readonly property real expressiveSlowSpatialDuration: root.animationDuration.slowest
-        readonly property real expressiveEffectsDuration: root.animationDuration.fast
+        readonly property list<real> workspaceSlide: [0.25, 0.1, 0.25, 1, 1, 1] // mirror of hyprland/general.lua
+        readonly property real workspaceSlideDuration: root.animationDuration.normal // mirror of hyprland/general.lua
+        readonly property real expressiveFastSpatialDuration: root.animation.elementMoveSmall.duration
+        readonly property real expressiveDefaultSpatialDuration: root.animation.elementMove.duration
+        readonly property real expressiveEffectsDuration: root.animation.elementMoveFast.duration
+    }
+
+    // A role is a step on the ladder and a curve. With reduce motion on, a spatial
+    // role stops moving and an effects role (a fade or a colour) takes the shortest step.
+    component Motion: QtObject {
+        id: motion
+        property int step: root.animationDuration.fast
+        property list<real> bezierCurve: root.animationCurves.standardDecel
+        property bool spatial: true
+        property bool runToEnd: true
+        property int pace: 650
+        readonly property int type: Easing.BezierSpline
+        readonly property int duration: !root.reduceMotion ? step : spatial ? 0 : root.animationDuration.snap
+        readonly property int velocity: root.reduceMotion ? 100000 : pace
+        property Component numberAnimation: Component {
+            NumberAnimation {
+                alwaysRunToEnd: motion.runToEnd
+                duration: motion.duration
+                easing.type: motion.type
+                easing.bezierCurve: motion.bezierCurve
+            }
+        }
+        property Component colorAnimation: Component {
+            ColorAnimation {
+                duration: motion.duration
+                easing.type: motion.type
+                easing.bezierCurve: motion.bezierCurve
+            }
+        }
     }
 
     animation: QtObject {
-        property QtObject elementMove: QtObject {
-            property int duration: animationCurves.expressiveDefaultSpatialDuration
-            property int type: Easing.BezierSpline
-            property list<real> bezierCurve: animationCurves.expressiveDefaultSpatial
-            property int velocity: 650
-            property Component numberAnimation: Component {
-                NumberAnimation {
-                    duration: root.animation.elementMove.duration
-                    easing.type: root.animation.elementMove.type
-                    easing.bezierCurve: root.animation.elementMove.bezierCurve
-                }
-            }
-        }
-
-        property QtObject elementMoveSmall: QtObject {
-            property int duration: animationCurves.expressiveFastSpatialDuration
-            property int type: Easing.BezierSpline
-            property list<real> bezierCurve: animationCurves.expressiveFastSpatial
-            property int velocity: 650
-            property Component numberAnimation: Component {
-                NumberAnimation {
-                    duration: root.animation.elementMoveSmall.duration
-                    easing.type: root.animation.elementMoveSmall.type
-                    easing.bezierCurve: root.animation.elementMoveSmall.bezierCurve
-                }
-            }
-        }
-
-        property QtObject elementMoveEnter: QtObject {
-            property int duration: root.animationDuration.slow
-            property int type: Easing.BezierSpline
-            property list<real> bezierCurve: animationCurves.emphasizedDecel
-            property int velocity: 650
-            property Component numberAnimation: Component {
-                NumberAnimation {
-                    alwaysRunToEnd: true
-                    duration: root.animation.elementMoveEnter.duration
-                    easing.type: root.animation.elementMoveEnter.type
-                    easing.bezierCurve: root.animation.elementMoveEnter.bezierCurve
-                }
-            }
-        }
-
-        property QtObject elementMoveExit: QtObject {
-            property int duration: root.animationDuration.fast
-            property int type: Easing.BezierSpline
-            property list<real> bezierCurve: animationCurves.emphasizedAccel
-            property int velocity: 650
-            property Component numberAnimation: Component {
-                NumberAnimation {
-                    alwaysRunToEnd: true
-                    duration: root.animation.elementMoveExit.duration
-                    easing.type: root.animation.elementMoveExit.type
-                    easing.bezierCurve: root.animation.elementMoveExit.bezierCurve
-                }
-            }
-        }
-
-        property QtObject elementMoveFast: QtObject {
-            property int duration: animationCurves.expressiveEffectsDuration
-            property int type: Easing.BezierSpline
-            property list<real> bezierCurve: animationCurves.expressiveEffects
-            property int velocity: 850
-            property Component colorAnimation: Component { ColorAnimation {
-                duration: root.animation.elementMoveFast.duration
-                easing.type: root.animation.elementMoveFast.type
-                easing.bezierCurve: root.animation.elementMoveFast.bezierCurve
-            }}
-            property Component numberAnimation: Component { NumberAnimation {
-                alwaysRunToEnd: true
-                duration: root.animation.elementMoveFast.duration
-                easing.type: root.animation.elementMoveFast.type
-                easing.bezierCurve: root.animation.elementMoveFast.bezierCurve
-            }}
-        }
-
-        property QtObject elementResize: QtObject {
-            property int duration: root.animationDuration.normal
-            property int type: Easing.BezierSpline
-            property list<real> bezierCurve: animationCurves.emphasized
-            property int velocity: 650
-            property Component numberAnimation: Component {
-                NumberAnimation {
-                    alwaysRunToEnd: true
-                    duration: root.animation.elementResize.duration
-                    easing.type: root.animation.elementResize.type
-                    easing.bezierCurve: root.animation.elementResize.bezierCurve
-                }
-            }
-        }
-
-        property QtObject clickBounce: QtObject {
-            property int duration: root.animationDuration.slow
-            property int type: Easing.BezierSpline
-            property list<real> bezierCurve: animationCurves.expressiveDefaultSpatial
-            property int velocity: 850
-            property Component numberAnimation: Component { NumberAnimation {
-                alwaysRunToEnd: true
-                duration: root.animation.clickBounce.duration
-                easing.type: root.animation.clickBounce.type
-                easing.bezierCurve: root.animation.clickBounce.bezierCurve
-            }}
-        }
-        
-        property QtObject scroll: QtObject {
-            property int duration: root.animationDuration.fast
-            property int type: Easing.BezierSpline
-            property list<real> bezierCurve: root.animationCurves.standardDecel
-        }
-
-        property QtObject menuDecel: QtObject {
-            property int duration: root.animationDuration.deliberate
-            property int type: Easing.OutExpo
-        }
+        property QtObject elementMove: Motion { bezierCurve: root.animationCurves.expressiveDefaultSpatial; runToEnd: false }
+        property QtObject elementMoveSmall: Motion { step: root.animationDuration.brisk; bezierCurve: root.animationCurves.expressiveFastSpatial; runToEnd: false }
+        property QtObject elementMoveEnter: Motion { bezierCurve: root.animationCurves.emphasizedDecel }
+        property QtObject elementMoveExit: Motion { step: root.animationDuration.quick; bezierCurve: root.animationCurves.emphasizedAccel }
+        property QtObject elementMoveFast: Motion { bezierCurve: root.animationCurves.expressiveEffects; spatial: false; pace: 850 }
+        property QtObject elementResize: Motion { bezierCurve: root.animationCurves.emphasized }
+        property QtObject clickBounce: Motion { step: root.animationDuration.brisk; bezierCurve: root.animationCurves.expressiveFastSpatial; pace: 850 }
+        property QtObject scroll: Motion { runToEnd: false }
     }
 
     sizes: QtObject {
@@ -447,10 +377,10 @@ Singleton {
         property real searchWidth: 360
         // Fractions of the screen the sidebar sits on. The px values below are only
         // the fallback for a window that has no screen assigned yet.
-        property real sidebarWidthFraction: 0.5
-        property real sidebarWidthExtendedFraction: 0.6
-        property real sidebarWidth: 690
-        property real sidebarWidthExtended: 750
+        property real sidebarWidthFraction: 0.4
+        property real sidebarWidthExtendedFraction: 0.48
+        property real sidebarWidth: 552
+        property real sidebarWidthExtended: 600
         // The right sidebar holds fixed-size controls, not a chat transcript,
         // so it does not follow the left sidebar's width.
         property real sidebarWidthRight: 420

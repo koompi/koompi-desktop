@@ -134,6 +134,29 @@ install_bibata_cursor() {
     rm -rf "$tmp"
 }
 
+# The same pinned WhiteSur release as sdata/dist-arch/koompi-icons/PKGBUILD, built by the
+# same script; tests/test_icon_theme.sh fails if the tag or checksum drift.
+KOOMPI_ICONS_TAG=2026-09-10
+KOOMPI_ICONS_SHA256=406c9cd59705583f1754b0eaca96cc48bafda042b88ef143f16d8ae1820ecd95
+
+install_koompi_icons() {
+    [[ -d /usr/share/icons/koompi-icons-dark || -d "${XDG_DATA_HOME}/icons/koompi-icons-dark" ]] && return 0
+    step "koompi-icons theme"
+    local tmp
+    tmp="$(mktemp -d)"
+    _fetch "https://github.com/vinceliuice/WhiteSur-icon-theme/archive/refs/tags/${KOOMPI_ICONS_TAG}.tar.gz" "$tmp/i.tar.gz" \
+        || { warn "could not fetch the icon theme; apps keep Breeze icons"; rm -rf "$tmp"; return 0; }
+    if [[ "$DRY_RUN" != true ]] && ! sha256sum -c --status <<< "${KOOMPI_ICONS_SHA256}  $tmp/i.tar.gz"; then
+        warn "the icon theme download does not match its pinned checksum; apps keep Breeze icons"
+        rm -rf "$tmp"
+        return 0
+    fi
+    run tar -xzf "$tmp/i.tar.gz" -C "$tmp"
+    run "$REPO_ROOT/sdata/dist-arch/koompi-icons/build-theme.sh" \
+        "$tmp/WhiteSur-icon-theme-${KOOMPI_ICONS_TAG}" "${XDG_DATA_HOME}/icons"
+    rm -rf "$tmp"
+}
+
 # uv is not in any Debian or Ubuntu release, and the Python venv step needs it.
 install_uv() {
     have uv && return 0

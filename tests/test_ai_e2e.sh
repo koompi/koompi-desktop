@@ -126,8 +126,17 @@ if [[ -d "$RUNTIME_DIR" ]]; then
         ok "$RUNTIME_DIR/$f is 0600"
     done
 else
-    skip "no $RUNTIME_DIR — the shell has not sent a request on this boot"
+    echo "  note: no $RUNTIME_DIR in this run's own runtime dir, so the live directory's modes are not read"
 fi
+
+# The shell makes the dir with this command at start; run it on a runtime dir of the test's own.
+grep -qF 'Quickshell.execDetached(["mkdir", "-p", "-m", "700", root.scriptDirPath])' "$SHELL_ROOT/services/ai/Requester.qml" \
+    || fail "Requester.qml no longer creates its socket directory with mkdir -p -m 700"
+fresh_dir="$TMP/run/quickshell/ai"
+mkdir -p -m 700 "$fresh_dir" || fail "mkdir -p -m 700 failed"
+fresh_mode="$(stat -c '%a' "$fresh_dir")"
+[[ "$fresh_mode" == "700" ]] || fail "a fresh $fresh_dir is mode $fresh_mode, expected 700"
+ok "a fresh request directory is 0700"
 
 # The narrowing is done by the wrapper the shell execs, so run that exact wrapper
 # over a file left wide open and assert it closes before bash ever reads it.

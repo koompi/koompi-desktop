@@ -1,0 +1,22 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "j08": "J08 (screen corners) is in verification: a corner window now exists only while it draws the fake rounding or hosts a hot corner, a hot-corner-only window is its 250x5 region in size and input mask, and the top hot corners work with fakeScreenRounding 0 (the founder's seat, where they were dead). Defaults: cornerOpen.enable true, top corners, clickless false (hovering does nothing), clicklessCornerEnd true (pushing into the outer 2 px of the strip toggles the sidebar), a click anywhere in the strip toggles it, valueScroll true (wheel in the strip changes volume right, brightness left). J08 added armed: a corner fires once per visit.",
+    "reopen": "J08 observed in the nested harness: a sidebar closed over IPC while the pointer rests in its corner is open again one 150 ms sample later and stays open, with and without armed, on both corners; with the pointer elsewhere it stays closed. Likely path: the sidebar's surface covered the strip, the strip got a leave (re-arming), and when the sidebar unmaps the strip gets an enter and a motion at the corner end, which fires. A user who pushes into the corner, then closes the sidebar with Escape or a key without moving the mouse, gets it back. Cause not traced; dev (rounding on) unchecked.",
+    "cost": "On the seat's config (rounding off, top corners on) the two now-live corner windows cost about 12 MB of shell memory (PSS, headless, runs vary by up to 7.7 MB). One full-width 5 px strip per screen with a two-rectangle input mask would be one window instead of two per screen; the job file said a hot-corner-only window is the size of its region.",
+    "first_ask": "J08_window_count one_strip_window p=0.64, J08_reopen require_movement_after_enter p=0.96 (jev-1.13.0). The window-count framing left out the default config.",
+    "window_counts": "Windows per screen. J08 as built (each corner window does both jobs): default config (rounding on, top hot corners) 4, the seat's config (rounding off) 2, both off 0. A hot-corner strip next to separate rounding windows: default 5, seat 1. Top and bottom edge strips that also draw the roundings: default 2, seat 1, the biggest rewrite of the inherited file, and the top strip is a rounding-tall transparent overlay across the whole width. Each extra window measured at about 6 MB (PSS, headless), within run-to-run noise of 7.7 MB."
+  },
+  "questions": {
+    "J08_window_count": {
+      "type": "choice",
+      "instructions": "How should the corner windows be arranged, given the window counts per config?",
+      "criteria": {
+        "keep_corner_windows": "As built: 4 per screen on the default config, 2 on the seat's, 0 with both off. Strongest case: the fewest windows on the default config, each window its own region, the smallest change to the inherited file. Cost: on the seat's config one window more than a strip.",
+        "hot_corner_strip": "One hot-corner strip next to separate rounding windows: 5 on the default config, 1 on the seat's. Strongest case: the seat saves one window. Cost: the default config, what most users run, gains a window.",
+        "edge_strips": "Top and bottom edge strips that draw the roundings and host the hot corners: 2 on the default config, 1 on the seat's. Strongest case: the fewest windows everywhere. Cost: the biggest rewrite of the inherited file, a whole-width transparent overlay at each edge, and savings inside the measurement noise.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

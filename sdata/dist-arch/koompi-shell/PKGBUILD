@@ -127,6 +127,11 @@ package() {
   # is absent, and exits if neither is there.
   install -Dm644 "$_repo_root/dots/.local/share/koompi/libexec/migrate-lib.sh" \
     "$pkgdir/usr/lib/koompi/migrate-lib.sh"
+  # koompi-migrate reads the per-user migrations from here; a packaged machine has no checkout to read them from.
+  local _migration
+  for _migration in "$_repo_root"/sdata/migrations/*.sh; do
+    install -Dm644 "$_migration" "$pkgdir/usr/share/koompi/migrations/${_migration##*/}"
+  done
   # post_install.sh runs it in the chroot; koompi doctor names it
   install -Dm755 "$_repo_root/dots/.local/share/koompi/libexec/hibernation-setup" \
     "$pkgdir/usr/lib/koompi/hibernation-setup"

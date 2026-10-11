@@ -45,6 +45,9 @@ Singleton {
         press: 0,
         temp: 0,
         tempFeelsLike: 0,
+        condition: "",
+        high: "",
+        low: "",
         lastRefresh: 0,
     })
 
@@ -57,6 +60,7 @@ Singleton {
         temp.windDir = data?.current?.winddir16Point || "N";
         temp.wCode = data?.current?.weatherCode || "113";
         temp.city = data?.location?.areaName[0]?.value || "City";
+        temp.condition = data?.current?.weatherDesc?.[0]?.value || "";
         temp.temp = "";
         temp.tempFeelsLike = "";
         if (root.useUSCS) {
@@ -68,6 +72,8 @@ Singleton {
             temp.tempFeelsLike += (data?.current?.FeelsLikeF || 0);
             temp.temp += "°F";
             temp.tempFeelsLike += "°F";
+            temp.high = (data?.today?.maxtempF || 0) + "°F";
+            temp.low = (data?.today?.mintempF || 0) + "°F";
         } else {
             temp.wind = (data?.current?.windspeedKmph || 0) + " km/h";
             temp.precip = (data?.current?.precipMM || 0) + " mm";
@@ -77,6 +83,8 @@ Singleton {
             temp.tempFeelsLike += (data?.current?.FeelsLikeC || 0);
             temp.temp += "°C";
             temp.tempFeelsLike += "°C";
+            temp.high = (data?.today?.maxtempC || 0) + "°C";
+            temp.low = (data?.today?.mintempC || 0) + "°C";
         }
         temp.lastRefresh = DateTime.time + " • " + DateTime.date;
         root.data = temp;
@@ -94,8 +102,8 @@ Singleton {
         // format as json
         command += "?format=j1";
         command += " | ";
-        // only take the current weather, location, asytronmy data
-        command += "jq '{current: .current_condition[0], location: .nearest_area[0], astronomy: .weather[0].astronomy[0]}'";
+        // only take the current weather, location, astronomy and today's range
+        command += "jq '{current: .current_condition[0], location: .nearest_area[0], astronomy: .weather[0].astronomy[0], today: .weather[0]}'";
         fetcher.command[2] = command;
         fetcher.running = true;
     }

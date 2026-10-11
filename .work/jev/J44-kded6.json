@@ -1,0 +1,21 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "bug": "services/ConflictKiller.qml runs at every shell start: pidof kded6 (tray conflict) and pidof mako dunst (notification conflict); either opens killDialog.qml unless its autoKill setting is on, in which case it runs a machine-wide killall. killDialog.qml has a row only for mako and dunst, and closes only when its count of visible rows changes to 0. When kded6 is the only conflict, the dialog opens titled Kill conflicting programs? with an empty body and stays until closed by hand. Seen in the lead's nested run (dolphin.png).",
+    "live_seat": "kded6 runs on the founder's seat now (D-Bus activated by KDE apps such as Dolphin), so the next shell start there (a deploy, an update reload or koompi reload) opens the empty window.",
+    "tray_facts": "Read-only on the live session bus: org.kde.StatusNotifierWatcher is owned by the KOOMPI shell (qs -c koompi), and kded6 runs with its statusnotifierwatcher module loaded. So the shell wins when it starts first; the conflict is a shell restart while kded6 runs, when kded6's module can hold the name (not verified whether it takes it over). kded6 also hosts other KDE services KDE apps use, and D-Bus starts it again when an app needs it. Plasma 6 provides its tray watcher through that same kded6 module.",
+    "machine_wide": "pidof and killall see every process on the machine, so a nested test shell checks and, with autoKill on, kills the host's kded6, mako and dunst. Test configs keep both autoKill settings false. A check over the shell's own session bus (is org.kde.kded6 on this bus, is the module loaded) is session-scoped by construction, and tests run on a private bus."
+  },
+  "questions": {
+    "J44_kded6_tray_conflict": {
+      "type": "choice",
+      "instructions": "Every option also fixes the dialog so it never shows empty (one row per found conflict; it quits when none is left or none was found). How should the shell handle kded6?",
+      "criteria": {
+        "unload_watcher_module": "At shell start, if org.kde.kded6 is on the shell's own session bus with statusnotifierwatcher loaded, unload just that module over D-Bus, and drop kded6 from the dialog. Strongest case: removes the actual conflict without killing KDE's other services, needs no prompt in jargon a user cannot judge, is scoped to this session (a Plasma login and a test shell on a private bus are untouched), and covers the restart race since it runs at every shell start. Cost: new D-Bus code, and a kded6 that starts after the shell loads the module again (harmless while the shell holds the name).",
+        "add_tray_row": "Keep the design: add the missing kded6 row so the dialog offers to kill it. Strongest case: smallest change, and the user decides. Cost: killing kded6 stops its other services, D-Bus restarts it with the same module, the prompt names a daemon most users cannot judge, and the check stays machine-wide.",
+        "drop_kded6_check": "Stop checking kded6 at all. Strongest case: removes the only path to the empty dialog and a machine-wide check, with the least code. Cost: a shell restart while kded6 runs may leave the tray with no icons, with nothing to say why.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

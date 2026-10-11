@@ -4,136 +4,146 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.functions
 import qs.modules.common.widgets
-import Qt5Compat.GraphicalEffects
 import QtQuick
-import QtQuick.Layouts
-import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Wayland
+import "OverviewGrid.js" as Grid
 
-Item { // Window
+// A window drawn where it sits on its desk, at the desk's scale.
+Item {
     id: root
-    property var toplevel
-    property var windowData
-    property var monitorData
-    property var scale
-    property bool restrictToWorkspace: true
-    property real widthRatio: {
-        const widgetWidth = widgetMonitor.transform & 1 ? widgetMonitor.height : widgetMonitor.width;
-        const monitorWidth = monitorData.transform & 1 ? monitorData.height : monitorData.width;
-        return (widgetWidth * monitorData.scale) / (monitorWidth * widgetMonitor.scale);
-    }
-    property real heightRatio: {
-        const widgetHeight = widgetMonitor.transform & 1 ? widgetMonitor.width : widgetMonitor.height;
-        const monitorHeight = monitorData.transform & 1 ? monitorData.width : monitorData.height;
-        return (widgetHeight * monitorData.scale) / (monitorHeight * widgetMonitor.scale);
-    }
-    property real initX: {
-        return Math.max((windowData?.at[0] - (monitorData?.x ?? 0) - monitorData?.reserved[0]) * widthRatio * root.scale, 0) + xOffset;
-    }
+    required property var toplevel
+    required property var windowData
+    // the desk's cell in the grid, how much smaller a window is drawn than it is,
+    // and the screen point the desk's top left stands for
+    property rect cell
+    property real deskScale: 1
+    property real originX: 0
+    property real originY: 0
+    property real liveMinWidth: 320
+    property bool selected: false
+    property bool showTitle: false
 
-    property real initY: {
-        return Math.max((windowData?.at[1] - (monitorData?.y ?? 0) - monitorData?.reserved[1]) * heightRatio * root.scale, 0) + yOffset;
-    }
-    property real xOffset: 0
-    property real yOffset: 0
-    property var widgetMonitor
-    property int widgetMonitorId: widgetMonitor.id
+    readonly property bool hovered: dragArea.containsMouse
+    readonly property bool live: Grid.isLive(width, liveMinWidth)
+    readonly property int tabs: windowData?.grouped?.length > 1 ? windowData.grouped.length : 1
+    readonly property string address: windowData?.address ?? ""
+    readonly property real offX: Math.max(0, ((windowData?.at[0] ?? 0) - originX) * deskScale)
+    readonly property real offY: Math.max(0, ((windowData?.at[1] ?? 0) - originY) * deskScale)
 
-    property var targetWindowWidth: windowData?.size[0] * scale * widthRatio
-    property var targetWindowHeight: windowData?.size[1] * scale * heightRatio
-    property bool hovered: false
-    property bool pressed: false
+    signal released(string address)
+    signal picked(string address)
 
-    property bool centerIcons: Config.options.overview.centerIcons
-    property real iconGapRatio: 0.06
-    property real iconToWindowRatio: centerIcons ? 0.35 : 0.15
-    property real xwaylandIndicatorToIconRatio: 0.35
-    property real iconToWindowRatioCompact: 0.6
-    property string iconPath: Quickshell.iconPath(AppSearch.guessIcon(windowData?.class), "image-missing")
-    property bool compactMode: Appearance.font.pixelSize.smaller * 4 > targetWindowHeight || Appearance.font.pixelSize.smaller * 4 > targetWindowWidth
+    objectName: "overviewTile"
+    x: cell.x + offX
+    y: cell.y + offY
+    width: Math.max(8, Math.min(cell.width - offX, (windowData?.size[0] ?? 0) * deskScale))
+    height: Math.max(8, Math.min(cell.height - offY, (windowData?.size[1] ?? 0) * deskScale))
+    z: dragArea.drag.active ? 99999 : 1
 
-    property bool indicateXWayland: windowData?.xwayland ?? false
+    Item {
+        id: body
+        width: root.width
+        height: root.height
+        Drag.active: dragArea.drag.active
+        Drag.hotSpot.x: width / 2
+        Drag.hotSpot.y: height / 2
 
-    x: initX
-    y: initY
-    width: targetWindowWidth
-    height: targetWindowHeight
-    opacity: windowData?.monitor == widgetMonitorId ? 1 : 0.4
-
-    property real topLeftRadius
-    property real topRightRadius
-    property real bottomLeftRadius
-    property real bottomRightRadius
-
-    layer.enabled: true
-    layer.effect: OpacityMask {
-        maskSource: Rectangle {
-            width: root.width
-            height: root.height
-            topLeftRadius: root.topLeftRadius
-            topRightRadius: root.topRightRadius
-            bottomRightRadius: root.bottomRightRadius
-            bottomLeftRadius: root.bottomLeftRadius
+        ScreencopyView {
+            anchors.fill: parent
+            captureSource: GlobalStates.overviewOpen ? root.toplevel : null
+            live: root.live
         }
-    }
-
-    Behavior on x {
-        animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this)
-    }
-    Behavior on y {
-        animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this)
-    }
-    Behavior on width {
-        animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this)
-    }
-    Behavior on height {
-        animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this)
-    }
-
-    ScreencopyView {
-        id: windowPreview
-        anchors.fill: parent
-        captureSource: GlobalStates.overviewOpen ? root.toplevel : null
-        live: true
-
-        // Color overlay for interactions
         Rectangle {
             anchors.fill: parent
-            topLeftRadius: root.topLeftRadius
-            topRightRadius: root.topRightRadius
-            bottomRightRadius: root.bottomRightRadius
-            bottomLeftRadius: root.bottomLeftRadius
-            color: pressed ? ColorUtils.transparentize(Appearance.colors.colLayer2Active, 0.5) : 
-                hovered ? ColorUtils.transparentize(Appearance.colors.colLayer2Hover, 0.7) : 
-                ColorUtils.transparentize(Appearance.colors.colLayer2)
-            border.color : ColorUtils.transparentize(Appearance.m3colors.m3outline, 0.88)
-            border.width : 1
+            radius: Appearance.rounding.verysmall
+            color: dragArea.pressed ? ColorUtils.transparentize(Appearance.colors.colLayer2Active, 0.5) : (root.hovered ? ColorUtils.transparentize(Appearance.colors.colLayer2Hover, 0.7) : ColorUtils.transparentize(Appearance.colors.colLayer2, 0.2))
+            border.width: root.selected ? 3 : 1
+            border.color: root.selected ? Appearance.colors.colPrimary : ColorUtils.transparentize(Appearance.m3colors.m3outline, 0.7)
         }
-
-        StyledImage {
-            id: windowIcon
-            property real baseSize: Math.min(root.targetWindowWidth, root.targetWindowHeight)
+        AppIconPlate {
+            anchors.centerIn: parent
+            iconName: AppSearch.guessIcon(root.windowData?.class)
+            label: root.windowData?.class ?? ""
+            visible: Math.min(root.width, root.height) >= 40
+            size: Math.min(96, Math.min(root.width, root.height) * 0.45)
+        }
+        Rectangle { // the tabs sharing this tile
+            objectName: "overviewTabBadge"
+            visible: root.tabs > 1
             anchors {
-                top: root.centerIcons ? undefined : parent.top
-                left: root.centerIcons ? undefined : parent.left
-                centerIn: root.centerIcons ? parent : undefined
-                margins: baseSize * root.iconGapRatio
+                top: parent.top
+                right: parent.right
+                margins: 6
             }
-            property var iconSize: {
-                return baseSize * (root.compactMode ? root.iconToWindowRatioCompact : root.iconToWindowRatio);
-            }
-            mipmap: true
-            Layout.alignment: Qt.AlignHCenter
-            source: root.iconPath
-            width: iconSize
-            height: iconSize
+            height: 22
+            width: Math.max(height, badgeRow.implicitWidth + 12)
+            radius: height / 2
+            color: Appearance.colors.colPrimary
 
-            Behavior on width {
-                animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this)
+            Row {
+                id: badgeRow
+                anchors.centerIn: parent
+                spacing: 2
+
+                MaterialSymbol {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "tab"
+                    iconSize: 14
+                    color: Appearance.colors.colOnPrimary
+                }
+                StyledText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.tabs
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    font.weight: Font.Bold
+                    color: Appearance.colors.colOnPrimary
+                }
             }
-            Behavior on height {
-                animation: Appearance.animation.elementMoveEnter.numberAnimation.createObject(this)
+        }
+        Rectangle {
+            visible: (root.hovered || root.selected || root.showTitle) && !dragArea.drag.active
+            anchors {
+                left: parent.left
+                right: parent.right
+                bottom: parent.bottom
             }
+            height: titleText.implicitHeight + 8
+            color: ColorUtils.transparentize(Appearance.m3colors.m3scrim, 0.35)
+            StyledText {
+                id: titleText
+                anchors {
+                    fill: parent
+                    leftMargin: 8
+                    rightMargin: 8
+                }
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+                text: root.windowData?.title || root.windowData?.class || ""
+                color: "#ffffff"
+            }
+        }
+    }
+
+    MouseArea {
+        id: dragArea
+        anchors.fill: parent
+        hoverEnabled: true
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+        drag.target: body
+        onPressed: mouse => {
+            dragArea.drag.target = mouse.button === Qt.LeftButton ? body : null;
+        }
+        onReleased: {
+            root.released(root.address);
+            body.x = 0;
+            body.y = 0;
+        }
+        onClicked: mouse => {
+            if (mouse.button === Qt.MiddleButton)
+                Hyprland.dispatch(`hl.dsp.window.close({ window = "address:${root.address}" })`);
+            else
+                root.picked(root.address);
         }
     }
 }

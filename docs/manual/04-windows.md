@@ -37,6 +37,18 @@ Hold Super and drag with the right button to resize.
 `Super+Shift+Space` is the escape hatch.
 If tiling is not what you want today, that key gives you an ordinary overlapping desktop until you press it again.
 
+## Windows as tabs
+
+A group puts several windows in the same tile, with a row of tabs along the top.
+
+`Super+Alt+G` turns the window you are in into a group of one.
+To add another window, focus it, then hold Super and Alt and press the arrow that points at the group.
+`Super+Alt+]` and `Super+Alt+[` step to the next and the previous tab.
+`Super+Shift+G` pulls the current window back out into a tile of its own, and `Super+Alt+G` on a group dissolves it, so every window has its own tile again.
+
+The top strip adds the tab you are on after the title, such as `2/3`.
+Search for a window in the overview and it finds it by any of its tabs.
+
 ## Closing
 
 `Super+Q` closes the window.
@@ -56,3 +68,5 @@ Click it again to put the menu away.
 
 Just to the right of the name sit the program's own menus: File, Edit, View.
 They live in the top strip rather than inside the window.
+Dolphin, Okular, Konsole and Ark do this when you open them from Search, from the page of everything installed, or with their key.
+Some other programs keep their menus inside their own window instead.

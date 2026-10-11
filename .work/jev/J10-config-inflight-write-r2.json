@@ -1,0 +1,22 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "previous": "J10_config_inflight_write block_writes p=0.99 rested on a 1.41 ms synchronous write. J10 built it (one commit plus its test, easy to revert) and re-measured as asked: the 1.41 ms came from 200 writes back to back, which keep the disk warm.",
+    "measured_blocking": "Real singletons in a private headless KWin, one edit every 600 ms, NVMe ext4: Config 41 writes median 33 ms, p95 61 ms, max 77 ms; Persistent 40 writes median 34 ms, p95 66 ms, max 80 ms. The cost is the fsync inside QSaveFile; plain atomic writes outside Quickshell show the same 2-95 ms. Async today: Config 1.5 ms, Persistent 0.3 ms on the UI thread. One frame at 60 Hz is 16.7 ms, so a toggle stalls two to five frames; eMMC on low-end KOOMPI laptops is likely worse. Inside a Settings slider drag (readWriteDelay 0) warm writes cost about 4 ms each.",
+    "the_bug": "With async writes, an edit made while that FileView's own write is in flight is reverted when the write completes and is lost on disk. The regression test J10 wrote: 18 of 35 timed edits lost on the round-2 tree (Config startup 52-70 ms after load; Config second edit 50-66 ms after the first; Persistent second edit 100-112 ms after the first); 35 of 35 kept with blockWrites.",
+    "startup_only_fix": "Measured alternative, one line in Config.qml (no write-back triggered by the startup load): the startup window closes (14 of 14 kept), but second edits are still lost (Config 9 of 12, Persistent 7 of 9 in the sweep).",
+    "unexplored": "Not tried: keeping writes async but writing through a second, write-only FileView so the reading one never re-applies, or re-writing when an edit lands during a write. Feasibility unknown; it would be another J10 round."
+  },
+  "questions": {
+    "J10_config_inflight_write_r2": {
+      "type": "choice",
+      "instructions": "Given the measured cost, how should Config and Persistent stop losing edits made during their own writes?",
+      "criteria": {
+        "keep_block_writes": "Merge round 3 as built. Strongest case: no edit is ever lost, proven 35 of 35. Cost: every setting change and state save stalls the UI a median 33 ms (up to 80 ms) on NVMe, worse on eMMC.",
+        "async_safe_round": "Revert blockWrites and spend a J10 round on an async write path that loses nothing (a write-only FileView, or re-writing after an in-flight edit), proven by the same 35-delay test and a blocking measurement. Strongest case: correctness without jank. Cost: another round with unknown feasibility; edits stay losable until it lands.",
+        "startup_only": "Revert blockWrites, ship the one-line startup fix. Strongest case: removes the systematic case at no UI cost. Cost: quick second edits are still silently lost.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

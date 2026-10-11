@@ -3,7 +3,7 @@
 # `notify`, `refresh`, `new`, and the Hyprland autoreload guard the sync uses.
 # Sourced by koompi-migrate (next to it in the dots tree, /usr/lib/koompi when
 # packaged); every variable it reads (SELF, HOME, SKEL, XDG_SYS, BACKUP_DIR,
-# migrations_dir, pending_migrations, die) comes from the caller.
+# pending_migrations, die) comes from the caller.
 
 notification_server_ready() {
     [[ "$(busctl --user call org.freedesktop.DBus /org/freedesktop/DBus \
@@ -30,9 +30,8 @@ terminal_argv() {
 }
 
 notify_pending() {
-    local dir pending n wait tries sender term=()
-    dir="$(migrations_dir || true)"
-    mapfile -t pending < <(pending_migrations "$dir")
+    local pending n wait tries sender term=()
+    mapfile -t pending < <(pending_migrations)
     [[ ${#pending[@]} -gt 0 ]] || exit 0
     n=${#pending[@]}
     # graphical-session.target is reached before the shell owns
@@ -59,11 +58,10 @@ notify_pending() {
     fi
 }
 
-# Hyprland reloads its config on every write under ~/.config/hypr, and a
-# reload halfway through an rsync of hyprland/ is a black screen. The watcher
-# is paused for the sync and put back from an EXIT trap, so a failed rsync
-# cannot leave it off. Restores the value found, not a hardcoded 0.
+# a reload halfway through an rsync of hyprland/ is a black screen; the EXIT trap puts back the value found, so a failed rsync cannot leave the watcher off
 autoreload_prev=""
+# keyword is a silent no-op under the Lua config; eval sets it and exits non-zero on a Lua error
+set_autoreload_disabled() { hyprctl eval "hl.config({ misc = { disable_autoreload = $1 } })" >/dev/null; }
 pause_autoreload() {
     if [[ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
         echo "  note  not inside a Hyprland session; autoreload guard skipped"
@@ -73,11 +71,11 @@ pause_autoreload() {
     autoreload_prev="$(hyprctl -j getoption misc:disable_autoreload 2>/dev/null | jq -r '.bool' 2>/dev/null || true)"
     [[ "$autoreload_prev" == true ]] || autoreload_prev=false
     trap resume_autoreload EXIT
-    hyprctl keyword misc:disable_autoreload 1 >/dev/null || die "hyprctl keyword misc:disable_autoreload failed; not syncing under a live watcher"
+    set_autoreload_disabled true || die "could not pause misc:disable_autoreload with hyprctl eval; not syncing under a live watcher"
 }
 resume_autoreload() {
     [[ -n "$autoreload_prev" ]] || return 0
-    hyprctl keyword misc:disable_autoreload "$autoreload_prev" >/dev/null \
+    set_autoreload_disabled "$autoreload_prev" \
         || echo "koompi-migrate: could not restore misc:disable_autoreload=$autoreload_prev; run 'koompi reload'" >&2
     autoreload_prev=""
 }

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # koompi-settings - open the KOOMPI settings (control center).
 #
-# KOOMPI-native: launches the Quickshell settings page directly. No KDE
-# systemsettings / GNOME control-center fallback and no forced GNOME identity.
+# KOOMPI-native. The running shell hosts Settings as a window it already has
+# warm; asked over IPC, it opens in a few frames. With no shell (or one too old
+# to know the target) the standalone qs settings.qml is the fallback.
+# No KDE systemsettings / GNOME control-center fallback and no forced GNOME identity.
 set -euo pipefail
 
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -16,20 +18,24 @@ if ! command -v qs >/dev/null 2>&1; then
     echo "koompi-settings: quickshell (qs) not found" >&2
     exit 1
 fi
+
+# Toggle like the sidebars (Super + I opens, Super + I closes); a page
+# argument opens at that page. Page names match the settings page component
+# filenames, e.g. `koompi-settings bluetooth`.
+if pgrep -f "qs -p $SETTINGS_QML" >/dev/null 2>&1; then
+    qs kill -p "$SETTINGS_QML" 2>/dev/null || pkill -f "qs -p $SETTINGS_QML" || true
+    [[ $# -ge 1 ]] || exit 0
+elif [[ $# -ge 1 ]]; then
+    timeout 3 qs -c koompi ipc call settings page "$1" >/dev/null 2>&1 && exit 0
+else
+    timeout 3 qs -c koompi ipc call settings toggle >/dev/null 2>&1 && exit 0
+fi
+
 if [[ ! -f "$SETTINGS_QML" ]]; then
     echo "koompi-settings: settings UI not found: $SETTINGS_QML" >&2
     exit 1
 fi
 
-# Toggle like the sidebars (Super + I opens, Super + I closes): a bare
-# invocation closes the running instance; a page argument switches to it.
-if pgrep -f "qs -p $SETTINGS_QML" >/dev/null 2>&1; then
-    qs kill -p "$SETTINGS_QML" 2>/dev/null || pkill -f "qs -p $SETTINGS_QML" || true
-    [[ $# -ge 1 ]] || exit 0
-fi
-
-# Optional page name, e.g. `koompi-settings bluetooth`, matched against the
-# settings page component filenames.
 if [[ $# -ge 1 ]]; then
     export KOOMPI_SETTINGS_PAGE="$1"
 fi

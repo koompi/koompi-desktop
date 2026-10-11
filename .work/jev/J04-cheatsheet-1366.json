@@ -1,0 +1,23 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "finding": "Verified by the lead in shellshot renders (.work/shots/J04-fix-1366x768-top-realshell.png): at 1366x768 the cheatsheet panel is larger than the screen. Its top edge sits under the bar and its outer edges run past the screen sides. Every keybind row and the scroll viewport stay on screen (asserted by tests/test_cheatsheet_layout.sh), so nothing the user reads is lost. 1920x1200 and 2560x1600 are fine.",
+    "cause": "Cheatsheet.qml sizes the panel to its tallest/widest page. The Elements page (a periodic table drawn at 70 px per cell, 1362 px wide) sets that size on screens under about 1400x800. It predates J04.",
+    "proposed_fix": "The J04 worker built and ran the whole layout test with a clamp in Cheatsheet.qml: panel implicitWidth/Height = min(content, screen minus margins and the bar), pages fill the panel. At 1366x768 the panel becomes 1346x668 inside the screen below the bar. Cost: the Elements page (periodic table) is clipped at that size instead of the panel overflowing.",
+    "ownership": "Cheatsheet.qml is not a J04 file. J07 (lazy surfaces, Phase 1, not yet dispatched because it waits for J04) owns the cheatsheet's root file. J04 is otherwise verified and ready to merge.",
+    "audience": "1366x768 is a common budget-laptop and classroom-projector resolution, which is KOOMPI's market."
+  },
+  "questions": {
+    "J04_cheatsheet_1366": {
+      "type": "choice",
+      "instructions": "What should happen about the cheatsheet panel overflowing a 1366x768 screen?",
+      "criteria": {
+        "clamp_in_j04_now": "Extend J04 to Cheatsheet.qml and commit the worker's tested clamp now, with a test assertion that fails on the current code (panel inside the screen and below the bar at 1366x768). Strongest case: the fix is built and tested, the worker has the context, and the defect is visible on a common screen size today.",
+        "clamp_and_scale_elements": "Clamp the panel and also scale the periodic table to fit the clamped panel so nothing is clipped. Strongest case: no page is clipped at any size. Cost: more work on a page nobody owns and that is not in the audit.",
+        "defer_to_j07": "Merge J04 as is and fold the clamp into J07, which already owns the cheatsheet's root file. Strongest case: one owner per file and no ownership extension. Cost: the defect waits a wave.",
+        "leave_as_is": "Change nothing. Strongest case: it predates J04 and every row the user reads is on screen.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "j08": "J08 (screen corners) is in verification: a corner window now exists only while it draws the fake rounding or hosts a hot corner, a hot-corner-only window is its 250x5 region in size and input mask, and the top hot corners work with fakeScreenRounding 0 (the founder's seat, where they were dead). Defaults: cornerOpen.enable true, top corners, clickless false (hovering does nothing), clicklessCornerEnd true (pushing into the outer 2 px of the strip toggles the sidebar), a click anywhere in the strip toggles it, valueScroll true (wheel in the strip changes volume right, brightness left). J08 added armed: a corner fires once per visit.",
+    "reopen": "J08 observed in the nested harness: a sidebar closed over IPC while the pointer rests in its corner is open again one 150 ms sample later and stays open, with and without armed, on both corners; with the pointer elsewhere it stays closed. Likely path: the sidebar's surface covered the strip, the strip got a leave (re-arming), and when the sidebar unmaps the strip gets an enter and a motion at the corner end, which fires. A user who pushes into the corner, then closes the sidebar with Escape or a key without moving the mouse, gets it back. Cause not traced; dev (rounding on) unchecked.",
+    "cost": "On the seat's config (rounding off, top corners on) the two now-live corner windows cost about 12 MB of shell memory (PSS, headless, runs vary by up to 7.7 MB). One full-width 5 px strip per screen with a two-rectangle input mask would be one window instead of two per screen; the job file said a hot-corner-only window is the size of its region."
+  },
+  "questions": {
+    "J08_reopen": {
+      "type": "choice",
+      "instructions": "What to do about the sidebar re-opening after it is closed while the pointer rests in its corner?",
+      "criteria": {
+        "require_movement_after_enter": "A corner fires only on pointer motion that starts after the strip was entered, not on the enter (or its first motion) itself; trace it first enough to confirm the enter-plus-motion path and fix that. Strongest case: removes the cause rather than a symptom, keeps instant response for a real push into the corner. Cost: a trace step, and a push that ends exactly as the strip appears needs one more pixel of motion.",
+        "holdoff_after_close": "Ignore the corner for about 300 ms after its sidebar closes. Strongest case: small and certain. Cost: a time constant that hides the cause, and a deliberate quick re-open within the holdoff is swallowed.",
+        "leave_it": "Ship as is. Strongest case: rare (pointer must stay in a 2 px corner end). Cost: when it happens the sidebar cannot be closed without moving the mouse first.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J08_window_count": {
+      "type": "choice",
+      "instructions": "Two hot-corner windows per screen (12 MB on the seat), or one strip window with a two-rectangle mask?",
+      "criteria": {
+        "keep_two_windows": "As built. Strongest case: each window is its region, simple masks, matches the job's rule; the corners are independent. Cost: about 6 MB more per screen than one window.",
+        "one_strip_window": "One full-width 5 px window per screen with two 250x5 input rectangles. Strongest case: half the windows and about 6 MB back per screen. Cost: a screen-wide overlay surface whose correctness depends on the mask, a bigger change to a file inherited from upstream, and a measured saving inside the run-to-run noise (7.7 MB).",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 
+import "cheatsheet-binds.js" as CheatsheetBinds
 import qs.services
 import qs.modules.common
 import qs.modules.common.functions
@@ -8,20 +9,31 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 
-// Notes:
-// We deal with keybinds being numbered 1, 2, etc by discarding 2+, keeping 1 and replacing it with a generic "<Number>"
 Column {
     id: root
     required property string categoryName
     readonly property bool isCategorized: categoryName?.length > 0
-    // Ids of the rows the search keeps, or null for every row
+    // Ids of the binds the search keeps, or null for every bind
     property var matchIds: null
     // The row Enter would run
     property int firstMatchId: -1
     required property var activate
-    property int maxBindWidth: 0
-    property real columnSpacing: 40
+    // each chord reports its one-line width, and its widest piece that cannot wrap
+    property var chordWidths: []
+    property real maxPieceWidth: 0
+    // chords wider than this share of the row wrap; the column fits the widest that stays under
+    property real chordShare: 0.6
+    property real rowPadding: 6
+    property real rowSpacing: 12
+    property real minDescriptionWidth: 60
     property real titleSpacing: 7
+    readonly property real chordWidth: {
+        const room = root.width - root.rowPadding * 2 - root.rowSpacing - root.minDescriptionWidth;
+        const limit = Math.min(room, (root.width - root.rowPadding * 2) * root.chordShare);
+        const fitting = root.chordWidths.filter(width => width <= limit);
+        return Math.max(0, Math.min(room, Math.max(root.maxPieceWidth, ...fitting)));
+    }
+    readonly property real descriptionWidth: Math.max(root.minDescriptionWidth, root.width - root.rowPadding * 2 - root.chordWidth - root.rowSpacing)
 
     // Excellent symbol explaination and source :
     // http://xahlee.info/comp/unicode_computing_symbols.html
@@ -57,26 +69,22 @@ Column {
     })
 
     property var mouseSymbolMap: ({
-        "mouse_up": "󱕐",
-        "mouse_down": "󱕑",
+        "mouse_up": "󱕑",
+        "mouse_down": "󱕐",
         "mouse:272": "L󰍽",
         "mouse:273": "R󰍽",
-        "Scroll ↑/↓": "󱕒",
-        "Page_↑/↓": "⇞/⇟",
     })
 
-    property var keyBlacklist: ["SUPER_L", "SUPER_R"]
+    // Only what needs translating or a symbol; every other key name is in cheatsheet-binds.js.
     property var keySubstitutions: Object.assign({
         "Super": "􀀀",
-        "mouse_up": "Scroll ↓",    // ikr, weird
-        "mouse_down": "Scroll ↑",  // trust me bro
-        "mouse:272": "LMB",
-        "mouse:273": "RMB",
-        "mouse:275": "MouseBack",
-        "Slash": "/",
-        "Hash": "#",
-        "Return": "Enter",
-        // "Shift": "",
+        "mouse_up": Translation.tr("Scroll") + " ↑",
+        "mouse_down": Translation.tr("Scroll") + " ↓",
+        "mouse:272": Translation.tr("Left click"),
+        "mouse:273": Translation.tr("Right click"),
+        "mouse:274": Translation.tr("Middle click"),
+        "mouse:275": Translation.tr("Back"),
+        "mouse:276": Translation.tr("Forward"),
       },
       !!Config.options.cheatsheet.superKey ? {
           "Super": Config.options.cheatsheet.superKey,
@@ -86,6 +94,14 @@ Column {
       Config.options.cheatsheet.useMouseSymbol ? mouseSymbolMap : {},
     )
 
+    readonly property var rows: CheatsheetBinds.buildRows(HyprlandKeybinds.keybinds.map(bind => ({
+        id: bind.id,
+        mods: HyprlandKeybinds.modifiersOf(bind.modmask),
+        key: HyprlandKeybinds.keyOf(bind),
+        description: bind.description,
+        dispatchable: HyprlandKeybinds.dispatchable(bind)
+    })), root.categoryName, root.keySubstitutions)
+
     visible: repeater.model.length > 0
     spacing: titleSpacing
 
@@ -94,71 +110,31 @@ Column {
         font.pixelSize: Appearance.font.pixelSize.title
     }
 
-    function hasDescription(bind) {
-        return bind.description?.length > 0;
+    // one keycap and one line of text, to line the first chord up with its description
+    KeyboardKey {
+        id: capRuler
+        visible: false
+    }
+    StyledText {
+        id: lineRuler
+        visible: false
+        text: "Ag"
+        font.pixelSize: Config.options.cheatsheet.fontSize.comment || Appearance.font.pixelSize.smaller
     }
 
-    function isCategory(bind, categoryName) {
-        return bind.description.substring(0, bind.description.indexOf(":")) === categoryName;
-    }
-
-    function isUncategorized(bind) {
-        return bind.description.indexOf(":") === -1;
-    }
-
-    function containsNonFirstRepetitive(bind) {
-        const key = bind.key;
-        if (key.includes("mouse") || key.includes("page")) return false;
-        // Contains non-1 number
-        if (/\d/.test(key) && !key.includes("1")) return true;
-        // Contains non-left direction
-        if (/^(right|up|down)\b/i.test(key)) return true;
-        return false;
-    }
-
-    function shown(bind) {
-        return root.matchIds === null || root.matchIds.includes(bind.id);
-    }
-
-    function containsFirstRepetitive(bind) {
-        const key = bind.key;
-        return key.includes("1") || /left/i.test(key);
-    }
-
-    function transformKey(key) {
-        if (/code:201$/i.test(key))
-            return "AI";
-
-        const replaced = root.keySubstitutions[key] || key;
-        const denumbered = replaced.replace("1", "<Number>");
-        const dedirectioned = denumbered.replace("Left", "<Direction>");
-        return dedirectioned;
-    }
-
-    function transformDescription(bind, categoryName) {
-        const description = bind.description
-        const regex = new RegExp("\\s*" + categoryName + "\\s*:\\s*");
-        const decategorized = description.replace(regex, "");
-        if (!containsFirstRepetitive(bind)) return decategorized;
-        const denumbered = decategorized.replace("1", "<Number>");
-        const dedirectioned = denumbered.replace(/ \b(left|right|up|down)\b/i, " <Direction>");
-        return dedirectioned;
+    function shown(row) {
+        return root.matchIds === null || row.ids.some(id => root.matchIds.includes(id));
     }
 
     Column {
+        width: root.width
         spacing: 4
         Repeater {
             id: repeater
-            model: {
-                if (!root.isCategorized) {
-                    return HyprlandKeybinds.keybinds.filter(bind => root.hasDescription(bind) && root.isUncategorized(bind) && !root.containsNonFirstRepetitive(bind) && root.shown(bind));
-                }
-                return HyprlandKeybinds.keybinds.filter(bind => root.hasDescription(bind) && root.isCategory(bind, root.categoryName) && !root.containsNonFirstRepetitive(bind) && root.shown(bind));
-            }
+            model: root.rows.filter(row => root.shown(row))
             delegate: BindLine {
                 required property var modelData
-                keyData: modelData
-                categoryName: root.categoryName
+                row: modelData
             }
         }
     }
@@ -168,13 +144,13 @@ Column {
     // closures) stay plain text.
     component BindLine: Rectangle {
         id: bindLine
-        required property var keyData
-        property string categoryName: ""
-        readonly property bool dispatchable: HyprlandKeybinds.dispatchable(keyData)
-        readonly property bool primary: keyData.id === root.firstMatchId
-        property real horizontalPadding: 6
+        required property var row
+        readonly property bool primary: root.firstMatchId >= 0 && row.ids.includes(root.firstMatchId)
+        // Enter runs the first match, so the row that holds it runs that bind too
+        readonly property int runId: primary ? root.firstMatchId : row.runId
+        readonly property bool dispatchable: runId >= 0
 
-        implicitWidth: bindContent.implicitWidth + horizontalPadding * 2
+        width: root.width
         implicitHeight: bindContent.implicitHeight + 4
         radius: Appearance.rounding.small
         color: primary ? Appearance.colors.colSecondaryContainer
@@ -186,58 +162,108 @@ Column {
             enabled: bindLine.dispatchable
             hoverEnabled: bindLine.dispatchable
             cursorShape: bindLine.dispatchable ? Qt.PointingHandCursor : Qt.ArrowCursor
-            onClicked: root.activate(bindLine.keyData)
+            onClicked: root.activate(HyprlandKeybinds.keybinds[bindLine.runId])
         }
 
         Row {
             id: bindContent
-            x: bindLine.horizontalPadding
+            x: root.rowPadding
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 16
-            Row {
-                id: modRow
-                Component.onCompleted: root.maxBindWidth = Math.max(root.maxBindWidth, implicitWidth)
-                width: root.maxBindWidth
+            spacing: root.rowSpacing
+            Column {
+                objectName: "bindChords"
+                width: root.chordWidth
                 spacing: 4
                 Repeater {
-                    model: {
-                        const modList = HyprlandKeybinds.modifiersOf(bindLine.keyData.modmask).map(mod => root.keySubstitutions[mod] || mod)
-                        if (modList.length == 0) return []
-                        if (Config.options.cheatsheet.splitButtons) return modList;
-                        return [modList.join(" ")]
-                    }
-                    delegate: KeyboardKey {
+                    model: bindLine.row.chords
+                    delegate: ChordLine {
+                        required property int index
                         required property var modelData
-                        key: root.transformKey(modelData)
-                        pixelSize: Config.options.cheatsheet.fontSize.key
+                        chord: modelData
+                        last: index === bindLine.row.chords.length - 1
                     }
-                }
-                StyledText {
-                    id: keybindPlus
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: !keyBlacklist.includes(bindLine.keyData.key) && bindLine.keyData.modmask > 0
-                    text: "+"
-                }
-                KeyboardKey {
-                    id: keybindKey
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: !keyBlacklist.includes(bindLine.keyData.key)
-                    key: root.transformKey(bindLine.keyData.key)
-                    pixelSize: Config.options.cheatsheet.fontSize.key
-                    color: Appearance.colors.colOnLayer0
                 }
             }
             Item {
-                anchors.verticalCenter: parent.verticalCenter
-                implicitWidth: commentText.implicitWidth + root.columnSpacing
-                implicitHeight: commentText.implicitHeight
+                width: root.descriptionWidth
+                implicitHeight: commentText.y + commentText.implicitHeight
                 StyledText {
                     id: commentText
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.left: parent.left
-                    font.pixelSize: Config.options.cheatsheet.fontSize.comment || Appearance.font.pixelSize.smaller
-                    text: root.transformDescription(bindLine.keyData, bindLine.categoryName)
+                    objectName: "bindDescription"
+                    y: Math.max(0, (capRuler.implicitHeight - lineRuler.implicitHeight) / 2)
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    font.pixelSize: lineRuler.font.pixelSize
+                    text: bindLine.row.text
                 }
+            }
+        }
+    }
+
+    // plus, key and "or" travel together so none wraps alone
+    component ChordLine: Flow {
+        id: chordLine
+        required property var chord
+        required property bool last
+        width: root.chordWidth
+        spacing: 4
+
+        // a piece only has its width after it is made, so each calls this when it gets one
+        function measure() {
+            let pieces = 0;
+            let natural = 0;
+            for (let i = 0; i < children.length; i++) {
+                const piece = children[i];
+                if (piece.implicitWidth <= 0)
+                    continue;
+                pieces++;
+                natural += piece.implicitWidth;
+                root.maxPieceWidth = Math.max(root.maxPieceWidth, piece.implicitWidth);
+            }
+            const width = Math.ceil(natural + Math.max(0, pieces - 1) * spacing);
+            if (width > 0 && root.chordWidths.indexOf(width) < 0)
+                root.chordWidths = root.chordWidths.concat([width]);
+        }
+
+        Repeater {
+            model: CheatsheetBinds.capRuns(chordLine.chord.mods, Config.options.cheatsheet.splitButtons)
+            delegate: Row {
+                id: run
+                required property var modelData
+                spacing: chordLine.spacing
+                onImplicitWidthChanged: chordLine.measure()
+                Component.onCompleted: chordLine.measure()
+                Repeater {
+                    model: run.modelData
+                    delegate: KeyboardKey {
+                        required property var modelData
+                        key: modelData
+                        pixelSize: Config.options.cheatsheet.fontSize.key
+                    }
+                }
+            }
+        }
+        Row {
+            spacing: chordLine.spacing
+            onImplicitWidthChanged: chordLine.measure()
+            Component.onCompleted: chordLine.measure()
+            StyledText {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: chordLine.chord.key.length > 0 && chordLine.chord.mods.length > 0
+                text: "+"
+            }
+            KeyboardKey {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: chordLine.chord.key.length > 0
+                key: chordLine.chord.key
+                pixelSize: Config.options.cheatsheet.fontSize.key
+                color: Appearance.colors.colOnLayer0
+            }
+            StyledText {
+                anchors.verticalCenter: parent.verticalCenter
+                visible: !chordLine.last
+                text: Translation.tr("or")
+                color: Appearance.colors.colSubtext
             }
         }
     }

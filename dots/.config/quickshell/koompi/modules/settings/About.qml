@@ -93,6 +93,12 @@ ContentPage {
                 font.pixelSize: Appearance.font.pixelSize.normal
             }
             StyledText {
+                objectName: "uptimeRow"
+                text: Translation.tr("Up for %1").arg(DateTime.uptime.replace(/,/g, "").replace(/(\d+)d/, "$1 d").replace(/(\d+)h/, "$1 h").replace(/(\d+)m/, "$1 min"))
+                font.pixelSize: Appearance.font.pixelSize.normal
+                color: Appearance.colors.colSubtext
+            }
+            StyledText {
                 text: "https://github.com/koompi/koompi-desktop"
                 font.pixelSize: Appearance.font.pixelSize.normal
                 textFormat: Text.MarkdownText

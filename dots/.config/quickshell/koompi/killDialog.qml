@@ -21,14 +21,15 @@ import qs.modules.common.functions
 ApplicationWindow {
     id: root
     property int conflictCount: 0
-    onConflictCountChanged: {
-        if (conflictCount === 0) {
-            root.close();
-        }
+    property int checksPending: 0
+    function quitWhenNothingToAsk() {
+        if (conflictCount === 0 && checksPending === 0) Qt.quit();
     }
+    onConflictCountChanged: quitWhenNothingToAsk()
+    onChecksPendingChanged: quitWhenNothingToAsk()
 
     property real contentPadding: 8
-    visible: true
+    visible: conflictCount > 0
     onClosing: {
         Qt.quit()
     }
@@ -62,10 +63,12 @@ ApplicationWindow {
         Process {
             running: true
             command: ["pidof", ...conflictGroup.programs]
+            Component.onCompleted: root.checksPending += 1
             onExited: (exitCode, exitStatus) => {
                 if (exitCode === 0) {
                     conflictGroup.visible = true
                 }
+                root.checksPending -= 1
             }
         }
 
@@ -182,7 +185,6 @@ ApplicationWindow {
                     description: Translation.tr("Conflicts with the shell's notification implementation")
                     onAlwaysSelected: Config.options.conflictKiller.autoKillNotificationDaemons = true
                 }
-                
             }
         }
     }

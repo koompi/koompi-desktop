@@ -40,7 +40,7 @@ const steps = [
     {
         icon: "select_window",
         title: "See every window at once",
-        body: "When you lose a window, this shows all of them across all your desks, laid out small. Click one to go to it, or drag it onto another desk.",
+        body: "When you lose a window, this shows your desks side by side, each one tiled the way you left it. Click a desk or a window to go there, drag a window onto another desk to move it, or just type its name.",
         keys: ["Super", "Tab"],
         demo: "overviewOpen"
     },
@@ -52,9 +52,9 @@ const steps = [
         demo: "launchpadOpen"
     },
     {
-        icon: "tune",
-        title: "What your machine is doing",
-        body: "Sound, screen brightness, network, Bluetooth and battery, with your notifications underneath. The second tab holds your calendar, to-do list and timer.",
+        icon: "notifications",
+        title: "What is waiting for you",
+        body: "The switches for Wi-Fi, Bluetooth, sound, brightness and the rest, with your notifications under them, grouped by app with a clear button on each group. Messages from the computer itself sit in a System group. Below that: your next events, the weather, your to-do list and a timer. Click Wi-Fi, Bluetooth or Sound to pick a network or device.",
         keys: ["Super", "N"],
         demo: "sidebarRightOpen"
     },
@@ -66,10 +66,24 @@ const steps = [
         demo: "sidebarLeftOpen"
     },
     {
-        icon: "drag_pan",
-        title: "Moving and arranging windows",
-        body: "Hold Super and drag a window with the mouse to move it anywhere. Drag it towards an edge and an outline shows where it will land before you let go.\n\nHold Super and drag with the right button to change its size.",
-        keys: ["Super", "drag"],
+        icon: "keyboard_arrow_right",
+        title: "Moving between windows",
+        body: "Hold Super and press an arrow to jump to the window next to the one you are in. Add Shift and the arrow pushes the window itself that way.\n\nThe mouse still works: hold Super and drag a window to move it, or drag with the right button to change its size.\n\nTo keep several windows in one place as tabs, press Super, Alt and G.",
+        keys: ["Super", "←→↑↓"],
+        demo: ""
+    },
+    {
+        icon: "move_item",
+        title: "Sending a window to another desk",
+        body: "Hold Super and Alt and press a desk's number. The window goes there and you stay where you are.",
+        keys: ["Super", "Alt", "1–0"],
+        demo: ""
+    },
+    {
+        icon: "swap_horiz",
+        title: "Back to the window you were just in",
+        body: "Tap Alt and Tab to jump back to the last window you used, on any desk. Tap it again to come back.\n\nWith Shift added, it steps through the windows on this desk.",
+        keys: ["Alt", "Tab"],
         demo: ""
     },
     {

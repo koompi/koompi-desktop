@@ -1,0 +1,6 @@
+[Desktop Entry]
+# hidden: kdeconnectd starts when KDE Connect opens; Hidden=false starts it at login
+Type=Application
+Name=KDE Connect
+Exec=/usr/bin/kdeconnectd
+Hidden=true

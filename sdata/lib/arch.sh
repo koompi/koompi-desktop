@@ -19,12 +19,20 @@ arch_exact_installed_packages() {
 }
 
 arch_install_paru() {
-    have paru && return 0
-    info "paru not found; building it (needed for the AUR dependencies)"
+    paru --version >/dev/null 2>&1 && return 0
+    info "paru not found or not runnable; building it (needed for the AUR dependencies)"
+    run sudo pacman -S --needed --noconfirm base-devel git
+    # paru-bin links one libalpm soname and breaks when pacman moves on
+    local stale
+    stale="$(arch_exact_installed_packages paru-bin paru-bin-debug)" || return 1
+    if [[ -n "$stale" ]]; then
+        local -a stale_pkgs
+        mapfile -t stale_pkgs <<< "$stale"
+        run sudo pacman -Rns --noconfirm "${stale_pkgs[@]}"
+    fi
     local build
     build="$(mktemp -d)"
-    run sudo pacman -S --needed --noconfirm base-devel git
-    run git clone --depth 1 https://aur.archlinux.org/paru-bin.git "$build"
+    run git clone --depth 1 https://aur.archlinux.org/paru.git "$build"
     run_in_dir "$build" makepkg -si --noconfirm
     rm -rf "$build"
 }

@@ -60,7 +60,8 @@ fi
 # --- PamContext against broken configs ------------------------------------------
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-mkdir -p "$WORK/probe" "$WORK/self-contained" "$WORK/bare" "$WORK/control"
+mkdir -p "$WORK/probe" "$WORK/self-contained" "$WORK/bare" "$WORK/control" "$WORK/home" "$WORK/rt"
+chmod 700 "$WORK/rt"
 
 cat > "$WORK/probe/probe.qml" <<'QML'
 import QtQuick
@@ -89,7 +90,8 @@ QML
 
 # Runs the probe and prints its "[probe]" lines, colour stripped.
 probe() {
-    LOCK_PAM_DIR="$1" LOCK_PAM_CONFIG="$2" timeout 20 qs -p "$WORK/probe/probe.qml" 2>&1 \
+    env -u WAYLAND_DISPLAY -u DISPLAY QT_QPA_PLATFORM=offscreen HOME="$WORK/home" XDG_RUNTIME_DIR="$WORK/rt" \
+        LOCK_PAM_DIR="$1" LOCK_PAM_CONFIG="$2" timeout 20 qs -p "$WORK/probe/probe.qml" 2>&1 \
         | sed 's/\x1b\[[0-9;]*m//g' | grep -o '\[probe\].*'
 }
 
@@ -127,7 +129,9 @@ out="$(probe "$WORK/control" "permit.conf")"
 grep -q 'completed=0 success=true' <<< "$out" || fail "positive control: pam_permit should succeed, got: $out"
 echo "ok   positive control: the probe reports success when libpam grants it"
 
-if journalctl -q --since "$journal_since" -o cat > "$WORK/journal.txt" 2>/dev/null; then
+# only this run's probes: their command line names $WORK, so another suite's lock test running at the same time does not count
+if journalctl -q --since "$journal_since" -o json 2>/dev/null \
+    | jq -r --arg w "$WORK" 'select((._CMDLINE // "") | contains($w)) | .MESSAGE // empty' > "$WORK/journal.txt" 2>/dev/null; then
     hits="$(grep -c 'no default config other' "$WORK/journal.txt")"
     # The bare directory has no `other`, so exactly that run must have logged it.
     [[ "$hits" -ge 1 ]] || { echo "note: journal shows no '_pam_init_handlers' line at all; cannot check the other-file effect"; exit 0; }

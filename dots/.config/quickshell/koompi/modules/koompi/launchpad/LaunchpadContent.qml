@@ -375,7 +375,7 @@ FocusScope {
                 // sliver of a drag with a full-length animation is the thing
                 // that reads as lag.
                 const remaining = Math.abs(dest - strip.x) / width;
-                settleAnim.duration = Math.max(150, Math.min(400, 130 + remaining * 300));
+                settleAnim.duration = Appearance.reduceMotion ? 0 : Math.max(150, Math.min(400, 130 + remaining * 300));
                 settleAnim.from = strip.x;
                 settleAnim.to = dest;
                 settleAnim.start();

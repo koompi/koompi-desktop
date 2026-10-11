@@ -1,0 +1,19 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "slots": "Five workers run (J16 round 3, J07, J13, J15, J08); J42 handed back round 4, so one slot is free under the six-worker cap. Queue head: J44 (the conflict dialog shows empty when kded6 runs; kded6 runs on the founder's seat, but the seat changes only at an authorised deploy). Then J45, J41 after J15, J28, J29.",
+    "new_item": "Jev picked J42_runsh_scrub_xdg scrub_in_run_sh p=0.98: one line in tests/run.sh plus a full-suite run with a decoy XDG dir to prove nothing writes into it. J42's worker built the decoy check and has the context; it needs one full-suite place in the heavy-lock line. The founder's host exports none of the variables, so it protects other machines, not this one."
+  },
+  "questions": {
+    "next_slot": {
+      "type": "choice",
+      "instructions": "What takes the free slot?",
+      "criteria": {
+        "j44_now_runsh_later": "Dispatch J44 now; the run.sh line goes to J42 as round 5 at the next free slot. Strongest case: the user-visible bug starts first; the run.sh line protects no machine in use today. Cost: J42's context goes cold, and the line waits.",
+        "j42_round5_now": "Resume J42 for the run.sh line now; J44 takes the next free slot. Strongest case: a tiny round on a warm context, finished soon. Cost: J44 waits behind it.",
+        "both_now": "Both, seven workers until the next hand-back. Strongest case: nothing waits. Cost: above the decided cap again, one more place in the heavy line.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

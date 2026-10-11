@@ -14,6 +14,7 @@ Singleton {
     property bool crosshairOpen: false
     property bool intelligenceOpen: false
     property bool launchpadOpen: false
+    property bool settingsOpen: false
     property bool sidebarLeftOpen: false
     property bool sidebarRightOpen: false
     property bool mediaControlsOpen: false
@@ -36,11 +37,29 @@ Singleton {
     property bool wallpaperSelectorOpen: false
     property bool workspaceShowNumbers: false
 
+    // A bar status icon (Wi-Fi, battery, the mic light) opens the right panel on its own list; a second click closes it.
+    signal sidebarRightModuleRequested(string name)
+    function toggleSidebarRightOn(name: string): void {
+        if (root.sidebarRightOpen)
+            root.sidebarRightOpen = false;
+        else
+            root.sidebarRightModuleRequested(name);
+    }
+
     onSidebarRightOpenChanged: {
-        if (GlobalStates.sidebarRightOpen) {
+        if (sidebarRightOpen) {
             Notifications.timeoutAll();
-            Notifications.markAllRead();
+            seenTimer.restart();
+        } else {
+            seenTimer.stop();
         }
+    }
+
+    // read = panel stayed open long enough to be seen
+    Timer {
+        id: seenTimer
+        interval: 1000
+        onTriggered: Notifications.markAllRead()
     }
 
     GlobalShortcut {

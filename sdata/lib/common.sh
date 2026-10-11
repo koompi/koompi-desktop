@@ -19,8 +19,8 @@ KOOMPI_STATE_DIR="${XDG_STATE_HOME}/koompi"
 MANIFEST="${KOOMPI_STATE_DIR}/installed-files"
 # shellcheck disable=SC2034  # read by setups.sh and uninstall.sh, which source this file
 SYSTEM_MANIFEST="${KOOMPI_STATE_DIR}/installed-system-files"
-# Read by the `koompi update` helper, which has no other way to find the
-# checkout. Keep the two in step if this ever moves.
+# Read by libexec/update and koompi-migrate, which have no other way to find
+# the checkout. Keep them in step if this ever moves.
 REPO_PATH_FILE="${KOOMPI_STATE_DIR}/repo-path"
 BACKUP_ROOT="${BACKUP_ROOT:-$HOME/.koompi-dots-backup}"
 # Used by sdata/install/setups.sh and sdata/install/uninstall.sh.
@@ -118,13 +118,34 @@ run_in_dir() {
 # the others, so through run() "already stopped" becomes a retry/skip/abort prompt.
 # A trailing `|| true` does not save it either: run() calls die, and die exits before
 # the || is reached. One name at a time, asked about first.
+# this session's processes of a binary: same uid and XDG_RUNTIME_DIR. A nested test shell runs with a
+# runtime dir of its own (tests/run.sh, the hyprshot and shellshot tools), and a restart must not kill it
+session_pids() {
+    local pid rt
+    while read -r pid; do
+        [[ -n "$pid" ]] || continue
+        rt="$(tr '\0' '\n' 2>/dev/null < "/proc/$pid/environ" | sed -n 's/^XDG_RUNTIME_DIR=//p')"
+        if [[ "$rt" == "${XDG_RUNTIME_DIR:-}" ]]; then printf '%s\n' "$pid"; fi
+    done < <(pgrep -u "$(id -u)" -x -- "$1" 2>/dev/null)
+    return 0
+}
+
 stop_processes() {
-    local name
+    local name pids waited
     for name in "$@"; do
-        printf '%s     $ killall -w -q %s%s\n' "${C_DIM}" "$name" "${C_RST}"
+        printf '%s     $ stop this session'"'"'s %s%s\n' "${C_DIM}" "$name" "${C_RST}"
         [[ "$DRY_RUN" == true ]] && continue
-        pgrep -x -- "$name" >/dev/null 2>&1 || continue
-        killall -w -q -- "$name" 2>/dev/null || warn "could not stop $name"
+        pids="$(session_pids "$name")"
+        [[ -n "$pids" ]] || continue
+        # shellcheck disable=SC2086 # one pid per word
+        kill $pids 2>/dev/null || true
+        # like killall -w: wait until they are gone, at most 10 s
+        for ((waited = 0; waited < 100; waited++)); do
+            pids="$(for pid in $pids; do if kill -0 "$pid" 2>/dev/null; then echo "$pid"; fi; done)"
+            [[ -z "$pids" ]] && break
+            sleep 0.1
+        done
+        [[ -z "$pids" ]] || warn "could not stop $name"
     done
     return 0
 }
@@ -140,7 +161,7 @@ count_shells() {
         if tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -qF -- '-c koompi'; then
             n=$((n + 1))
         fi
-    done < <(pgrep -x qs 2>/dev/null)
+    done < <(session_pids qs)
     printf '%s\n' "$n"
 }
 
@@ -248,11 +269,10 @@ record_repo_path() {
 
 # Reloading Hyprland is cheap; the shell is restarted outright because Quickshell
 # does not reliably hot-reload a changed tree.
-#
-# The QT_QPA_PLATFORM override matters: hyprland/env.lua puts the session on xcb so
-# the global menu works, and a Quickshell that inherits it maps no layer surfaces at
-# all. Same reasoning as the CTRL+SUPER+R bind in hyprland/keybinds.lua.
+# wayland pin below: an older session still exports xcb, and a shell on xcb maps no layer surfaces
 reload_session() {
+    # koompi update reloads itself, after its migrations
+    [[ -z "${KOOMPI_SETUP_NO_RELOAD:-}" ]] || return 0
     have hyprctl || return 0
     [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] || {
         info "not inside a Hyprland session; the new config loads at your next login"

@@ -25,7 +25,7 @@ ColumnLayout {
 
     Timer {
         id: highlightTimer
-        interval: Appearance.animationDuration.slowest
+        interval: 650
         onTriggered: root.highlightedIndex = -1
     }
 

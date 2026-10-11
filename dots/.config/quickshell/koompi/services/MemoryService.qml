@@ -11,9 +11,10 @@ import QtQuick
  * Long-term memory for the AI assistant. Talks to the `koompi-agent-memd` Rust
  * daemon (sqlite-vec + embeddings) over newline-delimited JSON on stdin/stdout.
  *
- * The daemon is kept running for the whole session so the embedding model stays
- * loaded. Requests are correlated by an incrementing id; a sweeper times out any
- * request whose response never arrives so the chat can never hang on memory.
+ * The daemon starts on first demand (`load()` or any op) and runs for the rest of
+ * the session so the embedding model stays loaded. Requests are correlated by an
+ * incrementing id; a sweeper times out any request whose response never arrives,
+ * so the chat can never hang on memory.
  *
  * Every op the daemon serves is wrapped here. Callbacks take `(response, error)`:
  * `response` is null when the call failed and `error` says why, so a refusal is
@@ -25,11 +26,9 @@ Singleton {
     readonly property var memoryConfig: Config.options?.ai?.memory ?? ({})
     readonly property bool enabled: memoryConfig.enable ?? true
     property bool ready: false
+    property bool _wanted: false
 
-    // For forcing initialization. QML singletons are lazy, so the daemon below
-    // does not exist until something touches this service; SidebarLeft calls
-    // this on first open so the model warms with the panel, not with the login.
-    function load() {}
+    function load() { root._wanted = true; }
     property string provider: ""
     property int dim: 0
 
@@ -116,6 +115,7 @@ Singleton {
             if (callback) callback(null, "memory is disabled");
             return;
         }
+        root.load();
         if (!root.ready) {
             if (root.queueableOps.indexOf(obj.op) >= 0) {
                 if (root._queue.length < root.maxQueued) root._queue.push(obj);
@@ -409,10 +409,8 @@ Singleton {
 
     Process {
         id: daemon
-        // Waits for the config: launching before it parses started the daemon on
-        // the default path and ignored `ai.memory.binary` for the whole session,
-        // because a Process does not relaunch when its command changes.
-        running: root.enabled && Config.ready
+        // waits for config: a Process keeps the command it started with, and binary comes from config
+        running: root._wanted && root.enabled && Config.ready
         command: [root.binaryPath]
         environment: ({
             "KOOMPI_AGENT_EMBED_PROVIDER": root.memoryConfig.provider ?? "local",

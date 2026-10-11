@@ -1,0 +1,29 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "j43": "J43 (restored and pinned apps match the running app by desktop entry) is verified in review and renders: dev shows Dolphin twice in the dock and in the waffle taskbar (pinned plus running), the branch once; its test is running under the heavy lock. It keys the dock and restore on the entry heuristicLookup finds (measured 7.3 us per lookup, 54 entries).",
+    "found_verified": "Verified by the lead in dev's tree: (a) the waffle panel family starts apps with desktopEntry.execute() in seven places (SearchResultButton.qml:31, SearchResults.qml:213, BigAppGrid.qml:33, AppCategoryGrid.qml:282, TaskAppButton.qml:51,57,117), so those apps skip koompi-launch: no app scope for oomd, no xcb menu rule, and no launch feedback from J13; (b) waffle SearchResults.qml:205 reads pins with includes(appId), so a pin saved under the other class shows as unpinned there; (c) MediaControls.qml:47 and DockAppButton.qml:21,29 call heuristicLookup on a window class that can be empty, which returns an arbitrary entry (a wrong icon and name, or the wrong window as the media player's).",
+    "restore_nodisplay": "J43 left this alone: restore relaunches NoDisplay entries such as kdialog with no arguments (prints usage, opens nothing), then keeps a claim for its class open for 90 s, so a dialog of that class the user or a script opens in that time is moved to the saved workspace. NoDisplay entries are not in the menus; some are helpers (kdialog, handlers), some are settings modules.",
+    "swarm": "Six running after J43 (J42 round 4, J16 round 3, J07, J13, J15, J08). swarm_seventh_worker keep_seven_no_refill p=0.9 said J43's freed slot is not refilled. Queue: J44 first (breakage), then J41 after J15, J28, J29 and the rest."
+  },
+  "questions": {
+    "J43_found_routing": {
+      "type": "choice",
+      "instructions": "Where do the three verified findings (waffle launches skipping koompi-launch, the waffle pin check, lookups on an empty class) go?",
+      "criteria": {
+        "new_job_after_j44": "A new job J45, queued right after J44, owning the waffle launch paths, the waffle pin check and the two empty-class lookups. Strongest case: keeps the no-refill decision, keeps J43 mergeable now, and gives one worker one coherent area (app identity and launch paths). Cost: the bugs wait behind J44 and the slot schedule.",
+        "j43_round2_now": "Resume J43 for a round 2 now; it knows the code. Strongest case: least ramp-up, fixes land soonest. Cost: refills the slot the swarm decision said to leave empty, and J43's verified work waits to merge.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    },
+    "J43_restore_nodisplay": {
+      "type": "choice",
+      "instructions": "Should session restore relaunch NoDisplay desktop entries?",
+      "criteria": {
+        "skip_nodisplay": "Skip them like windows with no entry. Strongest case: they are not apps a user starts from a menu; relaunching kdialog bare opens nothing and its 90 s claim can steal a dialog onto another workspace. Cost: a NoDisplay entry that is a real window (a settings module opened by itself) does not come back.",
+        "keep_relaunching": "Keep relaunching them. Strongest case: nothing that was open is dropped on purpose. Cost: pointless launches and a 90 s claim that can move an unrelated dialog.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

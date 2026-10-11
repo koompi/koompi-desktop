@@ -9,30 +9,43 @@ The `Super+/` cheatsheet is generated from the `description` field of each bind,
 
 ## Roles
 
-Six roles, and nothing else may claim a primary gesture or a bare `Super` chord.
+Five roles, and nothing else may claim a primary gesture or a bare `Super` chord.
 
 | Role | Question it answers | Surface | Opened by | State |
 | --- | --- | --- | --- | --- |
 | Search | "take me to a thing" | `SearchPanel.qml` | `Super` release | `searchOpen` |
-| Overview | "where are my windows" | `OverviewPanel.qml` | `Super+Tab`, 4-finger up/down | `overviewOpen` |
-| Today | "what is my machine doing" | right sidebar, `SidebarRight.qml` | `Super+N` | `sidebarRightOpen` |
+| Overview | "where are my windows" | `OverviewPanel.qml` | `Super+Tab`, 4-finger up (down closes) | `overviewOpen` |
+| Today | "what is waiting for me, what can I switch" | the right panel, `SidebarRight.qml`: quick settings, then notifications | `Super+N` | `sidebarRightOpen` |
 | Now | "what is my work doing" | left sidebar, `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 | Launchpad | "show me everything installed" | `Launchpad.qml` | 4-finger spread only | `launchpadOpen` |
-| Quickwork | "do this for me" | not built | `Super+O`, reserved and unbound | none yet |
 
-Search is the primary app launcher.
-It is also how the desktop's own switches are reached: three letters find a command like night light or create system snapshot in the same flat list as the apps, and the action scope (`/`) with nothing typed after it lists every one of them under its group heading.
+Search is the primary app launcher, and one ranked list.
+A query with no prefix asks every provider and draws the answers under headings, in this order when they have rows: Top Hit (the single best match across providers), Applications, Windows, Commands and Settings, Files, Calculator. Clipboard history and files in hidden folders answer only under their prefixes (`;` and the file prefix), so a copied password never shows while typing and config files do not crowd out documents.
+Each section keeps five rows and a "Show all N" row that retypes the query inside that section's sigil, so the sigils stay as filters.
+Web search is always the last row.
+The ranking is `services/launcherSearch/ranking.js`: a name that is the query beats one that starts with it, then a word that starts with it, then one that contains it, and a tie goes to the earlier section.
+A row that arrives late (files, after fd's 250 ms debounce, or a translation) joins its section, and neither the Top Hit nor the row under the keyboard cursor moves.
+A file row shows its home-relative folder and its modified date, read for the whole result set by one `stat`, never a process per row.
+With the keyboard cursor on a file row, `Space` toggles `koompi-quicklook` on it and `Escape` puts the preview away before it closes Search; in the typing box `Space` is a space.
+The desktop's own switches are reached the same way: three letters find a command like night light, create system snapshot or screen snip, and a command with a Hyprland bind draws that chord as keycaps, taken from `HyprlandKeybinds` by the bind's description (`bind` in `services/commandTree/Entries.qml` and `Captures.qml`).
+The action scope (`/`) with nothing typed after it lists every command under its group heading.
+`translate <text>` runs the left sidebar's `trans -brief` call with the engine and languages from `language.translator`; the text goes to an online translator and the row says so, and Enter copies the result.
+On the selected app row the desktop entry's actions are labelled buttons; unselected rows show none.
 Groups are headings, not levels, so there is no drilling and no back key, and a command the machine cannot run is absent rather than greyed — a laptop with no fingerprint reader never sees the enrolment row.
-An empty query with no prefix still answers with recent apps.
+An empty query with no prefix still answers with recent apps, under one Recent heading drawn by the same mechanism as a command group's, not a label on each row.
 Launchpad is deliberately gesture-only and takes no keyboard binding, so the two never compete for the same reflex.
+Phase 2 changes several of these surfaces; what is decided but not yet built is in "Decided for Phase 2, not yet built" below, and the tables here change as each piece ships.
 
 One role is named for where it is going, not for what it is today.
-**Now** is the left sidebar, which is to become Quickwork's drawer: active tasks, approvals, recent artifacts, and task continuity.
-Until Quickwork exists, the left sidebar still holds the inherited AI and translator tabs, and those are the thing being replaced rather than the thing being specified.
+**Now** is the left sidebar, which is to become a drawer for what your work is doing.
+It still holds the inherited AI and translator tabs, and those are the thing being replaced rather than the thing being specified.
 
-**Today** is the right sidebar, and it is built: a header carrying identity, settings and power, then two tabs.
-Today holds quick controls and grouped notifications; Personal holds the calendar, the to-do list and the timer.
-Only the selected tab exists, so the panel costs one tab's worth of widgets to open rather than all of them.
+**Today** is the right sidebar, now the Notification Center, and it is built: a header carrying today's date, pin, settings and power, then one scrolling column.
+Notifications come first, grouped by app, each group with its own clear button (`Tab` reaches a group, `Enter` expands it, `Delete` clears it), then Clear all.
+A System group follows, collapsed: the senders in `notifications.systemApps` (KOOMPI and the kernel's memory notices by default) land there, identical summaries fold into one row with a count such as "Memory shortage avoided ×6", and a system notice never toasts louder than normal urgency.
+Below that, four cards: Up next (the next three events across today and tomorrow), Weather (place, condition, now, today's high and low), To-do (the first three unfinished items) and Timer (the running timer, or "Start a timer").
+The Up next, To-do and Timer cards open the Calendar, To Do and Timer drawer pages, which are built only while a page is open (`Super+Alt+C`, `D` and `T` open them directly).
+The quick settings head the same panel; see "The quick settings" below.
 
 ## Entry points
 
@@ -45,23 +58,29 @@ The horizontal bar and the vertical bar are alternative bars, so a given session
 | Surface | Keyboard | Bar | Corner | Gesture | IPC |
 | --- | --- | --- | --- | --- | --- |
 | Left sidebar | `Super+A` | one button, hidden unless AI or translator is enabled | top-left | none | yes |
-| Right sidebar | `Super+N` | one button | top-right | none | yes |
-| Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up or down | yes |
+| Right panel (quick settings and notifications) | `Super+N` | the clock and the sliders glyph (`tune`) left of it, both drawn toggled while open; a dot on the clock while notifications are unread | top-right | none | yes, `sidebarRight`; `controlCenter` is an alias |
+| Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up to open, down to close | yes |
 | Search | `Super` | none | none | none | yes |
 | Launchpad | none, by decision | none | none | 4-finger spread and close | yes |
 | Cheatsheet | `Super+/` | none | none | none | yes |
 | Window actions | none, by decision | left-click the app identity in the left section | none | none | no |
 | Snap preview | none of its own, rides `Super+drag` | none | none | none | no |
-| Workspace hint | none | shown under the workspaces widget on a first run | none | none | no |
+| Workspace hint | none | shown under the workspaces widget on a first run; centred on the widget, which is as wide as the desks in use | none | none | no |
 | Screensaver | none | none | none | none | yes, called by hypridle at 120 s idle and closed on resume; any key or pointer motion on it also closes it, and the lock replaces it |
-| Bar popups: 1 agent usage, 2 battery, 3 pomodoro, 4 clock | `Super+Ctrl+1`..`4`, again or `Escape` to close | hover the widget | none | none | yes, `bar popup N`, `bar popupClose` |
-| Update badge | none | in the indicator cluster while updates are pending; click runs `koompi update`, middle-click rechecks | none | none | no |
+| Bar popups: 1 agent usage, 2 battery, 3 pomodoro, 4 clock (the date and the next tasks) | `Super+Ctrl+1`..`4`, again or `Escape` to close | hover the widget | none | none | yes, `bar popup N`, `bar popupClose` |
+| Update badge | none | its own glyph, no count, left of the status cluster (layout, Wi-Fi, battery) while updates are pending; click opens the updates popup (count, last check, Update now, Check again), click again or outside closes it, middle-click rechecks | none | none | no |
 
-Getting to one bar button per sidebar took a change on 2026-07-30.
-Three bar sections were left-click toggles for a sidebar on top of the dedicated button inside that same section: the right section of the horizontal bar, and both the top and bottom sections of the vertical bar.
-The consequence was that clicking the clock, the Pomodoro timer, or a gap between tray icons opened a sidebar.
-The horizontal bar's left section already did it correctly, with `acceptedButtons: Qt.NoButton` and a comment saying clicks belong to the dedicated button, so the fix was to make the other three match it.
-Those sections still exist for hover and for scroll-to-change-volume or brightness, which are wheel and hover behaviours and survive `NoButton`.
+The update badge is deliberately not part of any panel button: it used to sit inside the one that opened the right sidebar, and a click aimed at the panel could start a system upgrade.
+It is its own item with its own hit area, shows a glyph and never a count, and the upgrade runs only from the popup's Update now button, which opens a floating terminal running `koompi update` through Hyprland's Lua `hl.dsp.exec_cmd`.
+A bar popup hangs under the widget it belongs to and is clamped to the screen the bar is on, so the clock at the far right gets a popup that ends at the screen edge instead of running off it.
+
+The bar's right end reads, left to right: tray extras (tray, media, agent usage, a running pomodoro), the mode lights (recording, microphone in use, mic muted, volume muted, keep awake, night light, Do Not Disturb, dictation), the update glyph, the input source, Wi-Fi, the battery as a glyph with its percent, the sliders glyph, the clock.
+Every one is its own hit area, and every one answers a click; a glyph that only shows a tooltip reads as broken.
+The sliders glyph and the clock open the right panel. Wi-Fi opens it with the network list dropped down, the battery on its battery page, and the microphone-in-use light on the sound list; a second click closes it.
+The input source moves to the next layout, as `Super+Space` does. The other mode lights turn their mode off, and the recording light stops the recording.
+No strip-wide section takes a click: the right section of the horizontal bar, and both the top and bottom sections of the vertical bar, are `acceptedButtons: Qt.NoButton`, which leaves them hover and scroll-to-change-volume or brightness, wheel behaviours that survive it.
+The vertical bar has the same wiring: the sliders glyph at the bottom, the clock as a button in the middle group.
+Text on the bar reaches 4.5:1 against the bar over the worst wallpaper pixel (`tests/test_bar_contrast.sh`); that does not hold with `bar.showBackground` off.
 
 The window actions menu takes the one pointer path the app identity had spare, so a window's own actions are reachable without knowing a bind.
 Left-clicking the icon, app name, and title opens close, float, fullscreen, pin, and move to workspace for the focused window, and clicking again closes it.
@@ -70,6 +89,20 @@ Right-click on the identity stays free, and the menu takes no keyboard binding a
 Each entry shows the bind that does the same thing, which is the only place the window binds appear outside `Super+/`.
 It exists on the horizontal bar only, because the vertical bar shows no window identity to hang it off.
 `windows.actionsMenu` turns it off, default true.
+
+While an app is starting, the same identity answers for it, so Enter is never met with nothing.
+Its icon and name show over "Opening…" and pulse, from the moment of the launch until a window of that app maps or 8 s have passed, and then the identity is the focused window again.
+A window counts as the app's when it is the launched process, when its class resolves to the same desktop entry (`dolphin` on xcb and `org.kde.dolphin` on Wayland are one), when it carries the entry's `StartupWMClass`, or when its class is what was launched; it has to be a window that first showed up after the launch began, however late the shell heard of the launch.
+An app that raises the window it already has maps nothing, so the focus landing on a matching window ends the launch too.
+A window ends one launch for as long as it exists, and one focus move ends one, so starting an app twice shows "Opening" until its second window arrives.
+Several launches at once, which is how session restore starts its apps, are kept up to eight, the oldest forgotten first, and the bar shows the newest one still waiting.
+Each ends at its own window in whatever order the windows come, and one that never maps ends at its own 8 s without holding another up, though while it is the newest the bar keeps showing it.
+An app that runs in a terminal is not announced at all, because its window is the terminal's.
+Search, the Launchpad, the media controls and the dock tell the shell themselves, through `LauncherSearch.launch`.
+A key bind tells it through `koompi-launch`, which makes one background `qs ipc call launch begin` and never waits for it.
+While it shows, the focused window's menus and actions step aside, because they belong to the window being left, and the identity is not a click target.
+The pulse dims the icon and the name and never the "Opening…" line, and never below 70% opacity, which keeps the name at 4.5:1 contrast on the dark and the light palette; Reduce Motion holds that dimmest state instead of pulsing.
+With no window on the desktop the identity reads "Desktop" and nothing under it, because the bar's centre already shows the workspace.
 
 The snap preview takes no input path at all.
 `Super+drag` already moves a window, and `keybinds.lua` gives that same chord a second, `transparent` bind carrying `quickshell:snapPreviewDrag`, so the shell learns when a drag starts and ends without the drag itself changing.
@@ -84,8 +117,9 @@ It is dismissed by its own button and by nothing else, so no existing click, dra
 `windows.workspaceHelp` turns it off, default true.
 
 This matters more for the right sidebar than the count suggests.
-Opening it runs `GlobalStates.onSidebarRightOpenChanged`, which times out every popup and zeroes the unread count, so an accidental open silently clears the unread badge.
-No notification is discarded by it: `Notifications.markAllRead()` only sets `unread` to zero, and `timeoutAll()` only takes notifications off the popup layer.
+Opening it runs `GlobalStates.onSidebarRightOpenChanged`, which times out every popup at once, so the toasts get out of the way.
+A notification counts as read once it has been seen, so the unread count is zeroed only after the panel has stayed open for one second; closing it sooner leaves the count and the badge as they were, and an accidental open costs nothing.
+No notification is discarded by either step: `Notifications.markAllRead()` only sets `unread` to zero, and `timeoutAll()` only takes notifications off the popup layer.
 
 ## Edges
 
@@ -98,7 +132,12 @@ An edge never opens something from the other side.
 | Top-right corner, 250x5 px | right sidebar | yes |
 | Bottom corners | same, mirrored | no, `sidebar.cornerOpen.bottom` defaults to false |
 
-Corner activation as a whole is `sidebar.cornerOpen.enable`, default true, and only the corner pair matching `cornerOpen.bottom` is loaded at all.
+Corner activation as a whole is `sidebar.cornerOpen.enable`, default true, and only the corner pair matching `cornerOpen.bottom` hosts a hot corner.
+A corner window exists only while it has a job: drawing the fake screen rounding (`appearance.fakeScreenRounding`), or hosting its hot corner.
+The jobs are independent, so the hot corners work with the rounding off, and there each corner window is exactly its 250x5 region.
+Under a fullscreen window the hot corners are off, and so is the rounding unless `fakeScreenRounding` is 1 (always).
+A corner fires on a push: the pointer has to move inside the corner window after entering it, and it fires once per visit, so a pointer that crosses the last two pixels in more than one move does not open the sidebar and shut it again.
+Entering the window, or finding the pointer resting in it when a sidebar closes or the window appears, does not fire it, so a sidebar closed over IPC or with `Escape` stays closed.
 
 ## Gestures
 
@@ -107,7 +146,8 @@ Corner activation as a whole is `sidebar.cornerOpen.enable`, default true, and o
 | 3-finger swipe | move window |
 | 3-finger pinch | fullscreen |
 | 4-finger horizontal | switch workspace, walking numeric neighbours |
-| 4-finger up or down | Overview |
+| 4-finger up | open the Overview |
+| 4-finger down | close the Overview |
 | 4-finger spread | open Launchpad |
 | 4-finger close | close Launchpad |
 
@@ -132,7 +172,6 @@ Many shell binds have a second copy guarded by `qs ipc call TEST_ALIVE ||` that 
 | `Super+Shift+,` | dismiss every toast |
 | `Super+Alt+,` | open the newest toast: its default action, then dismissed |
 | `Super+Shift+Alt+,` | notification history, the right sidebar |
-| `Super+O` | reserved for Quickwork, unbound |
 | `Super+V` | clipboard history |
 | `Super+.` | emoji |
 | `Super+/` | cheatsheet |
@@ -140,7 +179,7 @@ Many shell binds have a second copy guarded by `qs ipc call TEST_ALIVE ||` that 
 | `Super+M` | media controls |
 | `Super+G` | widget overlay |
 | `Super+J` | bar |
-| `Ctrl+Alt+Delete` | session menu |
+| `Ctrl+Alt+Delete` | session menu: every tile is labelled; Shut down, Restart and Restart to firmware setup count down ten seconds first, and Escape or any other key cancels |
 | `Ctrl+Super+T` | wallpaper selector |
 | `Ctrl+Super+Alt+T` | random wallpaper |
 | `Ctrl+Super+Shift+D` | light/dark mode |
@@ -160,7 +199,7 @@ They set their own flags rather than aliasing `searchOpen`, which is what makes 
 | `Super+arrows` | focus in direction |
 | `Super+Shift+arrows` | move in direction |
 | `Super+Q` | close |
-| `Super+Shift+Alt+Q` | force kill |
+| `Super+Shift+Alt+Q` | force quit |
 | `Super+D` | maximize |
 | `Super+F` | fullscreen |
 | `Super+Alt+F` | fullscreen spoof |
@@ -170,7 +209,16 @@ They set their own flags rather than aliasing `searchOpen`, which is what makes 
 | `Super+;` and `Super+'` | split ratio |
 | `Super+Alt+1..0` | send to workspace |
 | `Super+Shift+PageUp/PageDown` | send to workspace left/right |
-| `Super+Alt+S` | send to scratchpad |
+| `Super+Alt+G` | group this window with others as tabs, or ungroup it |
+| `Super+Alt+arrows` | move this window into the group in that direction |
+| `Super+Shift+G` | pull this window out of its group |
+| `Super+Alt+]` and `Super+Alt+[` | next and previous tab of the group |
+
+A group is several windows in one tile.
+`Super+G` was already the widget overlay, so the group chords sit on `Super+Alt` and `Super+Shift+G` (`hyprland/keybinds_groups.lua`).
+The tab strip is Hyprland's groupbar, coloured from the matugen palette (`group` in `matugen/templates/hyprland/colors.lua`, shape in `hyprland/groups.lua`): the tab on show is primary with a title, the others are a quiet surface.
+The bar's app identity ends with `· 2/3` after the title while the focused window is in a group (`ActiveWindow.qml`, read from the window's `grouped` list, which the shell daemon already refetches on `togglegroup`, `moveintogroup` and `moveoutofgroup`).
+The overview draws a group as one tile, the tab on show, with a badge counting its tabs; typing a filter matches every tab's title.
 
 `Alt+F4` is caught and answered with a notification pointing at `Super+Q`, and is left non-consuming so Windows VMs still receive it.
 
@@ -178,12 +226,10 @@ They set their own flags rather than aliasing `searchOpen`, which is what makes 
 
 | Keys | Action |
 | --- | --- |
-| `Super+1..0` | focus workspace |
+| `Super+1..0` | focus workspace by its fixed number; the bar then shows it |
 | `Ctrl+Super+Left/Right` | focus workspace left/right |
 | `Super+PageUp/PageDown` | focus workspace left/right |
-| `Super+scroll` | focus workspace left/right |
-| `Super+S` | scratchpad |
-| `Ctrl+Super+S` | special workspace |
+| `Super+scroll` | focus workspace left (scroll up) or right (scroll down) |
 
 Number binds are duplicated on raw keycodes and on the keypad, because some layouts report number keys as other characters.
 
@@ -191,9 +237,9 @@ Number binds are duplicated on raw keycodes and on the keypad, because some layo
 
 | Keys | Action |
 | --- | --- |
-| `Print` | screenshot, region or full screen |
-| `Shift+Print` | whole screen to file and clipboard |
-| `Super+Shift+S` | region snip |
+| `Print` and `Super+Shift+S` | screen snip: drag a region, or take the whole screen from its toolbar |
+| `Shift+Print` | whole screen, saved to Pictures/Screenshots and copied, with a notification |
+| `Ctrl+Print` | the same, silently |
 | `Super+Shift+A` | region to image search |
 | `Super+Shift+X` | region to text, OCR |
 | `Super+Shift+T` | translate screen content |
@@ -224,6 +270,25 @@ The `XF86Audio*` and `XF86MonBrightness*` keys carry the same actions and are ma
 | lid close | lock, unless an external monitor is attached; suspend stays with logind and Keep awake still blocks it |
 | `Ctrl+Shift+Alt+Super+Delete` | shut down |
 
+### Scratchpads
+
+| Keys | Action |
+| --- | --- |
+| `Super+`` ` `` | terminal |
+| `Super+\` | system monitor |
+| `Super+Shift+D` | Discord |
+| `Super+H` | WhatsApp |
+| `Super+T` | Telegram |
+| `Super+S` | any window you put aside |
+| `Super+Alt+S` | send this window to that scratchpad |
+
+One pattern for all of them. Each app lives on its own special workspace, floating, centred, 70% x 70% of the screen (one rule block in `rules.lua`, one script, `toggle_app_scratchpad.sh`).
+Telegram is the one exception in shape: it sits down the left 58% of the screen and whatever it opens takes the right 42% (`rules_telegram.lua`).
+The first press starts the app if it is not running and shows it; the next press hides it and focus goes back to the window you had.
+On any desk the press shows it over that desk, so it follows you; it never tiles, and closing the app only means the next press starts it again.
+`Super+S` is the same toggle for the shared "put aside" workspace; windows sent there keep their own size.
+`Ctrl+Super+S` did the same as `Super+S` and is gone.
+
 ### Apps
 
 | Keys | Action |
@@ -235,20 +300,35 @@ The `XF86Audio*` and `XF86MonBrightness*` keys carry the same actions and are ma
 | `Super+X` | text editor |
 | `Super+I` | settings |
 | `Ctrl+Shift+Escape` | task manager |
-| `Super+`` ` `` | terminal panel |
-| `Super+\` | system monitor panel |
-| `Super+T` | Telegram panel |
 
 App binds are the one group that may grow, because they name what the user installed rather than what the shell owns.
-Anything opened as a scratchpad panel rather than a normal window is a shell surface and belongs to a role above.
+Anything opened as a scratchpad is a shell surface; see Scratchpads above.
 
-Every app bind, and every launch from Search, the Launchpad and the dock, goes through `koompi-launch`, which starts the app as its own `app-<id>-<n>.scope` in the user manager's `app.slice` with the session environment intact.
+Every app bind, and every launch from Search, the Launchpad, the dock, the waffle start menu and taskbar, and a restored session, goes through `koompi-launch`, which starts the app as its own `app-<id>-<n>.scope` in the user manager's `app.slice` with the session environment intact.
 That is what lets `systemd-oomd` kill one app under memory pressure instead of the whole session, because the session scope that holds Hyprland, the shell, hypridle and the wallpaper pipeline is never a candidate.
 A bind for something the session cannot lose keeps `hl.dsp.exec_cmd` and stays out of `app.slice`.
+
+`koompi-launch` also tells the running shell what is opening, in one background call before it starts the app, so the bar's app identity can say "Opening" until the window maps.
+The call names the launch id, the program that will own the window (for `launch_first_available.sh`, the candidate it will pick), the pid, which `exec` keeps, and the time the launch began, so a terminal whose window maps before the call has reached the shell still ends it.
+A shell surface that already told the shell passes `--registered`, and a launch inside a terminal says nothing, because its window is the terminal's.
+No shell running is silent, and any other failure is a line in the journal under `koompi-launch`.
+
+`koompi-launch` also chooses the platform of the Qt apps it starts.
+Qt exports a menubar to the bar only on X11, so Dolphin, Okular, Konsole and Ark start with `QT_QPA_PLATFORM=xcb` and show their menus in the bar, and every other Qt app runs on Wayland with its menus inside its own window.
+The session default in `hyprland/env.lua` is `wayland;xcb`, and the list is `xcb_menu_apps` at the top of `koompi-launch`.
+The shell itself runs with `QT_QPA_PLATFORM=wayland` and passes it to what it starts, so `koompi-launch` turns an inherited bare `wayland` into `wayland;xcb`, and a Qt app without a Wayland plugin still starts from Search, the Launchpad, the dock, the waffle start menu and taskbar, and a restored session.
+An app started outside `koompi-launch`, from a terminal or by D-Bus activation, runs on the platform of whatever started it, usually Wayland, and then has no menu in the bar.
+A window rule for a Qt app has to match its class on both platforms, because the same app reports `kdialog` on xcb and `org.kde.kdialog` on Wayland.
+The dock and a restored session match a window to its app by desktop entry, not by class.
+A pinned `org.kde.dolphin` and a running X11 `dolphin` are one dock entry, and a saved `dolphin` claims the window that `org.kde.dolphin` opens.
+A class with no entry to find (`kdialog`, `kdeconnect.app`) matches by its name without KDE's `org.kde.` prefix.
+A window that reports no class has no entry: looking an empty class up answers with an arbitrary app, so the dock, the waffle taskbar and the media panel skip the lookup.
+A restored session skips a saved window whose entry is `NoDisplay`, such as `kdialog`, which opens nothing when started bare, as it skips one with no entry.
 
 ### Kiri
 
 Kiri's voice binds live in `dots/.config/hypr/custom/keybinds.lua`, which is user-owned and never overwritten by an update.
+The migration `sdata/migrations/*-custom-keybind-descriptions.sh` brings the descriptions of the shipped lines in an existing copy up to the current wording: it rewrites only a line that is still exactly as KOOMPI shipped it, after a backup under `~/.local/state/koompi/backups/`, and leaves an edited or deleted line alone.
 
 | Keys | Action |
 | --- | --- |
@@ -257,6 +337,30 @@ Kiri's voice binds live in `dots/.config/hypr/custom/keybinds.lua`, which is use
 | `Super+Shift+K` | Khmer dictation |
 | `Super+Escape` | cancel dictation |
 | `Super+Alt+K` | Kiri settings |
+
+## The quick settings
+
+The machine's switches head the right panel (`Super+N`, layer `quickshell:sidebarRight`), above the notifications and the cards; the whole panel scrolls as one.
+There is no separate Control Center window and no `Super+Alt+N`.
+The `controlCenter` IPC target (`toggle`, `open`, `close`, `module <name>`) and the `controlCenterToggle` global shortcut are aliases that open this panel; `module` takes `wifi`, `bluetooth`, `sound` or `power` (expands that row's list) or `display`, `nowPlaying`, `battery` or `edit` (opens that page over the panel).
+
+The head is a grid of tiles, two to a row, same height, each with an icon, a name and one status line: Wi-Fi | Bluetooth (only with an adapter), Sound | Power profile (only where power-profiles-daemon runs), Do Not Disturb | Keep awake, Night Light | Dark mode, then the optional modules the user chose, left to right.
+Below the grid: the Brightness and Volume sliders at full width, then Now Playing (only while a player exists) and Battery (only on battery hardware) as full-width rows, and Edit as a pencil button in the head's corner.
+A tile that is on fills with the accent container colour.
+A tile with choices (Wi-Fi, Bluetooth, Sound, Power profile) opens a list when its body is clicked: the list spans the full width under that tile's row and pushes the rows below down, one open at a time.
+On those tiles the icon disc is the on/off switch (Wi-Fi, Bluetooth) or the mute switch (Sound), with its own hit area and focus; Power profile has no switch.
+Wi-Fi lists networks (a password prompt when needed), Bluetooth lists devices to connect or disconnect, Sound lists outputs and inputs, Power profile lists modes.
+Wi-Fi, Bluetooth and Sound end their list in a "More settings..." link that opens that Settings page through `koompi-settings <page>`.
+A tile with no choices flips on click.
+The one-shot captures (screen snip, colour picker, identify music, on-screen keyboard) are not here; they have keys and are Search commands.
+
+Keys: the arrows move across the tile grid in two dimensions and on past the sliders into the notifications; Tab walks the panel in order and reaches a tile's switch disc, where Space flips it; Enter on a tile with choices expands it, the arrows move inside the list, Enter picks.
+Escape folds the open list first; a second Escape closes the panel.
+Display, Now Playing, Battery and Edit open as pages over the panel, like the Calendar drawer, and Escape or Back returns.
+
+Edit lists every optional module with Shown or Hidden: Screen recording (on while a recording runs), Game mode, Power profile, Mic noise reduction (EasyEffects), Cloudflare WARP, Anti-flashbang and Audio input.
+The choice is `controlCenter.extraModules`, seeded once by `sdata/migrations/*-control-center-modules.sh` from the types in the user's stored `sidebar.quickToggles.android.toggles`.
+`tests/test_control_center.sh` drives all of this with real keys in a nested Hyprland.
 
 ## Super on its own
 
@@ -276,9 +380,21 @@ Mouse buttons are not exempt.
 
 One surface, one owner of its open state, one focus grab, and keyboard focus only while open.
 
+A closed surface does not exist.
+`LazySurface` in `modules/common/` builds a surface's window the moment its open flag turns on and releases it `keepWarm` after the flag turns off, two minutes unless the surface says otherwise, so open, close, open inside that time is one instance.
+The `IpcHandler`, the `GlobalShortcut`s and the state stay in the always-built `Scope` beside it, which is why keys and IPC still work with no window, and code outside the window reaches it as `surface.item`, never by an id inside it.
+A window built while its flag is already on never saw the flag change, so what it does when opened it also does from `Component.onCompleted`.
+The Launchpad, Search, Overview, the cheatsheet, both sidebars, the media controls, the session menu, the screensaver, the tour, the polkit prompt, the screen translator and the Settings window are built this way.
+Settings is hosted by the shell: `koompi-settings` asks the running shell over IPC (`settings toggle`, or `settings page <name>`), and only when that call fails does it start the standalone `settings.qml`, which hosts the same `SettingsContent`.
+Each of them but the polkit prompt reports `built`, whether its `LazySurface` holds an instance, and `tests/test_lazy_surfaces.sh` reads it while the surface is closed, open and just closed.
+The polkit prompt is left out of that test because its agent registers on the system bus.
+
 The shared mechanism is the `GlobalFocusGrab` singleton in `services/`.
 A surface calls `addDismissable` when it becomes visible and `removeDismissable` when it stops, and closes itself on the singleton's `dismissed` signal.
 A surface that should be inside the grab but must not be closed by a click outside, such as the bar and the on-screen keyboard, registers with `addPersistent` instead.
+The grab covers the persistent windows too once the keyboard is inside a dismissable window, or none of them takes the keyboard, and `focusIn` decides that by climbing from the window's one focused item to its content item.
+It must never visit every item below the content item: a binding depends on everything it reads, so a walk reruns for each item added while a window is built, and a cheatsheet built on open stayed blank for 8 s with the main thread pinned.
+`tests/test_grab_binding.sh` checks the list against the old walk and the cost of a cold open; a click outside, which needs a pointer, is not in it.
 `SearchPanel.qml` and `OverviewPanel.qml` are the reference implementations.
 
 Conformance as of 2026-07-30:
@@ -287,9 +403,9 @@ Conformance as of 2026-07-30:
 | --- | --- | --- |
 | Search | dismissable | gated on `searchOpen` |
 | Overview | dismissable | gated on `overviewOpen` |
-| Right sidebar | dismissable | gated on `sidebarRightOpen` |
-| Left sidebar | dismissable | unconditional `OnDemand`, harmless because the window is gated on `sidebarLeftOpen` |
-| Wallpaper selector | dismissable | unconditional `OnDemand`, window gated by its loader |
+| Right sidebar | dismissable unless pinned | gated on `sidebarRightOpen`, and after a click while pinned |
+| Left sidebar | dismissable unless pinned | gated on `sidebarLeftOpen`, and after a click while pinned |
+| Wallpaper selector | dismissable | gated on `wallpaperSelectorOpen` |
 | Media controls | dismissable | not set |
 | Bar popups | dismissable while keyboard-opened or click-pinned | `OnDemand` while keyboard-opened, so `Escape` reaches it |
 | Cheatsheet | dismissable | gated on `cheatsheetOpen` |
@@ -315,8 +431,50 @@ The snap preview and the first-run workspace hint are absent for the same reason
 
 A surface that is fullscreen but masked to a smaller item, like the cheatsheet, is the case that does need the grab: outside the mask the click reaches the window beneath, and the grab is the only thing that notices.
 
-The remaining gap is the one surface whose keyboard focus is set but not gated.
-The wallpaper selector and the left sidebar both ask for `OnDemand` unconditionally, which is currently harmless and will stop being harmless the moment either window outlives a single open.
+Every layer surface asks for the keyboard only while its own flag is open, as `flag ? OnDemand : None`; `tests/test_keyboard_focus_gated.sh` fails a bare `OnDemand` or `Exclusive`.
+The few windows that exist only while shown (modal dialogs, capture overlays, the session menu, the screensaver, the polkit prompt) are named in that test with the reason.
+
+A pinned side panel (the left sidebar's `Ctrl+P`, the right panel's pin button) is docked, not a popup.
+It leaves the grab, so a click outside does not close it; `Escape` inside it closes nothing and unpins nothing; and it asks for no keyboard (`None`) until it is clicked, which gives it `OnDemand` until it is unpinned or closed.
+Only the toggle (`Super+A`, `Super+N`) or the pin button closes it.
+The detached left sidebar is a floating toplevel, not a layer surface, so none of this applies to it.
+`tests/test_pinned_panel_focus.sh` drives both panels in nested Hyprland: pinned, after `Escape`, after a click outside, after a click inside, and unpinned again.
+A warm `LazySurface` window is built but not mapped, because a layer window that is not visible has no surface, so it does not count.
+
+## App icons
+
+Every app icon the shell draws goes through `AppIconPlate` (`modules/common/widgets`): the Launchpad, Search results, the dock, the Overview, the bar's workspace and active-window icons, and the waffle taskbar, start menu, task view and window previews.
+`tests/test_icon_plate_sites.sh` lists those sites and fails on one that draws an icon around the plate.
+
+The plate is a squircle whose corner is 28 % of its side and follows `rounding_power` (2.5), filled with the highest surface layer in dark mode and white in light, with a 1 px edge and an elevation-1 shadow.
+An icon sits at 72 % of the plate.
+When the active icon theme draws the icon itself and declares a full-bleed body (`app-icon-plate.js` lists the themes, WhiteSur-green at 6.25 % to 93.75 % of the canvas), the icon is cut to the squircle instead, so its body fills the plate and any overhang is clipped.
+The theme comes from `QS_ICON_THEME`, else `[Icons] Theme` in `kdeglobals`, and a theme with no entry is never masked.
+An icon that resolves to nothing (including `image-missing`) shows the first letter of the app's name on the plate.
+
+The plate's shadow and each masked icon are drawn once into a texture (`AppIconPlates`, keyed by size, colours and icon) and every plate reuses it, so nothing runs a shader per plate per frame.
+`tests/test_icon_plate_render.sh` counts the renders: sixteen animated plates cost one plate texture and one mask per distinct icon, and a second grid of the same icons costs none.
+Sizes snap up to 16, 24, 32, 48, 64, 96, 128, 192 or 256 for the texture and are scaled to the size asked for.
+
+## Motion
+
+One budget for every surface, from decision D6 of the 2026-10-07 audit: a panel or popup arrives in 200 ms and leaves in 150, a small move takes 120, the workspace slide takes 300, and nothing overshoots.
+The shell's half is the `animation` roles and the duration ladder in `modules/common/Appearance.qml`, and Hyprland's half is the leaves in `hyprland/general.lua`.
+`tests/test_motion.sh` and `tests/test_motion_hypr.sh` hold both, so a surface that picks a role instead of a number is on the budget without a decision.
+
+Search is a layer Hyprland does not animate, so its motion is the shell's alone.
+The right panel arrives and leaves through the shell's own move (below), and its drawer pages through the shell's.
+
+A panel that hangs from the bar comes out from beneath it, never across it.
+The founder asked for it on 2026-10-11, for a smoother drop: a card that slides down from the screen edge passes over the bar on its way, and the eye reads that as two things colliding.
+So such a panel's window starts at the bar's lower edge and clips its content, the card moves inside it with the enter and exit roles from a `reveal` property, the window stays visible until `reveal` reaches 0, and Hyprland does not animate the layer (`no_anim`).
+The right panel does this. Anything else under the bar, such as the wallpaper selector and the media controls, appears in place (Hyprland's popin). `tests/test_panel_under_bar.sh` fails on any `slide top` layer rule.
+
+`appearance.reduceMotion` (Settings, Quick, off by default) stops every spatial move in the shell, leaves fades at 100 ms, and turns Hyprland's animations off.
+Hyprland's half goes through `services/HyprlandModes.qml`, which also owns Game mode's hold on the same option, so neither can undo the other.
+The waffle panel family shares the ladder, so Reduce Motion reaches it the same way: with it on, every step of the ladder but `snap` is 0, and `Looks.transition`, `WStackView` and the bar panels' close follow.
+A step is therefore never a timer interval, so a Timer that needs a number writes it (`tests/test_motion.sh` fails on one that borrows a step).
+A loop whose duration can reach 0 stops under Reduce Motion, as `ThinkingIndicator` and the lock screen's fingerprint pulse do: `tests/test_motion.sh` reads every `loops: Animation.Infinite` in the shell and fails on one that borrows a step or a spatial role without a `running` that checks `reduceMotion`.
 
 ## The tour is a utility surface, not a role
 
@@ -330,14 +488,83 @@ It registers **persistent** rather than dismissable, which is the one place it d
 Each of its steps opens the real surface it is describing, and nearly all of those are dismissable; a dismissable tour would be closed by the shared grab the moment it demonstrated anything.
 That is the same reason the bar and the on-screen keyboard are persistent.
 
+KOOMPI is keyboard first, so the tour teaches the tiling moves before the mouse: focus with `Super+arrows`, move with `Super+Shift+arrows`, send to a desk with `Super+Alt+number`, `Alt+Tab` back to the last window.
+The cheatsheet puts the Window group in the first column and lists those rows first, in that order (`FIRST` in `cheatsheet-binds.js`, not the order of `keybinds.lua`).
+
+## Decided for Phase 2, not yet built
+
+Source: `docs/design/ux-audit-2026-10-07.md`, decisions D2, D3 and D4, and jobs J17 to J24 in the UX campaign.
+Each row moves into the tables above when its job ships.
+
+### Roles
+
+The six roles stay six.
+Two of them gain a second surface, and no new role is created.
+
+| Role | Change | Surface | Opened by | State |
+| --- | --- | --- | --- | --- |
+| Overview | gains the app switcher, its keyboard reflex for "take me back to that app" | `modules/koompi/appSwitcher/` | `Alt+Tab` held | `appSwitcherOpen` |
+| Overview | becomes Mission Control: the desks in use side by side, each drawn with its tiles where they sit, plus a `+` for the next free one; click a desk, drag a window onto a desk, arrows and `Enter`, typing filters | `OverviewPanel.qml` | `Super+Tab`, 4-finger up (down closes) | `overviewOpen` |
+| Today | the right sidebar becomes the Notification Center: date, notifications grouped by app, a System group, then the next events, weather, to-do and timer | `SidebarRight.qml` | `Super+N`, the clock | `sidebarRightOpen` |
+| Now | the left sidebar becomes one assistant: a 420 px drawer that opens the same thread in the Intelligence window | `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
+
+Quick settings and notifications answer one question, what the machine is doing, so they share one panel on the right edge.
+The app switcher joins Overview rather than founding a role: it answers "where are my windows" for the one window you want, and it claims no `Super` chord.
+
+### Entry points
+
+| Surface | Keyboard | Bar | Corner | Gesture | IPC |
+| --- | --- | --- | --- | --- | --- |
+| App switcher | `Alt+Tab`, `Alt+Shift+Tab` while held; a quick tap switches to the previous app without drawing | none | none | none | yes, `appSwitcher` |
+| Right panel | `Super+N` | the clock and the sliders glyph; a dot on the clock while notifications are unread | top-right | none | yes, `sidebarRight` |
+| Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up or down toggles it | yes |
+| Assistant drawer | `Super+A`; its header's Open in window hands the thread to `Super+Shift+I`'s window | one button, as today | top-left | none | yes |
+
+The panel button that wrapped the status indicators is gone.
+The clock and the sliders glyph are the only bar targets that open a panel, and the update glyph keeps its own hit area beside them.
+`Super+Alt+A` (detach left sidebar) is removed: the assistant comes in two sizes, the drawer and the Intelligence window.
+
+### Keyboard map
+
+| Keys | Action |
+| --- | --- |
+| `Alt+Tab` | app switcher: next app; release Alt to switch |
+| `Alt+Shift+Tab` | app switcher: previous app |
+| `Q`, `Escape`, arrows while `Alt` holds the switcher | close the selected app, cancel, move |
+| `Alt+grave` | next window of the current app, nothing drawn |
+
+`Super+grave` stays the terminal widget; window cycling takes `Alt+grave`, the switcher's own modifier.
+
+### Panel contract
+
+| Surface | Grab | Keyboard focus |
+| --- | --- | --- |
+| Notification Center | dismissable, unchanged from the right sidebar | gated on `sidebarRightOpen` |
+| App switcher | none: it lives while Alt is held and closes on release, `Escape` or a commit | `None`; its keys arrive as Hyprland binds in the `appswitcher` submap, so the window being left keeps focus until the switch |
+
+### Workspaces
+
+The bar shows the workspaces in use: the occupied desks of the current group of ten, the active desk if it is empty, and one empty "new desk" slot (the lowest free number), from one shared rule in `modules/common/functions/workspace-slots.js`.
+Desk numbers are fixed. Nothing is renumbered, created or destroyed by the bar, so `Super+<number>` always reaches that desk, and a gap stays a gap: desks 1, 2 and 5 in use draw 1, 2, 5 and an empty 3.
+`Super+<number>`, `Super+Alt+<number>` (the desk gets a window) and the 4-finger swipe onto an empty desk make that desk appear in the bar; it leaves again once it is empty and you are elsewhere.
+Slots fade and resize with the `elementMove` role, which Reduce Motion cuts to instant.
+`bar.workspaces.dynamic: false` (Settings, Bar, "Show only the workspaces in use") brings back the fixed row of `bar.workspaces.shown`.
+
 ## Rules for adding to this model
 
 A new capability joins an existing role.
 If it does not fit one, the model is wrong and this document changes first.
 
 A new bind carries a `description` prefixed with its group, or it will not appear in the cheatsheet.
+Binds in a group that share a description are one cheatsheet row listing every chord, simplest first, so a second chord for an action reuses its description word for word.
+A description says what happens and never names its keys, because the sheet prints the keys beside it.
+The AI key sends Super and Shift itself and Hyprland sees `SUPER + SHIFT + code:201`, so the sheet prints that chord as `AI`, and `Alt + AI` with Alt; no other key drops its modifiers.
+A run of numbered or directional binds (`Workspace: Focus 1` to `10`, `Window: Focus Left` to `Down`) becomes one row only when each key is the number or direction its own description names.
+The sheet keeps every row inside its column: a long description wraps and a wide chord wraps, and the page scrolls, with no scrollbar, when the rows outgrow the panel.
+On a screen under about 1420x890 the panel stops short of the screen edges and the bar: the Keybinds page scrolls as before and the Elements page makes its tiles smaller (down to 66x56 at 1366x768) so the whole table stays in view.
 
 A new panel registers with `GlobalFocusGrab` and gates `WlrLayershell.keyboardFocus` on its own open flag, both, not one.
+Its window is built through `LazySurface`, so it does not exist while it is closed.
 
 A surface gets exactly one keyboard entry point.
 Extra ways in belong to pointer and gesture, and each of those needs a reason to exist beyond being possible.

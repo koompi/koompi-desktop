@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
@@ -29,6 +30,21 @@ Loader {
             font.pixelSize: text.includes("\n") ? Appearance.font.pixelSize.smallie : Appearance.font.pixelSize.small
             color: root.color
             animateChange: true
+        }
+
+        // a click moves to the next layout, as Super+Space does
+        MouseArea {
+            id: layoutHover
+            anchors.fill: parent
+            anchors.margins: -4
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: Quickshell.execDetached(["hyprctl", "switchxkblayout", "all", "next"])
+        }
+        PopupToolTip {
+            extraVisibleCondition: layoutHover.containsMouse
+            anchorEdges: (!Config.options.bar.bottom && !Config.options.bar.vertical) ? Edges.Bottom : Edges.Top
+            text: HyprlandXkb.currentLayoutName + "\n" + Translation.tr("Click or Super+Space to switch")
         }
     }
 }

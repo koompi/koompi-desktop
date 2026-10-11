@@ -18,6 +18,7 @@ import "steps.js" as Steps
  */
 Scope {
     id: root
+    readonly property bool built: surface.item !== null
 
     readonly property var steps: Steps.steps
     property int index: 0
@@ -68,158 +69,166 @@ Scope {
             root.open();
     }
 
-    PanelWindow {
-        id: tourWindow
-        visible: GlobalStates.tourOpen
-        color: "transparent"
+    LazySurface {
+        id: surface
+        open: GlobalStates.tourOpen
+        keepWarm: 0
 
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
-        }
-        exclusiveZone: 0
-        WlrLayershell.namespace: "quickshell:tour"
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: GlobalStates.tourOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+        component: PanelWindow {
+            id: tourWindow
+            visible: GlobalStates.tourOpen
+            color: "transparent"
 
-        // Only the card takes input, so the surface a step just opened is still
-        // clickable underneath it.
-        mask: Region {
-            item: card
-        }
-
-        // Persistent, not dismissable: nearly every surface a step opens is
-        // itself dismissable and would take the shared grab, closing the tour
-        // the moment it demonstrated anything. Same reason the bar uses it.
-        onVisibleChanged: {
-            if (tourWindow.visible)
-                GlobalFocusGrab.addPersistent(tourWindow);
-            else
-                GlobalFocusGrab.removePersistent(tourWindow);
-        }
-
-        StyledRectangularShadow {
-            target: card
-        }
-
-        Rectangle {
-            id: card
-
-            // Keys belong on the card and focus on a child inside it: a
-            // PanelWindow is not in the focus chain, so a handler up there
-            // never sees an event. Cheatsheet.qml is the reference.
-            // Return and Space are left to the focused button below rather
-            // than handled here, or one press would advance twice.
-            Keys.onPressed: event => {
-                if (event.key === Qt.Key_Escape) {
-                    root.close();
-                    event.accepted = true;
-                } else if (event.key === Qt.Key_Right) {
-                    root.go(1);
-                    event.accepted = true;
-                } else if (event.key === Qt.Key_Left) {
-                    root.go(-1);
-                    event.accepted = true;
-                }
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
             }
-            // Low and to one side, so the surface each step opens stays visible.
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Appearance.sizes.elevationMargin + 40
-            implicitWidth: 460
-            implicitHeight: content.implicitHeight + 32
-            color: Appearance.m3colors.m3surfaceContainer
-            radius: Appearance.rounding.normal
-            border.width: 1
-            border.color: Appearance.colors.colLayer0Border
+            exclusiveZone: 0
+            WlrLayershell.namespace: "quickshell:tour"
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.keyboardFocus: GlobalStates.tourOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-            ColumnLayout {
-                id: content
-                anchors.centerIn: parent
-                width: parent.width - 32
-                spacing: 10
+            // Only the card takes input, so the surface a step just opened is still
+            // clickable underneath it.
+            mask: Region {
+                item: card
+            }
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
+            // Persistent, not dismissable: nearly every surface a step opens is
+            // itself dismissable and would take the shared grab, closing the tour
+            // the moment it demonstrated anything. Same reason the bar uses it.
+            onVisibleChanged: {
+                if (tourWindow.visible)
+                    GlobalFocusGrab.addPersistent(tourWindow);
+                else
+                    GlobalFocusGrab.removePersistent(tourWindow);
+            }
+            // released with the flag, before visible can turn false
+            Component.onDestruction: GlobalFocusGrab.removePersistent(tourWindow)
 
-                    MaterialSymbol {
-                        text: root.step?.icon ?? ""
-                        iconSize: Appearance.font.pixelSize.larger
-                        color: Appearance.m3colors.m3primary
+            StyledRectangularShadow {
+                target: card
+            }
+
+            Rectangle {
+                id: card
+
+                // Keys belong on the card and focus on a child inside it: a
+                // PanelWindow is not in the focus chain, so a handler up there
+                // never sees an event. Cheatsheet.qml is the reference.
+                // Return and Space are left to the focused button below rather
+                // than handled here, or one press would advance twice.
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_Escape) {
+                        root.close();
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Right) {
+                        root.go(1);
+                        event.accepted = true;
+                    } else if (event.key === Qt.Key_Left) {
+                        root.go(-1);
+                        event.accepted = true;
                     }
-                    StyledText {
+                }
+                // Low and to one side, so the surface each step opens stays visible.
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Appearance.sizes.elevationMargin + 40
+                implicitWidth: 460
+                implicitHeight: content.implicitHeight + 32
+                color: Appearance.m3colors.m3surfaceContainer
+                radius: Appearance.rounding.normal
+                border.width: 1
+                border.color: Appearance.colors.colLayer0Border
+
+                ColumnLayout {
+                    id: content
+                    anchors.centerIn: parent
+                    width: parent.width - 32
+                    spacing: 10
+
+                    RowLayout {
                         Layout.fillWidth: true
-                        text: Translation.tr(root.step?.title ?? "")
-                        font.pixelSize: Appearance.font.pixelSize.large
-                        font.weight: Font.DemiBold
-                    }
-                    StyledText {
-                        text: `${root.index + 1}/${root.steps.length}`
-                        color: Appearance.m3colors.m3outline
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                    }
-                }
+                        spacing: 8
 
-                StyledText {
-                    Layout.fillWidth: true
-                    text: Translation.tr(root.step?.body ?? "")
-                    wrapMode: Text.WordWrap
-                    color: Appearance.m3colors.m3onSurfaceVariant
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-                    visible: (root.step?.keys.length ?? 0) > 0
-
-                    Repeater {
-                        model: root.step?.keys ?? []
-
-                        delegate: RowLayout {
-                            id: cap
-                            required property int index
-                            required property string modelData
-                            spacing: 3
-
-                            StyledText {
-                                visible: cap.index > 0
-                                text: "+"
-                            }
-                            KeyboardKey {
-                                key: cap.modelData
-                            }
+                        MaterialSymbol {
+                            text: root.step?.icon ?? ""
+                            iconSize: Appearance.font.pixelSize.larger
+                            color: Appearance.m3colors.m3primary
+                        }
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: Translation.tr(root.step?.title ?? "")
+                            font.pixelSize: Appearance.font.pixelSize.large
+                            font.weight: Font.DemiBold
+                        }
+                        StyledText {
+                            text: `${root.index + 1}/${root.steps.length}`
+                            color: Appearance.m3colors.m3outline
+                            font.pixelSize: Appearance.font.pixelSize.smaller
                         }
                     }
-                    Item {
-                        Layout.fillWidth: true
-                    }
-                }
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    RippleButton {
-                        buttonText: Translation.tr("Skip")
-                        onClicked: root.close()
-                    }
-                    Item {
+                    StyledText {
                         Layout.fillWidth: true
+                        text: Translation.tr(root.step?.body ?? "")
+                        wrapMode: Text.WordWrap
+                        color: Appearance.m3colors.m3onSurfaceVariant
                     }
-                    RippleButton {
-                        buttonText: Translation.tr("Back")
-                        enabled: root.index > 0
-                        onClicked: root.go(-1)
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        visible: (root.step?.keys.length ?? 0) > 0
+
+                        Repeater {
+                            model: root.step?.keys ?? []
+
+                            delegate: RowLayout {
+                                id: cap
+                                required property int index
+                                required property string modelData
+                                spacing: 3
+
+                                StyledText {
+                                    visible: cap.index > 0
+                                    text: "+"
+                                }
+                                KeyboardKey {
+                                    key: cap.modelData
+                                }
+                            }
+                        }
+                        Item {
+                            Layout.fillWidth: true
+                        }
                     }
-                    RippleButton {
-                        // The focus owner for the whole surface, so the card
-                        // above receives arrow and Escape events at all.
-                        focus: tourWindow.visible
-                        buttonText: root.index === root.steps.length - 1 ? Translation.tr("Done") : Translation.tr("Next")
-                        onClicked: root.go(1)
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        RippleButton {
+                            buttonText: Translation.tr("Skip")
+                            onClicked: root.close()
+                        }
+                        Item {
+                            Layout.fillWidth: true
+                        }
+                        RippleButton {
+                            buttonText: Translation.tr("Back")
+                            enabled: root.index > 0
+                            onClicked: root.go(-1)
+                        }
+                        RippleButton {
+                            // The focus owner for the whole surface, so the card
+                            // above receives arrow and Escape events at all.
+                            focus: tourWindow.visible
+                            buttonText: root.index === root.steps.length - 1 ? Translation.tr("Done") : Translation.tr("Next")
+                            onClicked: root.go(1)
+                        }
                     }
                 }
             }

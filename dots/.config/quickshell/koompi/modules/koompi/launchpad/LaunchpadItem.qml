@@ -50,10 +50,12 @@ Item {
             implicitWidth: root.iconSize
             implicitHeight: root.iconSize
 
-            IconImage {
+            AppIconPlate {
                 id: appIcon
                 anchors.fill: parent
-                source: Quickshell.iconPath(root.entry?.icon ?? "", "image-missing")
+                iconName: root.entry?.icon ?? ""
+                label: root.entry?.name ?? ""
+                size: root.iconSize
                 // Shrinks under the spinner rather than hiding, so the tile
                 // still says which app is starting.
                 scale: root.launching ? 0.62 : (mouseArea.pressed ? 0.92 : 1)

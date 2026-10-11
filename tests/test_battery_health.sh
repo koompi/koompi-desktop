@@ -41,4 +41,13 @@ grep -qE '^[[:space:]]*(FileView|Process)[[:space:]]*\{' "$SERVICE" \
 grep -q 'power_supply/{native_path}/cycle_count' "$CRATE" \
     || fail "koompi-power no longer reads the sysfs cycle count"
 
+# Plugged in is UPower's OnBattery on the manager. Derived from the charge state, a
+# laptop resting at fully-charged on AC reads as unplugged.
+grep -q 'isPluggedIn: ShellServices.power?.plugged_in' "$SERVICE" \
+    || fail "Battery.isPluggedIn no longer reads the wire's plugged_in"
+grep -qE 'isPluggedIn:.*(isCharging|chargeState|PendingCharge)' "$SERVICE" \
+    && fail "Battery.isPluggedIn is derived from the charge state again"
+grep -q 'plugged_in: !on_battery' "$ROOT/shell-services/power/src/service.rs" \
+    || fail "plugged_in is no longer the inverse of UPower's OnBattery"
+
 echo "ok"

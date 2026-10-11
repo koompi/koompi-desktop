@@ -16,6 +16,8 @@ Singleton {
 
     property list<var> persistent: []
     property list<var> dismissable: []
+    // read by tests/test_grab_binding.sh
+    property alias grabbedWindows: grab.windows
 
     function dismiss() {
         root.dismissable = [];
@@ -52,17 +54,18 @@ Singleton {
         }
     }
 
-    function hasActive(element) {
-        return element?.activeFocus || Array.from(
-            element?.children
-        ).some(
-            (child) => hasActive(child)
-        );
+    // climb from the focused item: a tree walk inside a binding re-runs for every item added to the tree
+    function focusIn(window) {
+        const content = window?.contentItem;
+        let item = content?.Window.window?.activeFocusItem ?? null;
+        while (item && item !== content)
+            item = item.parent;
+        return item !== null;
     }
 
     HyprlandFocusGrab {
         id: grab
-        windows: root.dismissable.every(w => !w?.focusable) || root.dismissable.some(w => hasActive(w?.contentItem)) ? [...root.dismissable, ...root.persistent] : [...root.dismissable]
+        windows: root.dismissable.every(w => !w?.focusable) || root.dismissable.some(w => root.focusIn(w)) ? [...root.dismissable, ...root.persistent] : [...root.dismissable]
         active: root.dismissable.length > 0
         onCleared: () => {
             root.dismiss();

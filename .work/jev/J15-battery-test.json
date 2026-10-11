@@ -1,0 +1,18 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "finding": "J15's round-2 suite failed test_services_qml_bugs.sh (FAIL L5 a successful check counts the lines, count=7, want 3) right after the log line [Updates] Battery low, skipping the update check. Updates.batteryTooLow is Battery.isLow && !Battery.isCharging, and the host read BAT0 Discharging 17%, AC offline. The test passed in J15's round-1 suite on AC. So the test's result depends on the host battery: it fails on any machine that is low and unplugged. The fix is to pin the battery state in that probe; the test file is in no running worker's list.",
+    "slots": "Five workers run (J07, J13, J44, J08 round 2, J45); J15 handed back round 2, so one slot is free. Queue after them: J41 (crash watch scoping, test shells off the polkit agent, the test that starts the real easyeffects), J28, J29. Heavy runs are paused while the seat is on battery; a worker can still edit and run tests that need no compositor."
+  },
+  "questions": {
+    "J15_battery_test_routing": {
+      "type": "choice",
+      "instructions": "Where does pinning the battery in test_services_qml_bugs.sh go?",
+      "criteria": {
+        "j15_round3_now": "Resume J15 for it now in the free slot. Strongest case: J15 found and diagnosed it, the change is a few lines, and it needs no compositor, so the battery pause does not block it. Cost: one more round on J15.",
+        "into_j41": "Add it to J41's test-hygiene items and start J41 in the free slot. Strongest case: J41 owns test shells reading the live session's state, and the slot is used for a queued job. Cost: J41 is bigger, so this small fix lands later.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}

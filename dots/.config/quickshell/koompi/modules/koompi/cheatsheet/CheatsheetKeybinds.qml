@@ -14,10 +14,10 @@ Item {
     id: root
     property real padding: 4
     property var categoryColumns: [
+        ["Window", "Workspace"],
         ["Shell", "Kiri"],
-        ["App", ""],
-        ["Utilities", "Screen", "Media"],
-        ["Window", "Workspace", "Session"],
+        ["App", "Scratchpad"],
+        ["Utilities", "Screen", "Media", "Session"],
     ]
     implicitWidth: QsWindow?.window?.screen.width * 0.7 ?? 0
     implicitHeight: QsWindow?.window?.screen.height * 0.7 ?? 0
@@ -71,13 +71,26 @@ Item {
         GlobalStates.cheatsheetOpen = false;
     }
 
+    onQueryChanged: columnsFlick.contentY = 0
+
+    function arrive() {
+        columnsFlick.contentY = 0;
+        searchField.text = "";
+        searchField.forceActiveFocus();
+    }
+
+    Component.onCompleted: {
+        if (GlobalStates.cheatsheetOpen)
+            root.arrive();
+    }
+
     Connections {
         target: GlobalStates
         function onCheatsheetOpenChanged() {
-            if (!GlobalStates.cheatsheetOpen)
-                return;
-            searchField.text = "";
-            searchField.forceActiveFocus();
+            if (GlobalStates.cheatsheetOpen)
+                root.arrive();
+            else
+                columnsFlick.contentY = 0;
         }
     }
 
@@ -88,6 +101,7 @@ Item {
 
         ToolbarTextField {
             id: searchField
+            objectName: "cheatsheetSearch"
             Layout.fillHeight: false
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredWidth: 360
@@ -103,27 +117,40 @@ Item {
             }
         }
 
-        Row {
+        StyledFlickable {
+            id: columnsFlick
+            objectName: "cheatsheetColumns"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 10
+            clip: true
+            contentWidth: width
+            contentHeight: columnsRow.implicitHeight
+            ScrollBar.vertical: null // house rule: scrollable surfaces show no scrollbar
 
-            Repeater {
-                model: root.categoryColumns.length
-                delegate: Column {
-                    id: categoryColumn
-                    required property int index
-                    width: (parent.width - parent.spacing * (root.categoryColumns.length - 1)) / root.categoryColumns.length
-                    spacing: 10
+            Row {
+                id: columnsRow
+                width: columnsFlick.width
+                spacing: 10
 
-                    Repeater {
-                        model: root.categoriesForColumn(categoryColumn.index)
-                        delegate: CheatsheetKeybindsCategory {
-                            required property var modelData
-                            categoryName: modelData
-                            matchIds: root.matchIds
-                            firstMatchId: root.firstMatch?.id ?? -1
-                            activate: root.activate
+                Repeater {
+                    model: root.categoryColumns.length
+                    delegate: Column {
+                        id: categoryColumn
+                        required property int index
+                        width: (parent.width - parent.spacing * (root.categoryColumns.length - 1)) / root.categoryColumns.length
+                        spacing: 10
+
+                        Repeater {
+                            model: root.categoriesForColumn(categoryColumn.index)
+                            delegate: CheatsheetKeybindsCategory {
+                                required property var modelData
+                                objectName: "cheatsheetCategory"
+                                width: categoryColumn.width
+                                categoryName: modelData
+                                matchIds: root.matchIds
+                                firstMatchId: root.firstMatch?.id ?? -1
+                                activate: root.activate
+                            }
                         }
                     }
                 }

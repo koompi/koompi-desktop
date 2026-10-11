@@ -36,17 +36,17 @@ Item {
                 text: root.node?.audio.muted ? Translation.tr("Click to unmute") : Translation.tr("Click to mute")
             }
 
-            StyledImage {
+            AppIconPlate {
                 id: iconImg
                 anchors.fill: parent
                 visible: false
-                source: {
-                    let icon;
-                    icon = AppSearch.guessIcon(root.node?.properties["application.icon-name"] ?? "");
+                size: width
+                label: root.node?.properties["application.name"] ?? root.node?.properties["node.name"] ?? ""
+                iconName: {
+                    const icon = AppSearch.guessIcon(root.node?.properties["application.icon-name"] ?? "");
                     if (AppSearch.iconExists(icon))
-                        return Quickshell.iconPath(icon, "image-missing");
-                    icon = AppSearch.guessIcon(root.node?.properties["node.name"] ?? "");
-                    return Quickshell.iconPath(icon, "image-missing");
+                        return icon;
+                    return AppSearch.guessIcon(root.node?.properties["node.name"] ?? "");
                 }
             }
 
@@ -54,7 +54,7 @@ Item {
                 anchors.fill: iconImg
                 source: iconImg
                 desaturation: root.node?.audio.muted ? 1.0 : 0.0
-                visible: iconImg.source !== ""
+                visible: true
                 opacity: root.node?.audio.muted ? 0.4 : 1.0
 
                 Behavior on opacity {

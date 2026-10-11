@@ -16,8 +16,9 @@ the `omarchy-pkg-*` helper family, the 4.0 upgrade special case.
 Change the default when the fix lives in a file the sync already owns:
 anything under `dots/.config/quickshell/koompi/` or `dots/.config/hypr/hyprland/`, and
 `config.json` defaults, which `koompi-migrate` merges three-way (user values win).
-Every existing user picks it up at their next `koompi update` or `koompi-migrate --apply`
-with no extra code.
+Every existing user picks it up at their next `koompi update`, with no extra code.
+Both routes deliver the code trees: the git route copies them through `./setup update`, and a
+packaged update that the packages deliver runs `koompi-migrate --apply` once the upgrade has landed.
 
 Write a migration only when the state is outside those trees or the change is not a
 plain overwrite: a file the sync never touches (`~/.config/hypr/custom/`, `hypridle.conf`,
@@ -60,21 +61,50 @@ The slug is lowercase words joined by hyphens, and says what the script fixes.
   If a new install would break without the migration, the fix belongs in the defaults.
 - Never restart the shell or Hyprland.
   `koompi update` reloads after migrations; the login-time run already runs current code.
+- There is no "retry later": exit 0 writes the marker, and a non-zero exit fails `koompi update` and blocks every later migration.
+  A migration that needs something not yet on disk (`1791564120-koompi-icons-theme.sh` needs the theme) exits 0 and says why;
+  the code the sync owns has to apply the same change itself once the thing lands (`switchwall.sh` does for the icon theme).
 - A failing migration stops the run and leaves later ones pending; the user sees
   `FAILED <name>`.
   Exit non-zero on a real failure, not on "nothing to do".
+
+## Where they come from
+
+`koompi-migrate` reads every source the machine has, and a name found in more than one is one migration:
+
+- `/usr/share/koompi/migrations`, where the `koompi-shell` package installs `sdata/migrations`.
+- The checkout `./setup` recorded in `~/.local/state/koompi/repo-path`, the file `koompi update` reads to find the checkout it pulls.
+- The checkout the running copy sits in, when it is run from a clone.
+
+A packaged machine whose `koompi update` falls back to a checkout (the `[koompi]` repo is not published yet) has the first two.
+`KOOMPI_MIGRATE_MIGRATIONS_DIR` replaces all of them; the tests use it.
+A staged package tree (`makepkg`'s `pkgdir`) works as it stands, because the copy in its `bin/` also looks in `../share/koompi/migrations` and `../lib/koompi`.
 
 ## How they reach the user
 
 `koompi-migrate run` applies every pending migration in order and writes the marker
 after each success.
 `koompi-migrate --pending` lists them (exit 0 if any, 1 if none).
+
+`koompi update` on a packaged install that the packages deliver first runs `koompi-migrate --apply` (the sync), right after the upgrade.
+It sets `KOOMPI_MIGRATE_NO_RELOAD` for it, so the sync still pauses Hyprland's autoreload while it writes but leaves the reload to the update, which comes once and last.
+A failing sync fails the update on the spot, as a failing `./setup update` does on the git route: no migrations, no reload.
+The git route and the fallback to the checkout never call it, because `./setup update` has copied the trees.
+
+`koompi update` then runs `koompi-migrate run` on every route, in its own output: after the packages or the checkout are in place, and before it reloads the shell.
+On the git route it tells `./setup update` not to reload on its own (`KOOMPI_SETUP_NO_RELOAD`), so the reload still comes last.
+A failing migration does not stop the reload, because a migration is never load-bearing.
+It does fail the update: the output says which one failed, the update exits 1 instead of printing that it is up to date, and the failed migration and the ones after it stay pending.
+`koompi update --dry-run` says it would sync, lists what is pending, and runs nothing.
+`./setup update` on its own does not run migrations.
+
 At login, `koompi-migrate-notify.service` (`dots/.config/systemd/user/`) runs
 `koompi-migrate notify`: with nothing pending it exits; otherwise it waits for the shell to
 own `org.freedesktop.Notifications` and sends a toast through `koompi-notify-send`
 whose `--exec` opens the first terminal `variables.lua` prefers, running
 `koompi-migrate run --hold`.
-Login is the only trigger, and the unit's comment says why.
+That toast is how anything `koompi update` left pending is offered again, and how a machine updated by `./setup update` alone catches up.
+Login is the only other trigger, and the unit's comment says why.
 
 ## Worked example
 

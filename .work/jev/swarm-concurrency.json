@@ -1,0 +1,25 @@
+{
+  "project": "koompi-desktop",
+  "state": {
+    "ask": "Founder, 2026-10-07: identify the leftover UX work and assign a subagent swarm to tackle all of it.",
+    "leftover": "About 35 jobs: J04 finishing; Phase 1 J07 J08 J10 J11 J12 J13 J15 J16 (J09 running); Phase 2 eight surface jobs (Alt+Tab switcher, dynamic workspaces, overview, Control Center, Notification Center, bar order and contrast, blended Search, assistant drawer); Phase 3 twelve (mockups J14, session menu, Settings names and search, launchpad folders, wallpaper gallery, widget overlay labels, single-window gaps, glyph tuning, Reduce Transparency, and the icon plate, koompi-icons and cursor that wait for the founder's pick); Phase 4 three (content index, appmenu bridge, Now drawer); two small (ShortcutsConfig key names, translations).",
+    "dependencies": "J07 (lazy surfaces) rewrites how every surface loads and edits the root files of overview, sidebars, launchpad, cheatsheet, session screen and the panel families, so Phase 2 and most Phase 3 surface jobs follow it. J11 follows J07, J13 and the appmenu bridge follow J09, glyph tuning, gaps and Reduce Transparency follow J10 (Appearance.qml, general.lua). The icon plate, koompi-icons and cursor wait for the founder's mockup pick. Startable now with specs written and no file overlap with running jobs: J08, J10, J12, J14, J15, J16; J07 as soon as J04 merges.",
+    "machine": "The founder's live PC: 8 cores, 30 GB RAM with 15 GB available, load average 10 with only two workers running nested KWin/Hyprland tests. Each worktree is 4.7 GB; 144 GB free. Subagents run in-process, so their cost is the commands they run: nested compositor tests and full suites saturate the CPU and slow the founder's live desktop.",
+    "flakiness": "test_update_now_runs.sh failed 3 of 11 runs under concurrent nested sessions and passed every quiet run (J15).",
+    "mitigation": "The lead can add a machine-wide lock so only one nested-compositor run or full suite runs at a time (flock on /tmp/koompi-heavy.lock inside the harness tools and a heavy.sh wrapper workers must use for tests). Workers spend most of their time reading and writing code, so a lock costs waiting time, not throughput, at moderate concurrency.",
+    "verification": "The lead verifies every job before merge (diff review, re-running tests, looking at screenshots); finished jobs queue for review."
+  },
+  "questions": {
+    "swarm_concurrency": {
+      "type": "choice",
+      "instructions": "How many Sonnet workers should run at once, and how are heavy runs shared?",
+      "criteria": {
+        "six_with_heavy_lock": "Up to six workers at once, every nested-compositor run and full suite serialised by the heavy lock, J07 next on the critical path. Strongest case: all six startable jobs run now, the CPU never sees more than one compositor run, flakes and live-desktop slowdown stay at today's level.",
+        "four_with_heavy_lock": "Up to four at once with the heavy lock. Strongest case: less waiting on the lock and a shorter review queue for the lead, at the cost of startable jobs waiting for a slot.",
+        "eight_with_heavy_lock": "Up to eight at once with the heavy lock. Strongest case: every startable job plus the spec-writing runs immediately; the lock keeps CPU load bounded, but lock waits and the review queue grow.",
+        "all_unblocked_no_lock": "Start every job whose dependencies are met, with no lock. Strongest case: maximum parallel coding. Cost: several compositor runs at once on an 8-core live machine already at load 10, more flaky failures and a sluggish desktop for the founder.",
+        "need_more_facts": "Ask for more facts first."
+      }
+    }
+  }
+}
