@@ -8,6 +8,7 @@ import qs.modules.koompi.bar as Bar
 Item {
     id: root
     property bool borderless: Config.options.bar.borderless
+    property color color: Appearance.colors.colOnLayer0
     implicitHeight: column.implicitHeight
     implicitWidth: Appearance.sizes.verticalBarWidth
 
@@ -35,7 +36,7 @@ Item {
                             // Smaller "am"/"pm" text
                             return Appearance.font.pixelSize.large;
                     }
-                    color: Appearance.colors.colOnLayer1
+                    color: root.color
                     text: modelData.padStart(2, "0")
                 }
             }
@@ -43,7 +44,7 @@ Item {
         StyledText {
             anchors.horizontalCenter: parent.horizontalCenter
             font.pixelSize: Appearance.font.pixelSize.smallest
-            color: Appearance.colors.colOnLayer1
+            color: root.color
             text: DateTime.shortDate
         }
     }
@@ -52,6 +53,7 @@ Item {
         id: mouseArea
         anchors.fill: parent
         hoverEnabled: !Config.options.bar.tooltips.clickToShow
+        acceptedButtons: Qt.NoButton
 
         Bar.ClockWidgetPopup {
             hoverTarget: mouseArea

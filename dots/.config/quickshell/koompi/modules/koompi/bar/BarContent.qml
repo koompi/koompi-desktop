@@ -143,8 +143,8 @@ Item { // Bar content region
 
     FocusedScrollMouseArea { // Right side | scroll to change volume
         id: barRightSideMouseArea
-        // Hover and wheel only. A strip-wide toggle meant clicking the clock opened the
-        // right sidebar, which times out and marks read every notification.
+        // Hover and wheel only. The clock and the Control Center glyph own their clicks; a
+        // strip-wide toggle would open the Notification Center, which marks every notification read.
         acceptedButtons: Qt.NoButton
 
         anchors {
@@ -174,189 +174,10 @@ Item { // Bar content region
             id: rightSectionRowLayout
             anchors.fill: parent
             spacing: Appearance.spacing.normal
-            layoutDirection: Qt.RightToLeft
 
-            PluginSlot { // Time, far-right corner; date removed by default
-                pluginId: "koompi.clock"
-                builtin: ClockWidget { showDate: false }
-                Layout.alignment: Qt.AlignVCenter
-                Layout.rightMargin: Appearance.rounding.screenRounding
-            }
-
-            BarGroup { // Pomodoro, between the clock and the status indicators.
-                // Living in the centered middle group pushed the workspaces
-                // off true center whenever the timer was visible.
-                id: pomodoroGroup
-                Layout.alignment: Qt.AlignVCenter
-                // Only while a lap is actually under way. An untouched timer is
-                // started from the overflow control instead of sitting here.
-                visible: root.useShortenedForm === 0 && pomodoro.inSession
-
-                Pomodoro {
-                    id: pomodoro
-                    Layout.fillHeight: true
-                }
-            }
-
-            RippleButton { // Right sidebar button
-                id: rightSidebarButton
-                objectName: "rightSidebarButton"
-
-                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                Layout.fillWidth: false
-
-                implicitWidth: indicatorsRowLayout.implicitWidth + Appearance.spacing.small * 2
-                implicitHeight: indicatorsRowLayout.implicitHeight + Appearance.spacing.small * 2
-
-                buttonRadius: Appearance.rounding.full
-                colBackground: barRightSideMouseArea.hovered ? Appearance.colors.colLayer1Hover : ColorUtils.transparentize(Appearance.colors.colLayer1Hover, 1)
-                colBackgroundHover: Appearance.colors.colLayer1Hover
-                colRipple: Appearance.colors.colLayer1Active
-                colBackgroundToggled: Appearance.colors.colSecondaryContainer
-                colBackgroundToggledHover: Appearance.colors.colSecondaryContainerHover
-                colRippleToggled: Appearance.colors.colSecondaryContainerActive
-                toggled: GlobalStates.sidebarRightOpen
-                property color colText: toggled ? Appearance.m3colors.m3onSecondaryContainer : Appearance.colors.colOnLayer0
-
-                Behavior on colText {
-                    animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
-                }
-
-                onPressed: {
-                    GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen;
-                }
-
-                RowLayout {
-                    id: indicatorsRowLayout
-                    anchors.centerIn: parent
-                    property real realSpacing: Appearance.spacing.large
-                    spacing: 0
-
-                    // A recording is invisible once its start notification is
-                    // gone, and the region it captures may be off-screen, so the
-                    // bar carries the light for as long as it runs.
-                    Revealer {
-                        reveal: ScreenRecording.active
-                        Layout.fillHeight: true
-                        Layout.rightMargin: reveal ? indicatorsRowLayout.realSpacing : 0
-                        Behavior on Layout.rightMargin {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-                        }
-                        MaterialSymbol {
-                            text: "screen_record"
-                            iconSize: Appearance.font.pixelSize.larger
-                            color: Appearance.m3colors.m3error
-                            // A light that does not move reads as an icon.
-                            SequentialAnimation on opacity {
-                                running: ScreenRecording.active
-                                loops: Animation.Infinite
-                                NumberAnimation { to: 0.35; duration: 700; easing.type: Easing.InOutQuad }
-                                NumberAnimation { to: 1.0; duration: 700; easing.type: Easing.InOutQuad }
-                            }
-                        }
-                    }
-                    // Modes the user switched on and may have forgotten: keep
-                    // awake, night light, dictation. Click turns the mode off.
-                    ModeIndicators {
-                        Layout.fillHeight: true
-                        realSpacing: indicatorsRowLayout.realSpacing
-                        color: rightSidebarButton.colText
-                    }
-                    Revealer {
-                        reveal: Audio.sink?.audio?.muted ?? false
-                        Layout.fillHeight: true
-                        Layout.rightMargin: reveal ? indicatorsRowLayout.realSpacing : 0
-                        Behavior on Layout.rightMargin {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-                        }
-                        MaterialSymbol {
-                            text: "volume_off"
-                            iconSize: Appearance.font.pixelSize.larger
-                            color: rightSidebarButton.colText
-                        }
-                    }
-                    Revealer {
-                        reveal: Audio.source?.audio?.muted ?? false
-                        Layout.fillHeight: true
-                        Layout.rightMargin: reveal ? indicatorsRowLayout.realSpacing : 0
-                        Behavior on Layout.rightMargin {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-                        }
-                        MaterialSymbol {
-                            text: "mic_off"
-                            iconSize: Appearance.font.pixelSize.larger
-                            color: rightSidebarButton.colText
-                        }
-                    }
-                    HyprlandXkbIndicator {
-                        Layout.alignment: Qt.AlignVCenter
-                        Layout.rightMargin: indicatorsRowLayout.realSpacing
-                        color: rightSidebarButton.colText
-                    }
-                    Revealer {
-                        reveal: Notifications.silent || Notifications.unread > 0
-                        Layout.fillHeight: true
-                        Layout.rightMargin: reveal ? indicatorsRowLayout.realSpacing : 0
-                        implicitHeight: reveal ? notificationUnreadCount.implicitHeight : 0
-                        implicitWidth: reveal ? notificationUnreadCount.implicitWidth : 0
-                        Behavior on Layout.rightMargin {
-                            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-                        }
-                        NotificationUnreadCount {
-                            id: notificationUnreadCount
-                        }
-                    }
-                    MaterialSymbol {
-                        text: Network.materialSymbol
-                        fill: Network.connected ? 1 : 0
-                        iconSize: Appearance.font.pixelSize.larger
-                        color: rightSidebarButton.colText
-                        MouseArea {
-                            id: networkHover
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            acceptedButtons: Qt.NoButton
-                        }
-                        PopupToolTip {
-                            extraVisibleCondition: networkHover.containsMouse
-                            anchorEdges: (!Config.options.bar.bottom && !Config.options.bar.vertical) ? Edges.Bottom : Edges.Top
-                            text: Network.networkName !== "" ? Network.networkName : Translation.tr("Network")
-                        }
-                    }
-                }
-            }
-
-            UpdateBadge {} // outside the panel button: a click meant for it must not open updates
-
-            BatteryIndicator {
-                visible: (root.useShortenedForm < 2 && Battery.available)
-                Layout.alignment: Qt.AlignVCenter
-            }
-
-            BarGroup { // AI-agent token usage, immediately left of the battery.
-                Layout.alignment: Qt.AlignVCenter
-                visible: root.useShortenedForm === 0 && AgentUsage.available
-
-                AgentUsageIndicator {
-                    Layout.fillHeight: true
-                }
-            }
-
-            BarGroup { // Media, immediately left of the battery.
-                // This layout is RightToLeft, so declaring it after the battery
-                // is what puts it to the battery's left.
-                //
-                // The bar shed its media copy when the overflow control went and
-                // everything moved to the sidebar. It is back by request, but as
-                // a transport rather than a second panel: gated on real playback
-                // the same way the pomodoro is gated on a live lap, so the bar
-                // stays quiet when nothing is playing.
-                Layout.alignment: Qt.AlignVCenter
-                visible: root.useShortenedForm === 0 && MprisController.hasActiveMedia
-
-                Media {
-                    Layout.fillHeight: true
-                }
+            Item { // absorbs slack so the cluster pins to the right edge
+                Layout.fillWidth: true
+                Layout.fillHeight: true
             }
 
             SysTray {
@@ -366,14 +187,113 @@ Item { // Bar content region
                 invertSide: Config?.options.bar.bottom
             }
 
-            // The overflow "..." control lived here. Everything behind it -
-            // utility actions, weather, media, the pomodoro - moved to the right
-            // sidebar. Media and the pomodoro have since come back to the bar as
-            // transports, each only on screen while it has something to show.
+            BarGroup { // Media, only while something plays
+                Layout.alignment: Qt.AlignVCenter
+                visible: root.useShortenedForm === 0 && MprisController.hasActiveMedia
 
-            Item { // Leftmost in RTL: absorbs slack so the cluster pins to the right edge
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                Media {
+                    Layout.fillHeight: true
+                }
+            }
+
+            BarGroup { // AI-agent token usage
+                Layout.alignment: Qt.AlignVCenter
+                visible: root.useShortenedForm === 0 && AgentUsage.available
+
+                AgentUsageIndicator {
+                    Layout.fillHeight: true
+                }
+            }
+
+            BarGroup { // Pomodoro, only while a lap is under way. Living in the
+                // centered middle group pushed the workspaces off true center.
+                id: pomodoroGroup
+                Layout.alignment: Qt.AlignVCenter
+                visible: root.useShortenedForm === 0 && pomodoro.inSession
+
+                Pomodoro {
+                    id: pomodoro
+                    Layout.fillHeight: true
+                }
+            }
+
+            ModeIndicators { // each only while on, each its own hit area
+                Layout.alignment: Qt.AlignVCenter
+            }
+
+            UpdateBadge {}
+
+            HyprlandXkbIndicator {
+                Layout.alignment: Qt.AlignVCenter
+                color: Appearance.colors.colOnLayer0
+            }
+
+            MaterialSymbol {
+                Layout.alignment: Qt.AlignVCenter
+                text: Network.materialSymbol
+                fill: Network.connected ? 1 : 0
+                iconSize: Appearance.font.pixelSize.larger
+                color: Appearance.colors.colOnLayer0
+                MouseArea {
+                    id: networkHover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                }
+                PopupToolTip {
+                    extraVisibleCondition: networkHover.containsMouse
+                    anchorEdges: (!Config.options.bar.bottom && !Config.options.bar.vertical) ? Edges.Bottom : Edges.Top
+                    text: Network.networkName !== "" ? Network.networkName : Translation.tr("Network")
+                }
+            }
+
+            BatteryIndicator {
+                visible: (root.useShortenedForm < 2 && Battery.available)
+                Layout.alignment: Qt.AlignVCenter
+            }
+
+            BarPanelButton { // Control Center
+                id: controlCenterButton
+                objectName: "controlCenterButton"
+                colBackground: Appearance.colors.colBarElementBackground
+                toggled: GlobalStates.controlCenterOpen
+                tooltip: Translation.tr("Control Center")
+                onClicked: GlobalStates.controlCenterOpen = !GlobalStates.controlCenterOpen
+
+                contentItem: MaterialSymbol {
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    text: "tune"
+                    fill: GlobalStates.controlCenterOpen ? 1 : 0
+                    iconSize: Appearance.font.pixelSize.larger
+                    color: controlCenterButton.colText
+                }
+            }
+
+            BarPanelButton { // clock: opens the Notification Center
+                objectName: "clockButton"
+                Layout.rightMargin: Appearance.rounding.screenRounding - Appearance.spacing.small
+                rightPadding: 10 // room for the unread dot beside the digits
+                implicitWidth: contentItem.implicitWidth + Appearance.spacing.small * 2 + rightPadding
+                toggled: GlobalStates.sidebarRightOpen
+                onClicked: GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen
+
+                contentItem: PluginSlot { // time, far-right corner; date removed by default
+                    pluginId: "koompi.clock"
+                    builtin: ClockWidget {
+                        showDate: false
+                        color: GlobalStates.sidebarRightOpen ? Appearance.m3colors.m3onSecondaryContainer : Appearance.colors.colOnLayer0
+                    }
+                }
+
+                NotificationUnreadCount {
+                    anchors {
+                        right: parent.right
+                        top: parent.top
+                        rightMargin: 4
+                        topMargin: 9
+                    }
+                }
             }
         }
     }

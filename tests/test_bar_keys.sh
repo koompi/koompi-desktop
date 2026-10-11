@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # J34: the update badge on the KOOMPI bar (O09) and bar popups by keyboard (O34).
-# J01: the badge is its own item beside the panel button and opens an updates
+# J01: the badge is its own item beside the status cluster and opens an updates
 # popup; the clock popup stays on a narrow screen. Headless: KWin's virtual
 # backend hosts a nested shell with KOOMPI_UPDATES_FORCE=12 and the probe
 # measures real geometry. BAR_SHOT=<path> keeps the bar image, with
@@ -186,16 +186,16 @@ ShellRoot {
 
     function checkBadge(win) {
         const badge = probe.findNamed(win.contentItem, "updateBadge");
-        const panel = probe.findNamed(win.contentItem, "rightSidebarButton");
+        const panel = probe.findNamed(win.contentItem, "controlCenterButton");
         if (!badge || !panel) {
-            probe.verdict(false, "badge and panel button found: badge=" + !!badge + " panel=" + !!panel);
+            probe.verdict(false, "badge and Control Center glyph found: badge=" + !!badge + " glyph=" + !!panel);
             return;
         }
         const b = badge.mapToItem(null, 0, 0);
         const p = panel.mapToItem(null, 0, 0);
         const gap = p.x - (b.x + badge.width);
         probe.verdict(badge.visible && badge.width >= 24 && badge.height >= 24, "badge lit with a hit area of " + badge.width + "x" + badge.height);
-        probe.verdict(gap >= 0 && gap <= 20, "badge sits left of the panel button, outside it: gap " + gap + "px (badge x " + b.x + ".." + (b.x + badge.width) + ", panel x " + p.x + ".." + (p.x + panel.width) + ")");
+        probe.verdict(gap >= 0 && gap <= 160, "badge sits left of the status cluster and the Control Center glyph, outside both: gap " + gap + "px (badge x " + b.x + ".." + (b.x + badge.width) + ", glyph x " + p.x + ".." + (p.x + panel.width) + ")");
         probe.verdict(typeof badge.middleClickAction === "function", "middle-click on the badge still checks again");
     }
 
@@ -305,5 +305,5 @@ if [[ -n "${BAR_SHOT:-}" ]]; then
     cp "$WORK/out/updates.png" "${BAR_SHOT%.png}-updates.png"
     echo "     bar image at $BAR_SHOT, popups at ${BAR_SHOT%.png}-popup.png and ${BAR_SHOT%.png}-updates.png"
 fi
-(( failed )) || echo "ok   headless: 12 forced updates, badge beside the panel button, popups inside the screen, clock popup over IPC, updates popup over clicks"
+(( failed )) || echo "ok   headless: 12 forced updates, badge beside the status cluster, popups inside the screen, clock popup over IPC, updates popup over clicks"
 exit $failed

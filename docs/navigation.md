@@ -59,8 +59,8 @@ The horizontal bar and the vertical bar are alternative bars, so a given session
 | Surface | Keyboard | Bar | Corner | Gesture | IPC |
 | --- | --- | --- | --- | --- | --- |
 | Left sidebar | `Super+A` | one button, hidden unless AI or translator is enabled | top-left | none | yes |
-| Notification Center (right sidebar) | `Super+N` | one button | top-right | none | yes |
-| Control Center | `Super+Alt+N`, the global shortcut `controlCenterToggle` | its own glyph, left of the clock (the bar job, not built yet) | none | none | yes, `controlCenter` |
+| Notification Center (right sidebar) | `Super+N` | the clock, drawn toggled while open; a dot on it while notifications are unread | top-right | none | yes |
+| Control Center | `Super+Alt+N`, the global shortcut `controlCenterToggle` | its own sliders glyph (`tune`), left of the clock, drawn toggled while open | none | none | yes, `controlCenter` |
 | Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up or down | yes |
 | Search | `Super` | none | none | none | yes |
 | Launchpad | none, by decision | none | none | 4-finger spread and close | yes |
@@ -69,18 +69,18 @@ The horizontal bar and the vertical bar are alternative bars, so a given session
 | Snap preview | none of its own, rides `Super+drag` | none | none | none | no |
 | Workspace hint | none | shown under the workspaces widget on a first run; centred on the widget, which is as wide as the desks in use | none | none | no |
 | Screensaver | none | none | none | none | yes, called by hypridle at 120 s idle and closed on resume; any key or pointer motion on it also closes it, and the lock replaces it |
-| Bar popups: 1 agent usage, 2 battery, 3 pomodoro, 4 clock | `Super+Ctrl+1`..`4`, again or `Escape` to close | hover the widget | none | none | yes, `bar popup N`, `bar popupClose` |
-| Update badge | none | its own glyph, no count, left of the right-panel button while updates are pending; click opens the updates popup (count, last check, Update now, Check again), click again or outside closes it, middle-click rechecks | none | none | no |
+| Bar popups: 1 agent usage, 2 battery, 3 pomodoro, 4 clock (the date and the next tasks) | `Super+Ctrl+1`..`4`, again or `Escape` to close | hover the widget | none | none | yes, `bar popup N`, `bar popupClose` |
+| Update badge | none | its own glyph, no count, left of the status cluster (layout, Wi-Fi, battery) while updates are pending; click opens the updates popup (count, last check, Update now, Check again), click again or outside closes it, middle-click rechecks | none | none | no |
 
-The update badge is deliberately not part of the right-panel button: it used to sit inside it, and a click aimed at the panel could start a system upgrade.
+The update badge is deliberately not part of any panel button: it used to sit inside the one that opened the right sidebar, and a click aimed at the panel could start a system upgrade.
 It is its own item with its own hit area, shows a glyph and never a count, and the upgrade runs only from the popup's Update now button, which opens a floating terminal running `koompi update` through Hyprland's Lua `hl.dsp.exec_cmd`.
 A bar popup hangs under the widget it belongs to and is clamped to the screen the bar is on, so the clock at the far right gets a popup that ends at the screen edge instead of running off it.
 
-Getting to one bar button per sidebar took a change on 2026-07-30.
-Three bar sections were left-click toggles for a sidebar on top of the dedicated button inside that same section: the right section of the horizontal bar, and both the top and bottom sections of the vertical bar.
-The consequence was that clicking the clock, the Pomodoro timer, or a gap between tray icons opened a sidebar.
-The horizontal bar's left section already did it correctly, with `acceptedButtons: Qt.NoButton` and a comment saying clicks belong to the dedicated button, so the fix was to make the other three match it.
-Those sections still exist for hover and for scroll-to-change-volume or brightness, which are wheel and hover behaviours and survive `NoButton`.
+The bar's right end reads, left to right: tray extras (tray, media, agent usage, a running pomodoro), the mode lights (recording, microphone in use, mic muted, volume muted, keep awake, night light, Do Not Disturb, dictation), the update glyph, the input source, Wi-Fi, the battery as a glyph with its percent, the Control Center glyph, the clock.
+Every one is its own hit area, and the only two that open a panel are the Control Center glyph and the clock.
+No strip-wide section takes a click: the right section of the horizontal bar, and both the top and bottom sections of the vertical bar, are `acceptedButtons: Qt.NoButton`, which leaves them hover and scroll-to-change-volume or brightness, wheel behaviours that survive it.
+The vertical bar has the same wiring: the sliders glyph at the bottom, the clock as a button in the middle group.
+Text on the bar reaches 4.5:1 against the bar over the worst wallpaper pixel (`tests/test_bar_contrast.sh`); that does not hold with `bar.showBackground` off.
 
 The window actions menu takes the one pointer path the app identity had spare, so a window's own actions are reachable without knowing a bind.
 Left-clicking the icon, app name, and title opens close, float, fullscreen, pin, and move to workspace for the focused window, and clicking again closes it.
@@ -483,7 +483,7 @@ The app switcher joins Overview rather than founding a role: it answers "where a
 | Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up or down toggles it | yes |
 | Assistant drawer | `Super+A`; its header's Open in window hands the thread to `Super+Shift+I`'s window | one button, as today | top-left | none | yes |
 
-The panel button that wrapped the status indicators goes away.
+The panel button that wrapped the status indicators is gone.
 The clock and the Control Center glyph are the only bar targets that open a panel, and the update glyph keeps its own hit area beside them.
 `Super+Alt+A` (detach left sidebar) is removed: the assistant comes in two sizes, the drawer and the Intelligence window.
 

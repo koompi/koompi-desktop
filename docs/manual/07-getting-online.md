@@ -2,7 +2,7 @@
 
 ## Wi-Fi
 
-Press `Super+N` for the right-hand panel.
+Click the sliders glyph left of the clock, or press `Super+Alt+N`, for the Control Center.
 The tile marked **Internet** shows the network you are on.
 
 Click the tile to turn Wi-Fi off and on.

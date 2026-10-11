@@ -5,7 +5,7 @@ import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 
-// its own item beside the panel button: a click meant for the panel must not reach updates
+// its own item beside the status cluster: a click meant for a panel glyph must not reach updates
 Revealer {
     id: root
 
