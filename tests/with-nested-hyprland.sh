@@ -25,7 +25,8 @@ fi
 
 [[ $# -gt 0 ]] || { echo "usage: with-nested-hyprland.sh CMD..." >&2; exit 2; }
 WORK="$(mktemp -d)"
-RUN="$(mktemp -d "${TMPDIR:-/tmp}/nh.XXXXXX")"
+# under /tmp: a unix socket path in a longer TMPDIR passes sun_path's 108 bytes
+RUN="$(mktemp -d /tmp/nh.XXXXXX)"
 trap 'rm -rf "$WORK" "$RUN"' EXIT
 chmod 700 "$RUN"
 home="$WORK/home"
