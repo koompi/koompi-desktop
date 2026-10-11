@@ -6,6 +6,7 @@ const engine_mod = @import("engine.zig");
 const Engine = engine_mod.Engine;
 
 const default_startup_timeout_ms = 5000;
+const watchdog_grace_ms = 2000;
 const max_command_bytes = 64 * 1024;
 
 pub fn main() u8 {
@@ -30,13 +31,38 @@ pub fn main() u8 {
     var engine = Engine.init(gpa, &emitter);
     defer engine.deinit();
 
-    engine.start(startupTimeoutMs()) catch |err| {
+    const budget_ms = startupTimeoutMs();
+    var watchdog: Watchdog = .{ .engine = &engine, .budget_ms = budget_ms + watchdog_grace_ms };
+    if (std.Thread.spawn(.{}, Watchdog.run, .{&watchdog})) |thread| thread.detach() else |_| {}
+
+    engine.start(budget_ms) catch |err| {
         engine.emitUnavailable(reasonFor(err), messageFor(err));
-        return 1;
+        // the loop thread's teardown can block under load; the report is out and stdout is unbuffered
+        std.process.exit(1);
     };
+    watchdog.done.store(true, .release);
 
     return serve(&engine, gpa);
 }
+
+/// Ends a start that the budget inside `Engine.start` failed to bound, such as a connect that blocks.
+const Watchdog = struct {
+    engine: *Engine,
+    budget_ms: u64,
+    done: std.atomic.Value(bool) = .init(false),
+
+    fn run(self: *Watchdog) void {
+        var waited: u64 = 0;
+        while (waited < self.budget_ms) : (waited += 50) {
+            if (self.done.load(.acquire)) return;
+            const nap: std.c.timespec = .{ .sec = 0, .nsec = 50 * std.time.ns_per_ms };
+            _ = std.c.nanosleep(&nap, null);
+        }
+        if (self.done.load(.acquire)) return;
+        self.engine.emitUnavailable("startup_timeout", messageFor(error.StartupTimeout));
+        std.process.exit(1);
+    }
+};
 
 fn startupTimeoutMs() u64 {
     const raw = std.c.getenv("AUDIOD_STARTUP_TIMEOUT_MS") orelse return default_startup_timeout_ms;
