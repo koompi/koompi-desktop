@@ -1,8 +1,10 @@
+import qs
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 
 // Notices from the machine itself, folded by summary: six identical rows are one row reading ×6.
 Rectangle {
@@ -97,6 +99,34 @@ Rectangle {
                         font.pixelSize: Appearance.font.pixelSize.smaller
                         color: Appearance.colors.colSubtext
                         text: sysRow.modelData.body
+                    }
+                }
+                SmallButton { // a file: copy where it is
+                    id: copyButton
+                    objectName: "nc-syscopy-" + sysRow.index
+                    property bool copied: false
+                    visible: sysRow.modelData.path !== ""
+                    glyph: copied ? "check" : "content_copy"
+                    tip: Translation.tr("Copy path")
+                    onClicked: {
+                        Quickshell.clipboardText = sysRow.modelData.path;
+                        copyButton.copied = true;
+                        copiedTimer.restart();
+                    }
+                    Timer {
+                        id: copiedTimer
+                        interval: 1500
+                        onTriggered: copyButton.copied = false
+                    }
+                }
+                SmallButton { // a file: show it, selected, in the file manager
+                    objectName: "nc-sysfolder-" + sysRow.index
+                    visible: sysRow.modelData.path !== ""
+                    glyph: "folder_open"
+                    tip: Translation.tr("Show in folder")
+                    onClicked: {
+                        Notifications.showInFolder(sysRow.modelData.path);
+                        GlobalStates.sidebarRightOpen = false;
                     }
                 }
                 SmallButton {

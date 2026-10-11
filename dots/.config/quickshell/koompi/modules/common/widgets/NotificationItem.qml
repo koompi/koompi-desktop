@@ -22,10 +22,7 @@ Item { // Notification item area
     property bool hasExec: (root.notificationObject?.execArgv?.length ?? 0) > 0
     property bool dragged: false
     // a notification about a file (a screenshot, a download) names it as its whole body
-    readonly property string filePath: {
-        const body = (root.notificationObject?.body ?? "").trim().replace(/^file:\/\//, "");
-        return /^\/[^\n<>]+$/.test(body) ? body : "";
-    }
+    readonly property string filePath: Notifications.bodyFile(root.notificationObject?.body ?? "")
 
     property real dragConfirmThreshold: 70 // Drag further to discard notification
     property real dismissOvershoot: notificationIcon.implicitWidth + 20 // Account for gaps and bouncy animations
@@ -327,8 +324,7 @@ Item { // Notification item area
                                 urgency: notificationObject.urgency
                                 buttonText: Translation.tr("Show in folder")
                                 onClicked: {
-                                    // FileManager1 selects the file; the folder's own default app may not be a file manager
-                                    Quickshell.execDetached(["bash", "-c", 'gdbus call --session --dest org.freedesktop.FileManager1 --object-path /org/freedesktop/FileManager1 --method org.freedesktop.FileManager1.ShowItems "[\'file://$1\']" "" >/dev/null 2>&1 || xdg-open "$(dirname "$1")"', "koompi-show", root.filePath]);
+                                    Notifications.showInFolder(root.filePath);
                                     GlobalStates.sidebarRightOpen = false;
                                 }
                             }

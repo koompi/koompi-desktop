@@ -228,6 +228,15 @@ Singleton {
         root.unread = 0;
     }
 
+    function bodyFile(body) {
+        return System.filePath(body);
+    }
+
+    // FileManager1 opens the folder with the file selected; a folder's default app may be an editor
+    function showInFolder(path) {
+        Quickshell.execDetached(["bash", "-c", 'gdbus call --session --dest org.freedesktop.FileManager1 --object-path /org/freedesktop/FileManager1 --method org.freedesktop.FileManager1.ShowItems "[\'file://$1\']" "" >/dev/null 2>&1 || xdg-open "$(dirname "$1")"', "koompi-show", path]);
+    }
+
     function discardNotification(id) {
         console.log("[Notifications] Discarding notification with ID: " + id);
         const index = root.list.findIndex((notif) => notif.notificationId === id);
