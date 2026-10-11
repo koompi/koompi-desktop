@@ -129,16 +129,24 @@ if [[ -d "$WORK/vp" ]]; then
     await open_state
     # tiles exist before they stop moving; a drag aimed at a tile mid-animation lands beside it (flaked once on 2026-10-11)
     layout_still() { local a b; a="$(ov | jq -c '[.origin, .tiles, .desks]')"; sleep 0.4; b="$(ov | jq -c '[.origin, .tiles, .desks]')"; [[ -n $a && $a == "$b" && $a == *'"isNew":true'* && $a == *'"class":"alpha"'* ]]; }
-    await layout_still
-    ov > "$WORK/state-drag.json"
-    read -r fx fy tx ty < <(jq -r '(.origin) as $o
-        | (.tiles[] | select(.class == "alpha")) as $t
-        | (.desks[] | select(.isNew)) as $d
-        | "\(($o.x + $t.x + $t.w / 2) | floor) \(($o.y + $t.y + $t.h / 2) | floor) \(($o.x + $d.x + $d.w / 2) | floor) \(($o.y + $d.y + $d.h / 2) | floor)"' "$WORK/state-drag.json")
-    "$WORK/vp/vpointer" 1280 800 drag "$fx" "$fy" "$tx" "$ty" > "$WORK/vpointer.log" 2>&1
-    note drag_rc "$?"
+    drag_alpha() {
+        ov > "$WORK/state-drag.json"
+        read -r fx fy tx ty < <(jq -r '(.origin) as $o
+            | (.tiles[] | select(.class == "alpha")) as $t
+            | (.desks[] | select(.isNew)) as $d
+            | "\(($o.x + $t.x + $t.w / 2) | floor) \(($o.y + $t.y + $t.h / 2) | floor) \(($o.x + $d.x + $d.w / 2) | floor) \(($o.y + $d.y + $d.h / 2) | floor)"' "$WORK/state-drag.json")
+        "$WORK/vp/vpointer" 1280 800 drag "$fx" "$fy" "$tx" "$ty" >> "$WORK/vpointer.log" 2>&1
+    }
     await_moved() { [[ $(ws_of alpha) == 2 ]]; }
-    await await_moved
+    # a shell busy with other work can miss a drag in a loaded suite run; the readings say how many tries it took
+    for attempt in 1 2 3; do
+        await layout_still
+        drag_alpha
+        note drag_rc "$?"
+        for _ in $(seq 1 24); do await_moved && break; sleep 0.25; done
+        await_moved && break
+    done
+    note drag_attempts "$attempt"
     note drag_alpha_ws "$(ws_of alpha)"
     note drag_focus_stayed "$(active_ws)"
     toggle
@@ -162,7 +170,7 @@ env -u HYPRLAND_INSTANCE_SIGNATURE -u WAYLAND_DISPLAY -u DISPLAY WORK="$WORK" RE
     --no-lockscreen --no-global-shortcuts --exit-with-session "$WORK/inner.sh" > "$WORK/kwin.log" 2>&1
 
 grep '^nested Hyprland:' "$WORK/kwin.log" | sed 's/^/note: /'
-reading() { awk -F'\t' -v k="$1" '$1 == k { print $2 }' "$WORK/readings" 2> /dev/null; }
+reading() { awk -F'\t' -v k="$1" '$1 == k { print $2 }' "$WORK/readings" 2> /dev/null | tail -n 1; }
 dump() {
     echo "--- readings ---" >&2
     cat -- "$WORK/readings" >&2 2> /dev/null

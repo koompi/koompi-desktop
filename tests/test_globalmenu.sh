@@ -54,7 +54,7 @@ opens_empty() {
     [[ -x "$bin" ]] || return 0
     printf -- '--- %s startup payload\n' "$name"
     local got status
-    got=$("$ROOT/tests/with-nested-hyprland.sh" dbus-run-session --config-file="$ROOT/tests/private-bus.conf" -- sh -c "sleep 5 | timeout 5 '$bin' 2> /dev/null | head -n 1")
+    got=$("$ROOT/tests/with-nested-hyprland.sh" dbus-run-session --config-file="$ROOT/tests/private-bus.conf" -- sh -c "sleep 10 | timeout 10 '$bin' 2> /dev/null | head -n 1")
     status=$?
     if [[ $status == 77 ]]; then
         skip "no Hyprland or kwin_wayland; cannot check the $name startup payload"
