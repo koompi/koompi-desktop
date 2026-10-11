@@ -89,17 +89,15 @@ else
     echo "skip: no Qt 6 qmllint at $QMLLINT"
 fi
 
-# --- live binds --------------------------------------------------------------
-if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] && hyprctl binds >/dev/null 2>&1; then
-    if [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland/keybinds_shell_extra.lua" ]]; then
-        live="$(hyprctl binds | grep -ci 'description: Shell: bar popup')"
-        (( live == 9 )) || fail "hyprctl binds lists $live 'Bar popup' chords, expected 9 (hyprctl reload?)"
-        echo "ok   hyprctl binds: 9 bar popup chords described"
-    else
-        echo "skip: keybinds_shell_extra.lua is not installed in the live config, hyprctl binds not checked"
-    fi
+# --- binds in the repo's own config, nested -------------------------------
+live="$("$REPO_ROOT/tests/with-nested-hyprland.sh" bash -c "hyprctl binds | grep -ci 'description: Shell: bar popup'")"
+status=$?
+if [[ $status == 77 ]]; then
+    echo "skip: no Hyprland or kwin_wayland, hyprctl binds not checked"
+elif [[ $status == 0 && $live == 9 ]]; then
+    echo "ok   hyprctl binds: the repo's own config, nested, describes 9 bar popup chords"
 else
-    echo "skip: no Hyprland session, hyprctl binds not checked"
+    fail "the repo's config nested lists '$live' bar popup chords in hyprctl binds (status $status), expected 9"
 fi
 
 # --- headless bar with a forced update count --------------------------------

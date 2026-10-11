@@ -52,11 +52,14 @@ run_suite() {
 opens_empty() {
     local name=$1 bin=$2
     [[ -x "$bin" ]] || return 0
-    [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] \
-        || { skip "no compositor; cannot check the $name startup payload"; return 0; }
     printf -- '--- %s startup payload\n' "$name"
-    local got
-    got=$(dbus-run-session --config-file="$ROOT/tests/private-bus.conf" -- sh -c "sleep 5 | timeout 5 '$bin' 2> /dev/null | head -n 1")
+    local got status
+    got=$("$ROOT/tests/with-nested-hyprland.sh" dbus-run-session --config-file="$ROOT/tests/private-bus.conf" -- sh -c "sleep 5 | timeout 5 '$bin' 2> /dev/null | head -n 1")
+    status=$?
+    if [[ $status == 77 ]]; then
+        skip "no Hyprland or kwin_wayland; cannot check the $name startup payload"
+        return 0
+    fi
     [[ $got == '{"items":[],"gen":1}' ]] \
         || fail "$name daemon opened with '$got', not the empty payload the shell waits for"
     ran=$((ran + 1))

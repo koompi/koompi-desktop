@@ -127,6 +127,9 @@ if [[ -d "$WORK/vp" ]]; then
     sleep 0.5
     toggle
     await open_state
+    # tiles exist before they stop moving; a drag aimed at a tile mid-animation lands beside it (flaked once on 2026-10-11)
+    layout_still() { local a b; a="$(ov | jq -c '[.origin, .tiles, .desks]')"; sleep 0.4; b="$(ov | jq -c '[.origin, .tiles, .desks]')"; [[ -n $a && $a == "$b" && $a == *'"isNew":true'* && $a == *'"class":"alpha"'* ]]; }
+    await layout_still
     ov > "$WORK/state-drag.json"
     read -r fx fy tx ty < <(jq -r '(.origin) as $o
         | (.tiles[] | select(.class == "alpha")) as $t
