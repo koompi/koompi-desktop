@@ -207,7 +207,6 @@ They set their own flags rather than aliasing `searchOpen`, which is what makes 
 | `Super+;` and `Super+'` | split ratio |
 | `Super+Alt+1..0` | send to workspace |
 | `Super+Shift+PageUp/PageDown` | send to workspace left/right |
-| `Super+Alt+S` | send to scratchpad |
 
 `Alt+F4` is caught and answered with a notification pointing at `Super+Q`, and is left non-consuming so Windows VMs still receive it.
 
@@ -219,8 +218,6 @@ They set their own flags rather than aliasing `searchOpen`, which is what makes 
 | `Ctrl+Super+Left/Right` | focus workspace left/right |
 | `Super+PageUp/PageDown` | focus workspace left/right |
 | `Super+scroll` | focus workspace left (scroll up) or right (scroll down) |
-| `Super+S` | scratchpad |
-| `Ctrl+Super+S` | special workspace |
 
 Number binds are duplicated on raw keycodes and on the keypad, because some layouts report number keys as other characters.
 
@@ -261,6 +258,24 @@ The `XF86Audio*` and `XF86MonBrightness*` keys carry the same actions and are ma
 | lid close | lock, unless an external monitor is attached; suspend stays with logind and Keep awake still blocks it |
 | `Ctrl+Shift+Alt+Super+Delete` | shut down |
 
+### Scratchpads
+
+| Keys | Action |
+| --- | --- |
+| `Super+`` ` `` | terminal |
+| `Super+\` | system monitor |
+| `Super+Shift+D` | Discord |
+| `Super+H` | WhatsApp |
+| `Super+Y` | Telegram |
+| `Super+S` | any window you put aside |
+| `Super+Alt+S` | send this window to that scratchpad |
+
+One pattern for all of them. Each app lives on its own special workspace, floating, centred, 70% x 70% of the screen (one rule block in `rules.lua`, one script, `toggle_app_scratchpad.sh`).
+The first press starts the app if it is not running and shows it; the next press hides it and focus goes back to the window you had.
+On any desk the press shows it over that desk, so it follows you; it never tiles, and closing the app only means the next press starts it again.
+`Super+S` is the same toggle for the shared "put aside" workspace; windows sent there keep their own size.
+`Ctrl+Super+S` did the same as `Super+S` and is gone.
+
 ### Apps
 
 | Keys | Action |
@@ -272,12 +287,9 @@ The `XF86Audio*` and `XF86MonBrightness*` keys carry the same actions and are ma
 | `Super+X` | text editor |
 | `Super+I` | settings |
 | `Ctrl+Shift+Escape` | task manager |
-| `Super+`` ` `` | terminal panel |
-| `Super+\` | system monitor panel |
-| `Super+Y` | Telegram panel |
 
 App binds are the one group that may grow, because they name what the user installed rather than what the shell owns.
-Anything opened as a scratchpad panel rather than a normal window is a shell surface and belongs to a role above.
+Anything opened as a scratchpad is a shell surface; see Scratchpads above.
 
 Every app bind, and every launch from Search, the Launchpad, the dock, the waffle start menu and taskbar, and a restored session, goes through `koompi-launch`, which starts the app as its own `app-<id>-<n>.scope` in the user manager's `app.slice` with the session environment intact.
 That is what lets `systemd-oomd` kill one app under memory pressure instead of the whole session, because the session scope that holds Hyprland, the shell, hypridle and the wallpaper pipeline is never a candidate.

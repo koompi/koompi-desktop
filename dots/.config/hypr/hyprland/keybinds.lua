@@ -54,11 +54,11 @@ hl.bind("SUPER + SHIFT + W", app("brave", "brave"), { description = "App: Brave 
 -- Okular has no plugin API, so enrolment cannot live in its menus; a global
 -- bind is the nearest thing that works while a PDF is focused.
 hl.bind("SUPER + SHIFT + E", app("koompi-signature", "koompi-signature capture"), { description = "App: Capture signature" })
-hl.bind("SUPER + SHIFT + D", hl.dsp.exec_cmd(appScratch .. " discord 'discord' koompi-launch --id discord discord"), { description = "App: Discord widget" })
-hl.bind("SUPER + H", hl.dsp.exec_cmd(appScratch .. " whatsapp 'web.whatsapp.com' koompi-launch --id whatsapp " .. hyprScripts .. "/launch_whatsapp_web.sh"), { description = "App: WhatsApp widget" })
-hl.bind("SUPER + Y", hl.dsp.exec_cmd(appScratch .. " telegram 'org\\.telegram\\.desktop|TelegramDesktop' koompi-launch --id telegram Telegram"), { description = "App: Telegram widget" })
-hl.bind("SUPER + grave", hl.dsp.exec_cmd(appScratch .. " term 'term-scratch' 'koompi-launch --id term-scratch wezterm start --class term-scratch'"), { description = "App: Terminal widget" })
-hl.bind("SUPER + backslash", hl.dsp.exec_cmd(appScratch .. " sysmon 'sysmon-scratch' koompi-launch --id sysmon " .. hyprScripts .. "/launch_sysmon.sh"), { description = "App: System monitor widget" })
+hl.bind("SUPER + SHIFT + D", hl.dsp.exec_cmd(appScratch .. " discord 'discord' koompi-launch --id discord discord"), { description = "Scratchpad: Discord" })
+hl.bind("SUPER + H", hl.dsp.exec_cmd(appScratch .. " whatsapp 'web.whatsapp.com' koompi-launch --id whatsapp " .. hyprScripts .. "/launch_whatsapp_web.sh"), { description = "Scratchpad: WhatsApp" })
+hl.bind("SUPER + Y", hl.dsp.exec_cmd(appScratch .. " telegram 'org\\.telegram\\.desktop|TelegramDesktop' koompi-launch --id telegram Telegram"), { description = "Scratchpad: Telegram" })
+hl.bind("SUPER + grave", hl.dsp.exec_cmd(appScratch .. " term 'term-scratch' 'koompi-launch --id term-scratch wezterm start --class term-scratch'"), { description = "Scratchpad: Terminal" })
+hl.bind("SUPER + backslash", hl.dsp.exec_cmd(appScratch .. " sysmon 'sysmon-scratch' koompi-launch --id sysmon " .. hyprScripts .. "/launch_sysmon.sh"), { description = "Scratchpad: System monitor" })
 hl.bind("SUPER + N", hl.dsp.global("quickshell:sidebarRightToggle"), { description = "Shell: Quick settings and notifications" })
 -- SUPER + ALT + C, D and T open the panel straight onto a page; the same chord again backs out.
 hl.bind("SUPER + ALT + C", hl.dsp.global("quickshell:sidebarRightCalendar"), { description = "Shell: Right sidebar - calendar" })
@@ -310,8 +310,7 @@ for i = 1, 4 do
 end
 
 hl.bind("SUPER + ALT + S",
-    hl.dsp.window.move({ workspace = "special:special", follow = false }), { description = "Window: Send to scratchpad" })
-hl.bind("CTRL + SUPER + S", hl.dsp.workspace.toggle_special("special"), { description = "Workspace: Toggle scratchpad" })
+    hl.dsp.window.move({ workspace = "special:special", follow = false }), { description = "Scratchpad: Send window" })
 
 --##! Workspace
 --# Switching
@@ -368,8 +367,8 @@ for i = 1, 4 do
         { description = "Workspace: Focus " .. descdir[i] })
 end
 --## Special
-hl.bind("SUPER + S", hl.dsp.workspace.toggle_special("special"), { description = "Workspace: Toggle scratchpad" })
-hl.bind("SUPER + mouse:275", hl.dsp.workspace.toggle_special("special"), { description = "Workspace: Toggle scratchpad" })
+hl.bind("SUPER + S", hl.dsp.workspace.toggle_special("special"), { description = "Scratchpad: Toggle" })
+hl.bind("SUPER + mouse:275", hl.dsp.workspace.toggle_special("special"), { description = "Scratchpad: Toggle" })
 for i = 1, 4 do
     local key = { "BracketLeft", "BracketRight", "Up", "Down" }
     local prefix = { "-1", "+1", "r-5", "r+5" }

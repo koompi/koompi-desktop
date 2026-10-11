@@ -67,39 +67,27 @@ hl.window_rule({match = {title = "^(KOOMPI Settings)$" },                    cen
 hl.window_rule({match = {title = ".*Shell conflicts.*" },                    float = true})
 hl.window_rule({match = {class = "^(Zotero)$" },                             float = true})
 hl.window_rule({match = {class = "^(Zotero)$" },                             size = {"(monitor_w*0.45)", "(monitor_h*0.45)"} })
--- initial_title as well: the reaction popup is a transient sharing the class
-local telegramClass = "^(org\\.telegram\\.desktop|TelegramDesktop)$"
-local telegramTitle = "^Telegram( \\([0-9]+\\))?$"
-hl.window_rule({match = {class = telegramClass, initial_title = telegramTitle }, workspace = "special:telegram silent"})
-hl.window_rule({match = {class = telegramClass, initial_title = telegramTitle }, float = true})
-hl.window_rule({match = {class = telegramClass, initial_title = telegramTitle }, size = {overlayW, overlayH} })
-hl.window_rule({match = {class = telegramClass, initial_title = telegramTitle }, center = true})
--- Discord: SUPER + SHIFT + D
-hl.window_rule({match = {class = "^(discord)$" },                            workspace = "special:discord silent"})
-hl.window_rule({match = {class = "^(discord)$" },                            float = true})
-hl.window_rule({match = {class = "^(discord)$" },                            size = {overlayW, overlayH} })
-hl.window_rule({match = {class = "^(discord)$" },                            center = true})
--- WhatsApp Web: SUPER + SHIFT + W  (browser app-window, class contains web.whatsapp.com)
-hl.window_rule({match = {class = ".*web\\.whatsapp\\.com.*" },               workspace = "special:whatsapp silent"})
-hl.window_rule({match = {class = ".*web\\.whatsapp\\.com.*" },               float = true})
-hl.window_rule({match = {class = ".*web\\.whatsapp\\.com.*" },               size = {overlayW, overlayH} })
-hl.window_rule({match = {class = ".*web\\.whatsapp\\.com.*" },               center = true})
--- Each uses a unique --class so it never collides with the SUPER + Return terminal.
-hl.window_rule({match = {class = "^(term-scratch)$" },                       workspace = "special:term silent"})
-hl.window_rule({match = {class = "^(term-scratch)$" },                       float = true})
--- monitor_h-52 = 40px bar reserve + 2*(5 gap + 1 border), so the panel lines up
--- edge-for-edge with a tiled window. monitor_* not window_*: those evaluate before
--- the size rule and fall back to centered.
-hl.window_rule({match = {class = "^(term-scratch)$" },                       size = {"(monitor_w*0.42)", "(monitor_h-52)"} })
-hl.window_rule({match = {class = "^(term-scratch)$" },                       move = {"(monitor_w*0.58-16)", "(46)"} })
--- koompi-launch-tui windows (class TUI.<app-id>): floated like the portal chooser;
--- a named rule below still wins for its own app-id, later rules apply last.
+-- koompi-launch-tui windows (class TUI.<app-id>): floated like the portal chooser
 hl.window_rule({match = {class = "^TUI\\." },                                 float = true})
 hl.window_rule({match = {class = "^TUI\\." },                                 center = true})
 hl.window_rule({match = {class = "^TUI\\." },                                 size = {"(monitor_w*0.60)", "(monitor_h*0.65)"} })
--- System monitor: SUPER + backslash (scripts/launch_sysmon.sh, via koompi-launch-tui)
-hl.window_rule({match = {class = "^(TUI\\.sysmon-scratch)$" },                workspace = "special:sysmon silent"})
-hl.window_rule({match = {class = "^(TUI\\.sysmon-scratch)$" },                size = {"(monitor_w*0.7)", "(min(monitor_w*0.45, monitor_h*0.8))"} })
+-- later rules win, so the widgets come after the TUI one
+-- app widgets (toggle_app_scratchpad.sh): one special workspace each, all floating, centred, 70% x 70%.
+-- telegram matches initial_title as well: the reaction popup is a transient sharing the class.
+local telegramClass = "^(org\\.telegram\\.desktop|TelegramDesktop)$"
+local widgets = {
+    { special = "telegram", match = { class = telegramClass, initial_title = "^Telegram( \\([0-9]+\\))?$" } },
+    { special = "discord",  match = { class = "^(discord)$" } },
+    { special = "whatsapp", match = { class = ".*web\\.whatsapp\\.com.*" } },
+    { special = "term",     match = { class = "^(term-scratch)$" } },
+    { special = "sysmon",   match = { class = "^(TUI\\.sysmon-scratch)$" } },
+}
+for _, w in ipairs(widgets) do
+    hl.window_rule({match = w.match, workspace = "special:" .. w.special .. " silent"})
+    hl.window_rule({match = w.match, float = true})
+    hl.window_rule({match = w.match, size = {"(monitor_w*0.7)", "(monitor_h*0.7)"} })
+    hl.window_rule({match = w.match, center = true})
+end
 
 -- Normal browser classes only, never the chrome --app widget class, so the
 -- WhatsApp/Telegram/Discord widgets stay on their special workspaces.

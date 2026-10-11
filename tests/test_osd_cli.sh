@@ -111,7 +111,7 @@ grep -c 'PanelWindow' "$OSD_DIR/OnScreenDisplay.qml" | grep -qx 1 || fail "the O
 
 grep -q 'exec koompi-launch-tui sysmon-scratch ' "$HYPR/scripts/launch_sysmon.sh" || fail "launch_sysmon.sh does not go through koompi-launch-tui"
 grep -q 'class = "^TUI\\\\." }, *float = true' "$HYPR/rules.lua" || fail "rules.lua has no float rule for ^TUI\\. classes"
-grep -q 'class = "^(TUI\\\\.sysmon-scratch)$" }, *workspace = "special:sysmon silent"' "$HYPR/rules.lua" \
+grep -qF 'special = "sysmon",   match = { class = "^(TUI\\.sysmon-scratch)$" }' "$HYPR/rules.lua" \
     || fail "rules.lua no longer pins TUI.sysmon-scratch to special:sysmon"
 grep -q '"sysmon-scratch)$"' "$HYPR/rules.lua" && fail "rules.lua still matches the bare sysmon-scratch class, which koompi-launch-tui never sets"
 grep -q "sysmon 'sysmon-scratch' koompi-launch" "$HYPR/keybinds.lua" || fail "keybinds.lua's sysmon bind no longer greps for sysmon-scratch"

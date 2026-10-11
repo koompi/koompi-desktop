@@ -16,7 +16,7 @@ Item {
     property var categoryColumns: [
         ["Window", "Workspace"],
         ["Shell", "Kiri"],
-        ["App", ""],
+        ["App", "Scratchpad"],
         ["Utilities", "Screen", "Media", "Session"],
     ]
     implicitWidth: QsWindow?.window?.screen.width * 0.7 ?? 0

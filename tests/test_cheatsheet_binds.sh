@@ -103,7 +103,7 @@ check("Window: punctuation keys", same(chordsOf("Window", "Shrink split ratio"),
 check("Window: Resize to 640x480 is not read as a family", same(chordsOf("Window", "Resize to 640x480"), ["Super + Ctrl + \\"]));
 check("Utilities: Record region (no sound) once, two chords", same(chordsOf("Utilities", "Record region (no sound)"), ["Super + Shift + R", "Super + Alt + R"]), JSON.stringify(chordsOf("Utilities", "Record region (no sound)")));
 check("App: Terminal once, simplest chord first", same(chordsOf("App", "Terminal"), ["Super + Enter", "Super + T", "Ctrl + Alt + T"]), JSON.stringify(chordsOf("App", "Terminal")));
-check("App: the backtick and backslash widgets", same(chordsOf("App", "Terminal widget"), ["Super + `"]) && same(chordsOf("App", "System monitor widget"), ["Super + \\"]));
+check("Scratchpad: the backtick and backslash widgets", same(chordsOf("Scratchpad", "Terminal"), ["Super + `"]) && same(chordsOf("Scratchpad", "System monitor"), ["Super + \\"]));
 check("Media: Next track once, the media key first", same(chordsOf("Media", "Next track"), ["Next", "Super + Shift + N", "Super + Alt + Shift + Forward"]), JSON.stringify(chordsOf("Media", "Next track")));
 check("Workspace: Focus 1–10 on Super+1–0", same(chordsOf("Workspace", "Focus 1–10"), ["Super + 1–0"]));
 // the wheel reads as it turns: wherever a row pairs it with PgUp/PgDn, up goes with up

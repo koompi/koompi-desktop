@@ -70,14 +70,18 @@ Each of these opens whatever you actually have installed, in a fixed order of pr
 
 ## Panels that come and go
 
-Three programs open as a panel over your work instead of as a window on a desk.
+Some programs open as a panel over your work instead of as a window on a desk.
 Press the key once to bring it down, again to send it away.
+They all work the same way, on whichever desk you are.
 
 | Keys | Panel |
 | --- | --- |
 | `Super` with `` ` `` | a terminal |
 | `Super+\` | the system monitor |
+| `Super+Shift+D` | Discord |
+| `Super+H` | WhatsApp |
 | `Super+Y` | Telegram |
+| `Super+S` | any window you sent aside with `Super+Alt+S` |
 
 ## Two more that are worth the muscle memory
 
