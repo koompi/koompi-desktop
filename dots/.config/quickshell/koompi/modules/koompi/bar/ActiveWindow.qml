@@ -168,7 +168,7 @@ Item { // Faux global menu: bold app name + window title
                         opacity: root.dim
                         // An unfocused monitor still shows its window, dimmed, so the
                         // focused one is tellable apart at a glance.
-                        color: root.focusingThisMonitor ? Appearance.colors.colOnLayer0 : Appearance.colors.colOnLayer1Inactive
+                        color: root.focusingThisMonitor ? Appearance.colors.colOnLayer0 : Appearance.colors.colBarTextInactive
                         elide: Text.ElideRight
                         text: root.nameText
                     }
@@ -178,7 +178,7 @@ Item { // Faux global menu: bold app name + window title
                         Layout.fillWidth: true
                         visible: text.length > 0
                         font.pixelSize: Appearance.font.pixelSize.smaller
-                        color: root.focusingThisMonitor ? Appearance.colors.colSubtext : Appearance.colors.colOnLayer1Inactive
+                        color: root.focusingThisMonitor ? Appearance.colors.colBarSubtext : Appearance.colors.colBarTextInactive
                         elide: Text.ElideRight
                         text: root.titleText
                     }

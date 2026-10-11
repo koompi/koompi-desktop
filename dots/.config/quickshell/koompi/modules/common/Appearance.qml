@@ -120,12 +120,19 @@ Singleton {
         property color colLayer0Hover: ColorUtils.transparentize(ColorUtils.mix(colLayer0, colOnLayer0, 0.9, root.contentTransparency))
         property color colLayer0Active: ColorUtils.transparentize(ColorUtils.mix(colLayer0, colOnLayer0, 0.8, root.contentTransparency))
         property color colLayer0Border: ColorUtils.mix(root.m3colors.m3outlineVariant, colLayer0, 0.4)
-        // Bar background: fixed, independent of wallpaper theming.
-        // Dark brand-green in dark mode; moonlight white in light mode so dark
-        // foreground text/icons (colOnLayer0/colSubtext) stay legible.
+        // Bar background: fixed, independent of wallpaper theming. Dark brand-green
+        // in dark mode, moonlight white in light mode. Opaque enough that bar text
+        // keeps 4.5:1 over the worst wallpaper pixel (test_bar_contrast.sh).
         property color colBarBackground: m3colors.darkmode
-            ? Qt.rgba(8 / 255, 20 / 255, 14 / 255, 0.75)
-            : Qt.rgba(246 / 255, 248 / 255, 251 / 255, 0.85)
+            ? Qt.rgba(8 / 255, 20 / 255, 14 / 255, 0.85)
+            : Qt.rgba(246 / 255, 248 / 255, 251 / 255, 0.90)
+        // the bar over white (dark bar) or black (light bar): the least contrast its text meets
+        property color colBarWorstCase: Qt.rgba(
+            colBarBackground.a * colBarBackground.r + (1 - colBarBackground.a) * (m3colors.darkmode ? 1 : 0),
+            colBarBackground.a * colBarBackground.g + (1 - colBarBackground.a) * (m3colors.darkmode ? 1 : 0),
+            colBarBackground.a * colBarBackground.b + (1 - colBarBackground.a) * (m3colors.darkmode ? 1 : 0), 1)
+        property color colBarSubtext: ColorUtils.mix(colOnLayer0, colBarWorstCase, 0.8)
+        property color colBarTextInactive: ColorUtils.mix(colOnLayer0, colBarWorstCase, 0.7)
         // Things resting on the bar are a faint veil of the bar's own foreground,
         // not a colour of their own: a lift in dark mode, a shade in light, and
         // subtle in both. Mixing colBarBackground instead would add opacity, and
