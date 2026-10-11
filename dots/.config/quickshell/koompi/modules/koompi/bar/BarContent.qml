@@ -273,25 +273,30 @@ Item { // Bar content region
             BarPanelButton { // clock: opens the same panel
                 objectName: "clockButton"
                 Layout.rightMargin: Appearance.rounding.screenRounding - Appearance.spacing.small
-                rightPadding: 10 // room for the unread dot beside the digits
-                implicitWidth: contentItem.implicitWidth + Appearance.spacing.small * 2 + rightPadding
                 toggled: GlobalStates.sidebarRightOpen
                 onClicked: GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen
 
-                contentItem: PluginSlot { // time, far-right corner; date removed by default
-                    pluginId: "koompi.clock"
-                    builtin: ClockWidget {
-                        showDate: false
-                        color: GlobalStates.sidebarRightOpen ? Appearance.m3colors.m3onSecondaryContainer : Appearance.colors.colOnLayer0
-                    }
-                }
+                // the dot is laid out beside the time, not over it: an anchored dot sat on "AM" in 12-hour time
+                contentItem: Item {
+                    implicitWidth: clockRow.implicitWidth
+                    implicitHeight: clockRow.implicitHeight
 
-                NotificationUnreadCount {
-                    anchors {
-                        right: parent.right
-                        top: parent.top
-                        rightMargin: 4
-                        topMargin: 9
+                    RowLayout {
+                        id: clockRow
+                        anchors.centerIn: parent
+                        spacing: 4
+
+                        PluginSlot { // time, far-right corner; date removed by default
+                            pluginId: "koompi.clock"
+                            builtin: ClockWidget {
+                                showDate: false
+                                color: GlobalStates.sidebarRightOpen ? Appearance.m3colors.m3onSecondaryContainer : Appearance.colors.colOnLayer0
+                            }
+                        }
+
+                        NotificationUnreadCount {
+                            Layout.alignment: Qt.AlignVCenter
+                        }
                     }
                 }
             }

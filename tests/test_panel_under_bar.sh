@@ -15,7 +15,10 @@ grep -nE 'animation *= *"slide top"' "$RULES" && fail "a layer slides in from th
 echo "ok   no layer slides down from the screen edge across the bar"
 
 grep -qE 'namespace = "quickshell:sidebarRight" \}, no_anim = true' "$RULES" || fail "Hyprland still animates the right panel's layer"
-grep -q 'Appearance.sizes.barHeight' "$SR" || fail "the right panel's window does not start at the bar's lower edge"
+# the window respects the bar's exclusive zone, which already starts it at the bar's lower edge; a
+# barHeight margin as well puts the card a whole bar lower, with a top gap far wider than the side's
+grep -qE 'margins\.top:.*barHeight' "$SR" && fail "the right panel adds the bar's height to the exclusive zone, doubling its top gap"
+grep -q 'ExclusionMode.Ignore' "$SR" && fail "the right panel ignores the bar's exclusive zone, so it would start above the bar's edge"
 grep -q 'clip: true' "$SR" || fail "the right panel does not clip, so its card would show above the bar's edge"
 grep -q 'property real reveal' "$SR" || fail "the right panel has no reveal to slide its card on"
 grep -q 'reveal > 0' "$SR" || fail "the right panel's window is hidden before its exit slide ends"

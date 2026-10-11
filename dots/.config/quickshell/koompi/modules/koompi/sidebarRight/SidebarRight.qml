@@ -86,7 +86,8 @@ Scope {
                 right: true
                 bottom: true
             }
-            margins.top: Config.options.bar.vertical ? 0 : Appearance.sizes.barHeight
+            // No top margin: the window respects the bar's exclusive zone, so the compositor already
+            // starts it at the bar's lower edge. A barHeight margin on top of that doubled the top gap.
 
             onWantedChanged: reveal = wanted ? 1 : 0
             Component.onCompleted: Qt.callLater(() => panelWindow.reveal = panelWindow.wanted ? 1 : 0)

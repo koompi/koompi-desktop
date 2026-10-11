@@ -377,10 +377,10 @@ Singleton {
         property real searchWidth: 360
         // Fractions of the screen the sidebar sits on. The px values below are only
         // the fallback for a window that has no screen assigned yet.
-        property real sidebarWidthFraction: 0.5
-        property real sidebarWidthExtendedFraction: 0.6
-        property real sidebarWidth: 690
-        property real sidebarWidthExtended: 750
+        property real sidebarWidthFraction: 0.4
+        property real sidebarWidthExtendedFraction: 0.48
+        property real sidebarWidth: 552
+        property real sidebarWidthExtended: 600
         // The right sidebar holds fixed-size controls, not a chat transcript,
         // so it does not follow the left sidebar's width.
         property real sidebarWidthRight: 420
