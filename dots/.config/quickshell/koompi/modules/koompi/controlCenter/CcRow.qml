@@ -17,6 +17,8 @@ Item {
     property bool expandable: false
     property bool expanded: false
     property bool hasSwitch: false
+    // a grid tile: a filled card when on, and the icon disc is the switch of a row with choices
+    property bool tile: false
     // half-width tiles carry the word under the title, where it cannot squeeze the title
     property bool stackState: false
     property string onWord: Translation.tr("On")
@@ -36,7 +38,7 @@ Item {
     }
 
     Layout.fillWidth: true
-    implicitHeight: CcMetrics.rowHeight
+    implicitHeight: root.tile ? CcMetrics.tileHeight : CcMetrics.rowHeight
     activeFocusOnTab: true
     opacity: enabled ? 1 : 0.5
 
@@ -44,7 +46,7 @@ Item {
         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
             root.activate();
             event.accepted = true;
-        } else if (event.key === Qt.Key_Right && (root.hasDetail || root.expandable)) {
+        } else if (event.key === Qt.Key_Right && !root.tile && (root.hasDetail || root.expandable)) {
             root.opened();
             event.accepted = true;
         }
@@ -53,7 +55,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Appearance.rounding.normal
-        color: area.containsMouse ? Appearance.colors.colLayer1Hover : Appearance.colors.colLayer1
+        color: root.tile && root.toggled && root.hasToggle ? (area.containsMouse ? Appearance.colors.colPrimaryContainerHover : Appearance.colors.colPrimaryContainer) : area.containsMouse ? Appearance.colors.colLayer1Hover : Appearance.colors.colLayer1
         border.width: root.activeFocus ? 2 : 0
         border.color: Appearance.colors.colPrimary
     }
@@ -75,10 +77,32 @@ Item {
         spacing: Appearance.spacing.normal
 
         Rectangle {
+            id: plate
+            objectName: root.hasSwitch && root.tile ? root.objectName + "-switch" : ""
+            readonly property bool tabOnly: true
+            activeFocusOnTab: root.hasSwitch && root.tile
+            Accessible.role: Accessible.CheckBox
+            Accessible.name: root.title
+            Accessible.checked: root.toggled
+            Keys.onPressed: event => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                    root.activated();
+                    event.accepted = true;
+                }
+            }
+            border.width: activeFocus ? 2 : 0
+            border.color: Appearance.colors.colOnLayer1
             Layout.preferredWidth: CcMetrics.plate
             Layout.preferredHeight: CcMetrics.plate
             radius: root.toggled && root.hasToggle ? Appearance.rounding.small : width / 2
             color: root.toggled && root.hasToggle ? Appearance.colors.colPrimary : Appearance.colors.colLayer3
+
+            MouseArea {
+                anchors.fill: parent
+                enabled: root.hasSwitch && root.tile
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.activated()
+            }
 
             MaterialSymbol {
                 anchors.centerIn: parent
