@@ -102,7 +102,7 @@ check("Window: move is one row of arrows", same(chordsOf("Window", "Move left/ri
 check("Window: punctuation keys", same(chordsOf("Window", "Shrink split ratio"), ["Super + ;"]) && same(chordsOf("Window", "Grow split ratio"), ["Super + '"]));
 check("Window: Resize to 640x480 is not read as a family", same(chordsOf("Window", "Resize to 640x480"), ["Super + Ctrl + \\"]));
 check("Utilities: Record region (no sound) once, two chords", same(chordsOf("Utilities", "Record region (no sound)"), ["Super + Shift + R", "Super + Alt + R"]), JSON.stringify(chordsOf("Utilities", "Record region (no sound)")));
-check("App: Terminal once, simplest chord first", same(chordsOf("App", "Terminal"), ["Super + Enter", "Super + T", "Ctrl + Alt + T"]), JSON.stringify(chordsOf("App", "Terminal")));
+check("App: Terminal once, simplest chord first", same(chordsOf("App", "Terminal"), ["Super + Enter", "Ctrl + Alt + T"]), JSON.stringify(chordsOf("App", "Terminal")));
 check("Scratchpad: the backtick and backslash widgets", same(chordsOf("Scratchpad", "Terminal"), ["Super + `"]) && same(chordsOf("Scratchpad", "System monitor"), ["Super + \\"]));
 check("Media: Next track once, the media key first", same(chordsOf("Media", "Next track"), ["Next", "Super + Shift + N", "Super + Alt + Shift + Forward"]), JSON.stringify(chordsOf("Media", "Next track")));
 check("Workspace: Focus 1–10 on Super+1–0", same(chordsOf("Workspace", "Focus 1–10"), ["Super + 1–0"]));

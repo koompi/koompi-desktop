@@ -12,7 +12,9 @@ failed=0
 users="$(grep -ln 'koompi-quickshell-git' "$DIST"/*/PKGBUILD "$DIST/install-deps.sh" 2>/dev/null || true)"
 for f in $users; do
     case "$f" in
-        */koompi-widgets/PKGBUILD|*/install-deps.sh) ;;
+        # koompi-hyprland replaces it too (test_shell_start.sh), so pacman -Syu
+        # --noconfirm on a machine with only the meta installed swaps it out.
+        */koompi-widgets/PKGBUILD|*/koompi-hyprland/PKGBUILD|*/install-deps.sh) ;;
         *) echo "FAIL: $f still names the retired package" >&2; failed=1 ;;
     esac
 done
