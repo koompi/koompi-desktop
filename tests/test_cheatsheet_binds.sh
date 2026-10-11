@@ -30,7 +30,7 @@ command -v lua > /dev/null 2>&1 || { echo "skip: lua not installed, no recorder 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-lua "$RECORDER" "$HYPR" hyprland.keybinds hyprland.keybinds_shell_extra custom.keybinds > "$WORK/binds.json" 2> "$WORK/rec.err" \
+lua "$RECORDER" "$HYPR" hyprland.keybinds hyprland.keybinds_shell_extra hyprland.keybinds_groups custom.keybinds > "$WORK/binds.json" 2> "$WORK/rec.err" \
     || { cat "$WORK/rec.err" >&2; fail "recorder could not replay the shipped keybinds"; }
 
 # QML-flavoured JS: drop the pragma, expose the functions.

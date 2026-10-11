@@ -68,7 +68,7 @@ const steps = [
     {
         icon: "keyboard_arrow_right",
         title: "Moving between windows",
-        body: "Hold Super and press an arrow to jump to the window next to the one you are in. Add Shift and the arrow pushes the window itself that way.\n\nThe mouse still works: hold Super and drag a window to move it, or drag with the right button to change its size.",
+        body: "Hold Super and press an arrow to jump to the window next to the one you are in. Add Shift and the arrow pushes the window itself that way.\n\nThe mouse still works: hold Super and drag a window to move it, or drag with the right button to change its size.\n\nTo keep several windows in one place as tabs, press Super, Alt and G.",
         keys: ["Super", "←→↑↓"],
         demo: ""
     },

@@ -37,6 +37,8 @@ Item {
     readonly property var slotInfo: Slots.slots(root.deskWindows.map(w => w.workspace.id), root.activeId, root.groupSize)
     readonly property var slotIds: root.slotInfo.ids
     readonly property var shown: root.deskWindows.filter(w => root.slotIds.includes(w.workspace.id))
+    // a group shares one tile: the tab focused last, which is the one on show, stands for all of them
+    readonly property var tiled: root.shown.filter(w => root.groupLead(w) === w.address)
 
     readonly property real headerHeight: 64
     readonly property var layout: Grid.grid(root.slotIds.length, root.width - 2 * root.margin - root.reserved[0] - root.reserved[2], root.height - root.headerHeight - root.margin - root.reserved[1] - root.reserved[3], root.deskWidth / root.deskHeight, root.gap)
@@ -48,8 +50,8 @@ Item {
     property int dragTarget: -1
     readonly property bool filtering: root.filter.trim() !== ""
 
-    readonly property var prepared: root.shown.map(w => ({
-                name: Fuzzy.prepare(`${w.title} ${w.class}`),
+    readonly property var prepared: root.tiled.map(w => ({
+                name: Fuzzy.prepare((w.grouped ?? []).concat(w.address).map(a => root.windowByAddress[a]).filter(m => m).map(m => `${m.title} ${m.class}`).join(" ")),
                 entry: w
             }))
     // Window titles run long enough that subsequence matching finds a query in almost any of them
@@ -60,6 +62,13 @@ Item {
         threshold: root.scoreThreshold
     }).map(r => r.obj.entry.address) : []
     readonly property string matchedAddress: root.matches[Math.min(root.matchIndex, root.matches.length - 1)] ?? ""
+
+    function groupLead(w) {
+        const members = (w.grouped ?? []).map(a => root.windowByAddress[a]).filter(m => m && m.mapped !== false);
+        if (members.length < 2)
+            return w.address;
+        return members.reduce((best, m) => (m.focusHistoryID ?? 1e9) < (best.focusHistoryID ?? 1e9) ? m : best).address;
+    }
 
     function close() {
         GlobalStates.overviewOpen = false;
@@ -116,7 +125,7 @@ Item {
         const tiles = [];
         for (let i = 0; i < tileRepeater.count; i++) {
             const t = tileRepeater.itemAt(i);
-            tiles.push({ address: t.address, class: t.windowData?.class, desk: t.windowData?.workspace.id, x: t.x, y: t.y, w: t.width, h: t.height, visible: t.visible, live: t.live, selected: t.selected });
+            tiles.push({ address: t.address, class: t.windowData?.class, tabs: t.tabs, desk: t.windowData?.workspace.id, x: t.x, y: t.y, w: t.width, h: t.height, visible: t.visible, live: t.live, selected: t.selected });
         }
         return { filter: root.filter, origin: { x: stage.x, y: stage.y }, desks: desks, tiles: tiles, matches: root.matches };
     }
@@ -221,7 +230,7 @@ Item {
         Repeater {
             id: tileRepeater
             model: ScriptModel {
-                values: ToplevelManager.toplevels.values.filter(tl => root.shown.some(w => w.address === `0x${tl.HyprlandToplevel?.address}`))
+                values: ToplevelManager.toplevels.values.filter(tl => root.tiled.some(w => w.address === `0x${tl.HyprlandToplevel?.address}`))
             }
             delegate: OverviewWindow {
                 id: tile

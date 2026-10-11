@@ -21,6 +21,7 @@ CLI="$ROOT/cli/src/main.zig"
 BIND_MODULES=(
     "$ROOT/dots/.config/hypr/hyprland/keybinds.lua"
     "$ROOT/dots/.config/hypr/hyprland/keybinds_shell_extra.lua"
+    "$ROOT/dots/.config/hypr/hyprland/keybinds_groups.lua"
     "$ROOT/dots/.config/hypr/custom/keybinds.lua"
 )
 
@@ -103,6 +104,7 @@ loop_families=(
     "Ctrl+Super+Left Ctrl+Super+Right|hl.bind(\"CTRL + SUPER + \" .. keys[i]"
     "Super+PageUp Super+PageDown|local key = { \"SUPER + Page_Down\", \"SUPER + Page_Up\" }"
     "Super+Shift+PageUp Super+Shift+PageDown|hl.bind(\"SUPER + SHIFT + Page_\" .. keydirs[i]"
+    "Super+Alt+Left Super+Alt+Right Super+Alt+Up Super+Alt+Down|hl.bind(\"SUPER + ALT + \" .. d[1]"
     "Super+Ctrl+1 Super+Ctrl+2 Super+Ctrl+3 Super+Ctrl+4|hl.bind(\"SUPER + CTRL + \" .. n,"
 )
 for family in "${loop_families[@]}"; do

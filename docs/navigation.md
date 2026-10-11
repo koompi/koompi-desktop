@@ -209,6 +209,16 @@ They set their own flags rather than aliasing `searchOpen`, which is what makes 
 | `Super+;` and `Super+'` | split ratio |
 | `Super+Alt+1..0` | send to workspace |
 | `Super+Shift+PageUp/PageDown` | send to workspace left/right |
+| `Super+Alt+G` | group this window with others as tabs, or ungroup it |
+| `Super+Alt+arrows` | move this window into the group in that direction |
+| `Super+Shift+G` | pull this window out of its group |
+| `Super+Alt+]` and `Super+Alt+[` | next and previous tab of the group |
+
+A group is several windows in one tile.
+`Super+G` was already the widget overlay, so the group chords sit on `Super+Alt` and `Super+Shift+G` (`hyprland/keybinds_groups.lua`).
+The tab strip is Hyprland's groupbar, coloured from the matugen palette (`group` in `matugen/templates/hyprland/colors.lua`, shape in `hyprland/groups.lua`): the tab on show is primary with a title, the others are a quiet surface.
+The bar's app identity ends with `· 2/3` after the title while the focused window is in a group (`ActiveWindow.qml`, read from the window's `grouped` list, which the shell daemon already refetches on `togglegroup`, `moveintogroup` and `moveoutofgroup`).
+The overview draws a group as one tile, the tab on show, with a badge counting its tabs; typing a filter matches every tab's title.
 
 `Alt+F4` is caught and answered with a notification pointing at `Super+Q`, and is left non-consuming so Windows VMs still receive it.
 

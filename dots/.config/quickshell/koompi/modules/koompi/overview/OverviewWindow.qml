@@ -26,6 +26,7 @@ Item {
 
     readonly property bool hovered: dragArea.containsMouse
     readonly property bool live: Grid.isLive(width, liveMinWidth)
+    readonly property int tabs: windowData?.grouped?.length > 1 ? windowData.grouped.length : 1
     readonly property string address: windowData?.address ?? ""
     readonly property real offX: Math.max(0, ((windowData?.at[0] ?? 0) - originX) * deskScale)
     readonly property real offY: Math.max(0, ((windowData?.at[1] ?? 0) - originY) * deskScale)
@@ -66,6 +67,39 @@ Item {
             label: root.windowData?.class ?? ""
             visible: Math.min(root.width, root.height) >= 40
             size: Math.min(96, Math.min(root.width, root.height) * 0.45)
+        }
+        Rectangle { // the tabs sharing this tile
+            objectName: "overviewTabBadge"
+            visible: root.tabs > 1
+            anchors {
+                top: parent.top
+                right: parent.right
+                margins: 6
+            }
+            height: 22
+            width: Math.max(height, badgeRow.implicitWidth + 12)
+            radius: height / 2
+            color: Appearance.colors.colPrimary
+
+            Row {
+                id: badgeRow
+                anchors.centerIn: parent
+                spacing: 2
+
+                MaterialSymbol {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "tab"
+                    iconSize: 14
+                    color: Appearance.colors.colOnPrimary
+                }
+                StyledText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.tabs
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    font.weight: Font.Bold
+                    color: Appearance.colors.colOnPrimary
+                }
+            }
         }
         Rectangle {
             visible: (root.hovered || root.selected || root.showTitle) && !dragArea.drag.active

@@ -34,6 +34,10 @@ Item { // Faux global menu: bold app name + window title
     readonly property string titleText: root.launching ? Translation.tr("Opening…") : root.cleanTitle(root.windowTitle)
     // the icon and the name dim, never the Opening line: it is the text that says what is happening
     readonly property real dim: root.launching ? (Appearance.reduceMotion ? 0.7 : root.pulseLevel) : 1
+    // which tab of how many, from the window's own group, which Hyprland reports with every event
+    readonly property var groupMembers: root.hasWindow && !root.launching ? (root.activeWindow?.grouped ?? []) : []
+    readonly property string groupTag: root.groupMembers.length > 1 ? (root.groupMembers.indexOf(root.activeAddress) + 1) + "/" + root.groupMembers.length : ""
+    readonly property string groupLabel: groupLine.text
     readonly property real nameOpacity: appName.opacity
     readonly property real titleOpacity: titleLine.opacity
     readonly property bool pulsing: pulse.running
@@ -173,14 +177,28 @@ Item { // Faux global menu: bold app name + window title
                         text: root.nameText
                     }
 
-                    StyledText { // Window title, dimmed
-                        id: titleLine
+                    RowLayout { // Window title, dimmed, and the tab it is in a group
                         Layout.fillWidth: true
-                        visible: text.length > 0
-                        font.pixelSize: Appearance.font.pixelSize.smaller
-                        color: root.focusingThisMonitor ? Appearance.colors.colBarSubtext : Appearance.colors.colBarTextInactive
-                        elide: Text.ElideRight
-                        text: root.titleText
+                        spacing: 4
+                        visible: titleLine.text.length > 0 || groupLine.text.length > 0
+
+                        StyledText {
+                            id: titleLine
+                            Layout.fillWidth: true
+                            visible: text.length > 0
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            color: root.focusingThisMonitor ? Appearance.colors.colBarSubtext : Appearance.colors.colBarTextInactive
+                            elide: Text.ElideRight
+                            text: root.titleText
+                        }
+
+                        StyledText {
+                            id: groupLine
+                            visible: text.length > 0
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            color: titleLine.color
+                            text: root.groupTag.length === 0 ? "" : (titleLine.text.length > 0 ? "· " : "") + root.groupTag
+                        }
                     }
                 }
             }
