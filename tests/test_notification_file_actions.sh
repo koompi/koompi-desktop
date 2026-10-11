@@ -17,9 +17,9 @@ grep -q "notify-send 'Screenshot saved' \"\$savePath\"" "$SHOT" || fail "the sni
 for f in "$ITEM" "$SYS"; do
   grep -q 'Translation.tr("Copy path")' "$f" || fail "${f##*/}: file notifications have no Copy path"
   grep -q 'Translation.tr("Show in folder")' "$f" || fail "${f##*/}: file notifications have no Show in folder"
-  grep -q 'Notifications.showInFolder(' "$f" || fail "${f##*/}: Show in folder does not use the shared file-manager call"
+  grep -q 'FileReveal.show(' "$f" || fail "${f##*/}: Show in folder does not use the shared file-manager call"
 done
-grep -q 'FileManager1.ShowItems' "$QS/services/Notifications.qml" || fail "Show in folder does not ask the file manager to select the file"
+grep -q "FileManager1.ShowItems" "$QS/services/FileReveal.qml" || fail "Show in folder does not ask the file manager to select the file"
 echo "ok   file notifications: Copy path and Show in folder, in app groups and in System"
 
 command -v node > /dev/null || { echo "skip: no node for the fold check"; exit 0; }

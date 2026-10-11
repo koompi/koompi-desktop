@@ -125,7 +125,7 @@ Rectangle {
                     glyph: "folder_open"
                     tip: Translation.tr("Show in folder")
                     onClicked: {
-                        Notifications.showInFolder(sysRow.modelData.path);
+                        FileReveal.show(sysRow.modelData.path);
                         GlobalStates.sidebarRightOpen = false;
                     }
                 }

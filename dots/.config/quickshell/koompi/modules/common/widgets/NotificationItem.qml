@@ -22,7 +22,7 @@ Item { // Notification item area
     property bool hasExec: (root.notificationObject?.execArgv?.length ?? 0) > 0
     property bool dragged: false
     // a notification about a file (a screenshot, a download) names it as its whole body
-    readonly property string filePath: Notifications.bodyFile(root.notificationObject?.body ?? "")
+    readonly property string filePath: FileReveal.pathIn(root.notificationObject?.body ?? "")
 
     property real dragConfirmThreshold: 70 // Drag further to discard notification
     property real dismissOvershoot: notificationIcon.implicitWidth + 20 // Account for gaps and bouncy animations
@@ -324,7 +324,7 @@ Item { // Notification item area
                                 urgency: notificationObject.urgency
                                 buttonText: Translation.tr("Show in folder")
                                 onClicked: {
-                                    Notifications.showInFolder(root.filePath);
+                                    FileReveal.show(root.filePath);
                                     GlobalStates.sidebarRightOpen = false;
                                 }
                             }
