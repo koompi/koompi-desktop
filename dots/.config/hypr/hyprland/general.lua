@@ -21,18 +21,20 @@ hl.gesture({
     direction = "horizontal",
     action = "workspace"
 })
+-- Up opens the overview and down closes it, like Launchpad's spread and close: repeating a
+-- motion never undoes it. Both were toggles, so a second swipe up shut what the first opened.
 hl.gesture({
     fingers = 4,
     direction = "up",
     action = function()
-        hl.dispatch(hl.dsp.global("quickshell:overviewWorkspacesToggle"))
+        hl.dispatch(hl.dsp.global("quickshell:overviewWorkspacesOpen"))
     end
 })
 hl.gesture({
     fingers = 4,
     direction = "down",
     action = function()
-        hl.dispatch(hl.dsp.global("quickshell:overviewWorkspacesToggle"))
+        hl.dispatch(hl.dsp.global("quickshell:overviewWorkspacesClose"))
     end
 })
 -- Direction names are inverted. Measured on 0.55.4: "pinchin" fires when the fingers

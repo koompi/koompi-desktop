@@ -96,6 +96,13 @@ Scope {
         }
     }
 
+    GlobalShortcut { // 4-finger up: open only, so a second swipe up never flaps it shut
+        name: "overviewWorkspacesOpen"
+        description: "Opens overview on press"
+
+        onPressed: GlobalStates.overviewOpen = true
+    }
+
     GlobalShortcut {
         name: "overviewWorkspacesClose"
         description: "Closes overview on press"

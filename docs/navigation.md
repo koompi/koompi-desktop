@@ -14,7 +14,7 @@ Five roles, and nothing else may claim a primary gesture or a bare `Super` chord
 | Role | Question it answers | Surface | Opened by | State |
 | --- | --- | --- | --- | --- |
 | Search | "take me to a thing" | `SearchPanel.qml` | `Super` release | `searchOpen` |
-| Overview | "where are my windows" | `OverviewPanel.qml` | `Super+Tab`, 4-finger up/down | `overviewOpen` |
+| Overview | "where are my windows" | `OverviewPanel.qml` | `Super+Tab`, 4-finger up (down closes) | `overviewOpen` |
 | Today | "what is waiting for me, what can I switch" | the right panel, `SidebarRight.qml`: quick settings, then notifications | `Super+N` | `sidebarRightOpen` |
 | Now | "what is my work doing" | left sidebar, `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 | Launchpad | "show me everything installed" | `Launchpad.qml` | 4-finger spread only | `launchpadOpen` |
@@ -59,7 +59,7 @@ The horizontal bar and the vertical bar are alternative bars, so a given session
 | --- | --- | --- | --- | --- | --- |
 | Left sidebar | `Super+A` | one button, hidden unless AI or translator is enabled | top-left | none | yes |
 | Right panel (quick settings and notifications) | `Super+N` | the clock and the sliders glyph (`tune`) left of it, both drawn toggled while open; a dot on the clock while notifications are unread | top-right | none | yes, `sidebarRight`; `controlCenter` is an alias |
-| Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up or down | yes |
+| Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up to open, down to close | yes |
 | Search | `Super` | none | none | none | yes |
 | Launchpad | none, by decision | none | none | 4-finger spread and close | yes |
 | Cheatsheet | `Super+/` | none | none | none | yes |
@@ -144,7 +144,8 @@ Entering the window, or finding the pointer resting in it when a sidebar closes 
 | 3-finger swipe | move window |
 | 3-finger pinch | fullscreen |
 | 4-finger horizontal | switch workspace, walking numeric neighbours |
-| 4-finger up or down | Overview |
+| 4-finger up | open the Overview |
+| 4-finger down | close the Overview |
 | 4-finger spread | open Launchpad |
 | 4-finger close | close Launchpad |
 
@@ -472,7 +473,7 @@ Two of them gain a second surface, and no new role is created.
 | Role | Change | Surface | Opened by | State |
 | --- | --- | --- | --- | --- |
 | Overview | gains the app switcher, its keyboard reflex for "take me back to that app" | `modules/koompi/appSwitcher/` | `Alt+Tab` held | `appSwitcherOpen` |
-| Overview | becomes Mission Control: the desks in use side by side, each drawn with its tiles where they sit, plus a `+` for the next free one; click a desk, drag a window onto a desk, arrows and `Enter`, typing filters | `OverviewPanel.qml` | `Super+Tab`, 4-finger up or down | `overviewOpen` |
+| Overview | becomes Mission Control: the desks in use side by side, each drawn with its tiles where they sit, plus a `+` for the next free one; click a desk, drag a window onto a desk, arrows and `Enter`, typing filters | `OverviewPanel.qml` | `Super+Tab`, 4-finger up (down closes) | `overviewOpen` |
 | Today | the right sidebar becomes the Notification Center: date, notifications grouped by app, a System group, then the next events, weather, to-do and timer | `SidebarRight.qml` | `Super+N`, the clock | `sidebarRightOpen` |
 | Now | the left sidebar becomes one assistant: a 420 px drawer that opens the same thread in the Intelligence window | `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 
