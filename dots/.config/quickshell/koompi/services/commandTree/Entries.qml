@@ -187,7 +187,7 @@ QtObject {
             icon: "downloading",
             keywords: "suspend to disk sleep power resume",
             // services/SessionWarnings.qml:16 canHibernate, the same gate the
-            // session screen's button uses (modules/koompi/sessionScreen/SessionScreen.qml:175)
+            // session screen's button uses (modules/koompi/sessionScreen/SessionScreen.qml:203)
             when: () => SessionWarnings.canHibernate,
             // modules/common/functions/Session.qml:40
             execute: () => Session.hibernate()

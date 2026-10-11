@@ -28,7 +28,7 @@ Singleton {
     property string uptime: "0h, 0m"
 
     Timer {
-        // minute resolution; the clock popup is the only reader and is hidden most of the time
+        // minute resolution; its one reader is the uptime row in Settings > About, open rarely
         interval: 60000
         running: PowerSaving.awake
         triggeredOnStart: true
