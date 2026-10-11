@@ -6,7 +6,7 @@ Based on [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland) (illogica
 Install it on Arch, Fedora, Debian or Ubuntu:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/koompi/desktop/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/koompi/koompi-desktop/main/install.sh | bash
 ```
 
 That clones the repository to `~/.local/share/koompi-desktop` and hands over to `./setup install`.
@@ -14,7 +14,7 @@ It asks before each stage, and refuses to run as root.
 Prefer to read it first? Clone and run the same thing by hand:
 
 ```sh
-git clone --recursive https://github.com/koompi/desktop.git
+git clone --recursive https://github.com/koompi/koompi-desktop.git
 cd koompi-desktop
 ./setup install
 ```
@@ -65,7 +65,7 @@ Every file it writes is recorded in `~/.local/state/koompi/installed-files`, so
 The one-liner passes its arguments straight through, so this works too:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/koompi/desktop/main/install.sh | bash -s -- --no-apps
+curl -fsSL https://raw.githubusercontent.com/koompi/koompi-desktop/main/install.sh | bash -s -- --no-apps
 ```
 
 ## Updating
@@ -83,7 +83,7 @@ installs new dependencies, reapplies the desktop files, and keeps the existing
 application choices:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/koompi/desktop/main/install.sh | bash -s -- --no-apps --yes
+curl -fsSL https://raw.githubusercontent.com/koompi/koompi-desktop/main/install.sh | bash -s -- --no-apps --yes
 ```
 
 It works out how this machine got its desktop.
@@ -186,7 +186,8 @@ Update this section when a stage changes hands, not per commit.
 | Live ISO | v1 builds in CI (`build-iso.yml`, manual dispatch) and publishes to GitHub Releases. Stock-Arch package set; the `[koompi]` repo is disabled in its `pacman.conf`. First release: `iso-koompi-2026.08.25-x86_64`. |
 | Signed `[koompi]` repo | Skeleton only (`build-packages.yml`). Signing key and publish target are not decided, so the sign and publish steps stay commented out. |
 | Installer | Zig TUI renders with the ANSI theme; not yet autostarted from the live ISO, and the branded pacstrap path waits on the signed repo. |
-| Quickshell package | Arch's own `quickshell` from [extra]; `koompi-widgets` carries the extra Qt and KDE runtime packages the shell loads and replaces the old `koompi-quickshell-git`. |
+| Quickshell package | Done. Arch's `quickshell` from [extra], pulled in by `koompi-hyprland`; Arch rebuilds it with every Qt bump, so `pacman -Syu` upgrades both together. `koompi-widgets` carries the extra Qt and KDE runtime packages the shell loads; both replace the old `koompi-quickshell-git`. |
+| Quickwork drawer | Not built. `Super+O` is reserved; the left sidebar still carries the inherited AI and translator tabs. |
 
 Blocked on decisions: the `[koompi]` repo signing key and where the repo is hosted.
 Everything after that in the chain (branded ISO, installer autostart) is waiting on it.

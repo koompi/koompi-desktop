@@ -34,15 +34,16 @@ ARCH_DEP_PKGBUILDS=(
     koompi-icons
 )
 
-# Package names from the pre-KOOMPI era. Left installed they sit as orphans and,
-# worse, the -git builds shadow the repo versions the metas now pull in.
+# Package names from the pre-KOOMPI era, plus koompi-quickshell-git (replaced by
+# Arch's quickshell). Left installed they sit as orphans and, worse, the -git
+# builds shadow the repo versions the metas now pull in.
 arch_drop_deprecated() {
     local superseded=(
         illogical-impulse-{microtex,pymyc-aur,oneui4-icons-git}
         illogical-impulse-{quickshell-git,audio,backlight,basic,bibata-modern-classic-bin}
         illogical-impulse-{fonts-themes,hyprland,kde,microtex-git,portal,python}
         illogical-impulse-{screencapture,toolkit,widgets}
-        matugen-bin hyprland-qtutils
+        koompi-quickshell-git matugen-bin hyprland-qtutils
         {quickshell,hyprutils,hyprpicker,hyprlang,hypridle,hyprland-qt-support}-git
         {hyprland-qtutils,hyprlock,xdg-desktop-portal-hyprland,hyprcursor}-git
         {hyprwayland-scanner,hyprland}-git

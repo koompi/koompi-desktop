@@ -115,6 +115,18 @@ setup_low_ram_defaults() {
         run sudo install -Dm644 "$file" "/usr/local/lib/${file#"$src/"}"
     done
 
+    # boot-time oneshot: nothing above re-runs it, so from git the drop-in
+    # waits for a reboot while pacman's 25-systemd-sysctl.hook applies it now.
+    # restart re-reads the whole sysctl.d search path on purpose - that path is
+    # the precedence rule, and poking single keys would impose values an
+    # admin's /etc/sysctl.d/ file shadows. try(): /proc/sys is read-only in a
+    # container, which is not a reason to abort an install.
+    if try sudo systemctl restart systemd-sysctl.service; then
+        ok "kernel variables applied (swappiness, dirty limits, inotify watches)"
+    else
+        warn "could not apply the kernel variables now; they take effect at the next boot"
+    fi
+
     # The package declares zram-generator as a dependency; from git it has to
     # be asked for by name. Without it the zram drop-in is inert.
     if [[ ! -x /usr/lib/systemd/system-generators/zram-generator ]]; then
@@ -228,7 +240,16 @@ setup_services() {
     if systemctl list-unit-files bluetooth.service >/dev/null 2>&1; then
         run sudo systemctl enable --now bluetooth
     fi
-    # fwupd's timer (koompi-basic dependency); no package, no unit
+    # koompi-basic dep, so packaged users have it and the preset enables this
+    # timer; from git nothing pulls fwupd in
+    if ! have fwupdmgr; then
+        case "$OS_GROUP_ID" in
+            arch)   run sudo pacman -S --needed --noconfirm fwupd ;;
+            fedora) run sudo dnf install -y fwupd ;;
+            debian) run sudo apt-get install -y fwupd ;;
+            *)      warn "no fwupd recipe for this distro; firmware updates stay manual" ;;
+        esac
+    fi
     if systemctl list-unit-files fwupd-refresh.timer >/dev/null 2>&1; then
         run sudo systemctl enable fwupd-refresh.timer
     else

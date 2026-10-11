@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Every app widget (Super+`, Super+\, Super+Shift+D, Super+H, Super+Y) goes through one script and one rule
-# block: floating, centred, 70% x 70%, on its own special workspace. A press shows it, the next hides it and
+# Every app widget (Super+`, Super+\, Super+Shift+D, Super+H, Super+T) goes through one script. All but
+# Telegram share one rule block: floating, centred, 70% x 70%, on its own special workspace; Telegram is a
+# left-side panel placed by rules_telegram.lua. A press shows it, the next hides it and
 # gives focus back, a press from another desk shows it there. Ctrl+Super+S did the same as Super+S.
 #
 # Live: Hyprland nested in a headless KWin on a private bus. The window rules are the shipped ones, lifted
@@ -10,7 +11,8 @@ set -uo pipefail
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 RULES="$REPO_ROOT/dots/.config/hypr/hyprland/rules.lua"
 BINDS="$REPO_ROOT/dots/.config/hypr/hyprland/keybinds.lua"
-NAMES="telegram discord whatsapp term sysmon"
+NAMES="discord whatsapp term sysmon"
+TELEGRAM="$REPO_ROOT/dots/.config/hypr/hyprland/rules_telegram.lua"
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
@@ -25,6 +27,11 @@ for name in $NAMES; do
 done
 if grep -E 'special:(telegram|discord|whatsapp|term|sysmon) silent' "$RULES"; then fail "a widget has its own workspace rule outside the shared block"; fi
 echo "ok   source: one rule block gives every widget the same size"
+
+grep -qF 'workspace = "special:telegram silent"' "$TELEGRAM" || fail "rules_telegram.lua does not send Telegram to special:telegram"
+grep -qF 'require("hyprland.rules_telegram")' "$REPO_ROOT/dots/.config/hypr/hyprland.lua" || fail "hyprland.lua does not load rules_telegram.lua"
+if grep -qF 'special = "telegram"' "$RULES"; then fail "Telegram is back in the centred widget table; rules_telegram.lua places it"; fi
+echo "ok   source: Telegram is the side panel from rules_telegram.lua, not a centred widget"
 
 if grep -q 'CTRL + SUPER + S"' "$BINDS"; then fail "Ctrl+Super+S is back: it did the same as Super+S"; fi
 echo "ok   source: Ctrl+Super+S is gone, Super+S toggles the scratchpad"
@@ -71,7 +78,6 @@ wait_class base || note "timeout base"
 sleep 1
 
 widgets=(
-    "telegram TelegramDesktop --title=Telegram"
     "discord discord"
     "whatsapp web.whatsapp.com"
     "term term-scratch"

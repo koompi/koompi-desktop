@@ -73,10 +73,8 @@ hl.window_rule({match = {class = "^TUI\\." },                                 ce
 hl.window_rule({match = {class = "^TUI\\." },                                 size = {"(monitor_w*0.60)", "(monitor_h*0.65)"} })
 -- later rules win, so the widgets come after the TUI one
 -- app widgets (toggle_app_scratchpad.sh): one special workspace each, all floating, centred, 70% x 70%.
--- telegram matches initial_title as well: the reaction popup is a transient sharing the class.
-local telegramClass = "^(org\\.telegram\\.desktop|TelegramDesktop)$"
+-- Telegram (SUPER + T) is a side panel, not a centred widget: rules_telegram.lua.
 local widgets = {
-    { special = "telegram", match = { class = telegramClass, initial_title = "^Telegram( \\([0-9]+\\))?$" } },
     { special = "discord",  match = { class = "^(discord)$" } },
     { special = "whatsapp", match = { class = ".*web\\.whatsapp\\.com.*" } },
     { special = "term",     match = { class = "^(term-scratch)$" } },

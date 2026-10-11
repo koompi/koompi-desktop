@@ -57,7 +57,7 @@ Search is the keyboard's launcher; this is the touchpad's.
 
 | Keys | Opens |
 | --- | --- |
-| `Super+Return` or `Super+T` | a terminal |
+| `Super+Return` | a terminal |
 | `Super+E` | the file manager |
 | `Super+W` | your browser |
 | `Super+C` | your code editor |
@@ -80,7 +80,7 @@ They all work the same way, on whichever desk you are.
 | `Super+\` | the system monitor |
 | `Super+Shift+D` | Discord |
 | `Super+H` | WhatsApp |
-| `Super+Y` | Telegram |
+| `Super+T` | Telegram, down the left side; what it opens shows on the right |
 | `Super+S` | any window you sent aside with `Super+Alt+S` |
 
 ## Two more that are worth the muscle memory
