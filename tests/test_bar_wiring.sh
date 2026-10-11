@@ -119,6 +119,16 @@ ShellRoot {
         probe.verdict(GlobalStates.sidebarRightOpen && clock.toggled && cc.toggled, "glyph click opens the same panel");
         cc.click();
         probe.verdict(!GlobalStates.sidebarRightOpen, "a second glyph click closes it");
+
+        // the Wi-Fi glyph asks the panel for its network list; the panel itself is not in this probe
+        const net = probe.findNamed(win.contentItem, "networkIndicator");
+        let asked = "";
+        const take = name => asked = name;
+        GlobalStates.sidebarRightModuleRequested.connect(take);
+        const area = net ? Array.from(net.data).find(o => o.cursorShape === Qt.PointingHandCursor) : null;
+        if (area) area.clicked(null);
+        GlobalStates.sidebarRightModuleRequested.disconnect(take);
+        probe.verdict(asked === "wifi", "a Wi-Fi glyph click asks for the network list: '" + asked + "'");
     }
 
     function checkDot(win) {

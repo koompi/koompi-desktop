@@ -37,6 +37,15 @@ Singleton {
     property bool wallpaperSelectorOpen: false
     property bool workspaceShowNumbers: false
 
+    // A bar status icon (Wi-Fi, battery, the mic light) opens the right panel on its own list; a second click closes it.
+    signal sidebarRightModuleRequested(string name)
+    function toggleSidebarRightOn(name: string): void {
+        if (root.sidebarRightOpen)
+            root.sidebarRightOpen = false;
+        else
+            root.sidebarRightModuleRequested(name);
+    }
+
     onSidebarRightOpenChanged: {
         if (sidebarRightOpen) {
             Notifications.timeoutAll();

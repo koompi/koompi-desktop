@@ -228,23 +228,8 @@ Item { // Bar content region
                 color: Appearance.colors.colOnLayer0
             }
 
-            MaterialSymbol {
+            NetworkIndicator {
                 Layout.alignment: Qt.AlignVCenter
-                text: Network.materialSymbol
-                fill: Network.connected ? 1 : 0
-                iconSize: Appearance.font.pixelSize.larger
-                color: Appearance.colors.colOnLayer0
-                MouseArea {
-                    id: networkHover
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    acceptedButtons: Qt.NoButton
-                }
-                PopupToolTip {
-                    extraVisibleCondition: networkHover.containsMouse
-                    anchorEdges: (!Config.options.bar.bottom && !Config.options.bar.vertical) ? Edges.Bottom : Edges.Top
-                    text: Network.networkName !== "" ? Network.networkName : Translation.tr("Network")
-                }
             }
 
             BatteryIndicator {

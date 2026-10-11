@@ -102,13 +102,16 @@ GridLayout {
         icon: "screen_record"
         iconColor: Appearance.m3colors.m3error
         pulse: true
-        tooltip: Translation.tr("Screen recording is on")
+        tooltip: Translation.tr("Screen recording is on. Click to stop")
+        // record.sh stops a running recording itself
+        toggle: () => Quickshell.execDetached([Directories.recordScriptPath])
     }
     ModeIndicator {
         objectName: "modeMicInUse"
         reveal: Privacy.micActive && !root.dictating
         icon: "mic"
-        tooltip: Translation.tr("An app is using the microphone")
+        tooltip: Translation.tr("An app is using the microphone. Click for sound settings")
+        toggle: () => GlobalStates.toggleSidebarRightOn("sound")
     }
     ModeIndicator {
         objectName: "modeMicMuted"

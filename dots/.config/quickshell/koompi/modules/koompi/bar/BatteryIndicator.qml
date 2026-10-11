@@ -1,3 +1,4 @@
+import qs
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
@@ -15,6 +16,9 @@ MouseArea {
     implicitHeight: Appearance.sizes.barHeight
 
     hoverEnabled: !Config.options.bar.tooltips.clickToShow
+    cursorShape: Qt.PointingHandCursor
+    // hover shows the popup; a click opens the battery page (with click-to-show tooltips, the click is the popup's)
+    onClicked: if (!Config.options.bar.tooltips.clickToShow) GlobalStates.toggleSidebarRightOn("battery")
 
     RowLayout {
         id: row

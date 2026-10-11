@@ -216,12 +216,8 @@ Item { // Bar content region
                 color: Appearance.colors.colOnLayer0
             }
 
-            MaterialSymbol {
+            Bar.NetworkIndicator {
                 Layout.alignment: Qt.AlignHCenter
-                text: Network.materialSymbol
-                fill: Network.connected ? 1 : 0
-                iconSize: Appearance.font.pixelSize.larger
-                color: Appearance.colors.colOnLayer0
             }
 
             Bar.BarPanelButton { // quick settings

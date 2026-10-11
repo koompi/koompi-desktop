@@ -55,6 +55,13 @@ Scope {
         GlobalStates.sidebarRightOpen = true;
     }
 
+    Connections {
+        target: GlobalStates
+        function onSidebarRightModuleRequested(name: string) {
+            root.showModule(name);
+        }
+    }
+
     onPinnedChanged: {
         if (root.pinned)
             GlobalStates.sidebarRightOpen = true;

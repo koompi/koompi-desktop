@@ -75,7 +75,9 @@ It is its own item with its own hit area, shows a glyph and never a count, and t
 A bar popup hangs under the widget it belongs to and is clamped to the screen the bar is on, so the clock at the far right gets a popup that ends at the screen edge instead of running off it.
 
 The bar's right end reads, left to right: tray extras (tray, media, agent usage, a running pomodoro), the mode lights (recording, microphone in use, mic muted, volume muted, keep awake, night light, Do Not Disturb, dictation), the update glyph, the input source, Wi-Fi, the battery as a glyph with its percent, the sliders glyph, the clock.
-Every one is its own hit area, and the only two that open a panel are the sliders glyph and the clock; both open the one right panel.
+Every one is its own hit area, and every one answers a click; a glyph that only shows a tooltip reads as broken.
+The sliders glyph and the clock open the right panel. Wi-Fi opens it with the network list dropped down, the battery on its battery page, and the microphone-in-use light on the sound list; a second click closes it.
+The input source moves to the next layout, as `Super+Space` does. The other mode lights turn their mode off, and the recording light stops the recording.
 No strip-wide section takes a click: the right section of the horizontal bar, and both the top and bottom sections of the vertical bar, are `acceptedButtons: Qt.NoButton`, which leaves them hover and scroll-to-change-volume or brightness, wheel behaviours that survive it.
 The vertical bar has the same wiring: the sliders glyph at the bottom, the clock as a button in the middle group.
 Text on the bar reaches 4.5:1 against the bar over the worst wallpaper pixel (`tests/test_bar_contrast.sh`); that does not hold with `bar.showBackground` off.
