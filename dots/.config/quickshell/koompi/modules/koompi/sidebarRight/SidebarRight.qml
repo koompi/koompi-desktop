@@ -18,6 +18,7 @@ Scope {
     property string pendingDrawer: ""
     property string pendingModule: ""
     readonly property var content: surface.item?.content ?? null
+    readonly property var panel: surface.item
 
     function takePendingDrawer(): string {
         const page = root.pendingDrawer;
@@ -85,7 +86,9 @@ Scope {
             exclusiveZone: root.pinned ? root.sidebarWidth - Appearance.sizes.elevationMargin : 0
             implicitWidth: root.sidebarWidth
             WlrLayershell.namespace: "quickshell:sidebarRight"
-            WlrLayershell.keyboardFocus: GlobalStates.sidebarRightOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+            // a pinned panel takes the keyboard only after a click in it
+            property bool engaged: false
+            WlrLayershell.keyboardFocus: GlobalStates.sidebarRightOpen && (!root.pinned || panelWindow.engaged) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
             color: "transparent"
 
             anchors {
@@ -118,6 +121,7 @@ Scope {
             Connections {
                 target: root
                 function onPinnedChanged() {
+                    panelWindow.engaged = false;
                     panelWindow.updateDismissable();
                 }
             }
@@ -131,6 +135,14 @@ Scope {
             Item {
                 anchors.fill: parent
                 clip: true
+
+                Item {
+                    anchors.fill: parent
+                    z: 100
+                    TapHandler {
+                        onPressedChanged: if (pressed) panelWindow.engaged = true
+                    }
+                }
 
                 // a Loader sizes the content before its bindings run; bare anchors log a binding loop on implicitHeight
                 Loader {

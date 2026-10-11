@@ -40,7 +40,7 @@ Scope {
 
                 WlrLayershell.namespace: "quickshell:wTaskView"
                 WlrLayershell.layer: WlrLayer.Overlay
-                WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+                WlrLayershell.keyboardFocus: GlobalStates.overviewOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
                 color: "transparent"
 
                 anchors {

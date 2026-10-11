@@ -29,7 +29,7 @@ Scope {
             id: panelWindow
             exclusiveZone: 0
             WlrLayershell.namespace: "quickshell:wStartMenu"
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+            WlrLayershell.keyboardFocus: GlobalStates.searchOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
             color: "transparent"
 
             anchors {

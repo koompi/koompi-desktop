@@ -11,6 +11,7 @@ import Quickshell.Hyprland
 Scope { // Scope
     id: root
     readonly property bool built: surface.item !== null
+    readonly property var panel: surface.item?.panel ?? null
     property bool detach: false
     property bool pin: false
     property bool extend: false
@@ -78,6 +79,7 @@ Scope { // Scope
         component: Scope {
             id: windows
             property Item sidebarContent
+            readonly property var panel: sidebarLoader.item
 
             // one content moves between the docked and the detached window, so a detach keeps what was typed
             function place() {
@@ -126,8 +128,20 @@ Scope { // Scope
                     property real sidebarWidth: root.extend ? widthExtended : widthNormal
                     property var contentParent: sidebarLeftBackground
 
+                    // a pinned panel stays: Esc and a click away leave it, only the toggle closes it
+                    property bool engaged: false
                     function hide() {
+                        if (root.pin)
+                            return
                         GlobalStates.sidebarLeftOpen = false
+                    }
+                    function updateDismissable() {
+                        if (visible && !root.pin)
+                            GlobalFocusGrab.addDismissable(panelWindow)
+                        else
+                            GlobalFocusGrab.removeDismissable(panelWindow)
+                        if (!visible || !root.pin)
+                            engaged = false
                     }
 
                     exclusionMode: ExclusionMode.Normal
@@ -135,7 +149,7 @@ Scope { // Scope
                     implicitWidth: panelWindow.widthExtended + Appearance.sizes.elevationMargin
                     WlrLayershell.namespace: "quickshell:sidebarLeft"
                     // Hyprland 0.49: OnDemand is Exclusive, Exclusive just breaks click-outside-to-close
-                    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+                    WlrLayershell.keyboardFocus: GlobalStates.sidebarLeftOpen && (!root.pin || panelWindow.engaged) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
                     color: "transparent"
 
                     anchors {
@@ -148,11 +162,11 @@ Scope { // Scope
                         item: sidebarLeftBackground
                     }
 
-                    onVisibleChanged: {
-                        if (visible) {
-                            GlobalFocusGrab.addDismissable(panelWindow);
-                        } else {
-                            GlobalFocusGrab.removeDismissable(panelWindow);
+                    onVisibleChanged: updateDismissable()
+                    Connections {
+                        target: root
+                        function onPinChanged() {
+                            panelWindow.updateDismissable();
                         }
                     }
                     Connections {
@@ -166,6 +180,14 @@ Scope { // Scope
                     StyledRectangularShadow {
                         target: sidebarLeftBackground
                         radius: sidebarLeftBackground.radius
+                    }
+                    // above the content, which is swapped into the background: a handler there would be dropped with it
+                    Item {
+                        anchors.fill: sidebarLeftBackground
+                        z: 100
+                        TapHandler {
+                            onPressedChanged: if (pressed) panelWindow.engaged = true
+                        }
                     }
                     Rectangle {
                         id: sidebarLeftBackground

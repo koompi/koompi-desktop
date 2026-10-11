@@ -392,9 +392,9 @@ Conformance as of 2026-07-30:
 | --- | --- | --- |
 | Search | dismissable | gated on `searchOpen` |
 | Overview | dismissable | gated on `overviewOpen` |
-| Right sidebar | dismissable | gated on `sidebarRightOpen` |
-| Left sidebar | dismissable | unconditional `OnDemand`, harmless because the window is gated on `sidebarLeftOpen` |
-| Wallpaper selector | dismissable | unconditional `OnDemand`, window gated by its loader |
+| Right sidebar | dismissable unless pinned | gated on `sidebarRightOpen`, and after a click while pinned |
+| Left sidebar | dismissable unless pinned | gated on `sidebarLeftOpen`, and after a click while pinned |
+| Wallpaper selector | dismissable | gated on `wallpaperSelectorOpen` |
 | Media controls | dismissable | not set |
 | Bar popups | dismissable while keyboard-opened or click-pinned | `OnDemand` while keyboard-opened, so `Escape` reaches it |
 | Cheatsheet | dismissable | gated on `cheatsheetOpen` |
@@ -420,8 +420,14 @@ The snap preview and the first-run workspace hint are absent for the same reason
 
 A surface that is fullscreen but masked to a smaller item, like the cheatsheet, is the case that does need the grab: outside the mask the click reaches the window beneath, and the grab is the only thing that notices.
 
-The remaining gap is the one surface whose keyboard focus is set but not gated.
-The wallpaper selector and the left sidebar both ask for `OnDemand` unconditionally, which is currently harmless and will stop being harmless the moment either window stays mapped beyond a single open.
+Every layer surface asks for the keyboard only while its own flag is open, as `flag ? OnDemand : None`; `tests/test_keyboard_focus_gated.sh` fails a bare `OnDemand` or `Exclusive`.
+The few windows that exist only while shown (modal dialogs, capture overlays, the session menu, the screensaver, the polkit prompt) are named in that test with the reason.
+
+A pinned side panel (the left sidebar's `Ctrl+P`, the right panel's pin button) is docked, not a popup.
+It leaves the grab, so a click outside does not close it; `Escape` inside it closes nothing and unpins nothing; and it asks for no keyboard (`None`) until it is clicked, which gives it `OnDemand` until it is unpinned or closed.
+Only the toggle (`Super+A`, `Super+N`) or the pin button closes it.
+The detached left sidebar is a floating toplevel, not a layer surface, so none of this applies to it.
+`tests/test_pinned_panel_focus.sh` drives both panels in nested Hyprland: pinned, after `Escape`, after a click outside, after a click inside, and unpinned again.
 A warm `LazySurface` window is built but not mapped, because a layer window that is not visible has no surface, so it does not count.
 
 ## App icons

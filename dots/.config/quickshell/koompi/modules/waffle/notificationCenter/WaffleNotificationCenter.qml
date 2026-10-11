@@ -26,7 +26,7 @@ Scope {
             id: panelWindow
             exclusiveZone: 0
             WlrLayershell.namespace: "quickshell:wNotificationCenter"
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+            WlrLayershell.keyboardFocus: GlobalStates.sidebarRightOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
             color: "transparent"
 
             anchors {
