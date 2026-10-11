@@ -54,8 +54,11 @@ Scope {
             id: panelWindow
             property alias content: content
             readonly property real cardMargin: Appearance.sizes.elevationMargin
+            // 0 tucked under the bar, 1 fully down. The window starts at the bar's lower edge and
+            // clips, so the card slides out from beneath the bar instead of across it.
+            property real reveal: 0
 
-            visible: GlobalStates.controlCenterOpen
+            visible: GlobalStates.controlCenterOpen || reveal > 0
             exclusionMode: ExclusionMode.Ignore
             exclusiveZone: 0
             implicitWidth: content.implicitWidth + cardMargin * 2
@@ -85,7 +88,22 @@ Scope {
             }
 
             onVisibleChanged: updateDismissable()
+            Behavior on reveal {
+                NumberAnimation {
+                    duration: GlobalStates.controlCenterOpen ? Appearance.animation.elementMoveEnter.duration : Appearance.animation.elementMoveExit.duration
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: GlobalStates.controlCenterOpen ? Appearance.animationCurves.emphasizedDecel : Appearance.animationCurves.emphasizedAccel
+                }
+            }
+            Connections {
+                target: GlobalStates
+                function onControlCenterOpenChanged() {
+                    panelWindow.reveal = GlobalStates.controlCenterOpen ? 1 : 0;
+                }
+            }
+
             Component.onCompleted: {
+                Qt.callLater(() => panelWindow.reveal = GlobalStates.controlCenterOpen ? 1 : 0);
                 if (root.targetScreen)
                     panelWindow.screen = root.targetScreen;
                 updateDismissable();
@@ -102,17 +120,23 @@ Scope {
                 }
             }
 
-            StyledRectangularShadow {
-                target: content
-            }
+            Item {
+                id: drawer
+                anchors.fill: parent
+                clip: true
 
-            ControlCenterContent {
-                id: content
-                x: panelWindow.cardMargin
-                y: panelWindow.cardMargin
-                focus: GlobalStates.controlCenterOpen
-                maxHeight: (panelWindow.screen?.height ?? 900) - Appearance.sizes.barHeight - Appearance.sizes.hyprlandGapsOut * 2 - panelWindow.cardMargin * 2
-                onCloseRequested: GlobalStates.controlCenterOpen = false
+                StyledRectangularShadow {
+                    target: content
+                }
+
+                ControlCenterContent {
+                    id: content
+                    x: panelWindow.cardMargin
+                    y: panelWindow.cardMargin - (1 - panelWindow.reveal) * (height + panelWindow.cardMargin * 2)
+                    focus: GlobalStates.controlCenterOpen
+                    maxHeight: (panelWindow.screen?.height ?? 900) - Appearance.sizes.barHeight - Appearance.sizes.hyprlandGapsOut * 2 - panelWindow.cardMargin * 2
+                    onCloseRequested: GlobalStates.controlCenterOpen = false
+                }
             }
         }
     }

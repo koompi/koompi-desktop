@@ -432,6 +432,11 @@ The shell's half is the `animation` roles and the duration ladder in `modules/co
 Search is a layer Hyprland does not animate, so its motion is the shell's alone.
 The right sidebar arrives and leaves through Hyprland's layer leaves, and its drawer pages through the shell's.
 
+A panel that hangs from the bar comes out from beneath it, never across it.
+The founder asked for it on 2026-10-11, for a smoother drop: a card that slides down from the screen edge passes over the bar on its way, and the eye reads that as two things colliding.
+So such a panel's window starts at the bar's lower edge and clips its content, the card moves inside it with the enter and exit roles, and Hyprland does not animate the layer (`no_anim`).
+The Control Center does this today. Anything else under the bar, such as the wallpaper selector and the media controls, appears in place (Hyprland's popin). `tests/test_panel_under_bar.sh` fails on any `slide top` layer rule.
+
 `appearance.reduceMotion` (Settings, Quick, off by default) stops every spatial move in the shell, leaves fades at 100 ms, and turns Hyprland's animations off.
 Hyprland's half goes through `services/HyprlandModes.qml`, which also owns Game mode's hold on the same option, so neither can undo the other.
 The waffle panel family shares the ladder, so Reduce Motion reaches it the same way: with it on, every step of the ladder but `snap` is 0, and `Looks.transition`, `WStackView` and the bar panels' close follow.
