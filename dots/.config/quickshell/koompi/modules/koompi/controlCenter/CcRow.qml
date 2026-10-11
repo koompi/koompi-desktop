@@ -19,8 +19,8 @@ Item {
     property bool hasSwitch: false
     // a grid tile: a filled card when on, and the icon disc is the switch of a row with choices
     property bool tile: false
-    // half-width tiles carry the word under the title, where it cannot squeeze the title
-    property bool stackState: false
+    readonly property color colText: root.tile && root.toggled && root.hasToggle ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnLayer1
+    readonly property color colSub: root.tile && root.toggled && root.hasToggle ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colSubtext
     property string onWord: Translation.tr("On")
     property string offWord: Translation.tr("Off")
     property bool activateOpens: !hasToggle || expandable
@@ -74,7 +74,7 @@ Item {
             leftMargin: Appearance.spacing.normal
             rightMargin: Appearance.spacing.normal
         }
-        spacing: Appearance.spacing.normal
+        spacing: root.tile ? Appearance.spacing.small : Appearance.spacing.normal
 
         Rectangle {
             id: plate
@@ -121,7 +121,7 @@ Item {
                 elide: Text.ElideRight
                 font.pixelSize: Appearance.font.pixelSize.small
                 font.weight: Font.DemiBold
-                color: Appearance.colors.colOnLayer1
+                color: root.colText
                 text: root.title
             }
             StyledText {
@@ -129,8 +129,8 @@ Item {
                 visible: text.length > 0
                 elide: Text.ElideRight
                 font.pixelSize: Appearance.font.pixelSize.smaller
-                color: Appearance.colors.colSubtext
-                text: root.detail.length > 0 || !root.stackState ? root.detail : root.stateWord
+                color: root.colSub
+                text: root.detail.length > 0 || !root.tile ? root.detail : root.stateWord
             }
         }
 
@@ -141,7 +141,7 @@ Item {
 
         StyledText {
             objectName: "state"
-            visible: root.hasToggle && !root.hasSwitch && !root.stackState
+            visible: root.hasToggle && !root.hasSwitch && !root.tile
             font.pixelSize: Appearance.font.pixelSize.small
             font.weight: root.toggled ? Font.Bold : Font.Normal
             color: root.toggled ? Appearance.colors.colPrimary : Appearance.colors.colSubtext
@@ -150,7 +150,7 @@ Item {
 
         CcSwitch {
             objectName: root.objectName + "-switch"
-            visible: root.hasSwitch
+            visible: root.hasSwitch && !root.tile
             checked: root.toggled
             label: root.title
             onFlipped: root.activated()
@@ -159,7 +159,7 @@ Item {
         MaterialSymbol {
             visible: root.hasDetail || root.expandable
             iconSize: 20
-            color: Appearance.colors.colSubtext
+            color: root.colSub
             text: root.expandable ? (root.expanded ? "expand_less" : "expand_more") : "chevron_right"
 
             MouseArea {

@@ -12,7 +12,7 @@ ColumnLayout {
         wrapMode: Text.WordWrap
         font.pixelSize: Appearance.font.pixelSize.smaller
         color: Appearance.colors.colSubtext
-        text: Translation.tr("Shown modules appear under Sound. Wi-Fi, Bluetooth, Do Not Disturb, Keep awake, Display and Sound are always there.")
+        text: Translation.tr("Shown modules appear as tiles after Dark mode. Wi-Fi, Bluetooth, Sound, Do Not Disturb, Keep awake, Night Light, Dark mode and the sliders are always there.")
     }
 
     Repeater {

@@ -318,13 +318,17 @@ The machine's switches head the right panel (`Super+N`, layer `quickshell:sideba
 There is no separate Control Center window and no `Super+Alt+N`.
 The `controlCenter` IPC target (`toggle`, `open`, `close`, `module <name>`) and the `controlCenterToggle` global shortcut are aliases that open this panel; `module` takes `wifi`, `bluetooth`, `sound` or `power` (expands that row's list) or `display`, `nowPlaying`, `battery` or `edit` (opens that page over the panel).
 
-The rows, top to bottom: Wi-Fi, Bluetooth (only with an adapter), Do Not Disturb, Keep awake, Night Light, Dark mode, Brightness, Sound (volume and the output device), Now Playing (only while a player exists), Battery (only on battery hardware), the optional modules the user chose, and Edit.
-A row with choices (Wi-Fi, Bluetooth, Sound, Power profile) expands an inline list when clicked, one open at a time, and its on and off is a separate switch at its right end: Wi-Fi networks to connect to (a password prompt when needed), Bluetooth devices to connect or disconnect, sound outputs and inputs, power modes.
+The head is a grid of tiles, two to a row, same height, each with an icon, a name and one status line: Wi-Fi | Bluetooth (only with an adapter), Sound | Power profile (only where power-profiles-daemon runs), Do Not Disturb | Keep awake, Night Light | Dark mode, then the optional modules the user chose, left to right.
+Below the grid: the Brightness and Volume sliders at full width, then Now Playing (only while a player exists) and Battery (only on battery hardware) as full-width rows, and Edit as a pencil button in the head's corner.
+A tile that is on fills with the accent container colour.
+A tile with choices (Wi-Fi, Bluetooth, Sound, Power profile) opens a list when its body is clicked: the list spans the full width under that tile's row and pushes the rows below down, one open at a time.
+On those tiles the icon disc is the on/off switch (Wi-Fi, Bluetooth) or the mute switch (Sound), with its own hit area and focus; Power profile has no switch.
+Wi-Fi lists networks (a password prompt when needed), Bluetooth lists devices to connect or disconnect, Sound lists outputs and inputs, Power profile lists modes.
 Wi-Fi, Bluetooth and Sound end their list in a "More settings..." link that opens that Settings page through `koompi-settings <page>`.
-A row with no choices toggles on click, and shows its state as a filled glyph on an accent plate and the word On or Off.
+A tile with no choices flips on click.
 The one-shot captures (screen snip, colour picker, identify music, on-screen keyboard) are not here; they have keys and are Search commands.
 
-Keys: Tab and the arrows walk the panel from the first row through the notifications to the cards; Enter on a row with choices expands it, the arrows move inside the list, Enter picks, and Tab reaches the row's switch, where Space flips it.
+Keys: the arrows move across the tile grid in two dimensions and on past the sliders into the notifications; Tab walks the panel in order and reaches a tile's switch disc, where Space flips it; Enter on a tile with choices expands it, the arrows move inside the list, Enter picks.
 Escape folds the open list first; a second Escape closes the panel.
 Display, Now Playing, Battery and Edit open as pages over the panel, like the Calendar drawer, and Escape or Back returns.
 

@@ -14,7 +14,7 @@ CcRow {
     readonly property bool isMode: root.type === "powerProfile"
 
     objectName: `${root.editing ? "cc-edit" : "cc-extra"}-${root.type}`
-    visible: root.editing || root.installed
+    visible: root.editing ? root.type !== "powerProfile" : root.installed
     icon: model?.icon || "extension"
     title: model?.name ?? root.type
     detail: root.editing ? (root.installed ? "" : Translation.tr("Not installed")) : (!root.isMode && model?.hasStatusText ? (model?.statusText ?? "") : "")

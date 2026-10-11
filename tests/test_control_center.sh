@@ -108,6 +108,17 @@ ShellRoot {
             const first = all().find(i => (i.objectName ?? "").startsWith("nc-group-") && i.visible);
             return `wifi<group:${y(named("cc-wifi")) < y(first)} group<upnext:${y(first) < y(named("w-upnext"))} edit<group:${y(named("cc-edit")) < y(first)}`;
         }
+        function grid(): string {
+            const p = n => named(n);
+            const same = (a, b) => y(p(a)) === y(p(b));
+            return `dnd|keep:${same("cc-dnd", "cc-keepAwake") && p("cc-dnd").x < p("cc-keepAwake").x} night|dark:${same("cc-nightLight", "cc-darkMode") && p("cc-nightLight").x < p("cc-darkMode").x} dnd<night:${y(p("cc-dnd")) < y(p("cc-nightLight"))} sound<dnd:${y(p("cc-sound")) < y(p("cc-dnd"))} sliders<:${y(p("cc-nightLight")) < y(p("cc-brightness")) && y(p("cc-brightness")) < y(p("cc-volume"))}`;
+        }
+        function wifiList(): string {
+            const list = named("cc-list-wifi");
+            const wifi = named("cc-wifi");
+            const head = sr.content.head;
+            return `fullWidth=${list.width >= head.width - 1} below=${y(list) >= y(wifi) + wifi.height - 1} pushes=${y(named("cc-sound")) >= y(list) + list.height - 1}`;
+        }
         function firstGroup(): string {
             const g = all().find(i => (i.objectName ?? "").startsWith("nc-group-") && i.visible);
             if (!g) return "none";
@@ -133,7 +144,7 @@ ShellRoot {
         }
         function click(name: string): void {
             const item = named(name);
-            if (item.activate) item.activate(); else item.opened();
+            if (item.activate) item.activate(); else if (item.opened) item.opened(); else item.clicked();
         }
         function flags(): string {
             return `sidebar=${GlobalStates.sidebarRightOpen} silent=${Notifications.silent}`;
@@ -170,6 +181,7 @@ sleep 2.5
 note modules "$(call probe modules)"
 note words "$(call probe words)"
 note order "$(call probe order)"
+note grid "$(call probe grid)"
 note group_fit "$(call probe firstGroup)"
 note layers "$(hyprctl layers -j | jq -r '[.. | .namespace? // empty] | sort | join(",")')"
 note focus_open "$(call probe focused)"
@@ -177,10 +189,20 @@ note focus_open "$(call probe focused)"
 call probe watch
 keys -k Down
 note focus_down "$(call probe focused)"
+keys -k Down
+note focus_down2 "$(call probe focused)"
 keys -k space
 note dnd_after_space "$(call probe word cc-dnd) $(call probe flags)"
 keys -k space
 note dnd_after_second_space "$(call probe flags)"
+keys -k Right
+note focus_right "$(call probe focused)"
+keys -k Down
+note focus_grid_down "$(call probe focused)"
+keys -k Left
+note focus_left "$(call probe focused)"
+keys -k Up
+keys -k Up
 keys -k Up
 note focus_up "$(call probe focused)"
 
@@ -199,6 +221,7 @@ note panel_escape "$(call probe expanded)"
 call controlCenter module wifi
 sleep 1.5
 note module_wifi "$(call probe expanded)"
+note wifi_list "$(call probe wifiList)"
 call probe click cc-sound
 sleep 0.8
 note one_at_a_time "$(call probe expanded)"
@@ -244,10 +267,12 @@ expect() { # $1: reading, $2: wanted, $3: what it proves
 
 [[ -s "$WORK/readings" ]] || { dump; fail "setup: the probe recorded nothing"; }
 
-expect modules "cc-wifi,cc-dnd,cc-keepAwake,cc-nightLight,cc-darkMode,cc-brightness,cc-sound,cc-edit" \
+expect modules "cc-edit,cc-wifi,cc-sound,cc-extra-powerProfile,cc-dnd,cc-keepAwake,cc-nightLight,cc-darkMode,cc-brightness,cc-volume" \
     "the rows, in order, with Bluetooth, Battery and Now Playing absent"
-expect words "cc-dnd=Off,cc-keepAwake=Off,cc-nightLight=Off,cc-darkMode=On" "every plain toggle states On or Off in words"
+expect words "cc-extra-powerProfile=,cc-dnd=Off,cc-keepAwake=Off,cc-nightLight=Off,cc-darkMode=On" "every plain toggle states On or Off in words"
 echo "ok   probe: the Control Center rows lead the one panel, toggles read On or Off in words"
+expect grid "dnd|keep:true night|dark:true dnd<night:true sound<dnd:true sliders<:true" "tiles in pairs, then the sliders"
+echo "ok   probe: Do Not Disturb | Keep awake and Night Light | Dark mode in pairs, Sound above them, the sliders below"
 expect order "wifi<group:true group<upnext:true edit<group:true" "rows, then notification groups, then the cards"
 expect layers "quickshell:sidebarRight" "the layers: the panel is one, and no controlCenter layer"
 echo "ok   probe: rows, groups and cards in that order on one layer; no quickshell:controlCenter"
@@ -255,10 +280,14 @@ group_fit="$(reading group_fit)"
 [[ "$group_fit" == *"scrolled=0"*"fits=true" ]] || { dump; fail "the first notification group is not on screen unscrolled at 1366x768: '$group_fit'"; }
 echo "ok   probe: the first notification group is on screen without scrolling at 1366x768 ($group_fit)"
 expect focus_open "cc-wifi" "the first row takes the keyboard when the panel opens"
-expect focus_down "cc-dnd" "Down moves to the next visible row"
+expect focus_down "cc-sound" "Down moves to the tile below"
+expect focus_down2 "cc-dnd" "Down again"
+expect focus_right "cc-keepAwake" "Right moves across the pair"
+expect focus_grid_down "cc-darkMode" "Down from the right column stays in it"
+expect focus_left "cc-nightLight" "Left moves back across the pair"
 expect dnd_after_space "On sidebar=true silent=true" "Space on Do Not Disturb"
 expect dnd_after_second_space "sidebar=true silent=false" "Space on Do Not Disturb again"
-expect focus_up "cc-wifi" "Up goes back"
+expect focus_up "cc-wifi" "Up goes back to Wi-Fi"
 echo "ok   probe: opens on Wi-Fi, Down lands on Do Not Disturb, Space flips it"
 expect wifi_enter "[wifi] open=true drawer=[] flips=0" "Enter on the Wi-Fi row expands its list and does not flip Wi-Fi"
 expect wifi_tab "cc-wifi-switch" "Tab from the row reaches its switch"
@@ -267,10 +296,11 @@ expect wifi_escape "[] open=true drawer=[]" "Escape folds the open list first"
 expect panel_escape "[] open=false drawer=[]" "a second Escape closes the panel"
 echo "ok   probe: Enter expands, Tab reaches the switch, Space flips only there; Escape folds, Escape closes"
 expect module_wifi "[wifi] open=true drawer=[]" "controlCenter module wifi"
+expect wifi_list "fullWidth=true below=true pushes=true" "the Wi-Fi list is full width under its row and pushes the rows below down"
 expect one_at_a_time "[sound] open=true drawer=[]" "opening Sound folds Wi-Fi"
 expect sound_escape "[] open=true drawer=[]" "Escape folds the Sound list"
 echo "ok   probe: module wifi opens the panel on the Wi-Fi list; one list open at a time"
 expect edit_focus "drawer-back [] open=true drawer=[edit]" "the Edit page opens over the panel"
 expect edit_stored "screenRecord" "a checked module is stored in controlCenter.extraModules"
-expect modules_after_edit "cc-wifi,cc-dnd,cc-keepAwake,cc-nightLight,cc-darkMode,cc-brightness,cc-sound,cc-extra-screenRecord,cc-edit" "the module chosen in Edit"
+expect modules_after_edit "cc-edit,cc-wifi,cc-sound,cc-extra-powerProfile,cc-dnd,cc-keepAwake,cc-nightLight,cc-darkMode,cc-extra-screenRecord,cc-brightness,cc-volume" "the module chosen in Edit"
 echo "ok   probe: Edit lists the optional modules, Space shows one, and it joins the list above Edit"
