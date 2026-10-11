@@ -30,7 +30,7 @@ set -uo pipefail
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/koompi"
 REPO_PATH_FILE="$STATE_DIR/repo-path"
 DEFAULTS_SNAPSHOT="$STATE_DIR/config-defaults.json"
-UPSTREAM_REPO="https://github.com/koompi/desktop"
+UPSTREAM_REPO="https://github.com/koompi/koompi-desktop"
 CLONE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/koompi-desktop"
 
 # shellcheck source-path=SCRIPTDIR
@@ -469,9 +469,15 @@ resolve_checkout() {
         return 0
     fi
     # A checkout that moved, or an install from before this file existed.
-    # koompi-hyprland is the pre-rename name, still on disk for older installs.
+    # Every name below stays so a stale state file still finds the checkout
+    # it names instead of cloning a second one over it: the koompi-desktop
+    # forms are what clones of the current koompi/koompi-desktop repo are
+    # called (installs from before today already have that name), koompi-hd
+    # was the name for one day, koompi-hyprland predates it, koompi-os older.
     for guess in "$HOME/koompi-desktop" "$HOME/workspace/koompi-desktop" \
                  "$HOME/src/koompi-desktop" "$HOME/.local/share/koompi-desktop" \
+                 "$HOME/koompi-hd" "$HOME/workspace/koompi-hd" \
+                 "$HOME/src/koompi-hd" "$HOME/.local/share/koompi-hd" \
                  "$HOME/koompi-hyprland" "$HOME/workspace/koompi-hyprland" \
                  "$HOME/src/koompi-hyprland" "$HOME/.local/share/koompi-hyprland" \
                  "$HOME/.local/share/koompi-os"; do
@@ -540,8 +546,8 @@ update_packaged() {
     run sudo pacman -Syu "${noconfirm[@]}" \
         || die "pacman upgrade failed; fix that before reloading the session"
 
-    # KOOMPI's own -git packages (quickshell, microtex) live in the AUR, and
-    # pacman will not rebuild them. Only bother if a helper is already there.
+    # KOOMPI's own -git package (microtex) lives in the AUR, and pacman will
+    # not rebuild it. Only bother if a helper is already there.
     local helper
     for helper in paru yay; do
         if have "$helper"; then

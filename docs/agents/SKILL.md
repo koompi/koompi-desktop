@@ -44,6 +44,25 @@ Read `docs/navigation.md` and `docs/conventions.md` before adding a new surface 
 naming something — they fix the shell's UX and naming model, and disagreeing with them
 without updating them first is a defect, not a variant.
 
+## Which branch a machine follows
+
+Installed machines track `main`; day-to-day work happens on `dev` and lands on `main` by PR.
+`install.sh` clones `main`, and `KOOMPI_REF` picks another branch.
+A re-run of the one-liner repoints an existing checkout at the tracked branch, fetch refspec included.
+
+`prod-hd`, the old release line, is retired.
+`./setup update` moves a *managed* checkout off it onto `main`: a clean tree on `prod-hd`, an `origin` that is the KOOMPI repo, and no commit `origin/main` does not already have.
+Anything else, such as a dirty tree, one local commit or a fork, is left exactly where it is, with the reason on one line.
+A checkout already on `main` loses any leftover `prod-hd` fetch refspec, which would fail every fetch once the branch is deleted.
+The name lives in one place, `RETIRED_BRANCH` in `sdata/install/update.sh`.
+A machine on `prod-hd` runs its old updater first, which only pulls `prod-hd`; the move happens in the re-exec from the pulled tree.
+So `prod-hd` is fast-forwarded to a `main` that carries this code and kept until the field has updated; delete it before then and those machines can only recover by re-running the one-liner.
+
+An update also re-runs itself once from the tree it just pulled, so a change to installer
+logic takes effect on the run that pulls it rather than the one after. If you are writing
+something that must not happen twice in one update, `KOOMPI_UPDATE_REEXEC=1` is set in the
+second pass.
+
 ## Ownership quick reference
 
 | Path | Owner | Never edit if |

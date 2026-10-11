@@ -5,10 +5,88 @@
 # application set again, and reloads the running session at the end instead of
 # telling you to log out. Everything it calls is idempotent.
 
+# Installed machines follow main. They used to follow prod-hd, a release line
+# fast-forwarded from main, so prod-hd's history is a prefix of main's and a
+# checkout still on it moves to main without losing anything.
+RETIRED_BRANCH='prod-hd'
+
+origin_is_koompi() {
+    local url
+    url="$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null)" || return 1
+    # Every slug this repo has ever carried: koompi/desktop is what machines
+    # installed before the 2026-08-26 renames still have as origin, and the
+    # koompi-hd spelling covers clones made during the one-day window. A false
+    # negative here would leave a machine stranded on the retired prod-hd.
+    [[ "$url" =~ [:/]koompi/(desktop|koompi-hd|koompi-desktop)(\.git)?/?$ ]]
+}
+
+# managed = the checkout this machine updates from, carrying nothing of its own.
+# anything else is a tree somebody works in; hijacking its branch is worse than
+# doing nothing, so it is left where it is and told why. always returns 0: a
+# checkout that cannot move is still one to pull.
+leave_retired_branch() {
+    local branch="$1"
+    local main_refspec="+refs/heads/main:refs/remotes/origin/main"
+
+    # a checkout already on main can still carry the prod-hd refspec an older
+    # update added, and that refspec fails every fetch once prod-hd is gone
+    if [[ "$branch" != "$RETIRED_BRANCH" ]]; then
+        if origin_is_koompi && git -C "$REPO_ROOT" config --get-all remote.origin.fetch 2>/dev/null \
+                | grep -qF "refs/heads/$RETIRED_BRANCH:"; then
+            try git -C "$REPO_ROOT" config --unset-all remote.origin.fetch "refs/heads/$RETIRED_BRANCH:" \
+                || warn "could not drop the $RETIRED_BRANCH refspec; fetches fail once it is gone upstream"
+        fi
+        return 0
+    fi
+
+    if ! origin_is_koompi; then
+        info "origin is not the KOOMPI repo: leaving this checkout on '$branch'"
+        return 0
+    fi
+    if [[ "$DRY_RUN" == true ]]; then
+        info "(dry run: this checkout would move from '$branch' to main)"
+        return 0
+    fi
+
+    # install.sh used to clone --depth 1 --branch prod-hd: its only refspec names
+    # prod-hd, and once that branch is gone upstream every fetch fails on it
+    try git -C "$REPO_ROOT" fetch --quiet origin "$main_refspec" \
+        || { warn "could not fetch main; staying on '$branch'"; return 0; }
+    # a shallow graft hides whether prod-hd is in main's history
+    if [[ "$(git -C "$REPO_ROOT" rev-parse --is-shallow-repository 2>/dev/null)" == true ]]; then
+        try git -C "$REPO_ROOT" fetch --quiet --unshallow origin "$main_refspec" \
+            || { warn "could not deepen this shallow checkout; staying on '$branch'"; return 0; }
+    fi
+    if ! git -C "$REPO_ROOT" merge-base --is-ancestor HEAD refs/remotes/origin/main 2>/dev/null; then
+        info "'$branch' carries commits main does not have: leaving this checkout on it"
+        return 0
+    fi
+
+    # checkout -B resets a local main, so one with commits of its own stays put
+    if git -C "$REPO_ROOT" rev-parse --verify --quiet refs/heads/main >/dev/null \
+            && ! git -C "$REPO_ROOT" merge-base --is-ancestor refs/heads/main refs/remotes/origin/main 2>/dev/null; then
+        info "the local 'main' here carries commits upstream does not have: leaving this checkout on '$branch'"
+        return 0
+    fi
+
+    try git -C "$REPO_ROOT" config --replace-all remote.origin.fetch "$main_refspec" \
+        || { warn "could not point this checkout at main; staying on '$branch'"; return 0; }
+    try git -C "$REPO_ROOT" checkout -q -B main --track origin/main \
+        || { warn "could not check out main; staying on '$branch'"; return 0; }
+    git -C "$REPO_ROOT" branch -q -D "$RETIRED_BRANCH" \
+        || warn "moved to main, but could not delete the local '$RETIRED_BRANCH'"
+    ok "moved from '$branch' to main, the line KOOMPI installs follow"
+    return 0
+}
+
+# true when this run left HEAD somewhere other than where it found it
+PULL_MOVED=false
+
 # A pull that would clobber local edits is the one thing an updater must never
 # do quietly: the hypr/custom slots exist precisely so people edit this tree.
 update_pull() {
     step "Updating the checkout"
+    PULL_MOVED=false
 
     if ! have git || [[ ! -d "$REPO_ROOT/.git" ]]; then
         info "not a git checkout; updating from the files already here"
@@ -27,6 +105,10 @@ update_pull() {
         info "commit or stash them, then re-run; installing from the tree as it stands"
         return 0
     fi
+
+    local entry_head
+    entry_head="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+    leave_retired_branch "$branch"
 
     local before after pulled=false skipped=false reply
     before="$(git -C "$REPO_ROOT" rev-parse HEAD)"
@@ -57,6 +139,7 @@ update_pull() {
         run git -C "$REPO_ROOT" submodule update --init --recursive
     fi
     after="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+    [[ "$after" != "$entry_head" ]] && PULL_MOVED=true
 
     if [[ "$pulled" != true ]]; then
         warn "not pulled; installing from the tree as it stands (${before:0:8})"
@@ -66,6 +149,42 @@ update_pull() {
         ok "updated ${before:0:8} -> ${after:0:8}"
         info "$(git -C "$REPO_ROOT" log --oneline "$before..$after" | wc -l) new commit(s)"
     fi
+}
+
+# bash parsed every installer function before the pull, so without this an
+# update runs the logic the user already had and any change to it lands one
+# update late (J49 F1: the sysctl fix needed two consecutive updates). Re-exec
+# once from the tree just pulled; KOOMPI_UPDATE_REEXEC makes it at most once.
+rerun_from_pulled_tree() {
+    local pre_defaults="$1"
+    local -a again=()
+
+    [[ "$PULL_MOVED" == true ]] || return 0
+    if [[ "${KOOMPI_UPDATE_REEXEC:-}" == 1 ]]; then
+        info "the checkout moved again; continuing with the code already loaded"
+        return 0
+    fi
+    if [[ ! -x "$REPO_ROOT/setup" ]]; then
+        warn "no runnable setup in the pulled tree; continuing with the code already loaded"
+        return 0
+    fi
+
+    # rebuilt from what setup parsed, not from "$@": run_update never sees argv.
+    # tests/test_update_follow_main.sh fails if setup grows an option this drops.
+    [[ "$DO_DEPS"     == true ]] || again+=(--no-deps)
+    [[ "$DO_APPS"     == true ]] || again+=(--no-apps)
+    [[ "$DO_SETUPS"   == true ]] || again+=(--no-setups)
+    [[ "$DO_FILES"    == true ]] || again+=(--no-files)
+    [[ "$SKIP_BACKUP" == true ]] && again+=(--no-backup)
+    [[ "$ASSUME_YES"  == true ]] && again+=(--yes)
+    [[ "$DRY_RUN"     == true ]] && again+=(--dry-run)
+
+    export KOOMPI_UPDATE_REEXEC=1
+    # the pre-pull dump is the only record of what the user was running; without
+    # it the child would diff the pulled tree against itself and migrate nothing
+    [[ -n "$pre_defaults" ]] && export KOOMPI_UPDATE_PRE_DEFAULTS="$pre_defaults"
+    info "the checkout moved; re-running this update from the tree it just pulled"
+    exec "$REPO_ROOT/setup" update "${again[@]}"
 }
 
 # The update engine shipped with this checkout: it owns the defaults dump and
@@ -120,7 +239,9 @@ run_update() {
 
     # Capture the defaults the user is running NOW, before the checkout moves.
     local pre_defaults=""
-    if have qs && [[ -x "$UPDATE_TOOL" ]]; then
+    if [[ -s "${KOOMPI_UPDATE_PRE_DEFAULTS:-}" ]]; then
+        pre_defaults="$KOOMPI_UPDATE_PRE_DEFAULTS"
+    elif have qs && [[ -x "$UPDATE_TOOL" ]]; then
         pre_defaults="$(mktemp "${TMPDIR:-/tmp}/koompi-pre.XXXXXX")"
         "$UPDATE_TOOL" dump-defaults \
             "$REPO_ROOT/dots/.config/quickshell/koompi" "$pre_defaults" \
@@ -130,6 +251,7 @@ run_update() {
     fi
 
     update_pull
+    rerun_from_pulled_tree "$pre_defaults"
 
     if $DO_DEPS || $DO_SETUPS; then
         sudo_start

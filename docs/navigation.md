@@ -278,11 +278,12 @@ The `XF86Audio*` and `XF86MonBrightness*` keys carry the same actions and are ma
 | `Super+\` | system monitor |
 | `Super+Shift+D` | Discord |
 | `Super+H` | WhatsApp |
-| `Super+Y` | Telegram |
+| `Super+T` | Telegram |
 | `Super+S` | any window you put aside |
 | `Super+Alt+S` | send this window to that scratchpad |
 
 One pattern for all of them. Each app lives on its own special workspace, floating, centred, 70% x 70% of the screen (one rule block in `rules.lua`, one script, `toggle_app_scratchpad.sh`).
+Telegram is the one exception in shape: it sits down the left 58% of the screen and whatever it opens takes the right 42% (`rules_telegram.lua`).
 The first press starts the app if it is not running and shows it; the next press hides it and focus goes back to the window you had.
 On any desk the press shows it over that desk, so it follows you; it never tiles, and closing the app only means the next press starts it again.
 `Super+S` is the same toggle for the shared "put aside" workspace; windows sent there keep their own size.
@@ -292,7 +293,7 @@ On any desk the press shows it over that desk, so it follows you; it never tiles
 
 | Keys | Action |
 | --- | --- |
-| `Super+Return`, `Super+T` | terminal |
+| `Super+Return` | terminal |
 | `Super+E` | file manager |
 | `Super+W` | browser |
 | `Super+C` | code editor |

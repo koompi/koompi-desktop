@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-REPO_URL="${KOOMPI_REPO:-https://github.com/koompi/desktop.git}"
+REPO_URL="${KOOMPI_REPO:-https://github.com/koompi/koompi-desktop.git}"
 REPO_REF="${KOOMPI_REF:-main}"
 DEST="${KOOMPI_DEST:-$HOME/.local/share/koompi-desktop}"
 
@@ -33,14 +33,28 @@ bootstrap_git() {
 
 bootstrap_git
 
+say "tracking $REPO_REF"
+
 if [[ -d "$DEST/.git" ]]; then
     say "updating $DEST"
     git -C "$DEST" remote set-url origin "$REPO_URL"
+    # One refspec, for the tracked branch: a checkout made when installs followed
+    # prod-hd names only that, and fails every fetch once the branch is gone.
+    # A KOOMPI_REF that is a tag, not a branch, has no branch to track.
+    is_branch=false
+    git -C "$DEST" ls-remote --exit-code --heads origin "$REPO_REF" >/dev/null 2>&1 && is_branch=true
+    if [[ "$is_branch" == true ]]; then
+        git -C "$DEST" config --replace-all remote.origin.fetch \
+            "+refs/heads/$REPO_REF:refs/remotes/origin/$REPO_REF"
+    fi
     git -C "$DEST" fetch --depth 1 origin "$REPO_REF"
     # Hard reset rather than pull: this checkout is ours, and a merge conflict
     # here would strand the user inside a bootstrap script with no good way out.
     # Anything the user edits belongs in ~/.config, which ./setup never clobbers.
     git -C "$DEST" reset --hard FETCH_HEAD
+    if [[ "$is_branch" == true ]]; then
+        git -C "$DEST" checkout -q -B "$REPO_REF" --track "origin/$REPO_REF"
+    fi
     git -C "$DEST" submodule update --init --recursive --depth 1
 else
     say "cloning $REPO_URL ($REPO_REF)"

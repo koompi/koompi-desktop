@@ -56,7 +56,7 @@ hl.bind("SUPER + SHIFT + W", app("brave", "brave"), { description = "App: Brave 
 hl.bind("SUPER + SHIFT + E", app("koompi-signature", "koompi-signature capture"), { description = "App: Capture signature" })
 hl.bind("SUPER + SHIFT + D", hl.dsp.exec_cmd(appScratch .. " discord 'discord' koompi-launch --id discord discord"), { description = "Scratchpad: Discord" })
 hl.bind("SUPER + H", hl.dsp.exec_cmd(appScratch .. " whatsapp 'web.whatsapp.com' koompi-launch --id whatsapp " .. hyprScripts .. "/launch_whatsapp_web.sh"), { description = "Scratchpad: WhatsApp" })
-hl.bind("SUPER + Y", hl.dsp.exec_cmd(appScratch .. " telegram 'org\\.telegram\\.desktop|TelegramDesktop' koompi-launch --id telegram Telegram"), { description = "Scratchpad: Telegram" })
+hl.bind("SUPER + T", hl.dsp.exec_cmd(appScratch .. " telegram 'org\\.telegram\\.desktop|TelegramDesktop' koompi-launch --id telegram " .. hyprScripts .. "/launch_telegram.sh"), { description = "Scratchpad: Telegram" })
 hl.bind("SUPER + grave", hl.dsp.exec_cmd(appScratch .. " term 'term-scratch' 'koompi-launch --id term-scratch wezterm start --class term-scratch'"), { description = "Scratchpad: Terminal" })
 hl.bind("SUPER + backslash", hl.dsp.exec_cmd(appScratch .. " sysmon 'sysmon-scratch' koompi-launch --id sysmon " .. hyprScripts .. "/launch_sysmon.sh"), { description = "Scratchpad: System monitor" })
 hl.bind("SUPER + N", hl.dsp.global("quickshell:sidebarRightToggle"), { description = "Shell: Quick settings and notifications" })
@@ -422,7 +422,6 @@ hl.bind("CTRL + SHIFT + ALT + SUPER + Delete", hl.dsp.exec_cmd("systemctl powero
 
 --##! Apps
 hl.bind("SUPER + Return", app("terminal", terminal), { description = "App: Terminal" })
-hl.bind("SUPER + T", app("terminal", terminal), { description = "App: Terminal" })
 hl.bind("CTRL + ALT + T", app("terminal", terminal), { description = "App: Terminal" })
 hl.bind("SUPER + E", app("fileManager", fileManager), { description = "App: File manager" })
 hl.bind("SUPER + W", app("browser", browser), { description = "App: Browser" })

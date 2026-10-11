@@ -16,6 +16,7 @@ require("hyprland.execs")
 require("hyprland.general")
 require("hyprland.groups")
 require("hyprland.rules")
+require("hyprland.rules_telegram")
 require("hyprland.colors")
 require("hyprland.keybinds")
 -- Separate file: keybinds.lua is at its file-length allow-list row and may not grow.

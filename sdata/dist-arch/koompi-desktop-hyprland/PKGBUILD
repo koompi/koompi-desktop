@@ -6,7 +6,7 @@
 groups=(koompi)
 pkgname=koompi-desktop-hyprland
 pkgver=1.0
-pkgrel=2
+pkgrel=3
 pkgdesc='KOOMPI OS — Hyprland edition (metapackage)'
 arch=(any)
 license=(None)
