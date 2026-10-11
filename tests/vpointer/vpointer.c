@@ -95,7 +95,7 @@ int main(int argc, char **argv)
                 at(x1 + (x2 - x1) * s / 20, y1 + (y2 - y1) * s / 20);
                 pause_ms(30);
             }
-            pause_ms(200);
+            pause_ms(600);
             button(0);
             i += 4;
         } else {

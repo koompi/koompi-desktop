@@ -68,6 +68,11 @@ opens_empty() {
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
+if command -v zig > /dev/null; then
+    printf -- '--- zig build (zig daemon)\n'
+    ( cd "$ROOT/dots/.config/quickshell/koompi/scripts/global-menu" && zig build ) > "$tmp/zig.log" 2>&1 \
+        || { tail -20 "$tmp/zig.log"; fail "the zig daemon did not build"; }
+fi
 run_suite zig "$ZIG_BIN"
 # Build the rust daemon here when cargo can, so the conformance suite (and its
 # RegisterWindow timing check) runs from a clean checkout and in CI, and always
