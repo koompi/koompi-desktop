@@ -66,7 +66,11 @@ Scope {
 
         component: PanelWindow {
             id: panelWindow
-            visible: GlobalStates.sidebarRightOpen || root.pinned
+            // 0 tucked under the bar, 1 fully down: the window starts at the bar's lower edge and clips,
+            // so the card comes out from beneath the bar instead of across it
+            property real reveal: 0
+            readonly property bool wanted: GlobalStates.sidebarRightOpen || root.pinned
+            visible: wanted || reveal > 0
             property alias content: sidebarContentLoader.item
 
             // Reserve up to the panel's visible edge, not the whole window: the left
@@ -81,6 +85,17 @@ Scope {
                 top: true
                 right: true
                 bottom: true
+            }
+            margins.top: Config.options.bar.vertical ? 0 : Appearance.sizes.barHeight
+
+            onWantedChanged: reveal = wanted ? 1 : 0
+            Component.onCompleted: Qt.callLater(() => panelWindow.reveal = panelWindow.wanted ? 1 : 0)
+            Behavior on reveal {
+                NumberAnimation {
+                    duration: panelWindow.wanted ? Appearance.animation.elementMoveEnter.duration : Appearance.animation.elementMoveExit.duration
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: panelWindow.wanted ? Appearance.animationCurves.emphasizedDecel : Appearance.animationCurves.emphasizedAccel
+                }
             }
 
             // A pinned panel is not dismissable, so clicking away leaves it alone.
@@ -105,32 +120,37 @@ Scope {
                 }
             }
 
-            // a Loader sizes the content before its bindings run; bare anchors log a binding loop on implicitHeight
-            Loader {
-                id: sidebarContentLoader
-                anchors {
-                    fill: parent
-                    margins: Appearance.sizes.hyprlandGapsOut
-                    leftMargin: Appearance.sizes.elevationMargin
-                }
+            Item {
+                anchors.fill: parent
+                clip: true
 
-                focus: GlobalStates.sidebarRightOpen
-                Keys.onPressed: event => {
-                    if (event.key === Qt.Key_Escape) {
-                        if (sidebarContentLoader.item?.back())
-                            return;
-                        root.hide();
+                // a Loader sizes the content before its bindings run; bare anchors log a binding loop on implicitHeight
+                Loader {
+                    id: sidebarContentLoader
+                    anchors {
+                        fill: parent
+                        margins: Appearance.sizes.hyprlandGapsOut
+                        leftMargin: Appearance.sizes.elevationMargin
                     }
-                }
 
-                sourceComponent: SidebarRightContent {}
+                    focus: GlobalStates.sidebarRightOpen
+                    Keys.onPressed: event => {
+                        if (event.key === Qt.Key_Escape) {
+                            if (sidebarContentLoader.item?.back())
+                                return;
+                            root.hide();
+                        }
+                    }
 
-                onLoaded: {
-                    item.drawer = root.takePendingDrawer();
-                    const module = root.pendingModule;
-                    root.pendingModule = "";
-                    if (module.length > 0)
-                        item.showModule(module);
+                    sourceComponent: SidebarRightContent {}
+
+                    onLoaded: {
+                        item.drawer = root.takePendingDrawer();
+                        const module = root.pendingModule;
+                        root.pendingModule = "";
+                        if (module.length > 0)
+                            item.showModule(module);
+                    }
                 }
             }
         }

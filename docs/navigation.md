@@ -427,7 +427,12 @@ The shell's half is the `animation` roles and the duration ladder in `modules/co
 `tests/test_motion.sh` and `tests/test_motion_hypr.sh` hold both, so a surface that picks a role instead of a number is on the budget without a decision.
 
 Search is a layer Hyprland does not animate, so its motion is the shell's alone.
-The right sidebar arrives and leaves through Hyprland's layer leaves, and its drawer pages through the shell's.
+The right panel arrives and leaves through the shell's own move (below), and its drawer pages through the shell's.
+
+A panel that hangs from the bar comes out from beneath it, never across it.
+The founder asked for it on 2026-10-11, for a smoother drop: a card that slides down from the screen edge passes over the bar on its way, and the eye reads that as two things colliding.
+So such a panel's window starts at the bar's lower edge and clips its content, the card moves inside it with the enter and exit roles from a `reveal` property, the window stays visible until `reveal` reaches 0, and Hyprland does not animate the layer (`no_anim`).
+The right panel does this. Anything else under the bar, such as the wallpaper selector and the media controls, appears in place (Hyprland's popin). `tests/test_panel_under_bar.sh` fails on any `slide top` layer rule.
 
 A panel that hangs from the bar comes out from beneath it, never across it.
 The founder asked for it on 2026-10-11, for a smoother drop: a card that slides down from the screen edge passes over the bar on its way, and the eye reads that as two things colliding.
