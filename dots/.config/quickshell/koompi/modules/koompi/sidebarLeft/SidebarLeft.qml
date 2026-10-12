@@ -185,8 +185,9 @@ Scope { // Scope
                     Item {
                         anchors.fill: sidebarLeftBackground
                         z: 100
-                        TapHandler {
-                            onPressedChanged: if (pressed) panelWindow.engaged = true
+                        // PointHandler only watches; a TapHandler accepted the press and ate every click
+                        PointHandler {
+                            onActiveChanged: if (active) panelWindow.engaged = true
                         }
                     }
                     Rectangle {
