@@ -136,11 +136,13 @@ Scope {
                 anchors.fill: parent
                 clip: true
 
+                // A press anywhere engages a pinned panel. PointHandler only watches: a TapHandler
+                // here accepted the press and no button under it ever got a click.
                 Item {
                     anchors.fill: parent
                     z: 100
-                    TapHandler {
-                        onPressedChanged: if (pressed) panelWindow.engaged = true
+                    PointHandler {
+                        onActiveChanged: if (active) panelWindow.engaged = true
                     }
                 }
 
