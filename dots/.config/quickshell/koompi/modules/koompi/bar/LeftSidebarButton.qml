@@ -3,9 +3,15 @@ import qs
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
+import Quickshell
 
 RippleButton {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
 
     property bool showPing: false
 
@@ -21,8 +27,8 @@ RippleButton {
     // glyph, not the box, lines up with the clock at the other end.
     readonly property real iconInset: (implicitWidth - distroIcon.width) / 2
     buttonRadius: Appearance.rounding.full
-    colBackgroundHover: Appearance.colors.colLayer1Hover
-    colRipple: Appearance.colors.colLayer1Active
+    colBackgroundHover: root.barScheme.hover
+    colRipple: root.barScheme.pressed
     colBackgroundToggled: Appearance.colors.colSecondaryContainer
     colBackgroundToggledHover: Appearance.colors.colSecondaryContainerHover
     colRippleToggled: Appearance.colors.colSecondaryContainerActive
@@ -56,7 +62,7 @@ RippleButton {
         height: 26
         source: Config.options.bar.topLeftIcon == 'distro' ? SystemInfo.distroIcon : `${Config.options.bar.topLeftIcon}-symbolic`
         colorize: true
-        color: Appearance.colors.colOnLayer0
+        color: root.barScheme.fg
 
         Rectangle {
             opacity: root.showPing ? 1 : 0

@@ -11,6 +11,11 @@ import qs.modules.common.functions
 
 MouseArea {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     required property SystemTrayItem item
     property bool targetMenuOpen: false
 
@@ -85,7 +90,7 @@ MouseArea {
         anchors.centerIn: parent
         text: "extension"
         iconSize: parent.height
-        color: Appearance.colors.colOnLayer0
+        color: root.barScheme.fg
     }
 
     Loader {
@@ -104,7 +109,7 @@ MouseArea {
                 source: desaturatedIcon
                 // Opaque: transparentize(c, 0.9) is alpha 0.1, which drew every
                 // monochrome tray icon at a tenth opacity, near-invisible.
-                color: Appearance.colors.colOnLayer0
+                color: root.barScheme.fg
             }
         }
     }

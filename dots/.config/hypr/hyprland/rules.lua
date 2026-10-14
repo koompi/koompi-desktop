@@ -126,10 +126,8 @@ hl.workspace_rule({ workspace = "special:discord", gaps_out = 30 })
 hl.workspace_rule({ workspace = "special:whatsapp", gaps_out = 30 })
 hl.workspace_rule({ workspace = "special:term", gaps_out = 30 })
 hl.workspace_rule({ workspace = "special:sysmon", gaps_out = 30 })
--- one tiled window fills its space; s[false] keeps scratchpads and their 30px gap out of it; w[tv1] re-insets the tile when a second float opens, w[t1] does not
-hl.workspace_rule({ workspace = "w[t1]s[false]", gaps_out = 0, gaps_in = 0 })
--- square corners too: rounded corners flush against the screen edge show wallpaper in each corner
-hl.window_rule({ match = { float = false, workspace = "w[t1]s[false]" }, border_size = 0, rounding = 0 })
+-- No single-window rule: a lone window keeps the gap on every edge and its rounded corners,
+-- the same as two (test_window_gaps.sh). Filling the screen read as a different style.
 
 -- ######## Layer rules ########
 hl.layer_rule({ match = { namespace = ".*" }, xray = true})
@@ -183,6 +181,9 @@ hl.layer_rule({ match = { namespace = "quickshell:.*" }, blur_popups = true})
 hl.layer_rule({ match = { namespace = "quickshell:.*" }, blur = true})
 hl.layer_rule({ match = { namespace = "quickshell:.*" }, ignore_alpha = 0.79})
 hl.layer_rule({ match = { namespace = "quickshell:bar" }, animation = "slide"})
+-- The bar is glass over the wallpaper: a flat tint from 0.3 alpha (BarContent.glassFloor),
+-- under the 0.79 cutoff above, so its own lower cutoff lets the blur through.
+hl.layer_rule({ match = { namespace = "quickshell:bar" }, ignore_alpha = 0.2})
 hl.layer_rule({ match = { namespace = "quickshell:actionCenter" }, no_anim = true})
 hl.layer_rule({ match = { namespace = "quickshell:cheatsheet" }, animation = "slide bottom"})
 hl.layer_rule({ match = { namespace = "quickshell:dock" }, animation = "slide bottom"})

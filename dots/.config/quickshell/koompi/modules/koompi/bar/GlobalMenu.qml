@@ -334,6 +334,11 @@ Item {
 
     component GlobalMenuButton: Item {
         id: button
+        // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+        readonly property BarScheme barScheme: button.QsWindow.window?.barScheme ?? ownScheme
+        BarScheme {
+            id: ownScheme
+        }
         property string label: ""
         property bool opened: false
 
@@ -361,8 +366,8 @@ Item {
             radius: Appearance.rounding.small
             // Open is a denser veil than hover, so a title with its menu down is
             // tellable from one the pointer is merely crossing.
-            color: button.opened ? Appearance.colors.colBarElementBackgroundActive
-                : hoverHandler.hovered ? Appearance.colors.colBarElementBackground
+            color: button.opened ? button.barScheme.elementActive
+                : hoverHandler.hovered ? button.barScheme.element
                 : "transparent"
 
             Behavior on color {
@@ -379,7 +384,7 @@ Item {
             // Hover and open share a highlight, so weight is what says which
             // title the open menu belongs to.
             font.weight: button.opened ? Font.Bold : Font.Normal
-            color: Appearance.colors.colOnLayer0
+            color: button.barScheme.fg
         }
 
         HoverHandler {

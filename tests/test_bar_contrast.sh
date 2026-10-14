@@ -6,6 +6,8 @@
 # the real Appearance singleton is loaded in dark and in light and each one is
 # measured. The light palette is the Material baseline tones the matugen scheme
 # produces: the bar's tokens must hold on it, not on one wallpaper's scheme.
+# The glass bar (BarScheme.tintOver) is measured too: over a dark, a bright and a busy
+# wallpaper, in both tones, at whatever tint it settles on.
 # bar.showBackground false is the user's explicit choice and is exempt.
 # Headless qs in a virtual KWin, on a private bus with its own HOME and runtime dir.
 set -uo pipefail
@@ -24,6 +26,10 @@ files=("$SHELL_ROOT"/modules/koompi/bar/{ActiveWindow,BarContent,BarPanelButton,
        "$SHELL_ROOT"/modules/koompi/verticalBar/{VerticalBarContent,VerticalClockWidget,BatteryIndicator}.qml)
 tokens="$(grep -hE '^[[:space:]]*(property color )?(icon)?[cC]olor:|^[[:space:]]*property color colText:' "${files[@]}" \
     | grep -oE 'Appearance\.colors\.(colOn[A-Za-z0-9]*|colSubtext|colBar(Subtext|TextInactive))' | sed 's/Appearance\.colors\.//' | sort -u | tr '\n' ' ')"
+# the widgets draw through BarScheme (the glass bar); its unflipped colours are theme tokens too
+tokens="$tokens $(grep -oE 'Appearance\.colors\.(colOn[A-Za-z0-9]*|colSubtext|colBar(Subtext|TextInactive))' "$SHELL_ROOT/modules/koompi/bar/BarScheme.qml" \
+    | sed 's/Appearance\.colors\.//' | sort -u | tr '\n' ' ')"
+tokens="$(tr ' ' '\n' <<< "$tokens" | sort -u | tr '\n' ' ')"
 [[ -n "$tokens" ]] || { fail "found no bar text colours in the bar QML; the scan broke"; exit 1; }
 echo "bar text colours: $tokens"
 
@@ -40,6 +46,7 @@ import Quickshell
 import QtQuick
 import qs
 import qs.modules.common
+import qs.modules.koompi.bar
 
 ShellRoot {
     id: probe
@@ -66,6 +73,29 @@ ShellRoot {
         probe.report(mode, "m3error", Appearance.m3colors.m3error, bg);
         probe.report(mode, "m3onSecondaryContainer on colSecondaryContainer", Appearance.m3colors.m3onSecondaryContainer, c.colSecondaryContainer);
     }
+    BarScheme { id: ownScheme }
+    BarScheme { id: otherScheme; flipped: true }
+    // The glass bar: whatever tint a scheme settles on over a wallpaper, every text colour of
+    // that scheme reaches 4.5:1 over the blurred wallpaper's worst (one spread past the mean).
+    // A bright wallpaper in dark mode, or a dark one in light mode, takes the other tone's
+    // glass at the floor - dark text on light glass, as the macOS menu bar turns.
+    function glass(mode) {
+        const column = (mean, sd) => [0, 1, 2, 3, 4, 5].map(() => ({ "mean": mean, "sd": sd }));
+        const walls = { "dark": column(0.06, 0.04), "bright": column(0.9, 0.08), "busy": column(0.5, 0.25) };
+        for (const scheme of [ownScheme, otherScheme]) {
+            for (const name in walls) {
+                const columns = walls[name];
+                const tint = scheme.tintOver(columns, 0.3);
+                const worst = scheme.lightText ? Math.min(1, columns[0].mean + columns[0].sd) : Math.max(0, columns[0].mean - columns[0].sd);
+                const under = probe.over(Qt.rgba(scheme.glass.r, scheme.glass.g, scheme.glass.b, tint), worst);
+                for (const token of ["fg", "subtext", "inactive"])
+                    probe.report(mode + " glass" + (scheme.flipped ? " flipped" : "") + " on " + name + " at " + tint.toFixed(2), token, scheme[token], under);
+            }
+        }
+        const easy = Appearance.m3colors.darkmode ? "bright" : "dark";
+        const floor = otherScheme.tintOver(walls[easy], 0.3);
+        console.log((floor === 0.3 ? "PASS " : "FAIL ") + mode + " the other tone's glass sits at the 0.3 floor on a " + easy + " wallpaper, at " + floor.toFixed(2));
+    }
     function light() {
         const m = Appearance.m3colors;
         m.darkmode = false;
@@ -80,9 +110,9 @@ ShellRoot {
         interval: 400; running: true; repeat: true
         onTriggered: {
             probe.ticks++;
-            if (probe.ticks === 3) probe.measure("dark");
+            if (probe.ticks === 3) { probe.measure("dark"); probe.glass("dark"); }
             if (probe.ticks === 4) probe.light();
-            if (probe.ticks === 6) { probe.measure("light"); console.log("PROBE DONE"); Qt.quit(); }
+            if (probe.ticks === 6) { probe.measure("light"); probe.glass("light"); console.log("PROBE DONE"); Qt.quit(); }
         }
     }
 }
@@ -109,5 +139,5 @@ if ! grep -q "PROBE DONE" <<< "$out" || grep -q '^ DEBUG qml: FAIL' <<< "$out"; 
     grep -E "ERROR|TypeError|ReferenceError" <<< "$out" | head -30 >&2
     fail "a bar colour is under 4.5:1 on the worst wallpaper, or the probe did not finish"
 fi
-(( failed )) || echo "ok   contrast: every bar text colour reaches 4.5:1 in dark and light"
+(( failed )) || echo "ok   contrast: every bar text colour reaches 4.5:1 in dark and light, solid and glass"
 exit $failed

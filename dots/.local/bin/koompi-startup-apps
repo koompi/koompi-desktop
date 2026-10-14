@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+#
+# koompi-startup-apps [scan [--remind] | list | allow <id> | deny <id>]
+#
+# An app may not put itself on login without asking. Chrome's "Start app when you sign
+# in" writes ~/.config/autostart/<id>.desktop, and systemd's XDG autostart then runs it
+# at every login - WhatsApp Web came back after every reboot that way. scan finds an entry
+# nobody has answered for, turns it off (masks its app-<id>@autostart.service, so the app
+# rewriting its own file changes nothing) and asks: Allow or Don't allow. No answer keeps
+# it off and asks again at the next login (--remind, from the shell's first scan).
+#
+# The first scan on a machine records what is already there as allowed: the keyboard,
+# network and phone helpers set up before this existed keep starting.
+#
+# The answers live in ~/.config/koompi/startup-apps.json; the shell runs scan
+# (services/StartupApps.qml). An entry the app removes is forgotten and unmasked.
+set -uo pipefail
+
+dir="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
+state="${XDG_CONFIG_HOME:-$HOME/.config}/koompi/startup-apps.json"
+lock="$state.lock"
+
+usage() { echo "usage: koompi-startup-apps [scan [--remind] | list | allow <id> | deny <id>]" >&2; exit 2; }
+
+unit_for() { printf 'app-%s@autostart.service' "$(systemd-escape -- "$1")"; }
+field() { grep -m1 "^$2=" "$1" 2>/dev/null | cut -d= -f2-; }
+
+# ids of the entries that would start at login: an entry already switched off in its own
+# file (Hidden=true, X-GNOME-Autostart-enabled=false) is none of ours to ask about
+entries() {
+    local file
+    for file in "$dir"/*.desktop; do
+        [[ -f "$file" ]] || continue
+        [[ "$(field "$file" Hidden)" == true ]] && continue
+        [[ "$(field "$file" X-GNOME-Autostart-enabled)" == false ]] && continue
+        basename -- "$file" .desktop
+    done
+}
+
+read_state() { jq -c '{allowed: (.allowed // []), denied: (.denied // []), pending: (.pending // [])}' "$state" 2>/dev/null || echo '{"allowed":[],"denied":[],"pending":[]}'; }
+write_state() { mkdir -p "$(dirname -- "$state")" && printf '%s\n' "$1" > "$state.tmp" && mv "$state.tmp" "$state"; }
+status_of() { jq -r --arg id "$2" 'if (.allowed | index($id)) then "allowed" elif (.denied | index($id)) then "denied" elif (.pending | index($id)) then "pending" else "new" end' <<< "$1"; }
+# move an id into one list, out of the other two
+set_status() { jq -c --arg id "$2" --arg to "$3" '(.allowed, .denied, .pending) |= map(select(. != $id)) | .[$to] += [$id]' <<< "$1"; }
+
+mask()   { systemctl --user mask   "$(unit_for "$1")" >/dev/null 2>&1; }
+unmask() { systemctl --user unmask "$(unit_for "$1")" >/dev/null 2>&1; }
+
+answer() {
+    local id="$1" to="$2"
+    mkdir -p "$(dirname -- "$state")"
+    (
+        flock 9
+        local current
+        current="$(read_state)"
+        write_state "$(set_status "$current" "$id" "$to")"
+    ) 9> "$lock"
+    if [[ "$to" == allowed ]]; then unmask "$id"; else mask "$id"; fi
+}
+
+# one question per app, in the background: notify-send --wait holds until it is answered
+ask() {
+    local id="$1" file="$dir/$1.desktop" name icon
+    name="$(field "$file" Name)"
+    icon="$(field "$file" Icon)"
+    (
+        reply="$(notify-send -a KOOMPI ${icon:+-i "$icon"} -A allow=Allow -A deny="Don't allow" --wait \
+            "${name:-$id} wants to open when you sign in" \
+            "It stays off until you allow it. Change it later with koompi-startup-apps." 2>/dev/null)"
+        case "$reply" in
+            allow) "$0" allow "$id" ;;
+            deny)  "$0" deny "$id" ;;
+        esac
+    ) </dev/null >/dev/null 2>&1 &
+    disown
+}
+
+scan() {
+    local remind=false id current present ask_ids=()
+    [[ "${1:-}" == --remind ]] && remind=true
+    present="$(entries)"
+    mkdir -p "$(dirname -- "$state")"
+    exec 9> "$lock"
+    flock 9
+    if [[ ! -f "$state" ]]; then
+        write_state "$(jq -cn --arg ids "$present" '{allowed: ($ids | split("\n") | map(select(length > 0))), denied: [], pending: []}')"
+        return 0
+    fi
+    current="$(read_state)"
+    # an entry the app took away: forget it, and leave no mask behind for a later reinstall.
+    # One switched off in its own file is still there, and keeps its answer.
+    for id in $(jq -r '(.allowed + .denied + .pending)[]' <<< "$current"); do
+        [[ -f "$dir/$id.desktop" ]] && continue
+        [[ "$(status_of "$current" "$id")" == allowed ]] || unmask "$id"
+        current="$(jq -c --arg id "$id" '(.allowed, .denied, .pending) |= map(select(. != $id))' <<< "$current")"
+    done
+    while read -r id; do
+        [[ -n "$id" ]] || continue
+        case "$(status_of "$current" "$id")" in
+            new)
+                mask "$id"
+                current="$(set_status "$current" "$id" pending)"
+                ask_ids+=("$id") ;;
+            pending)
+                mask "$id"
+                $remind && ask_ids+=("$id") ;;
+            denied)
+                mask "$id" ;;
+        esac
+    done <<< "$present"
+    write_state "$current"
+    flock -u 9
+    for id in "${ask_ids[@]}"; do ask "$id"; done
+}
+
+list() {
+    local current id
+    current="$(read_state)"
+    while read -r id; do
+        [[ -n "$id" ]] || continue
+        printf '%-10s %-28s %s\n' "$(status_of "$current" "$id")" "$(field "$dir/$id.desktop" Name)" "$id"
+    done <<< "$(entries)"
+}
+
+case "${1:-scan}" in
+    scan)  scan "${2:-}" ;;
+    list)  list ;;
+    allow) [[ -n "${2:-}" ]] || usage; answer "$2" allowed ;;
+    deny)  [[ -n "${2:-}" ]] || usage; answer "$2" denied ;;
+    *)     usage ;;
+esac

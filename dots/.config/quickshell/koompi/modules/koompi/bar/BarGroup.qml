@@ -1,9 +1,15 @@
 import qs.modules.common
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 
 Item {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     property bool vertical: false
     property real padding: 5
     implicitWidth: vertical ? Appearance.sizes.baseVerticalBarWidth : (gridLayout.implicitWidth + padding * 2)
@@ -19,7 +25,7 @@ Item {
             leftMargin: root.vertical ? 4 : 0
             rightMargin: root.vertical ? 4 : 0
         }
-        color: Config.options?.bar.borderless ? "transparent" : Appearance.colors.colLayer1
+        color: Config.options?.bar.borderless ? "transparent" : root.barScheme.group
         radius: Appearance.rounding.small
     }
 

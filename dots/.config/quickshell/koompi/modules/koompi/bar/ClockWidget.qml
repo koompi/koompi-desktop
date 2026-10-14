@@ -3,12 +3,18 @@ import qs.modules.common.widgets
 import qs.services
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 
 Item {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     property bool borderless: Config.options.bar.borderless
     property bool showDate: Config.options.bar.verbose
-    property color color: Appearance.colors.colOnLayer0
+    property color color: root.barScheme.fg
     implicitWidth: rowLayout.implicitWidth
     implicitHeight: Appearance.sizes.barHeight
 

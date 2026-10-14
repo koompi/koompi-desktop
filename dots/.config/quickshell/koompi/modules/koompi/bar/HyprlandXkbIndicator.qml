@@ -6,8 +6,13 @@ import qs.modules.common.widgets
 
 Loader {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     property bool vertical: false
-    property color color: Appearance.colors.colOnSurfaceVariant
+    property color color: root.barScheme.subtext
     active: HyprlandXkb.layoutCodes.length > 1
     visible: active
 

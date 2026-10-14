@@ -398,6 +398,7 @@ Singleton {
                 property bool borderless: false // true for no grouping of items
                 property string topLeftIcon: "distro" // Options: "distro" or any icon name in ~/.config/quickshell/koompi/assets/icons
                 property bool showBackground: true
+                property bool smartTransparency: true // Blurred glass over the wallpaper, tinted only as much as the text needs; solid when a window is under the bar
                 property bool verbose: true
                 property bool vertical: false
                 property JsonObject resources: JsonObject {

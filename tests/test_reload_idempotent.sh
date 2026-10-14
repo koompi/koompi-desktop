@@ -3,7 +3,7 @@
 # this session's shell: a nested test shell runs with its own XDG_RUNTIME_DIR and must
 # survive a deploy (one used to blank a worker's renders).
 #
-# pgrep, hyprctl and setsid are shadowed; the session's own shell is never in the
+# pgrep, hyprctl, loginctl and setsid are shadowed; the session's own shell is never in the
 # stub's answers.
 set -uo pipefail
 
@@ -49,13 +49,15 @@ exit 1
 EOF
 
 printf '#!/usr/bin/env bash\nexit 0\n' > "$stub/hyprctl"
+# an unlocked session, whatever the machine running the test is doing (test_reload_while_locked.sh has the locked one)
+printf '#!/usr/bin/env bash\nexit 0\n' > "$stub/loginctl"
 # the restart starts a fresh stand-in in this session, as the real setsid qs -c koompi would
 cat > "$stub/setsid" <<'EOF'
 #!/usr/bin/env bash
 XDG_RUNTIME_DIR="$SESSION_RT" "$(dirname -- "$0")/qs" -c 'sleep 30; :' -c koompi > /dev/null 2>&1 &
 printf '%s\n' "$!" > "$RESTARTED"
 EOF
-chmod +x "$stub"/pgrep "$stub"/hyprctl "$stub"/setsid
+chmod +x "$stub"/pgrep "$stub"/hyprctl "$stub"/setsid "$stub"/loginctl
 PATH="$stub:$PATH"
 
 # shellcheck source=sdata/lib/common.sh

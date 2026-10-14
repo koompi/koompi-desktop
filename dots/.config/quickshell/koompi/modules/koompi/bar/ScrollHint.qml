@@ -1,9 +1,15 @@
 import qs.modules.common
 import qs.modules.common.widgets
 import QtQuick
+import Quickshell
 
 Revealer { // Scroll hint
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     property string icon
     property string side: "left"
     property string tooltipText: ""
@@ -43,17 +49,17 @@ Revealer { // Scroll hint
             MaterialSymbol {
                 text: "keyboard_arrow_up"
                 iconSize: 14
-                color: Appearance.colors.colSubtext
+                color: root.barScheme.subtext
             }
             MaterialSymbol {
                 text: root.icon
                 iconSize: 14
-                color: Appearance.colors.colSubtext
+                color: root.barScheme.subtext
             }
             MaterialSymbol {
                 text: "keyboard_arrow_down"
                 iconSize: 14
-                color: Appearance.colors.colSubtext
+                color: root.barScheme.subtext
             }
         }
     }

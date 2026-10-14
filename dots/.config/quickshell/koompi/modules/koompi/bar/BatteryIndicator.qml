@@ -4,13 +4,19 @@ import qs.modules.common.widgets
 import qs.services
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 
 MouseArea {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     readonly property bool isCharging: Battery.isCharging
     readonly property real percentage: Battery.percentage
     readonly property bool isLow: percentage <= Config.options.battery.low / 100
-    property color color: Appearance.colors.colOnLayer0
+    property color color: root.barScheme.fg
 
     implicitWidth: row.implicitWidth
     implicitHeight: Appearance.sizes.barHeight
