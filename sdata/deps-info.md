@@ -46,7 +46,7 @@ Tips:
   - Used in Quickshell config.
 - `ripgrep`
   - Not sure where been used.
-- `fd` (`fd-find` on Debian and Fedora)
+- `fd`
   - Search's file provider. `FileSearch.qml` resolves whichever name is present.
 - `jq`
   - Widely used.
@@ -195,7 +195,7 @@ Tips:
   - Used in Hyprland config.
 - `libqalculate`
   - Used in Quickshell config, providing math ability in searchbar.
-  - Note that `qalc` is the needed executable. In Arch Linux [libqalculate](https://archlinux.org/packages/extra/x86_64/libqalculate) provides it, but in Fedora [qalculate](https://packages.fedoraproject.org/pkgs/libqalculate/qalculate/fedora-43.html#files) does and [libqalculate](https://packages.fedoraproject.org/pkgs/libqalculate/libqalculate/fedora-43.html#files) does not.
+  - Note that `qalc` is the needed executable. On Arch, [libqalculate](https://archlinux.org/packages/extra/x86_64/libqalculate) provides it.
 
 
 # Actual packages
@@ -212,7 +212,6 @@ Tips:
 - [source](https://github.com/vinceliuice/WhiteSur-icon-theme), GPL-3.0, pinned release `2026-09-10`
 - The icon theme: WhiteSur with green folders, installed as `koompi-icons` (light) and `koompi-icons-dark`.
 - Set by `switchwall.sh` and `kde-material-you-colors/config.conf`; `tests/test_icon_theme.sh` fails if they drift.
-- Debian and Fedora get it from the same release through `install_koompi_icons` in `sdata/lib/from-source.sh`.
 
 ## illogical-impulse-microtex-git
 - [source](https://github.com/NanoMichael/MicroTeX)

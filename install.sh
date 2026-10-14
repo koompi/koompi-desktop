@@ -19,16 +19,26 @@ die()  { printf '%serror:%s %s\n' "${C_RED}" "${C_RST}" "$*" >&2; exit 1; }
 
 [[ "$(id -u)" -ne 0 ]] || die "run this as your normal user, not root; it installs into \$HOME and calls sudo only where needed"
 
+# Arch, or a distribution built on it, before anything is downloaded. ./setup checks
+# again; this is so another distro hears no before a clone it cannot use.
+is_arch() {
+    local id like
+    [[ -r /etc/os-release ]] || return 1
+    id="$(. /etc/os-release; printf '%s' "${ID:-}")"
+    like="$(. /etc/os-release; printf '%s' "${ID_LIKE:-}")"
+    case " $id $like " in
+        *" arch "*|*" archlinux "*|*" koompi "*) command -v pacman >/dev/null 2>&1 ;;
+        *) return 1 ;;
+    esac
+}
+is_arch || die "KOOMPI Desktop installs on Arch Linux and Arch-based distributions only (EndeavourOS, CachyOS, Manjaro, KOOMPI OS). Nothing was changed."
+
 # git is the one thing needed before the repo exists. Everything else is the
-# per-distro recipe's problem, not this script's.
+# Arch recipe's job, not this script's.
 bootstrap_git() {
     command -v git >/dev/null 2>&1 && return 0
     say "installing git"
-    if   command -v pacman >/dev/null 2>&1; then sudo pacman  -S --needed --noconfirm git
-    elif command -v dnf    >/dev/null 2>&1; then sudo dnf     install -y git
-    elif command -v apt-get>/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y git
-    else die "no git, and no supported package manager to install it with"
-    fi
+    sudo pacman -S --needed --noconfirm git
 }
 
 bootstrap_git

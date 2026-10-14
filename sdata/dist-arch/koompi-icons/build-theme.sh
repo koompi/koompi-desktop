@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Turns an unpacked WhiteSur-icon-theme release into the koompi-icons and
-# koompi-icons-dark themes. The PKGBUILD and sdata/lib/from-source.sh both call
-# it, so the Arch package and the Debian and Fedora install lay down one tree.
+# koompi-icons-dark themes, called by the PKGBUILD.
 #   build-theme.sh <unpacked release dir> <icons dir to install into>
 set -euo pipefail
 
