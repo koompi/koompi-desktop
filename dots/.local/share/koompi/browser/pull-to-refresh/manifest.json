@@ -1,12 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "KOOMPI Pull to Refresh",
-  "description": "At the top of a page, pull down with two fingers and let go to reload.",
-  "version": "1.0.0",
+  "name": "KOOMPI Touchpad Gestures",
+  "description": "Swipe with two fingers to go back and forward with the page sliding, as on a Mac, and pull down at the top of a page to reload.",
+  "version": "2.0.0",
+  "permissions": ["webNavigation", "storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["pull.js"],
+      "js": ["pull.js", "swipe.js"],
       "run_at": "document_idle"
     }
   ]
