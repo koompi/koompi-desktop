@@ -203,8 +203,9 @@ grep -q 'reboot needed' <<<"$out" && fail "a reboot was advised with nothing to 
 printf '%s\n' yes > "$T/locked"
 : > "$T/killall-log"
 out="$(run_update --yes)" || fail "the update itself must still succeed under a lock: $out"
-grep -q "session is locked; the shell was not restarted. Unlock and run 'koompi reload'" <<<"$out" \
-    || fail "a locked session must refuse the reload with the koompi reload advice: $out"
+grep -q "the session is locked; the shell restarts itself when you unlock" <<<"$out" \
+    || fail "a locked session must leave the restart for the unlock, and say so: $out"
+[[ -e "$T/runtime/koompi/shell-restart-pending" ]] || fail "a locked session left no restart for the unlock"
 [[ -s "$T/killall-log" ]] && fail "qs was killed under a locked session: $(cat "$T/killall-log")"
 
 out="$(bash "$RELOAD" 2>&1 < /dev/null)"
