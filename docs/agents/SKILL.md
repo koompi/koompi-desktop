@@ -1,3 +1,8 @@
+---
+name: koompi
+description: Where a change to koompi-desktop belongs before writing it - a stock `koompi <cmd>`, a per-user Hyprland tweak, a theme change, a lifecycle hook, a migration for existing users, an AI or plugin feature, crash or factory-reset handling. Use before adding a script, command, config edit or migration in this repo.
+---
+
 # Working on koompi-desktop
 
 For an AI agent editing this repo. Read `UPSTREAM.md` and `CONTEXT.md` first; they're
