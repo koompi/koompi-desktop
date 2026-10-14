@@ -267,6 +267,23 @@ record_repo_path() {
     printf '%s\n' "$REPO_ROOT" > "$REPO_PATH_FILE"
 }
 
+# Same check as update-lib.sh's: logind's LockedHint, which the shell's lock sets, or hyprlock.
+session_locked() {
+    local id
+    while read -r id _; do
+        [[ "$(loginctl show-session "$id" -p LockedHint --value 2>/dev/null)" == yes ]] && return 0
+    done < <(loginctl list-sessions --no-legend 2>/dev/null | awk -v uid="$(id -u)" '$2 == uid { print $1 }')
+    pgrep -x hyprlock >/dev/null 2>&1
+}
+# The lock screen is the shell: stopping qs under a lock leaves the seat on Hyprland's
+# "lockscreen app died" screen. A locked session gets the restart after the unlock
+# instead - the shell's lock (modules/koompi/lock/Lock.qml) runs it when it sees this marker.
+defer_shell_restart() {
+    [[ "${DRY_RUN:-false}" == true ]] && { info "would restart the shell after the unlock"; return 0; }
+    mkdir -p "${XDG_RUNTIME_DIR:-/tmp}/koompi" && : > "${XDG_RUNTIME_DIR:-/tmp}/koompi/shell-restart-pending"
+    warn "the session is locked; the shell restarts itself when you unlock"
+}
+
 # Reloading Hyprland is cheap; the shell is restarted outright because Quickshell
 # does not reliably hot-reload a changed tree.
 # wayland pin below: an older session still exports xcb, and a shell on xcb maps no layer surfaces
@@ -281,6 +298,7 @@ reload_session() {
     step "Reloading the running session"
     run hyprctl reload
     have qs || return 0
+    session_locked && { defer_shell_restart; return 0; }
 
     # global-menu-daemon is started by the shell itself
     # (services/GlobalMenuService.qml), so relaunching qs is what brings it back.

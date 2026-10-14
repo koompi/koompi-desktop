@@ -115,6 +115,15 @@ session_locked() {
     pgrep -x hyprlock >/dev/null 2>&1
 }
 
+# The lock screen is the shell: stopping qs under a lock leaves the seat on Hyprland's
+# "lockscreen app died" screen. A locked session gets the restart after the unlock
+# instead - the shell's lock (modules/koompi/lock/Lock.qml) runs it when it sees this marker.
+defer_shell_restart() {
+    [[ "${DRY_RUN:-false}" == true ]] && { info "would restart the shell after the unlock"; return 0; }
+    mkdir -p "${XDG_RUNTIME_DIR:-/tmp}/koompi" && : > "${XDG_RUNTIME_DIR:-/tmp}/koompi/shell-restart-pending"
+    warn "the session is locked; the shell restarts itself when you unlock"
+}
+
 REBOOT_REASON=""
 check_restart_needed() {
     local running newest dir pid
