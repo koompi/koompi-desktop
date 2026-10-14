@@ -33,3 +33,8 @@ Depends on: runs last, after every other campaign job that adds `Translation.tr`
 ## Out of scope
 
 - Translating anything. Creating `km_KH.json`: that is a product decision for the lead and founder. Raise it in the report with the key count it would need.
+
+## Addition, 2026-10-11
+
+- `ja_JP`, `it_IT` and `de_DE` carry the removed tray string. It goes, by the grep rule above.
+- Runs after J55, J56, J57 and J58 merge, so their strings are included.
