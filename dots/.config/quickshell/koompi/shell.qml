@@ -35,6 +35,7 @@ ShellRoot {
         Wallpapers.load()
         Updates.load()
         SessionRestore.load()
+        StartupApps.load()
     }
 
 
