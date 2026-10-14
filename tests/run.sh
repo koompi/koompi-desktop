@@ -20,6 +20,8 @@ unset XDG_CONFIG_HOME XDG_STATE_HOME XDG_DATA_HOME XDG_CACHE_HOME KOOMPI_STATE_D
 # a stray GUI process finds no compositor and lands offscreen, not on the founder's screen
 unset WAYLAND_DISPLAY DISPLAY HYPRLAND_INSTANCE_SIGNATURE
 export QT_QPA_PLATFORM=offscreen
+# run() retries a failed command under --yes after a pause; a test that expects the abort should not wait for it
+export KOOMPI_RETRY_DELAY=0
 
 # only the user manager and PipeWire checks (test_app_slice, test_shell_services) read the real runtime dir, through this
 export KOOMPI_TEST_LIVE_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}"
