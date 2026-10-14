@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Sourced by ./setup. Routes to the application recipe for the detected distro.
+# Sourced by ./setup. Runs the Arch application recipe.
 #
 # Separate from deps.sh on purpose: that step installs what the session cannot start
 # without, this one the programs KOOMPI has an opinion about. --no-apps leaves a
@@ -14,11 +14,7 @@ readonly APPS_SUMMARY='KOOMPI Workbench (Claude Code, Codex, Pi, Herdr, Neovim),
 install_apps() {
     step "Installing applications"
 
-    if [[ -z "$OS_GROUP_ID" ]]; then
-        die "no application recipe for this distro; re-run with --no-apps"
-    fi
-
-    local recipe="$REPO_ROOT/sdata/dist-${OS_GROUP_ID}/install-apps.sh"
+    local recipe="$REPO_ROOT/sdata/dist-arch/install-apps.sh"
     [[ -f "$recipe" ]] || die "missing recipe: $recipe"
 
     # Several gigabytes, two proprietary browsers and an office suite - the right
@@ -44,7 +40,7 @@ install_apps() {
     info "using $recipe"
     # same as deps.sh: a recipe that bailed must not fall through to "ok"
     # shellcheck source=/dev/null
-    source "$recipe" || { err "the $OS_GROUP_ID application recipe failed"; return 1; }
+    source "$recipe" || { err "the Arch application recipe failed"; return 1; }
 
     # Agent CLIs update too quickly for distro archives. They are installed
     # user-locally from their official distribution channels after the distro

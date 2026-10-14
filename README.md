@@ -3,7 +3,7 @@
 The KOOMPI desktop: Hyprland plus a Quickshell shell.
 Based on [end-4/dots-hyprland](https://github.com/end-4/dots-hyprland) (illogical-impulse).
 
-Install it on Arch, Fedora, Debian or Ubuntu:
+Install it on Arch Linux, or a distribution built on it (EndeavourOS, CachyOS, Manjaro):
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/koompi/koompi-desktop/main/install.sh | bash
@@ -33,8 +33,8 @@ the same bindings from inside the session.
 Four steps, each skippable:
 
 1. **Dependencies** - installs the packages the session cannot start without,
-   using the recipe for your distro (`sdata/dist-arch`, `sdata/dist-fedora`,
-   `sdata/dist-debian`).
+   using the Arch recipe (`sdata/dist-arch`): the `koompi-*` metapackages,
+   built with `makepkg`, plus the AUR helper they need.
 2. **Applications** - the opinionated set the shipped config is written around:
    WezTerm, Konsole, Zed, Chrome, Brave, Dolphin's viewers and thumbnailers,
    LibreOffice, btop, KDE Connect, Neovim, a modern CLI toolkit, and the
@@ -145,8 +145,7 @@ Kitty remains a shell dependency and a fallback for machines without WezTerm;
 the terminal keybind and both terminal scratchpads use WezTerm.
 
 On Arch this set is the `koompi-apps` metapackage, so KOOMPI OS images get the same programs through `koompi-desktop-experience`.
-Chrome and Brave come from the AUR there, and from Google's and Brave's own signed repositories on Fedora, Debian and Ubuntu.
-Zed is packaged only on Arch; elsewhere the installer runs Zed's own script, which installs into `~/.local`.
+Chrome and Brave come from the AUR.
 
 Your personal overrides live in `~/.config/hypr/custom/*.lua`.
 Those files are written once and never overwritten again, so an update cannot lose them.
@@ -155,14 +154,12 @@ Those files are written once and never overwritten again, so an update cannot lo
 
 | Distro | Status |
 |---|---|
-| Arch and derivatives | Primary. This is what KOOMPI OS itself is built on. |
-| Fedora | Supported. Needs a COPR for Hyprland and Quickshell. |
-| Debian / Ubuntu | Supported. Some components are built from source. |
+| Arch Linux | Supported. This is what KOOMPI OS itself is built on. |
+| EndeavourOS, CachyOS, Manjaro and other Arch-based | Supported, through their `ID_LIKE=arch`. Their own repositories can lag Arch's. |
+| Anything else | Not supported. The installer says so and changes nothing. |
 
-Anything else can still run `./setup install --no-deps` and install the
-packages by hand. The authoritative list is the Arch recipe,
-`sdata/dist-arch/install-deps.sh`, with per-package notes in
-[`sdata/deps-info.md`](sdata/deps-info.md).
+The package list is the Arch recipe, `sdata/dist-arch/install-deps.sh`, with
+per-package notes in [`sdata/deps-info.md`](sdata/deps-info.md).
 
 ## KOOMPI OS
 
@@ -179,7 +176,7 @@ Update this section when a stage changes hands, not per commit.
 
 | Area | State |
 |---|---|
-| Desktop (`./setup`) | Shipping. Installs on Arch, Fedora, Debian and Ubuntu; `koompi update` keeps it current. |
+| Desktop (`./setup`) | Shipping. Installs on Arch and Arch-based distributions; `koompi update` keeps it current. |
 | `koompi` CLI | Shipping. Zig front door over the `koompi-*` tools: update, doctor, settings, theme, wallpaper, reload, hooks, webapps, plugins, snapshots. |
 | Boot look | Done. Plymouth splash with logo and progress bar, GRUB theme, both wired into `koompi-branding`. |
 | Login screen | Done. SDDM theme is a frosted-glass card over the blurred wallpaper (`sdata/dist-arch/koompi-branding/files/sddm/theme/Main.qml`). |

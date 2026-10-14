@@ -13,7 +13,6 @@ Order in `setup`: deps, apps, `run_setups`, files, then the global-menu build, `
 | Step | Source | What lands |
 |---|---|---|
 | deps (Arch) | `sdata/dist-arch/install-deps.sh` | `pacman -Syu`, then paru built from the AUR source if it is missing, then these metapackages (`quickshell` itself comes from Arch's [extra] through `koompi-widgets`) from `sdata/dist-arch/<name>/PKGBUILD`, in order: `koompi-basic`, `koompi-audio`, `koompi-backlight`, `ttf-koompi-star`, `koompi-fonts-themes`, `koompi-kde`, `koompi-portal`, `koompi-python`, `koompi-screencapture`, `koompi-toolkit`, `koompi-widgets`, `koompi-hyprland`, `koompi-microtex-git`, `koompi-bibata-modern-classic-bin`, `koompi-icons`. Each PKGBUILD's `depends` is the package list. It first removes the superseded `illogical-impulse-*` and `*-git` names listed in `arch_drop_deprecated`. Asks about `plasma-browser-integration`. |
-| deps (Fedora, Debian, Ubuntu) | `sdata/dist-<group>/install-deps.sh` with `packages*.list` | The lists beside the recipe. Debian and Ubuntu also build from source what the distro does not package (`sdata/lib/from-source.sh`); Fedora needs none. |
 | apps | `sdata/dist-<group>/install-apps.sh` | Arch: `koompi-kiri` (Kiri, built from github.com/koompiai/kiri at the commit pinned in its PKGBUILD; not in the repos or the AUR) then the `koompi-apps` metapackage (`ARCH_APP_PKGBUILDS`), and `mpvpaper` if you say yes. Asked once, skipped when `APP_CMDS` and `AGENT_CMDS` in `setup` are all present. |
 | agent tools | `sdata/install/agents.sh` | `codex` and `pi` through `npm install --global --prefix ~/.local/share/koompi/npm`, symlinked into `~/.local/bin`; Claude Code from `https://claude.ai/install.sh`; Herdr from `https://herdr.dev/install.sh`. |
 | python | `sdata/install/setups/python.sh` | `uv venv --system-site-packages ~/.local/state/quickshell/.venv`, then `sdata/uv/requirements.txt` into it. |
@@ -64,7 +63,7 @@ Also written:
 |---|---|---|
 | `/etc/modules-load.d/koompi.conf` (`i2c-dev`, `uinput`) | `setup_groups_and_modules` | ddcutil and ydotool |
 | `/etc/udev/rules.d/99-koompi-uinput.rules` | same | uinput group access |
-| groups `video`, `input`, `i2c` for the user (`i2c` created if absent, not on Fedora) | same | needs a new login |
+| groups `video`, `input`, `i2c` for the user (`i2c` created if absent) | same | needs a new login |
 | `/usr/lib/systemd/system-sleep/koompi-btintel-pcie` | `setup_suspend_hook` | drops `btintel_pcie` around suspend; a no-op where the module is not loaded |
 | whatever `dots/.local/share/koompi/libexec/apply-hardware` decides from `sdata/hardware/` (DMI-gated quirks, log in `/var/log/koompi/hardware.log`) | `setup_hardware_quirks` | per-machine fixes |
 | `/usr/local/lib/...` copies of `sdata/dist-arch/koompi-sysdefaults/files/usr/lib` (zram, oomd, 5 s stop timeout) | `setup_low_ram_defaults` | low-RAM survival |

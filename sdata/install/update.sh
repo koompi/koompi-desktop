@@ -233,9 +233,8 @@ migrate_config_defaults() {
 run_update() {
     step "KOOMPI desktop update"
     detect_distro
-    # An unrecognised distro can still take the config; only the package step
-    # has to stand down. The application set is not offered on an update at all.
-    report_distro || DO_DEPS=false
+    # The application set is not offered on an update at all.
+    require_arch
 
     # Capture the defaults the user is running NOW, before the checkout moves.
     local pre_defaults=""

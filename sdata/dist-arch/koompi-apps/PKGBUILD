@@ -62,8 +62,7 @@ depends=(
   just
 
   # --- editor ----------------------------------------------------------------
-  # Arch ships this in extra. On Fedora and Debian there is no package and the
-  # recipe falls back to Zed's own installer; see sdata/lib/from-source.sh.
+  # Arch ships this in extra.
   zed
 
   # --- browsers --------------------------------------------------------------

@@ -71,13 +71,24 @@ cargo_usable() {
 
 # Run a command, echoing it first. Honours --dry-run. On failure the user
 # chooses to retry, skip, or abort, because a half-installed desktop is worse
-# than a stopped installer.
+# than a stopped installer. Under --yes nobody is there to choose, so a failure is
+# tried again twice, after a pause, before it aborts: an install pulls from GitHub,
+# the AUR and the mirrors, and one 503 from any of them used to end an unattended
+# install half way (ttf-twemoji's LICENSE, 2026-10-14).
 run() {
     printf '%s     $ %s%s\n' "${C_DIM}" "$*" "${C_RST}"
     if [[ "$DRY_RUN" == true ]]; then return 0; fi
+    local attempt=0
     while ! "$@"; do
         err "command failed: $*"
         if [[ "$ASSUME_YES" == true ]]; then
+            attempt=$((attempt + 1))
+            if (( attempt <= ${KOOMPI_RUN_RETRIES:-2} )); then
+                local pause=$(( attempt * ${KOOMPI_RETRY_DELAY:-15} ))
+                warn "trying again in ${pause}s (${attempt} of ${KOOMPI_RUN_RETRIES:-2}); a download that failed once often works the next time"
+                sleep "$pause"
+                continue
+            fi
             die "aborting (--yes means no interactive recovery)"
         fi
         local reply

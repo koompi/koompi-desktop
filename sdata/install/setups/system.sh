@@ -30,7 +30,7 @@ setup_groups_and_modules() {
     local groups=(video input)
     if getent group i2c >/dev/null 2>&1; then
         groups+=(i2c)
-    elif [[ "$OS_GROUP_ID" != fedora ]]; then
+    else
         run sudo groupadd i2c
         groups+=(i2c)
     fi
@@ -130,12 +130,7 @@ setup_low_ram_defaults() {
     # The package declares zram-generator as a dependency; from git it has to
     # be asked for by name. Without it the zram drop-in is inert.
     if [[ ! -x /usr/lib/systemd/system-generators/zram-generator ]]; then
-        case "$OS_GROUP_ID" in
-            arch)   run sudo pacman -S --needed --noconfirm zram-generator ;;
-            fedora) run sudo dnf install -y zram-generator ;;
-            debian) run sudo apt-get install -y systemd-zram-generator ;;
-            *)      warn "zram-generator is not installed; no zram swap until it is" ;;
-        esac
+        run sudo pacman -S --needed --noconfirm zram-generator
     fi
 
     # daemon-reload re-runs the generators and re-reads system.conf.d, so the
@@ -193,12 +188,7 @@ setup_firewall_defaults() {
         return 0
     fi
     if ! have ufw; then
-        case "$OS_GROUP_ID" in
-            arch)   run sudo pacman -S --needed --noconfirm ufw ;;
-            fedora) run sudo dnf install -y ufw ;;
-            debian) run sudo apt-get install -y ufw ;;
-            *)      warn "ufw is not installed; incoming connections stay open"; return 0 ;;
-        esac
+        run sudo pacman -S --needed --noconfirm ufw
     fi
 
     # ufw skips an existing rule: re-runs change nothing
@@ -243,12 +233,7 @@ setup_services() {
     # koompi-basic dep, so packaged users have it and the preset enables this
     # timer; from git nothing pulls fwupd in
     if ! have fwupdmgr; then
-        case "$OS_GROUP_ID" in
-            arch)   run sudo pacman -S --needed --noconfirm fwupd ;;
-            fedora) run sudo dnf install -y fwupd ;;
-            debian) run sudo apt-get install -y fwupd ;;
-            *)      warn "no fwupd recipe for this distro; firmware updates stay manual" ;;
-        esac
+        run sudo pacman -S --needed --noconfirm fwupd
     fi
     if systemctl list-unit-files fwupd-refresh.timer >/dev/null 2>&1; then
         run sudo systemctl enable fwupd-refresh.timer

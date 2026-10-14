@@ -63,8 +63,8 @@ Install and update options:
   -y, --yes        Do not ask anything; abort instead of prompting on failure
   -n, --dry-run    Print what would happen and change nothing
 
-Supported distros: Arch (and derivatives), Fedora, Debian, Ubuntu.
-Anything else can still use --no-deps; see sdata/deps-info.md.
+Runs on Arch Linux and Arch-based distributions (EndeavourOS, CachyOS,
+Manjaro, KOOMPI OS) only. install and update refuse anything else.
 EOF
 }
 
@@ -203,7 +203,7 @@ main() {
     fi
 
     detect_distro
-    report_distro || { DO_DEPS=false; DO_APPS=false; }
+    require_arch
 
     printf '\n%sAbout to install the KOOMPI desktop for %s%s\n' "${C_BOLD}" "$(id -un)" "${C_RST}"
     $DO_DEPS   && printf '  - install packages with the %s recipe\n' "$OS_GROUP_ID"

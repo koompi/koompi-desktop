@@ -1,8 +1,8 @@
 # shellcheck shell=bash
-# Sourced by ./setup. Maps /etc/os-release onto one of the OS groups that has an
-# sdata/dist-<group>/install-deps.sh: arch, fedora, debian (Ubuntu and derivatives
-# arrive through ID_LIKE). Anything else stops the dependency step rather than
-# guessing a package manager.
+# Sourced by ./setup. KOOMPI Desktop installs on Arch Linux and the distributions built
+# on it (EndeavourOS, CachyOS, Manjaro, KOOMPI OS), which reach the arch group through
+# ID_LIKE. Anything else is refused up front: the desktop is built, packaged and tested
+# on Arch only, and a half-working install on another distro is worse than none.
 
 detect_distro() {
     local os_release=/etc/os-release
@@ -13,20 +13,16 @@ detect_distro() {
     OS_DISTRO_ID="$(awk -F= '/^ID=/        { gsub(/["\047]/,"",$2); print tolower($2); exit }' "$os_release")"
     OS_DISTRO_LIKE="$(awk -F= '/^ID_LIKE=/ { gsub(/["\047]/,"",$2); print tolower($2); exit }' "$os_release")"
     OS_VERSION_ID="$(awk -F= '/^VERSION_ID=/ { gsub(/["\047]/,"",$2); print $2; exit }' "$os_release")"
-    # The apt suite name. Debian package sources are addressed by codename, not
-    # by number, and a derivative may carry neither.
-    OS_VERSION_CODENAME="$(awk -F= '/^VERSION_CODENAME=/ { gsub(/["\047]/,"",$2); print tolower($2); exit }' "$os_release")"
-    export OS_DISTRO_ID OS_DISTRO_LIKE OS_VERSION_ID OS_VERSION_CODENAME
+    OS_PRETTY_NAME="$(awk -F= '/^PRETTY_NAME=/ { gsub(/["\047]/,"",$2); print $2; exit }' "$os_release")"
+    export OS_DISTRO_ID OS_DISTRO_LIKE OS_VERSION_ID OS_PRETTY_NAME
 
     OS_GROUP_ID=''
     OS_GROUP_EXACT=true
     local id
     for id in "$OS_DISTRO_ID" $OS_DISTRO_LIKE; do
         case "$id" in
-            arch|archlinux|koompi)   OS_GROUP_ID=arch   ;;
-            fedora|rhel|centos)      OS_GROUP_ID=fedora ;;
-            debian|ubuntu)           OS_GROUP_ID=debian ;;
-            *)                       continue ;;
+            arch|archlinux|koompi) OS_GROUP_ID=arch ;;
+            *)                     continue ;;
         esac
         [[ "$id" == "$OS_DISTRO_ID" ]] || OS_GROUP_EXACT=false
         break
@@ -40,19 +36,22 @@ detect_distro() {
 report_distro() {
     info "distro: ${OS_DISTRO_ID:-unknown} ${OS_VERSION_ID:-} (ID_LIKE: ${OS_DISTRO_LIKE:-none})"
     info "arch:   ${OS_ARCH}"
-    if [[ -z "$OS_GROUP_ID" ]]; then
-        warn "no dependency recipe for this distro."
-        warn "Supported: Arch (and derivatives), Fedora, Debian, Ubuntu."
-        warn "Run './setup install --no-deps' to install the config files only,"
-        warn "then install the packages in sdata/dist-arch/install-deps.sh by hand."
+    if [[ "$OS_GROUP_ID" != arch ]]; then
+        warn "KOOMPI Desktop runs on Arch Linux and Arch-based distributions only"
+        warn "(EndeavourOS, CachyOS, Manjaro, KOOMPI OS). This is ${OS_PRETTY_NAME:-${OS_DISTRO_ID:-an unknown system}}."
         return 1
     fi
-    info "package recipe: sdata/dist-${OS_GROUP_ID}"
+    info "package recipe: sdata/dist-arch"
     if [[ "$OS_GROUP_EXACT" != true ]]; then
-        warn "matched via ID_LIKE, not an exact match. Package names may differ on this derivative."
+        info "an Arch-based distribution (via ID_LIKE); its own repositories may lag Arch's"
     fi
-    if [[ "$OS_ARCH" != x86_64 && "$OS_ARCH" != aarch64 ]]; then
-        warn "only x86_64 and aarch64 are tested; expect missing packages on ${OS_ARCH}."
+    if [[ "$OS_ARCH" != x86_64 ]]; then
+        warn "only x86_64 is tested; expect missing packages on ${OS_ARCH}."
     fi
     return 0
+}
+
+# install and update stop here on anything that is not Arch
+require_arch() {
+    report_distro || die "nothing was changed. Install Arch Linux, or an Arch-based distribution, and run this again"
 }
