@@ -67,6 +67,8 @@ Scope {
                 }
                 property bool superShow: false
                 property bool mustShow: hoverRegion.containsMouse || superShow
+                // the colours of the bar's surface, glass or solid, for the widgets drawn on it
+                readonly property BarScheme barScheme: barContent.scheme
                 // Which right-section popup the keyboard holds open (StyledPopup.keyIndex), 0 for none
                 property int keyboardPopup: 0
 
@@ -209,7 +211,10 @@ Scope {
                                 }
 
                                 implicitSize: Appearance.rounding.screenRounding
-                                color: showBarBackground ? Appearance.colors.colBarBackground : "transparent"
+                                color: barContent.surfaceColor
+                                Behavior on color {
+                                    animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+                                }
 
                                 corner: RoundCorner.CornerEnum.TopLeft
                                 states: State {
@@ -228,7 +233,10 @@ Scope {
                                     bottom: Config.options.bar.bottom ? parent.bottom : undefined
                                 }
                                 implicitSize: Appearance.rounding.screenRounding
-                                color: showBarBackground ? Appearance.colors.colBarBackground : "transparent"
+                                color: barContent.surfaceColor
+                                Behavior on color {
+                                    animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+                                }
 
                                 corner: RoundCorner.CornerEnum.TopRight
                                 states: State {

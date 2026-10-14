@@ -15,6 +15,11 @@ import "../../common/functions/workspace-slots.js" as Slots
 
 Item {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     property bool vertical: false
     property bool borderless: Config.options.bar.borderless
     readonly property HyprlandMonitor monitor: Hyprland.monitorFor(root.QsWindow.window?.screen)
@@ -185,7 +190,7 @@ Item {
                 topRightRadius: root.vertical ? radiusPrev : radiusNext
                 bottomRightRadius: radiusNext
 
-                color: Appearance.colors.colBarElementBackground
+                color: root.barScheme.element
                 opacity: root.pillOn(index) ? 1 : 0
 
                 Behavior on opacity {
@@ -209,7 +214,7 @@ Item {
         radius: Appearance.rounding.full
         // Dimmed on a monitor that does not hold focus, so the focused one's
         // active workspace is the one that reads as active.
-        color: root.focusingThisMonitor ? Appearance.colors.colBarElementBackgroundActive : Appearance.colors.colBarElementBackground
+        color: root.focusingThisMonitor ? root.barScheme.elementActive : root.barScheme.element
 
         anchors {
             verticalCenter: vertical ? undefined : parent.verticalCenter
@@ -299,9 +304,9 @@ Item {
                         text: Config.options?.bar.workspaces.numberMap[button.workspaceValue - 1] || button.workspaceValue
                         elide: Text.ElideRight
                         color: (root.effectiveActiveWorkspaceId == button.workspaceValue) ? 
-                            Appearance.colors.colOnLayer0 : 
-                            (root.isOccupied(button.workspaceValue) ? Appearance.colors.colOnLayer0 : 
-                                Appearance.colors.colOnLayer1Inactive)
+                            root.barScheme.fg : 
+                            (root.isOccupied(button.workspaceValue) ? root.barScheme.fg : 
+                                root.barScheme.inactive)
 
                         Behavior on opacity {
                             animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
@@ -316,9 +321,9 @@ Item {
                         height: width
                         radius: width / 2
                         color: (root.effectiveActiveWorkspaceId == button.workspaceValue) ? 
-                            Appearance.colors.colOnLayer0 : 
-                            (root.isOccupied(button.workspaceValue) ? Appearance.colors.colOnLayer0 : 
-                                Appearance.colors.colOnLayer1Inactive)
+                            root.barScheme.fg : 
+                            (root.isOccupied(button.workspaceValue) ? root.barScheme.fg : 
+                                root.barScheme.inactive)
 
                         Behavior on opacity {
                             animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)

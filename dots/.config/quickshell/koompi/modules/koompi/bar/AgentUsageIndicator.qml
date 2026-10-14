@@ -3,9 +3,15 @@ import qs.modules.common.widgets
 import qs.services
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 
 MouseArea {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     property bool borderless: Config.options.bar.borderless
 
     readonly property var providers: AgentUsage.providers
@@ -44,14 +50,14 @@ MouseArea {
             Layout.alignment: Qt.AlignVCenter
             text: "smart_toy"
             iconSize: Appearance.font.pixelSize.larger
-            color: Appearance.colors.colOnLayer1
+            color: root.barScheme.fg
         }
 
         StyledText {
             Layout.alignment: Qt.AlignVCenter
             font.pixelSize: Appearance.font.pixelSize.normal
             font.family: Appearance.font.family.monospace
-            color: Appearance.colors.colOnLayer1
+            color: root.barScheme.fg
             text: root.formatTokens(root.todayTokens())
         }
     }

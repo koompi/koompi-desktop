@@ -139,6 +139,15 @@ ContentPage {
                 }
             }
         }
+
+        ConfigSwitch {
+            buttonIcon: "opacity"
+            text: Translation.tr("Glass bar over the wallpaper")
+            checked: Config.options.bar.smartTransparency
+            onCheckedChanged: {
+                Config.options.bar.smartTransparency = checked;
+            }
+        }
     }
 
     ContentSection {

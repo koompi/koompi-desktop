@@ -10,6 +10,11 @@ import Quickshell.Widgets
 
 Item { // Faux global menu: bold app name + window title
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     /// Whether either menu over this window is up. The bar takes keyboard focus
     /// on this, so both menus have to be in it or one of them gets no keys.
     readonly property bool menuOpen: globalMenu.menuOpen || actionsMenu.menuOpen
@@ -114,7 +119,7 @@ Item { // Faux global menu: bold app name + window title
                 width: parent.width + 8
                 height: Math.min(parent.height, 30)
                 radius: Appearance.rounding.small
-                color: root.actionsAvailable && (actionsMenu.menuOpen || identityHover.hovered) ? Appearance.colors.colLayer1Hover : "transparent"
+                color: root.actionsAvailable && (actionsMenu.menuOpen || identityHover.hovered) ? root.barScheme.hover : "transparent"
 
                 Behavior on color {
                     animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
@@ -172,7 +177,7 @@ Item { // Faux global menu: bold app name + window title
                         opacity: root.dim
                         // An unfocused monitor still shows its window, dimmed, so the
                         // focused one is tellable apart at a glance.
-                        color: root.focusingThisMonitor ? Appearance.colors.colOnLayer0 : Appearance.colors.colBarTextInactive
+                        color: root.focusingThisMonitor ? root.barScheme.fg : root.barScheme.inactive
                         elide: Text.ElideRight
                         text: root.nameText
                     }
@@ -187,7 +192,7 @@ Item { // Faux global menu: bold app name + window title
                             Layout.fillWidth: true
                             visible: text.length > 0
                             font.pixelSize: Appearance.font.pixelSize.smaller
-                            color: root.focusingThisMonitor ? Appearance.colors.colBarSubtext : Appearance.colors.colBarTextInactive
+                            color: root.focusingThisMonitor ? root.barScheme.subtext : root.barScheme.inactive
                             elide: Text.ElideRight
                             text: root.titleText
                         }

@@ -2,9 +2,15 @@ import qs.modules.common
 import qs.modules.common.widgets
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 
 Item {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     required property string iconName
     required property double percentage
     property int warningThreshold: 100
@@ -63,7 +69,7 @@ Item {
             StyledText {
                 id: percentageText
                 anchors.centerIn: parent
-                color: Appearance.colors.colOnLayer1
+                color: root.barScheme.fg
                 font.pixelSize: Appearance.font.pixelSize.small
                 text: `${Math.round(percentage * 100).toString()}`
             }

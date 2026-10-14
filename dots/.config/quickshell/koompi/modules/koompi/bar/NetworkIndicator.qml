@@ -8,12 +8,17 @@ import Quickshell
 // The network glyph. A click opens the right panel with the network list dropped down.
 MaterialSymbol {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     objectName: "networkIndicator"
 
     text: Network.materialSymbol
     fill: Network.connected ? 1 : 0
     iconSize: Appearance.font.pixelSize.larger
-    color: Appearance.colors.colOnLayer0
+    color: root.barScheme.fg
 
     MouseArea {
         id: networkHover

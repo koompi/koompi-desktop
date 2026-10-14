@@ -183,6 +183,9 @@ hl.layer_rule({ match = { namespace = "quickshell:.*" }, blur_popups = true})
 hl.layer_rule({ match = { namespace = "quickshell:.*" }, blur = true})
 hl.layer_rule({ match = { namespace = "quickshell:.*" }, ignore_alpha = 0.79})
 hl.layer_rule({ match = { namespace = "quickshell:bar" }, animation = "slide"})
+-- The bar is glass over the wallpaper: a flat tint from 0.3 alpha (BarContent.glassFloor),
+-- under the 0.79 cutoff above, so its own lower cutoff lets the blur through.
+hl.layer_rule({ match = { namespace = "quickshell:bar" }, ignore_alpha = 0.2})
 hl.layer_rule({ match = { namespace = "quickshell:actionCenter" }, no_anim = true})
 hl.layer_rule({ match = { namespace = "quickshell:cheatsheet" }, animation = "slide bottom"})
 hl.layer_rule({ match = { namespace = "quickshell:dock" }, animation = "slide bottom"})

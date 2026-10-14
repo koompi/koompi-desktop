@@ -4,9 +4,15 @@ import qs.modules.common
 import qs.modules.common.widgets
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 
 MouseArea {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     property bool borderless: Config.options.bar.borderless
 
     readonly property bool running: TimerService.pomodoroRunning
@@ -20,7 +26,7 @@ MouseArea {
     readonly property bool isBreak: TimerService.pomodoroBreak
     readonly property color phaseColor: running
         ? (isBreak ? Appearance.colors.colTertiary : Appearance.colors.colPrimary)
-        : Appearance.colors.colOnLayer1Inactive
+        : root.barScheme.inactive
     readonly property string phaseIcon: !running ? "play_arrow" : (isBreak ? "local_cafe" : "local_fire_department")
     readonly property string timeText: {
         let m = Math.floor(TimerService.pomodoroSecondsLeft / 60).toString().padStart(2, '0');
@@ -68,7 +74,7 @@ MouseArea {
             Layout.alignment: Qt.AlignVCenter
             font.pixelSize: Appearance.font.pixelSize.normal
             font.family: Appearance.font.family.monospace // tabular -> width stays constant as it ticks
-            color: root.running ? Appearance.colors.colOnLayer1 : Appearance.colors.colOnLayer1Inactive
+            color: root.running ? root.barScheme.fg : root.barScheme.inactive
             text: root.timeText
 
             Behavior on color {

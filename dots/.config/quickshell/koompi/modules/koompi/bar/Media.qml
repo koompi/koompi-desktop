@@ -8,9 +8,15 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Services.Mpris
 import Quickshell.Hyprland
+import Quickshell
 
 Item {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
     property bool borderless: Config.options.bar.borderless
     readonly property MprisPlayer activePlayer: MprisController.activePlayer
     readonly property bool hasMedia: (activePlayer?.trackTitle ?? "").length > 0
@@ -102,7 +108,7 @@ Item {
             Layout.maximumWidth: 150
             Layout.rightMargin: rowLayout.spacing
             elide: Text.ElideRight
-            color: Appearance.colors.colOnLayer1
+            color: root.barScheme.fg
             text: root.cleanedTitle
         }
 

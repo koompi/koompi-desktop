@@ -16,9 +16,14 @@ import qs.modules.common.widgets
  */
 GridLayout {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
 
     property real realSpacing: Appearance.spacing.large
-    property color color: Appearance.colors.colOnLayer0
+    property color color: root.barScheme.fg
     property bool vertical: false
     readonly property var tooltipEdges: (!Config.options.bar.bottom && !Config.options.bar.vertical) ? Edges.Bottom : Edges.Top
 

@@ -8,6 +8,11 @@ import qs.modules.common.widgets
 // its own item beside the status cluster: a click meant for a panel glyph must not reach updates
 Revealer {
     id: root
+    // the colours of the surface it is drawn on: the bar's glass may be the other tone (BarScheme)
+    readonly property BarScheme barScheme: root.QsWindow.window?.barScheme ?? ownBarScheme
+    BarScheme {
+        id: ownBarScheme
+    }
 
     readonly property var tooltipEdges: (!Config.options.bar.bottom && !Config.options.bar.vertical) ? Edges.Bottom : Edges.Top
 
@@ -27,8 +32,8 @@ Revealer {
         padding: 0
         buttonRadius: Appearance.rounding.full
         colBackground: "transparent"
-        colBackgroundHover: Appearance.colors.colLayer1Hover
-        colRipple: Appearance.colors.colLayer1Active
+        colBackgroundHover: root.barScheme.hover
+        colRipple: root.barScheme.pressed
         colBackgroundToggled: Appearance.colors.colSecondaryContainer
         colBackgroundToggledHover: Appearance.colors.colSecondaryContainerHover
         colRippleToggled: Appearance.colors.colSecondaryContainerActive
@@ -40,7 +45,7 @@ Revealer {
             verticalAlignment: Text.AlignVCenter
             text: "system_update"
             iconSize: Appearance.font.pixelSize.larger
-            color: button.toggled ? Appearance.m3colors.m3onSecondaryContainer : Appearance.colors.colOnLayer0
+            color: button.toggled ? Appearance.m3colors.m3onSecondaryContainer : root.barScheme.fg
         }
 
         PopupToolTip {

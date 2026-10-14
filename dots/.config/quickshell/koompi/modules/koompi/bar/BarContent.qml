@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Hyprland
 import qs
 import qs.services
 import qs.modules.common
@@ -21,8 +22,68 @@ Item { // Bar content region
         Layout.bottomMargin: Appearance.sizes.baseBarHeight / 3
         Layout.fillHeight: true
         implicitWidth: 1
-        color: Appearance.colors.colOutlineVariant
+        // an inline component cannot see root: the window carries the scheme
+        color: QsWindow.window?.barScheme?.separator ?? Appearance.colors.colOutlineVariant
     }
+
+    // Glass, after the macOS menu bar. Over the wallpaper the bar is blurred glass with a flat
+    // tint (Hyprland blurs the quickshell:bar layer from 0.2 alpha), keeping the hug shape and
+    // its corners. The tint is as light as legibility allows: the bar measures the wallpaper
+    // under it (BarTone) and takes the least tint that keeps its text at 4.5:1. When glass of
+    // the other tone needs clearly less - a bright wallpaper in dark mode - the text turns dark
+    // over light glass (BarScheme.flipped). It goes solid when a window is under it, when the
+    // wallpaper cannot be read, and with no Hyprland data (a nested test instance, the state
+    // test_bar_contrast.sh measures).
+    readonly property real glassFloor: 0.3
+    // the geometry from the daemon's monitor; the workspace from Quickshell's, which follows a
+    // switch at once where the daemon's monitor list can lag one
+    readonly property var monitorData: HyprlandData.monitors.find(mon => mon.name === root.screen?.name) ?? null
+    readonly property int workspaceId: Hyprland.monitorFor(root.screen)?.activeWorkspace?.id ?? 0
+    readonly property string wallpaper: root.monitorData ? Wallpapers.forWorkspace(root.workspaceId) : ""
+    onWallpaperChanged: BarTone.measure(root.wallpaper)
+    Component.onCompleted: BarTone.measure(root.wallpaper)
+    readonly property bool windowUnderBar: {
+        const mon = root.monitorData;
+        if (!mon)
+            return true;
+        const shown = [root.workspaceId, mon.specialWorkspace?.id].filter(id => id !== undefined && id !== 0);
+        const height = mon.height / (mon.scale || 1);
+        const bar = Appearance.sizes.barHeight;
+        return HyprlandData.windowList.some(win => {
+            if (!shown.includes(win.workspace?.id) || win.hidden || win.mapped === false)
+                return false;
+            const top = (win.at?.[1] ?? 0) - mon.y;
+            const bottom = top + (win.size?.[1] ?? 0);
+            return Config.options.bar.bottom ? bottom > height - bar : top < bar;
+        });
+    }
+    BarScheme {
+        id: themeProbe
+    }
+    BarScheme {
+        id: flippedProbe
+        flipped: true
+    }
+    readonly property var glassChoice: {
+        const columns = BarTone.tones[root.wallpaper];
+        if (!columns || root.windowUnderBar || !Config.options.bar.showBackground || !Config.options.bar.smartTransparency)
+            return null;
+        const own = themeProbe.tintOver(columns, root.glassFloor);
+        const other = flippedProbe.tintOver(columns, root.glassFloor);
+        const flip = other + 0.2 <= own;
+        const tint = flip ? other : own;
+        return tint < Appearance.colors.colBarBackground.a ? {
+            "flipped": flip,
+            "tint": tint
+        } : null;
+    }
+    readonly property bool glass: root.glassChoice !== null
+    readonly property BarScheme scheme: BarScheme {
+        flipped: root.glassChoice?.flipped ?? false
+    }
+    // the bar's surface, shared with the hug corners so the two stay one shape
+    readonly property color surfaceColor: !Config.options.bar.showBackground ? "transparent"
+        : root.glass ? ColorUtils.applyAlpha(root.scheme.glass, root.glassChoice.tint) : Appearance.colors.colBarBackground
 
     // Background shadow
     Loader {
@@ -40,7 +101,10 @@ Item { // Bar content region
             fill: parent
             margins: Config.options.bar.cornerStyle === 1 ? (Appearance.sizes.hyprlandGapsOut) : 0 // idk why but +1 is needed
         }
-        color: Config.options.bar.showBackground ? Appearance.colors.colBarBackground : "transparent"
+        color: root.surfaceColor
+        Behavior on color {
+            animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+        }
         radius: Config.options.bar.cornerStyle === 1 ? Appearance.rounding.windowRounding : 0
         border.width: Config.options.bar.cornerStyle === 1 ? 1 : 0
         border.color: Appearance.colors.colLayer0Border
@@ -90,7 +154,7 @@ Item { // Bar content region
                 // by hairline gaps that vanish against the bar without a field
                 // behind them. Thinner than colBarElementBackground - this one
                 // only has to separate the star, not carry a label.
-                colBackground: barLeftSideMouseArea.hovered ? Appearance.colors.colBarElementBackground : ColorUtils.transparentize(Appearance.colors.colOnLayer0, 0.965)
+                colBackground: barLeftSideMouseArea.hovered ? root.scheme.element : ColorUtils.transparentize(root.scheme.fg, 0.965)
             }
 
             ActiveWindow {
@@ -225,7 +289,7 @@ Item { // Bar content region
 
             HyprlandXkbIndicator {
                 Layout.alignment: Qt.AlignVCenter
-                color: Appearance.colors.colOnLayer0
+                color: root.scheme.fg
             }
 
             NetworkIndicator {
@@ -240,7 +304,7 @@ Item { // Bar content region
             BarPanelButton { // quick settings
                 id: controlCenterButton
                 objectName: "controlCenterButton"
-                colBackground: Appearance.colors.colBarElementBackground
+                colBackground: root.scheme.element
                 toggled: GlobalStates.sidebarRightOpen
                 tooltip: Translation.tr("Quick settings")
                 onClicked: GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen
@@ -275,7 +339,7 @@ Item { // Bar content region
                             pluginId: "koompi.clock"
                             builtin: ClockWidget {
                                 showDate: false
-                                color: GlobalStates.sidebarRightOpen ? Appearance.m3colors.m3onSecondaryContainer : Appearance.colors.colOnLayer0
+                                color: GlobalStates.sidebarRightOpen ? Appearance.m3colors.m3onSecondaryContainer : root.scheme.fg
                             }
                         }
 
