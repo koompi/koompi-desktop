@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# One tiled window on a workspace fills it: no gap. Two or more keep gaps_in/gaps_out, a floating
-# window does not count, and a scratchpad keeps its 30 px gap.
+# Every window keeps the gap on every edge and its border, one tiled window as much as two:
+# gaps_out 5 to the screen and below the bar, gaps_in 4 between windows, a floating window
+# changes nothing, and a scratchpad keeps its 30 px gap. A lone window used to fill the
+# screen (w[t1]s[false], 2026-10-10); the founder wants the original style back.
 #
 # Live: Hyprland nested in a headless KWin on a private bus. The config is the repo's real gap
 # values plus the workspace-rules block lifted out of rules.lua, so the rule under test is the shipped one.
-# Hyprland reports a window geometry inside its border, so [0,0,1280,800] also proves border 0.
+# Hyprland reports a window geometry inside its border: [6,6,1268,788] is gaps_out 5 plus a 1 px border.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 RULES="$REPO_ROOT/dots/.config/hypr/hyprland/rules.lua"
 GENERAL="$REPO_ROOT/dots/.config/hypr/hyprland/general.lua"
-SELECTOR='w[t1]s[false]'
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
 grep -q '^        gaps_in = 4,$' "$GENERAL" && grep -q '^        gaps_out = 5,$' "$GENERAL" || fail "general.lua no longer has gaps_in 4 and gaps_out 5"
-grep -qF "hl.workspace_rule({ workspace = \"$SELECTOR\", gaps_out = 0, gaps_in = 0 })" "$RULES" || fail "rules.lua has no gap-free workspace rule for $SELECTOR"
-grep -qF "workspace = \"$SELECTOR\" }, border_size = 0" "$RULES" || fail "rules.lua has no border_size 0 window rule for $SELECTOR"
-echo "ok   source: rules.lua carries the single-window rule, general.lua keeps gaps 4 and 5"
+grep -qE 'gaps_out = 0|border_size = 0, rounding = 0' "$RULES" && fail "rules.lua takes the gap or the rounding off some windows again"
+echo "ok   source: no rule takes a window's gap away, general.lua keeps gaps 4 and 5"
 
 for tool in Hyprland hyprctl kwin_wayland kitty dbus-run-session jq; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed, static check only"; exit 0; }
@@ -116,17 +116,17 @@ grep '^nested Hyprland:' "$WORK/kwin.log" | sed 's/^/note: /'
 reading() { awk -v k="$1" '$1 == k { $1 = ""; sub(/^ /, ""); print }' "$WORK/readings" 2> /dev/null; }
 dump() { echo "--- readings ---" >&2; cat -- "$WORK/readings" >&2 2> /dev/null; tail -15 "$WORK/hyprland-run.log" >&2 2> /dev/null; }
 
-# monitor 1280x800: gaps_out 5 insets a lone window to [5,5,1270,790]; no gaps fills [0,0,1280,800]
+# monitor 1280x800: gaps_out 5 and a 1 px border inset a lone window to [6,6,1268,788]
 [[ -s $WORK/readings ]] || { dump; fail "setup: the probe recorded nothing"; }
 grep -q '^timeout' "$WORK/readings" && { dump; fail "setup: a window never appeared"; }
-[[ "$(reading single)" == "[0,0,1280,800]" ]] || { dump; fail "one tiled window is $(reading single), want [0,0,1280,800]"; }
-echo "ok   one tiled window fills the output"
+[[ "$(reading single)" == "[6,6,1268,788]" ]] || { dump; fail "one tiled window is $(reading single), want [6,6,1268,788]"; }
+echo "ok   one tiled window keeps the gap on every edge"
 [[ "$(reading pair-one)" == "[6,6,629,788]" && "$(reading pair-two)" == "[645,6,629,788]" ]] || { dump; fail "two windows: got $(reading pair-one) and $(reading pair-two), want them inset by gaps_out 5, gaps_in 4 and a 1 px border"; }
 echo "ok   two tiled windows keep the gaps: $(reading pair-one) and $(reading pair-two)"
-[[ "$(reading again)" == "[0,0,1280,800]" ]] || { dump; fail "after closing one the remaining window is $(reading again), want [0,0,1280,800]"; }
-echo "ok   closing one hands the whole output back"
-[[ "$(reading with-float)" == "[0,0,1280,800]" ]] || { dump; fail "a floating window changed the tiled one: $(reading with-float)"; }
-[[ "$(reading with-float-again)" == "[0,0,1280,800]" ]] || { dump; fail "a second floating window changed the tiled one: $(reading with-float-again)"; }
+[[ "$(reading again)" == "[6,6,1268,788]" ]] || { dump; fail "after closing one the remaining window is $(reading again), want [6,6,1268,788]"; }
+echo "ok   closing one leaves the last window inset the same"
+[[ "$(reading with-float)" == "[6,6,1268,788]" ]] || { dump; fail "a floating window changed the tiled one: $(reading with-float)"; }
+[[ "$(reading with-float-again)" == "[6,6,1268,788]" ]] || { dump; fail "a second floating window changed the tiled one: $(reading with-float-again)"; }
 echo "ok   a floating window does not count as a second tiled one"
 [[ "$(reading scratch)" == "[31,31,"* ]] || { dump; fail "scratchpad window is $(reading scratch), want its 30 px gap and 1 px border"; }
 echo "ok   a scratchpad keeps its 30 px gap"

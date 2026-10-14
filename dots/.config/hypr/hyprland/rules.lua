@@ -126,10 +126,8 @@ hl.workspace_rule({ workspace = "special:discord", gaps_out = 30 })
 hl.workspace_rule({ workspace = "special:whatsapp", gaps_out = 30 })
 hl.workspace_rule({ workspace = "special:term", gaps_out = 30 })
 hl.workspace_rule({ workspace = "special:sysmon", gaps_out = 30 })
--- one tiled window fills its space; s[false] keeps scratchpads and their 30px gap out of it; w[tv1] re-insets the tile when a second float opens, w[t1] does not
-hl.workspace_rule({ workspace = "w[t1]s[false]", gaps_out = 0, gaps_in = 0 })
--- square corners too: rounded corners flush against the screen edge show wallpaper in each corner
-hl.window_rule({ match = { float = false, workspace = "w[t1]s[false]" }, border_size = 0, rounding = 0 })
+-- No single-window rule: a lone window keeps the gap on every edge and its rounded corners,
+-- the same as two (test_window_gaps.sh). Filling the screen read as a different style.
 
 -- ######## Layer rules ########
 hl.layer_rule({ match = { namespace = ".*" }, xray = true})
