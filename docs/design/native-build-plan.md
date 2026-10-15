@@ -1,6 +1,6 @@
 # Native build: Rust for services, Zig for tools
 
-Status: **plan**, written 2026-10-15. N1 is running; nothing else has started.
+Status: **plan**, written 2026-10-15. N1 is merged on `dev`; nothing else has started.
 Goal: each native part has one language, one build and one package, and both install routes ship the same programs.
 Services keep running when the shell restarts, the shell stops polling for what a service can push, and every change is measured.
 
@@ -36,10 +36,11 @@ This is an estimate; N0 measures it.
 ## What the audit found
 
 1. **The package route has no services.**
-   - `koompi-shell` builds only the Zig CLI.
-   - `koompi-shelld`, the global menu and `koompi-agent-memd` exist only where `./setup` built them into `~/.local/bin`.
+   - `koompi-shell` built only the Zig CLI; N1 added the menu daemon.
+   - `koompi-shelld` and `koompi-agent-memd` still exist only where `./setup` built them into `~/.local/bin`.
    - `ShellServices.qml:17-25` looks only there, or in the repo's `target/`.
    - So on KOOMPI OS the bar has no window list, network, power, brightness or Bluetooth service.
+   - `build-packages.yml` installs neither Cargo nor Zig, so CI cannot build `koompi-shell` either.
 2. **The two routes build different things.**
    - `./setup` never builds the swipe plugin.
    - The packages never build `koompi-shelld`.
@@ -102,13 +103,16 @@ Each job has one worker in its own worktree, and the lead verifies (AGENTS.md). 
 
 ### Phase 1: one of everything (2–3 days)
 
-- [ ] **N1 global menu on Rust only** (running).
-  - Delete the Zig daemon.
-  - Move `test_daemon.py` next to `globalmenu/`.
-  - When no registration matches, find the menu by the focused window's pid.
-  - Point the health check at the Rust daemon and fix the stop names.
-
-  **Done when** the conformance suite passes, a restart without the mirror file still shows the menu, and the full suite has no new failures.
+- [x] **N1 global menu on Rust only.** Merged 2026-10-15 (`706d33179`..`c6e1e101b`).
+  - The Zig daemon is deleted, the conformance suite lives in `globalmenu/tests/`, and the stop names match.
+  - `koompi-shell` ships the daemon in `/usr/lib/koompi/`.
+  - A migration removes the leftover build from existing homes.
+  - Root cause: since Qt 6.10, Qt calls RegisterWindow only on xcb. On Wayland it exports `/MenuBar/<n>` and announces it through a KDE protocol Hyprland lacks.
+    The daemon now finds that menubar by the focused window's pid, so Wayland Qt apps have menus and the xcb pin for Dolphin, Okular, Konsole and Ark is gone.
+  - Verified: lead suite 199 passed, 2 skipped, 1 failed (`test_startup_apps.sh`, failing before). With the probe switched off, the conformance suite fails 8 checks.
+  - Known limits, follow-ups:
+    - One adopted menubar serves every window of a process, so a menu action in a second window of the same process (Konsole) acts on the first.
+    - A Flatpak app reaches the bus through a proxy with another pid, so its Qt menu is not found.
 - [ ] **N2 one build per toolchain.**
   - One Cargo workspace at `native/` or the repo root, with `shell-services/*` and `globalmenu/*` as members, one lockfile and one target directory.
   - `rust-toolchain.toml` pins the toolchain.
