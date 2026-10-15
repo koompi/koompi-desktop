@@ -44,8 +44,8 @@ for p in "${planted[@]}"; do
 done
 
 # Sourced and run as makepkg does: top-level assignments, then package() with
-# startdir/srcdir/pkgdir set. build() is not run; the one artefact package()
-# takes from it is faked.
+# startdir/srcdir/pkgdir set. build() is not run; the artefacts package()
+# takes from it (the koompi CLI, the global menu daemon) are faked.
 run_package() {
     local name="$1" srcdir="$2" pkgdir="$3"
     mkdir -p "$srcdir" "$pkgdir"
@@ -61,6 +61,7 @@ run_package() {
 
 printf '#!/bin/sh\n' > "$tmp/koompi"
 install -Dm755 "$tmp/koompi" "$tmp/shell-src/koompi-cli-out/bin/koompi"
+install -Dm755 "$tmp/koompi" "$tmp/shell-src/globalmenu-target/release/global-menu-daemon"
 run_package koompi-shell "$tmp/shell-src" "$tmp/shell-pkg"
 run_package koompi-hyprland-config "$tmp/config-src" "$tmp/config-pkg"
 
@@ -81,6 +82,8 @@ done
     || fail "koompi-shell lost scripts/colors/switchwall.sh next to the pruned cache"
 [[ -x "$tmp/shell-pkg/usr/bin/koompi-migrate" ]] \
     || fail "koompi-shell lost the tools (usr/bin/koompi-migrate)"
+[[ -x "$tmp/shell-pkg/usr/lib/koompi/koompi-global-menu-daemon" ]] \
+    || fail "koompi-shell does not ship the global menu daemon (usr/lib/koompi/koompi-global-menu-daemon)"
 [[ -f "$tmp/config-pkg/etc/skel/.config/hypr/hyprland.lua" ]] \
     || fail "koompi-hyprland-config lost the hypr config (etc/skel/.config/hypr/hyprland.lua)"
 [[ -x "$tmp/config-pkg/etc/skel/.local/bin/koompi-session" ]] \

@@ -171,6 +171,7 @@ doctor() {
     if [[ -f "$REPO_PATH_FILE" ]]; then ok "update source: $(< "$REPO_PATH_FILE")"
     else warn "no recorded checkout path; koompi update will have to guess where to pull from"; fi
     if [[ -x "$XDG_BIN_HOME/koompi-global-menu-daemon" ]]; then ok "global menu daemon: $XDG_BIN_HOME/koompi-global-menu-daemon"
+    elif [[ -x /usr/lib/koompi/koompi-global-menu-daemon ]]; then ok "global menu daemon: /usr/lib/koompi/koompi-global-menu-daemon"
     else warn "no global menu daemon; the bar shows no app menus (needs cargo: ./setup install --only-setups)"; fi
 
     (( missing_required == 0 )) || return 1

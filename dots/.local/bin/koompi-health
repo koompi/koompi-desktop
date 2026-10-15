@@ -147,8 +147,12 @@ check_proc -f "xdg-desktop-portal$" -- "xdg-desktop-portal"
 # Every one of these failing looks identical from the bar: no menu at all.
 section "Global menu"
 check_cmd xprop core "xprop (reads menu addresses off XWayland windows)"
-menu_daemon="$HOME/.local/bin/koompi-global-menu-daemon"
-if [[ -x "$menu_daemon" ]]; then
+# the order services/GlobalMenuService.qml tries them in
+menu_daemon=""
+for candidate in "$HOME/.local/bin/koompi-global-menu-daemon" /usr/lib/koompi/koompi-global-menu-daemon; do
+    [[ -x "$candidate" ]] && { menu_daemon="$candidate"; break; }
+done
+if [[ -n "$menu_daemon" ]]; then
     ok "daemon installed: $menu_daemon"
 elif have cargo; then
     bad "daemon not installed: ./setup install --only-setups builds it"
