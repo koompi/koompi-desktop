@@ -18,8 +18,10 @@ There is no setting up to do.
 On a touchpad, four fingers left or right walks between desks.
 Scrolling the wheel over the numbers at the top of the screen does the same.
 
-The top strip shows the desks you are using, plus the one you are on, plus one quiet dot for the next free desk (hover it and it says "New desk").
-With work on desks 1, 2 and 5 you see 1, 2, 5 and a dot where 3 would be; click it, or press `Super+3`, to start a desk there.
+The top strip shows the desks you are using, plus the one you are on, plus the next free desk (hover it and it says "New desk").
+A desk with an app on it shows that app's icon; an empty one shows its number.
+With work on desks 1, 2 and 5 you see three app icons and a 3 between them; click the 3, or press `Super+3`, to start a desk there.
+Hold `Super` and every desk shows its number, so you can read off which key reaches it.
 A desk joins the strip when something is on it or you go to it, and leaves again when it is empty and you are elsewhere.
 Settings, Bar, "Show only the workspaces in use" turns this off and gives back the full row of ten.
 

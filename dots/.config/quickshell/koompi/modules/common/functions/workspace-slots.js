@@ -38,3 +38,12 @@ function fixed(activeId, groupSize) {
     for (let i = 0; i < groupSize; i++) ids.push(start + i);
     return { ids: ids, newId: 0 };
 }
+
+// what one drawn desk shows: "number", "icon" or "dot". A desk with an app on it
+// shows the app; an empty one shows its number, or a dot in the fixed row, where its
+// place already says the number. Numbers asked for (Super held, or always on) win.
+function face(numbersAsked, appIcon, dynamic) {
+    if (numbersAsked) return "number";
+    if (appIcon) return "icon";
+    return dynamic ? "number" : "dot";
+}

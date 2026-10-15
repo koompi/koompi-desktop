@@ -2,7 +2,8 @@
 # The bar shows the workspaces in use. With windows on desks 1, 2 and 5 the real
 # Workspaces.qml draws 1, 2, 5 and an empty "new desk" 3, not a row of ten;
 # focusing desk 8 adds 8; closing 5's window drops 5 once focus is elsewhere.
-# Desk numbers never move. The probe reads the widget's own slot delegates.
+# Desk numbers never move. A desk with a window shows the app's icon, an empty
+# one its number. The probe reads the widget's own slot delegates.
 #
 # Live: Hyprland nested in a headless KWin on a private bus with a minimal Lua
 # config; windows are moved with the Lua hl.dsp.window.move. Nothing here reaches
@@ -84,6 +85,10 @@ ShellRoot {
             return bar.drawnIds().join(",") + "|new=" + bar.newSlotId;
         }
 
+        function faces(): string {
+            return bar.drawnIds(true).join(",");
+        }
+
         function closeFive(): string {
             five.visible = false;
             return "closed";
@@ -104,11 +109,12 @@ qs_pid=$!
 for _ in $(seq 1 80); do qs -p slots_probe.qml ipc show > /dev/null 2>&1 && break; sleep 0.5; done
 
 slots() { qs -p slots_probe.qml ipc call probe slots 2> /dev/null; }
-# poll until the widget reads $1, then record what it read last
+faces() { qs -p slots_probe.qml ipc call probe faces 2> /dev/null; }
+# poll until the widget reads $1 through $3 (slots by default), then record what it read last
 await() {
     local want=$1 got=""
     for _ in $(seq 1 40); do
-        got=$(slots)
+        got=$("${3:-slots}")
         [[ $got == "$want" ]] && break
         sleep 0.5
     done
@@ -127,8 +133,10 @@ move() {
 move slots-two 2
 move slots-five 5
 await "1,2,3,5|new=3" base
+await "1:icon,2:icon,3:number,5:icon" basefaces faces
 hyprctl dispatch 'hl.dsp.focus({ workspace = 8 })' > /dev/null 2>&1
 await "1,2,3,5,8|new=3" focus8
+await "1:icon,2:icon,3:number,5:icon,8:number" focus8faces faces
 qs -p slots_probe.qml ipc call probe closeFive > /dev/null 2>&1
 await "1,2,3,8|new=3" closed5
 
@@ -152,7 +160,11 @@ dump() { echo "--- readings ---" >&2; cat -- "$WORK/readings" >&2 2> /dev/null; 
 
 [[ "$(reading base)" == "1,2,3,5|new=3" ]] || { dump; fail "desks 1, 2 and 5 in use should draw 1,2,3,5 with 3 new, the bar drew '$(reading base)'"; }
 echo "ok   probe: windows on 1, 2 and 5 draw 1, 2, 5 and the empty new desk 3"
+[[ "$(reading basefaces)" == "1:icon,2:icon,3:number,5:icon" ]] || { dump; fail "desks with windows should show app icons and the new desk its number, the bar drew '$(reading basefaces)'"; }
+echo "ok   probe: desks 1, 2 and 5 show their app's icon, the new desk 3 its number"
 [[ "$(reading focus8)" == "1,2,3,5,8|new=3" ]] || { dump; fail "focusing desk 8 should add 8, the bar drew '$(reading focus8)'"; }
 echo "ok   probe: focusing desk 8 adds 8 and nothing is renumbered"
+[[ "$(reading focus8faces)" == "1:icon,2:icon,3:number,5:icon,8:number" ]] || { dump; fail "the empty active desk 8 should show its number, the bar drew '$(reading focus8faces)'"; }
+echo "ok   probe: the empty active desk 8 shows its number"
 [[ "$(reading closed5)" == "1,2,3,8|new=3" ]] || { dump; fail "closing 5's window should drop 5, the bar drew '$(reading closed5)'"; }
 echo "ok   probe: closing the window on desk 5 drops 5 once focus is on 8"

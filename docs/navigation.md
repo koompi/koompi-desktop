@@ -547,6 +547,7 @@ The clock and the sliders glyph are the only bar targets that open a panel, and 
 The bar shows the workspaces in use: the occupied desks of the current group of ten, the active desk if it is empty, and one empty "new desk" slot (the lowest free number), from one shared rule in `modules/common/functions/workspace-slots.js`.
 Desk numbers are fixed. Nothing is renumbered, created or destroyed by the bar, so `Super+<number>` always reaches that desk, and a gap stays a gap: desks 1, 2 and 5 in use draw 1, 2, 5 and an empty 3.
 `Super+<number>`, `Super+Alt+<number>` (the desk gets a window) and the 4-finger swipe onto an empty desk make that desk appear in the bar; it leaves again once it is empty and you are elsewhere.
+A desk with a window shows the icon of its biggest window, an empty one its number; holding Super, or `bar.workspaces.alwaysShowNumbers`, shows every number (`face()` in the same file). With `bar.workspaces.showAppIcons` off, or an icon that does not resolve, the number is drawn instead; the fixed row keeps a dot for an empty desk.
 Slots fade and resize with the `elementMove` role, which Reduce Motion cuts to instant.
 `bar.workspaces.dynamic: false` (Settings, Bar, "Show only the workspaces in use") brings back the fixed row of `bar.workspaces.shown`.
 

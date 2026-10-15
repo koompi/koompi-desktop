@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The bar shows the workspaces in use. modules/common/functions/workspace-slots.js
 # decides which desks to draw: occupied ones, the active one, and one empty "new
-# desk" slot, always under their own fixed ids. Run under bun, no shell needed.
+# desk" slot, always under their own fixed ids, and what each one shows: its app,
+# else its number. Run under bun, no shell needed.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,10 +14,10 @@ command -v bun > /dev/null || { echo "bun not installed; skipping" >&2; exit 0; 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 sed '/^\.pragma /d' "$JS" > "$tmp/slots.js"
-printf '\nexport { slots, fixed };\n' >> "$tmp/slots.js"
+printf '\nexport { slots, fixed, face };\n' >> "$tmp/slots.js"
 
 cat > "$tmp/check.js" <<'JS'
-import { slots, fixed } from "./slots.js";
+import { slots, fixed, face } from "./slots.js";
 let bad = 0;
 const eq = (name, got, want) => {
     const g = JSON.stringify(got), w = JSON.stringify(want);
@@ -34,6 +35,11 @@ eq("unsorted and repeated input", slots([5, 1, 5, 2], 1, 10), { ids: [1, 2, 3, 5
 eq("special workspaces are ignored", slots([-98, 1], 1, 10), { ids: [1, 2], newId: 2 });
 eq("fixed row of ten", fixed(3, 10).ids.length, 10);
 eq("fixed row in the second group", fixed(13, 10).ids[0], 11);
+eq("a desk with an app shows the app", face(false, true, true), "icon");
+eq("an empty desk shows its number", face(false, false, true), "number");
+eq("Super held shows numbers over apps", face(true, true, true), "number");
+eq("the fixed row shows apps too", face(false, true, false), "icon");
+eq("the fixed row keeps a dot for an empty desk", face(false, false, false), "dot");
 process.exit(bad);
 JS
 cd "$tmp" && bun check.js
