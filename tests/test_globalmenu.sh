@@ -58,4 +58,47 @@ fi
 [[ $got == '{"items":[],"gen":1}' ]] \
     || fail "the daemon opened with '$got', not the empty payload the shell waits for"
 
+# A real Qt app on Wayland, following the nested Hyprland's focus. Qt 6.10 and later
+# never register there, so this is the case only the daemon's own lookup serves; the
+# mock apps above cannot say whether Qt still exports /MenuBar/<n> the way it did.
+qt_app=""
+for candidate in designer6 designer okular; do
+    command -v "$candidate" > /dev/null && { qt_app=$candidate; break; }
+done
+if [[ -z $qt_app ]]; then
+    skip "no Qt app with a menubar (designer6, okular) to show the Wayland lookup on"
+    exit 0
+fi
+printf -- '--- a Qt app on Wayland (%s)\n' "$qt_app"
+cat > "$tmp/qt-app.sh" <<'SH'
+#!/usr/bin/env bash
+# in the nested session: the daemon on its bus, the app started by Hyprland, the bar's payload read
+set -uo pipefail
+bin=$1 app=$2 out=$3
+# the daemon's stdin stays open on fd 3, as the shell's pipe does, until the end
+mkfifo "$out.in"
+"$bin" < "$out.in" > "$out" 2> /dev/null &
+daemon=$!
+exec 3> "$out.in"
+for _ in $(seq 1 20); do [[ -s $out ]] && break; sleep 0.1; done
+hyprctl dispatch "hl.dsp.exec_cmd(\"env QT_QPA_PLATFORM=wayland $app\")" > /dev/null
+pid=""
+for _ in $(seq 1 120); do
+    pid=$(hyprctl clients -j | jq -r '.[0].pid // empty')
+    grep -q '"label":"File"' "$out" && break
+    sleep 0.25
+done
+# close what was started before the session ends: an app outliving its compositor can crash
+[[ -n $pid ]] && kill "$pid" 2> /dev/null
+exec 3>&-
+for _ in $(seq 1 20); do [[ -n $pid ]] && kill -0 "$pid" 2> /dev/null || break; sleep 0.25; done
+[[ -n $pid ]] && kill -9 "$pid" 2> /dev/null
+wait "$daemon"
+grep '"items":\[{' "$out" | tail -n 1 | jq -c '[.items[].label]'
+SH
+got=$("$ROOT/tests/with-nested-hyprland.sh" bash "$tmp/qt-app.sh" "$BIN" "$qt_app" "$tmp/qt-app.out")
+[[ $got == '["File",'* ]] \
+    || fail "$qt_app on Wayland never reached the bar: the daemon published '$got'"
+printf '%s menu: %s\n' "$qt_app" "$got"
+
 echo "ok"
