@@ -5,6 +5,7 @@
 //   refresh               re-resolve the focused window
 //   gtk <bus> <menu_path> [app_path] [win_path]   (--test only)
 //   dbusmenu <bus> <path>                          (--test only)
+//   focus <pid> [address] [class]   resolve as if this Wayland window had focus (--test only)
 //
 // daemon -> shell:
 //   {"items":[...],"gen":<n>}              the full menu for the focused window
@@ -16,20 +17,26 @@
 // globalmenu/tests/test_daemon.py is the conformance suite for this protocol
 // (tests/test_globalmenu.sh builds the daemon and runs it).
 
+use std::collections::HashSet;
 use std::io::{BufRead, Write};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use koompi_globalmenu_core::compositor::{FocusSource, Hyprland};
+use koompi_globalmenu_core::compositor::{ActiveWindow, FocusSource, Hyprland};
 use koompi_globalmenu_core::menu::{self, Item, Table, Target};
-use koompi_globalmenu_core::{dbusmenu, gtkmenu, registrar, x11};
+use koompi_globalmenu_core::{dbusmenu, gtkmenu, qtmenu, registrar, x11};
 
 use zbus::blocking::Connection;
 
 /// Applications register a moment after they take focus, and focus itself flaps
 /// while a panel takes a grab, so both are coalesced rather than acted on.
 const REFRESH_DEBOUNCE: Duration = Duration::from_millis(60);
+
+/// A window the Qt probe has looked at is not probed again, so an application that
+/// never answers costs its timeout once per window rather than on every focus
+/// change. Cleared at this size; probing a window twice is harmless.
+const PROBED_CAP: usize = 256;
 
 enum Event {
     Stdin(String),
@@ -66,6 +73,14 @@ struct Daemon {
     generation: u32,
     /// Set by --test: no compositor, the shell drives the source directly.
     manual: bool,
+    /// Set by `focus` under --test: the window the compositor would report.
+    test_window: Option<ActiveWindow>,
+    peers: qtmenu::Peers,
+    /// Compositor addresses of the windows the Qt probe has looked at.
+    probed: HashSet<String>,
+    /// The window whose adopted menu is the current source, so a menu that has
+    /// stopped answering sends that window back to the probe.
+    adopted_window: Option<String>,
 }
 
 impl Daemon {
@@ -84,17 +99,25 @@ impl Daemon {
         write_stdout(&menu::write_patch_json(id, items, generation));
     }
 
+    fn focused_window(&mut self) -> Option<ActiveWindow> {
+        if self.manual {
+            return self.test_window.clone();
+        }
+        self.focus.as_mut()?.active_window().ok()
+    }
+
     /// Works out where the focused window's menu lives. Order matters: a
     /// registrar registration is the application telling us directly, and beats
     /// anything we can infer.
     fn resolve_source(&mut self) -> MenuSource {
-        let Some(focus) = self.focus.as_mut() else {
+        self.adopted_window = None;
+        let Some(win) = self.focused_window() else {
             return MenuSource::None;
         };
-        let Ok(win) = focus.active_window() else {
+        let Ok(pid) = u32::try_from(win.pid) else {
             return MenuSource::None;
         };
-        if win.pid == 0 {
+        if pid == 0 {
             return MenuSource::None;
         }
 
@@ -104,25 +127,60 @@ impl Daemon {
             None
         };
 
-        if let Ok(state) = self.state.lock() {
-            if let Some(entry) = xid.and_then(|id| state.for_window(id)) {
-                return MenuSource::DBusMenu(dbusmenu::Source {
-                    bus: entry.service.clone(),
-                    path: entry.path.clone(),
-                });
-            }
-            if let Some(entry) = state.for_pid(win.pid as u32) {
-                return MenuSource::DBusMenu(dbusmenu::Source {
-                    bus: entry.service.clone(),
-                    path: entry.path.clone(),
-                });
-            }
+        if let Some(source) = self.registered(xid, pid) {
+            return source;
         }
         if let Some(source) = xid.and_then(|id| self.source_from_x11(id)) {
             return source;
         }
-        self.gtk_from_bus_name(&win.class, win.pid as u32)
-            .unwrap_or(MenuSource::None)
+        if let Some(source) = self.gtk_from_bus_name(&win.class, pid) {
+            return source;
+        }
+        self.unregistered_qt(&win.address, pid)
+    }
+
+    fn registered(&self, xid: Option<u32>, pid: u32) -> Option<MenuSource> {
+        let state = self.state.lock().ok()?;
+        let entry = xid
+            .and_then(|id| state.for_window(id))
+            .or_else(|| state.for_pid(pid))?;
+        Some(dbusmenu_source(entry))
+    }
+
+    /// A Qt menubar the application exported but never registered (`qtmenu`),
+    /// adopted into the registrar table so GetMenus shows it. Probed once per
+    /// window; until a window finds one, a sibling's adopted menu stands in, as
+    /// the application's menu does on a Mac.
+    fn unregistered_qt(&mut self, address: &str, pid: u32) -> MenuSource {
+        if !self.probed.contains(address) {
+            match qtmenu::find(&self.conn, &mut self.peers, pid) {
+                qtmenu::Probe::Found(bus, path) => {
+                    if let Ok(mut state) = self.state.lock() {
+                        if state.adopt(pid, bus, path) {
+                            state.persist();
+                        }
+                    }
+                    self.mark_probed(address);
+                }
+                qtmenu::Probe::None => self.mark_probed(address),
+                qtmenu::Probe::Empty => {}
+            }
+        }
+        let Ok(state) = self.state.lock() else {
+            return MenuSource::None;
+        };
+        let Some(entry) = state.adopted(pid) else {
+            return MenuSource::None;
+        };
+        self.adopted_window = Some(address.to_owned());
+        dbusmenu_source(entry)
+    }
+
+    fn mark_probed(&mut self, address: &str) {
+        if self.probed.len() >= PROBED_CAP {
+            self.probed.clear();
+        }
+        self.probed.insert(address.to_owned());
     }
 
     /// KDE applications point at a dbusmenu through window properties rather
@@ -225,6 +283,12 @@ impl Daemon {
             MenuSource::Gtk(s) => gtkmenu::fetch(&self.conn, s, &mut self.table),
             MenuSource::DBusMenu(s) => dbusmenu::fetch(&self.conn, s, &mut self.table),
         };
+        // an adopted menu that answers nothing is gone; its window gets probed again
+        if items.is_empty() {
+            if let Some(address) = self.adopted_window.take() {
+                self.probed.remove(&address);
+            }
+        }
         self.emit(&items);
     }
 
@@ -265,6 +329,19 @@ impl Daemon {
                     win_path: rest.get(3).map(|s| (*s).to_owned()),
                     unity_path: None,
                 });
+                self.publish_source();
+            }
+            "focus" if self.manual => {
+                let Some(pid) = rest.first().and_then(|p| p.parse::<i64>().ok()) else {
+                    return;
+                };
+                self.test_window = Some(ActiveWindow {
+                    pid,
+                    xwayland: false,
+                    address: rest.get(1).map_or_else(|| format!("test:{pid}"), |a| (*a).to_owned()),
+                    class: rest.get(2).map(|c| (*c).to_owned()).unwrap_or_default(),
+                });
+                self.source = self.resolve_source();
                 self.publish_source();
             }
             "dbusmenu" if self.manual => {
@@ -370,6 +447,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         focus,
         generation: 0,
         manual,
+        test_window: None,
+        peers: qtmenu::Peers::default(),
+        probed: HashSet::new(),
+        adopted_window: None,
     };
 
     // The first payload is unconditional: the shell and the conformance suite
@@ -419,6 +500,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     Ok(())
+}
+
+fn dbusmenu_source(entry: &registrar::Entry) -> MenuSource {
+    MenuSource::DBusMenu(dbusmenu::Source {
+        bus: entry.service.clone(),
+        path: entry.path.clone(),
+    })
 }
 
 fn notify_sender(tx: &mpsc::Sender<Event>) -> registrar::Notify {

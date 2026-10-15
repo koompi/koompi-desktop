@@ -8,6 +8,7 @@ pub mod compositor;
 pub mod dbusmenu;
 pub mod gtkmenu;
 pub mod menu;
+pub mod qtmenu;
 pub mod registrar;
 pub mod x11;
 

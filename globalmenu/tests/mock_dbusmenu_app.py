@@ -12,8 +12,13 @@ argv[1] is the activation log, argv[2] the window id to register, argv[3] an
 optional bus name, so a test can have two of these registered at once, and
 argv[4] seconds to sit on AboutToShow before answering, which holds the daemon
 inside an open request for long enough to queue other work behind it.
+
+--path, --no-register and --decoy make it a Qt application on Wayland: Qt 6.10
+and later export the menubar at /MenuBar/<n> and never call RegisterWindow
+there, and the tray icon's own menu sits at /MenuBar.
 """
 
+import argparse
 import sys
 import time
 
@@ -141,33 +146,69 @@ class App:
             invocation.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", method)
 
 
-def main():
-    log = open(sys.argv[1], "a", buffering=1)
-    window_id = int(sys.argv[2])
-    bus_name = sys.argv[3] if len(sys.argv) > 3 else BUS_NAME
-    show_delay = float(sys.argv[4]) if len(sys.argv) > 4 else 0.0
+class Decoy:
+    """A one-item dbusmenu that is not the menubar: a tray menu, an older window's."""
 
-    app = App(log, show_delay)
+    def __init__(self, log, text):
+        self.log = log
+        self.root = Node(0, {}, [Node(1, label(text))])
+        self.text = text
+
+    def handle(self, conn, sender, path, iface, method, params, invocation):
+        if method == "GetLayout":
+            invocation.return_value(GLib.Variant.new_tuple(GLib.Variant("u", 1), self.root.to_variant()))
+        elif method == "AboutToShow":
+            invocation.return_value(GLib.Variant("(b)", (False,)))
+        elif method == "Event":
+            self.log.write("decoy %s %s\n" % (self.text, params[1]))
+            invocation.return_value(None)
+        else:
+            invocation.return_dbus_error("org.freedesktop.DBus.Error.UnknownMethod", method)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("log")
+    parser.add_argument("window_id", type=int)
+    parser.add_argument("bus_name", nargs="?", default=BUS_NAME)
+    parser.add_argument("show_delay", nargs="?", type=float, default=0.0)
+    parser.add_argument("--path", default=MENU_PATH)
+    parser.add_argument("--no-register", action="store_true")
+    parser.add_argument("--decoy", action="append", default=[], metavar="PATH=LABEL")
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    log = open(args.log, "a", buffering=1)
+
+    app = App(log, args.show_delay)
     conn = Gio.bus_get_sync(Gio.BusType.SESSION, None)
     node_info = Gio.DBusNodeInfo.new_for_xml(INTROSPECTION)
-    conn.register_object(MENU_PATH, node_info.interfaces[0], app.handle, None, None)
+    conn.register_object(args.path, node_info.interfaces[0], app.handle, None, None)
+    decoys = []
+    for spec in args.decoy:
+        path, text = spec.split("=", 1)
+        decoys.append(Decoy(log, text))
+        conn.register_object(path, node_info.interfaces[0], decoys[-1].handle, None, None)
 
     def owned(*_args):
-        conn.call_sync(
-            "com.canonical.AppMenu.Registrar",
-            "/com/canonical/AppMenu/Registrar",
-            "com.canonical.AppMenu.Registrar",
-            "RegisterWindow",
-            GLib.Variant("(uo)", (window_id, MENU_PATH)),
-            None,
-            Gio.DBusCallFlags.NONE,
-            -1,
-            None,
-        )
+        if not args.no_register:
+            conn.call_sync(
+                "com.canonical.AppMenu.Registrar",
+                "/com/canonical/AppMenu/Registrar",
+                "com.canonical.AppMenu.Registrar",
+                "RegisterWindow",
+                GLib.Variant("(uo)", (args.window_id, args.path)),
+                None,
+                Gio.DBusCallFlags.NONE,
+                -1,
+                None,
+            )
         print("READY", flush=True)
 
     Gio.bus_own_name_on_connection(
-        conn, bus_name, Gio.BusNameOwnerFlags.NONE, owned, lambda *a: sys.exit("name lost")
+        conn, args.bus_name, Gio.BusNameOwnerFlags.NONE, owned, lambda *a: sys.exit("name lost")
     )
     GLib.MainLoop().run()
 

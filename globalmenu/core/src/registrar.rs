@@ -12,6 +12,10 @@ use zbus::zvariant::OwnedObjectPath;
 pub const BUS_NAME: &str = "com.canonical.AppMenu.Registrar";
 pub const OBJECT_PATH: &str = "/com/canonical/AppMenu/Registrar";
 
+/// Window-id bit for a menu found rather than registered (`crate::qtmenu`), one per
+/// process: `ADOPTED | pid`. X11 window ids use 29 bits, so it never names a window.
+pub const ADOPTED: u32 = 0x8000_0000;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entry {
     pub window_id: u32,
@@ -61,12 +65,29 @@ impl State {
 
     /// Newest registration owned by `pid`. Used for windows we cannot address
     /// by X11 id; with several windows of one process this is a guess, and the
-    /// newest one is the best guess available.
+    /// newest one is the best guess available. A menu we adopted is not one.
     pub fn for_pid(&self, pid: u32) -> Option<&Entry> {
         self.entries
             .iter()
-            .filter(|e| e.pid == pid)
+            .filter(|e| e.pid == pid && e.window_id & ADOPTED == 0)
             .max_by_key(|e| e.serial)
+    }
+
+    pub fn adopted(&self, pid: u32) -> Option<&Entry> {
+        self.for_window(ADOPTED | pid)
+    }
+
+    /// Records a menu found for `pid` as if it had registered, so GetMenus shows it
+    /// and the application's exit drops it. True when that changed the table.
+    pub fn adopt(&mut self, pid: u32, service: String, path: String) -> bool {
+        if self
+            .adopted(pid)
+            .is_some_and(|e| e.service == service && e.path == path)
+        {
+            return false;
+        }
+        self.insert(ADOPTED | pid, service, path, pid);
+        true
     }
 
     pub fn insert(&mut self, window_id: u32, service: String, path: String, pid: u32) {
@@ -429,6 +450,24 @@ mod tests {
         assert_eq!(s.for_pid(42).unwrap().window_id, 2);
         assert_eq!(s.for_pid(43).unwrap().window_id, 3);
         assert!(s.for_pid(99).is_none());
+    }
+
+    #[test]
+    fn an_adopted_menu_is_one_per_process_and_never_a_registration() {
+        let mut s = state();
+        assert!(s.adopt(42, ":1.5".into(), "/MenuBar/1".into()));
+        assert!(!s.adopt(42, ":1.5".into(), "/MenuBar/1".into()), "re-adopting the same menu changed the table");
+        assert!(s.adopt(42, ":1.5".into(), "/MenuBar/2".into()));
+
+        assert_eq!(s.entries().len(), 1);
+        assert_eq!(s.adopted(42).unwrap().path, "/MenuBar/2");
+        assert_eq!(s.adopted(42).unwrap().window_id, ADOPTED | 42);
+        assert!(s.for_pid(42).is_none(), "an adopted menu answered for a registration");
+
+        s.insert(7, ":1.5".into(), "/MenuBar/3".into(), 42);
+        assert_eq!(s.for_pid(42).unwrap().window_id, 7);
+        assert!(s.drop_service(":1.5"));
+        assert!(s.adopted(42).is_none(), "the application left and its adopted menu stayed");
     }
 
     #[test]
