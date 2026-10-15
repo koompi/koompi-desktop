@@ -30,6 +30,17 @@ function parseIndex(text) {
     return { theme: lines[0] || "", names: names };
 }
 
+// app_own_icons.sh: "name<TAB>path" per line
+function parseOwn(text) {
+    const own = {};
+    const lines = (text || "").split("\n");
+    for (let i = 0; i < lines.length; i++) {
+        const tab = lines[i].indexOf("\t");
+        if (tab > 0) own[lines[i].slice(0, tab)] = lines[i].slice(tab + 1);
+    }
+    return own;
+}
+
 function unresolved(name) {
     return !name || name.indexOf("image-missing") >= 0;
 }

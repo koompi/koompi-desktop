@@ -450,6 +450,8 @@ The plate is a squircle whose corner is 28 % of its side and follows `rounding_p
 An icon sits at 72 % of the plate.
 When the active icon theme draws the icon itself and declares a full-bleed body (`app-icon-plate.js` lists the themes, WhiteSur-green at 6.25 % to 93.75 % of the canvas), the icon is cut to the squircle instead, so its body fills the plate and any overhang is clipped.
 The theme comes from `QS_ICON_THEME`, else `[Icons] Theme` in `kdeglobals`, and a theme with no entry is never masked.
+`bare: true` drops the plate and draws the icon alone at full size, never masked; the bar uses it (the workspace strip and the launch icon beside the title), since a pill already is the tile there and a white plate on the glass reads as a sticker.
+Where the active theme draws an app as a full-bleed tile of its own (koompi-icons gives Chrome a white squircle), a bare icon is the one the app ships instead: `scripts/colors/app_own_icons.sh` indexes hicolor, then pixmaps, then the themes the active one inherits (breeze), and `AppIconBodies.ownPath` hands it out. An app that ships no icon of its own keeps the theme's.
 An icon that resolves to nothing (including `image-missing`) shows the first letter of the app's name on the plate.
 
 The plate's shadow and each masked icon are drawn once into a texture (`AppIconPlates`, keyed by size, colours and icon) and every plate reuses it, so nothing runs a shader per plate per frame.

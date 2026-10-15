@@ -151,6 +151,7 @@ Item { // Faux global menu: bold app name + window title
                     Layout.alignment: Qt.AlignVCenter
                     opacity: root.dim
                     size: 24
+                    bare: true // on the bar's glass, as the workspace strip
                     iconName: root.launching ? root.launch.icon : ""
                     label: root.launching ? root.launch.name : ""
                 }

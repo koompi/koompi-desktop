@@ -346,6 +346,7 @@ Item {
                             iconName: workspaceButtonBackground.mainAppIconName
                             label: workspaceButtonBackground.biggestWindow?.class ?? ""
                             size: workspaceIconSize
+                            bare: true // the pill is the tile here
 
                             Behavior on opacity {
                                 animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
