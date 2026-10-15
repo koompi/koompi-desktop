@@ -44,8 +44,8 @@ for lib in sdata/lib/common.sh dots/.local/share/koompi/libexec/update-lib.sh; d
     out="$(
         # shellcheck disable=SC1090 # one of two libraries, chosen above
         source "$REPO_ROOT/$lib" > /dev/null 2>&1
-        DRY_RUN=false
-        XDG_RUNTIME_DIR="$tmp/session-rt"
+        # shellcheck disable=SC2034 # both read by stop_processes
+        DRY_RUN=false XDG_RUNTIME_DIR="$tmp/session-rt"
         stop_processes koompi-global-menu-daemon 2>&1
     )"
     for _ in $(seq 1 50); do kill -0 "$daemon" 2> /dev/null || break; sleep 0.05; done

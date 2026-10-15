@@ -22,13 +22,17 @@ user_at="$(grep -bo '"/.local/bin/koompi-global-menu-daemon"' <<< "$candidates" 
 package_at="$(grep -bo '"/usr/lib/koompi/koompi-global-menu-daemon"' <<< "$candidates" | cut -d: -f1)"
 [[ -n $user_at ]] || fail "the shell does not look in ~/.local/bin, where ./setup installs the daemon"
 [[ -n $package_at ]] || fail "the shell does not look in /usr/lib/koompi, where koompi-shell installs the daemon"
-[[ -n $user_at && -n $package_at ]] && (( user_at < package_at )) \
-    || fail "~/.local/bin has to come first, as it does for every other koompi binary"
+if [[ -n $user_at && -n $package_at ]] && (( user_at > package_at )); then
+    fail "the ~/.local/bin copy has to come first, as it does for every other koompi binary"
+fi
 
+# shellcheck disable=SC2016 # the literal text is what is searched for
 grep -q 'install -Dm755 "$binary" "$XDG_BIN_HOME/koompi-global-menu-daemon"' "$SETUP_STEP" \
     || fail "setups/globalmenu.sh no longer installs to \$XDG_BIN_HOME/koompi-global-menu-daemon"
+# shellcheck disable=SC2016
 grep -q '"$pkgdir/usr/lib/koompi/koompi-global-menu-daemon"' "$PKGBUILD" \
     || fail "koompi-shell's package() does not install /usr/lib/koompi/koompi-global-menu-daemon"
+# shellcheck disable=SC2016
 grep -q -- '--manifest-path "$_repo_root/globalmenu/Cargo.toml"' "$PKGBUILD" \
     || fail "koompi-shell's build() does not build globalmenu/"
 
