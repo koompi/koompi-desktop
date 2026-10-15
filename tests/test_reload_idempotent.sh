@@ -41,7 +41,7 @@ name="${!#}"
 case "$name" in
     # The case that used to abort the whole update: the daemon is not running,
     # because the shell that starts it has just been stopped.
-    global-menu-daemon) exit 1 ;;
+    koompi-global-m)    exit 1 ;;
     quickshell)         exit 1 ;;
     qs)                 printf '%s\n' "$FAKE_QS_PID" "$TEST_QS_PID"; cat "$RESTARTED" 2>/dev/null; exit 0 ;;
 esac

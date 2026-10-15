@@ -103,7 +103,7 @@ hl.bind("CTRL + SUPER + T", hl.dsp.exec_cmd(qsIsAlive .. " || " .. qsScripts .. 
 -- pinned to wayland as in execs.lua: a shell on xcb maps no layer surfaces at all
 -- killall -w so it does not race the old instance
 hl.bind("CTRL + SUPER + R", hl.dsp.exec_cmd(
-        "killall -w global-menu-daemon qs quickshell; hyprctl reload; env QT_QPA_PLATFORM=wayland qs -c $qsConfig &"),
+        "killall -w koompi-global-menu-daemon qs quickshell; hyprctl reload; env QT_QPA_PLATFORM=wayland qs -c $qsConfig &"),
     { description = "Shell: Restart widgets" })
 hl.bind("CTRL + SUPER + P", hl.dsp.global("quickshell:panelFamilyCycle"), { description = "Shell: Cycle panel family" })
 
