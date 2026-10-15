@@ -11,9 +11,10 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    // first one present wins: ./setup installs into ~/.local/bin (sdata/install/setups/globalmenu.sh),
-    // the koompi-shell package into /usr/lib/koompi; one basename, so a restart stops either by name
-    readonly property var daemonCandidates: [Quickshell.env("HOME") + "/.local/bin/koompi-global-menu-daemon", "/usr/lib/koompi/koompi-global-menu-daemon"]
+    // first one present wins: KOOMPI_GLOBAL_MENU_DAEMON (a test or dev build, as KOOMPI_SHELLD is for
+    // ShellServices), ./setup's ~/.local/bin (sdata/install/setups/globalmenu.sh), the koompi-shell
+    // package's /usr/lib/koompi; the installed two share a basename, so a restart stops either by name
+    readonly property var daemonCandidates: [Quickshell.env("KOOMPI_GLOBAL_MENU_DAEMON"), Quickshell.env("HOME") + "/.local/bin/koompi-global-menu-daemon", "/usr/lib/koompi/koompi-global-menu-daemon"].filter(path => path && path.length > 0)
 
     property var menuItems: []
     // Lazy submenu contents keyed by the stable daemon item id.
