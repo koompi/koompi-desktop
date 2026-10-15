@@ -19,9 +19,11 @@ Singleton {
         return root.revision >= 0 ? Plate.bodyBox(root.theme, root.names[name] === true) : null;
     }
 
-    // the app's own icon for a name the theme draws as a full-bleed tile, else ""
+    // what a bare icon draws for a name: the app's own where the theme draws a full-bleed tile, and the logo cut
+    // from the app's own light tile wherever it has one; "" leaves the theme's
     function ownPath(name: string): string {
-        return root.box(name) !== null ? (root.own[name] ?? "") : "";
+        const entry = root.own[name];
+        return entry && (entry.cut || root.box(name) !== null) ? entry.path : "";
     }
 
     Process {

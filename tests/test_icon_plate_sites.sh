@@ -79,9 +79,10 @@ const idx = P.parseIndex("WhiteSur-green\nfirefox\norg.kde.dolphin\n\n");
 check("the index names its theme", idx.theme === "WhiteSur-green", idx.theme);
 check("the index lists the theme's own icons", idx.names["firefox"] === true && idx.names["org.kde.dolphin"] === true && !idx.names["missing"]);
 check("an empty index is a theme-less one", P.parseIndex("").theme === "" && same(P.parseIndex("").names, {}));
-const own = P.parseOwn("google-chrome\t/usr/share/icons/hicolor/64x64/apps/google-chrome.png\nodd name\t/a b/c.svg\n\nno-tab\n");
-check("the own-icon index maps each name to its file", own["google-chrome"] === "/usr/share/icons/hicolor/64x64/apps/google-chrome.png" && own["odd name"] === "/a b/c.svg");
-check("the own-icon index skips blank and malformed lines", Object.keys(own).length === 2 && same(P.parseOwn(""), {}));
+const own = P.parseOwn("google-chrome\t/usr/share/icons/hicolor/64x64/apps/google-chrome.png\nodd name\t/a b/c.svg\nantigravity\t/c/k.png\tcut\n\nno-tab\n");
+check("the own-icon index maps each name to its file", same(own["google-chrome"], { path: "/usr/share/icons/hicolor/64x64/apps/google-chrome.png", cut: false }) && same(own["odd name"], { path: "/a b/c.svg", cut: false }));
+check("a logo cut from a light tile is marked", same(own["antigravity"], { path: "/c/k.png", cut: true }));
+check("the own-icon index skips blank and malformed lines", Object.keys(own).length === 3 && same(P.parseOwn(""), {}));
 
 check("a theme with body metadata masks its own icons", same(P.bodyBox("WhiteSur-green", true), { lo: 0.0625, hi: 0.9375 }));
 check("an icon the theme does not draw keeps the plate unmasked", P.bodyBox("WhiteSur-green", false) === null);
