@@ -13,8 +13,8 @@
 // Ids are handed out per payload and reused, so every id-bearing command names its
 // generation and is refused once that generation is replaced.
 //
-// Byte-for-byte compatible with scripts/global-menu, whose tests/test_daemon.py is
-// the conformance gate for both: GLOBAL_MENU_DAEMON points the suite at either.
+// globalmenu/tests/test_daemon.py is the conformance suite for this protocol
+// (tests/test_globalmenu.sh builds the daemon and runs it).
 
 use std::io::{BufRead, Write};
 use std::sync::mpsc::{self, RecvTimeoutError};

@@ -10,7 +10,7 @@ org.gtk.Menus (GTK) and one exporting com.canonical.dbusmenu (Qt/KDE), and both
 are driven the way the shell drives them: read the menu, click an item, assert
 the application saw the click.
 
-Run: python3 tests/test_daemon.py   (after `zig build`)
+Run: python3 tests/test_daemon.py   (after `cargo build --release`; tests/test_globalmenu.sh does both)
 """
 
 import json
@@ -22,11 +22,11 @@ import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# Two implementations answer this protocol, so the suite is the conformance
-# gate for both. GLOBAL_MENU_DAEMON points it at the one under test.
+# GLOBAL_MENU_DAEMON names the binary under test; the default is the release
+# build next to this directory.
 DAEMON = os.environ.get(
     "GLOBAL_MENU_DAEMON",
-    os.path.join(HERE, "..", "zig-out", "bin", "global-menu-daemon"),
+    os.path.join(HERE, "..", "target", "release", "global-menu-daemon"),
 )
 
 failures = []
@@ -594,7 +594,7 @@ def test_displaced_daemon_does_not_write_the_mirror():
 
 def main():
     if not os.path.exists(DAEMON):
-        sys.exit("build the daemon first: zig build")
+        sys.exit("build the daemon first: cargo build --release")
 
     # Only one process per bus can own com.canonical.AppMenu.Registrar, and on a
     # live KOOMPI session that is the running daemon. Re-run ourselves on a

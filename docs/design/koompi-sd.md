@@ -184,7 +184,7 @@ All three are settled by adopting Otto, and none of them is now KOOMPI's to make
 
 - **Compositor toolkit** — Smithay, via Otto's fork `nongio/smithay` on `feat/dmabuf-scanout`.
 - **Shell UI** — `otto-kit`, Skia-based, on LayersEngine. This closes what the earlier draft called the decision that shapes L1; iced, gpui and slint are moot.
-- **Services** — Zig for what KOOMPI adds, as `audiod`, `cli`, `globalmenu` and `installer` already do.
+- **Services** — Zig for what KOOMPI adds, as `audiod`, `cli` and `installer` already do (`globalmenu` is Rust).
 
 The cost of that settlement is named in the study: two upstreams to track, a one-maintainer project above KOOMPI, and a rendering stack no other desktop uses.
 

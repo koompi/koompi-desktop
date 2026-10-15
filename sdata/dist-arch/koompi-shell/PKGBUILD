@@ -102,9 +102,9 @@ package() {
   fi
 
   # Build artefacts and caches never ship (the list ./setup uses in
-  # sdata/install/files.sh): a checkout that has built the global-menu daemon
-  # carries hundreds of MB of .zig-cache under the shell tree, gitignored but
-  # on disk, and cp -a used to package it (BUG-AUDIT H3).
+  # sdata/install/files.sh): a checkout that had built the old zig global-menu
+  # daemon carried hundreds of MB of .zig-cache under the shell tree, gitignored
+  # but on disk, and cp -a used to package it (BUG-AUDIT H3).
   local -a _excludes=(
     --exclude='.git' --exclude='.gitignore' --exclude='.claude'
     --exclude='zig-out' --exclude='.zig-cache' --exclude='__pycache__'

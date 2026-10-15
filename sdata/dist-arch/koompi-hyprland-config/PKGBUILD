@@ -30,8 +30,8 @@ package() {
   install -dm755 "$pkgdir/etc/skel"
   # Build artefacts and caches never reach /etc/skel, or every new user gets a
   # private copy (the list ./setup uses in sdata/install/files.sh; a checkout
-  # that has built the global-menu daemon carries hundreds of MB of .zig-cache
-  # under the shell tree, and cp -a used to package it — BUG-AUDIT H3).
+  # that had built the old zig global-menu daemon carried hundreds of MB of
+  # .zig-cache under the shell tree, and cp -a used to package it — BUG-AUDIT H3).
   rsync -a \
     --exclude='.git' --exclude='.gitignore' --exclude='.claude' \
     --exclude='zig-out' --exclude='.zig-cache' --exclude='__pycache__' \

@@ -99,10 +99,8 @@ These are known, and they stay until someone has a reason beyond tidiness.
 6. **Four JavaScript helpers are neither kebab nor snake**: `fuzzysort.js`, `layouts.js`, `levendist.js`, `paging.js` are single words; `calendar_layout.js` and `periodic_table.js` are snake_case.
    `fuzzysort.js` is vendored third-party code and should keep its upstream name.
 
-7. **`scripts/global-menu/` is the only kebab-case directory** in a tree of lowerCamelCase ones. It holds a Zig project, which has its own build layout.
-
-8. **Three snake_case identifiers mirror an external wire format**: `api_format` and `requires_key` in `services/ai/AiModel.qml`, and `classify_step` in `services/Ai.qml`.
+7. **Three snake_case identifiers mirror an external wire format**: `api_format` and `requires_key` in `services/ai/AiModel.qml`, and `classify_step` in `services/Ai.qml`.
    The first two are keys in the model JSON as the provider defines it, so renaming them would mean translating at the boundary. These should stay snake_case as long as they are read straight off the wire.
 
-9. **`dots/.config/hypr` is Lua and uses snake_case throughout**, files and identifiers alike: `create_custom_config.lua`, `kb_layout`, `numlock_by_default`.
+8. **`dots/.config/hypr` is Lua and uses snake_case throughout**, files and identifiers alike: `create_custom_config.lua`, `kb_layout`, `numlock_by_default`.
    Much of that is Hyprland's own key vocabulary and is not ours to rename.

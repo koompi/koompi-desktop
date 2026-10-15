@@ -124,8 +124,7 @@ Singleton {
 
     Process {
         id: daemon
-        // Prefer what setups.sh installed, fall back to a release build in the tree,
-        // the resolution GlobalMenuService.qml:14-21 already performs for its own.
+        // prefer what setups.sh installed, fall back to a release build in the tree
         command: ["bash", "-c", 'if [ -x "$1" ]; then exec "$1"; fi; exec "$2"', "bash", root.binary, root.inTreeBinary]
         running: true
         stdinEnabled: true

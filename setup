@@ -170,9 +170,8 @@ doctor() {
     fi
     if [[ -f "$REPO_PATH_FILE" ]]; then ok "update source: $(< "$REPO_PATH_FILE")"
     else warn "no recorded checkout path; koompi update will have to guess where to pull from"; fi
-    local menu="$XDG_CONFIG_HOME/quickshell/koompi/scripts/global-menu/zig-out/bin/global-menu-daemon"
-    if [[ -x "$menu" ]]; then ok "global-menu-daemon built"
-    else warn "global-menu-daemon not built"; fi
+    if [[ -x "$XDG_BIN_HOME/koompi-global-menu-daemon" ]]; then ok "global menu daemon: $XDG_BIN_HOME/koompi-global-menu-daemon"
+    else warn "no global menu daemon; the bar shows no app menus (needs cargo: ./setup install --only-setups)"; fi
 
     (( missing_required == 0 )) || return 1
     return 0
@@ -228,14 +227,7 @@ main() {
         install_files || die "config file installation failed; not continuing"
     fi
 
-    # After the files step, not inside run_setups. The daemon builds inside the
-    # installed config and the shell loads it from there by relative path, so on
-    # a first install there was nothing to build yet and the global menu came up
-    # empty on every fresh machine. --only-setups still reaches it because the
-    # config is already there by then.
-    { $DO_SETUPS || $DO_FILES; } && setup_global_menu
-
-    # same reason: its units ship from dots/, must exist before enabling
+    # after the files step: its units ship from dots/ and must exist before they are enabled
     $DO_SETUPS && setup_services
 
     # Installing into a session that is already running leaves that session on the

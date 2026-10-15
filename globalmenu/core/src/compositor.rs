@@ -2,8 +2,7 @@
 //
 // The daemon is compositor-agnostic on purpose: Hyprland answers today, and
 // otto has to answer the same question later. That is one trait with two
-// methods, not a layer - the whole Hyprland coupling in the Zig daemon this
-// replaces is 109 lines.
+// methods, not a layer.
 
 use std::io::{self, Read, Write};
 use std::os::unix::net::UnixStream;
@@ -143,7 +142,6 @@ pub fn is_focus_event(line: &str) -> bool {
 mod tests {
     use super::*;
 
-    // Same cases as src/hypr.zig's own test.
     #[test]
     fn is_focus_event_picks_the_events_that_move_focus() {
         assert!(is_focus_event("activewindow>>kitty,zsh"));

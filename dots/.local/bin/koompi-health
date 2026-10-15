@@ -147,15 +147,16 @@ check_proc -f "xdg-desktop-portal$" -- "xdg-desktop-portal"
 # Every one of these failing looks identical from the bar: no menu at all.
 section "Global menu"
 check_cmd xprop core "xprop (reads menu addresses off XWayland windows)"
-menu_daemon="$SHELL_DIR/scripts/global-menu/zig-out/bin/global-menu-daemon"
+menu_daemon="$HOME/.local/bin/koompi-global-menu-daemon"
 if [[ -x "$menu_daemon" ]]; then
-    ok "daemon built"
-elif have zig; then
-    bad "daemon not built: cd '$SHELL_DIR/scripts/global-menu' && zig build -Doptimize=ReleaseSafe"
+    ok "daemon installed: $menu_daemon"
+elif have cargo; then
+    bad "daemon not installed: ./setup install --only-setups builds it"
 else
-    bad "daemon not built and zig is not installed; the menu stays empty"
+    bad "daemon not installed and cargo is not; the menu stays empty (pacman -S rust, then ./setup install --only-setups)"
 fi
-check_proc -f global-menu-daemon -- "global-menu daemon"
+# anchored on argv[0]: a bare -f pattern also matches any editor or shell with the name on its command line
+check_proc -f '^(\S*/)?koompi-global-menu-daemon( |$)' -- "global-menu daemon"
 if have busctl; then
     if busctl --user list 2>/dev/null | grep -q 'com\.canonical\.AppMenu\.Registrar'; then
         ok "AppMenu registrar owned"

@@ -306,8 +306,8 @@ fn value_of(arg: &OwnedArg) -> Value<'static> {
 /// did not answer" the same as "the app has no menu".
 ///
 /// The timeout is the connection's, set once by whoever builds it (see
-/// `dbusmenu::connect`), not per call, so the zig daemon's 2000 ms subscription
-/// and 3000 ms activation budgets collapse into one.
+/// `crate::connect`), not per call, so subscribing and activating share one
+/// budget.
 fn call(method: impl FnOnce() -> zbus::Result<Message>) -> Option<Message> {
     method().ok()
 }

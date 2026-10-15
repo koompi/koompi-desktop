@@ -39,7 +39,7 @@ die()     { err "$*"; exit 1; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
-# scripts/global-menu/build.zig.zon floors at 0.16.0, and a distro zig is not
+# audiod/ and installer/ build.zig.zon floor at 0.16.0, and a distro zig is not
 # enough on its own: Debian 13 has no zig at all and Ubuntu's `zig` metapackage
 # still points at 0.14, which fails the build rather than skipping it.
 ZIG_MIN=0.16.0
