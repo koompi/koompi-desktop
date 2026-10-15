@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# nested hyprland: okular on xwayland, kdeconnect-app on wayland, kdialog floated on both
+# nested hyprland: okular and kdeconnect-app on wayland, kdialog floated on both
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -114,7 +114,7 @@ for name in okular kdeconnect-app kdialog-wayland kdialog-xcb; do
     [[ -n "$(field "$name" 1)" && "$(field "$name" 1)" != missing ]] || { dump; fail "$name never mapped a window"; exit 1; }
 done
 
-[[ "$(field okular 2)" == true ]] || fail "okular through koompi-launch is xwayland=$(field okular 2), want true: its menubar only reaches the bar on X11"
+[[ "$(field okular 2)" == false ]] || fail "okular through koompi-launch is xwayland=$(field okular 2), want false: the global menu finds a Qt menubar on Wayland"
 [[ "$(field kdeconnect-app 2)" == false ]] || fail "kdeconnect-app through koompi-launch is xwayland=$(field kdeconnect-app 2), want false"
 [[ "$(field kdialog-wayland 2)" == false ]] || fail "kdialog through koompi-launch is xwayland=$(field kdialog-wayland 2), want false"
 [[ "$(field kdialog-wayland 3)" == true ]] || fail "the kdialog rule left the wayland dialog (class $(field kdialog-wayland 1)) tiled"
@@ -125,4 +125,4 @@ for name in okular kdeconnect-app kdialog-wayland kdialog-xcb; do
     printf 'client: %-16s class=%-24s xwayland=%-5s floating=%s\n' "$name" "$(field "$name" 1)" "$(field "$name" 2)" "$(field "$name" 3)"
 done
 (( failed == 0 )) || { dump; exit 1; }
-echo "ok   nested Hyprland: okular on X11, kdeconnect-app on Wayland, kdialog floated on both"
+echo "ok   nested Hyprland: okular and kdeconnect-app on Wayland, kdialog floated on both"

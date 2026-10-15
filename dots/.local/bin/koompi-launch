@@ -2,9 +2,6 @@
 # apps in the session scope are invisible to systemd-oomd; a scope in app.slice is not
 set -euo pipefail
 
-# desktop-entry ids and binary names; xcb because qt exports a menubar only there
-xcb_menu_apps=(org.kde.dolphin dolphin org.kde.okular okular org.kde.konsole konsole org.kde.ark ark)
-
 usage() {
     cat <<'USAGE'
 Usage: koompi-launch [--id ID] [--cwd DIR] [--terminal CMD] [--registered] [--] COMMAND [ARG...]
@@ -13,9 +10,7 @@ Usage: koompi-launch [--id ID] [--cwd DIR] [--terminal CMD] [--registered] [--] 
 Runs COMMAND as a transient app-ID-<random>.scope in the user manager's
 app.slice, with this environment and working directory. Without a user
 manager the command runs directly and one line goes to stderr and the journal.
-The apps in xcb_menu_apps, at the top of this script, also get
-QT_QPA_PLATFORM=xcb: Qt exports a menubar to the bar only on X11.
-Any other app that inherits QT_QPA_PLATFORM=wayland, the shell's own pin, gets
+An app that inherits QT_QPA_PLATFORM=wayland, the shell's own pin, gets
 wayland;xcb, so a Qt app with no Wayland plugin still starts.
 Before it starts, one background call tells the running shell what is opening,
 so its bar can say so until the window maps; the launch never waits for it.
@@ -215,16 +210,6 @@ escape_id() {
     REPLY=$out
 }
 
-xcb_menu_app() {
-    local name app
-    for name in "$1" "${2##*/}"; do
-        for app in "${xcb_menu_apps[@]}"; do
-            if [[ $name == "$app" ]]; then return 0; fi
-        done
-    done
-    return 1
-}
-
 note() {
     logger -t koompi-launch -- "$1" 2>/dev/null || true
 }
@@ -331,9 +316,7 @@ id=${id%.desktop}
 [[ -n $id ]] || die "cannot name a scope after '$1'; pass --id"
 
 # the shell's strict wayland pin reaches its children; keep the xcb fallback
-if xcb_menu_app "$id" "$1"; then
-    export QT_QPA_PLATFORM=xcb
-elif [[ ${QT_QPA_PLATFORM-} == wayland ]]; then
+if [[ ${QT_QPA_PLATFORM-} == wayland ]]; then
     export QT_QPA_PLATFORM='wayland;xcb'
 fi
 

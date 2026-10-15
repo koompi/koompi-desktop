@@ -168,7 +168,7 @@ if have busctl; then
         bad "nobody owns com.canonical.AppMenu.Registrar; Qt apps cannot publish a menu"
     fi
 fi
-# wayland first; koompi-launch puts xcb_menu_apps on xcb for their menubar
+# wayland first, xcb as the fallback (hyprland/env.lua)
 case "${QT_QPA_PLATFORM:-}" in
     'wayland;xcb') ok "QT_QPA_PLATFORM=wayland;xcb" ;;
     wayland) ok "QT_QPA_PLATFORM=wayland (the shell's own setting, inherited by what it starts)" ;;

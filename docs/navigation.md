@@ -313,11 +313,11 @@ The call names the launch id, the program that will own the window (for `launch_
 A shell surface that already told the shell passes `--registered`, and a launch inside a terminal says nothing, because its window is the terminal's.
 No shell running is silent, and any other failure is a line in the journal under `koompi-launch`.
 
-`koompi-launch` also chooses the platform of the Qt apps it starts.
-Qt exports a menubar to the bar only on X11, so Dolphin, Okular, Konsole and Ark start with `QT_QPA_PLATFORM=xcb` and show their menus in the bar, and every other Qt app runs on Wayland with its menus inside its own window.
-The session default in `hyprland/env.lua` is `wayland;xcb`, and the list is `xcb_menu_apps` at the top of `koompi-launch`.
-The shell itself runs with `QT_QPA_PLATFORM=wayland` and passes it to what it starts, so `koompi-launch` turns an inherited bare `wayland` into `wayland;xcb`, and a Qt app without a Wayland plugin still starts from Search, the Launchpad, the dock, the waffle start menu and taskbar, and a restored session.
-An app started outside `koompi-launch`, from a terminal or by D-Bus activation, runs on the platform of whatever started it, usually Wayland, and then has no menu in the bar.
+Qt apps run on Wayland: the session default in `hyprland/env.lua` is `wayland;xcb`, so only a Qt app without a Wayland plugin falls back to X11.
+The shell itself runs with `QT_QPA_PLATFORM=wayland` and passes it to what it starts, so `koompi-launch` turns an inherited bare `wayland` into `wayland;xcb`, and such an app still starts from Search, the Launchpad, the dock, the waffle start menu and taskbar, and a restored session.
+A Qt app's menus are in the bar on either platform, however it was started.
+On X11 Qt registers its menubar with the bar's registrar.
+On Wayland, Qt 6.10 and later only export it on the app's own D-Bus connection, and hide the menubar in the window, so the global menu daemon finds it there by the focused window's process (`globalmenu/core/src/qtmenu.rs`).
 A window rule for a Qt app has to match its class on both platforms, because the same app reports `kdialog` on xcb and `org.kde.kdialog` on Wayland.
 The dock and a restored session match a window to its app by desktop entry, not by class.
 A pinned `org.kde.dolphin` and a running X11 `dolphin` are one dock entry, and a saved `dolphin` claims the window that `org.kde.dolphin` opens.
