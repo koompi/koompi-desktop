@@ -48,6 +48,27 @@ QtObject {
         return false;
     }
 
+    // Settings > AI writes keys here, beside the one reader of them. Never before the
+    // keyring has loaded: the store replaces the whole item, so writing into an
+    // unread keyring would wipe every other key. The key goes to secret-tool's
+    // stdin and nowhere else; nothing here logs it.
+    function hasKey(keyId: string): bool {
+        return `${KeyringStorage.keyringData?.apiKeys?.[keyId] ?? ""}`.length > 0;
+    }
+    function storeKey(keyId: string, key: string): bool {
+        const value = `${key ?? ""}`.trim();
+        if (!root.keyringReady || `${keyId ?? ""}`.length === 0 || value.length === 0) return false;
+        KeyringStorage.setNestedField(["apiKeys", keyId], value);
+        return true;
+    }
+    function forgetKey(keyId: string): bool {
+        if (!root.keyringReady || `${keyId ?? ""}`.length === 0) return false;
+        const keys = Object.assign({}, KeyringStorage.keyringData?.apiKeys ?? {});
+        delete keys[keyId];
+        KeyringStorage.setNestedField(["apiKeys"], keys);
+        return true;
+    }
+
     // The wait was for this model and this chat. A switch or a clear while the
     // keyring loads drops it, and says so: the user's turn stays in the transcript
     // for a retry, and nothing else is going to answer it.

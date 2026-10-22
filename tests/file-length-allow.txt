@@ -12,7 +12,6 @@ dots/.config/quickshell/koompi/modules/koompi/regionSelector/RegionSelection.qml
 dots/.config/quickshell/koompi/modules/koompi/sidebarLeft/aiChat/AiMessage.qml	577
 dots/.config/quickshell/koompi/modules/koompi/sidebarLeft/aiChat/memory/MemoryBrowser.qml	525
 dots/.config/quickshell/koompi/modules/koompi/wallpaperSelector/WallpaperSelectorContent.qml	453
-dots/.config/quickshell/koompi/modules/settings/AiConfig.qml	510
 dots/.config/quickshell/koompi/modules/settings/BackgroundConfig.qml	683
 dots/.config/quickshell/koompi/scripts/colors/switchwall.sh	526
 dots/.config/quickshell/koompi/services/MemoryService.qml	473

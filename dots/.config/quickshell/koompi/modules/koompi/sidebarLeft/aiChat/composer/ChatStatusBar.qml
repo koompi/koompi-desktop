@@ -30,6 +30,8 @@ ColumnLayout {
         return code.length > 0 ? code : (root.currentModel?.name ?? Translation.tr("No model"));
     }
     readonly property bool needsKey: (root.currentModel?.requires_key ?? false) && !Ai.currentModelHasApiKey
+    readonly property bool usesPlan: (root.currentModel?.auth ?? "") === "chatgpt"
+    readonly property bool needsSignIn: root.usesPlan && ChatGptAccount.known && !ChatGptAccount.signedIn
     readonly property string host: {
         const match = root.endpoint.match(/^[a-z]+:\/\/([^/]+)/);
         return match ? match[1] : root.endpoint;
@@ -51,6 +53,8 @@ ColumnLayout {
             return "unreachable";
         if (root.needsKey)
             return "nokey";
+        if (root.needsSignIn)
+            return "signin";
         return "";
     }
 
@@ -178,6 +182,13 @@ ColumnLayout {
             }
         }
 
+        StyledText { // the model is paid for by the ChatGPT sign-in, not a key
+            visible: root.usesPlan
+            font.pixelSize: Appearance.font.pixelSize.smaller
+            color: Appearance.colors.colSubtext
+            text: Translation.tr("Using ChatGPT plan")
+        }
+
         Rectangle { // separator
             implicitWidth: 4
             implicitHeight: 4
@@ -253,6 +264,7 @@ ColumnLayout {
             horizontalAlignment: Text.AlignHCenter
             text: root.trouble === "stalled" ? Translation.tr("No answer for a minute")
                 : root.trouble === "unreachable" ? Translation.tr("Nothing is listening on %1").arg(root.host)
+                : root.trouble === "signin" ? (ChatGptAccount.signingIn ? Translation.tr("Finish signing in in your browser.") : Translation.tr("Sign in to ChatGPT to use %1").arg(root.modelName))
                 : Translation.tr("%1 needs an API key").arg(root.modelName)
         }
 
@@ -276,6 +288,11 @@ ColumnLayout {
             StyledToolTip {
                 text: Translation.tr("systemctl --user restart litert-lm")
             }
+        }
+        ApiCommandButton {
+            visible: root.trouble === "signin" && !ChatGptAccount.signingIn
+            buttonText: Translation.tr("Continue with ChatGPT")
+            onClicked: ChatGptAccount.signIn()
         }
         ApiCommandButton {
             visible: root.trouble === "nokey"

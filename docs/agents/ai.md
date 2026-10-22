@@ -66,6 +66,50 @@ An entry without `model` or `endpoint`, or whose id is already taken, is skipped
 With `policies.ai == 2` (local only) entries whose endpoint is not local are dropped, as the remote slot is.
 "Local" is one rule for the slot, the policy and the loader: `endpoints.js` `isLocal`, true for a host of `localhost`, `127.0.0.1` or `::1`.
 
+## Settings > AI > Providers
+
+`modules/settings/ai/ProvidersSection.qml`, shown by `AiConfig.qml`. It lists four kinds of provider:
+
+- The model on this machine.
+- The ChatGPT plan.
+- The API-key providers.
+- Custom endpoints.
+
+With `policies.ai == 2` only the first is listed.
+
+- **ChatGPT plan.** `ChatGptProvider.qml` over the `ChatGptAccount` singleton (`services/ChatGptAccount.qml`), which runs `chatgpt_auth.py status | login | logout`.
+  - `KOOMPI_CHATGPT_AUTH` names a stand-in helper for tests.
+  - The URL `login` prints is kept for "Open the page again".
+  - A failed exit is shown in plain words. A cancel is not a failure.
+  - The plan's models are `extraModels` entries made by `endpoint-form.js` `planEntry`: Responses, `auth: "chatgpt"`, `requires_key: false`.
+  - The picker and the status bar say "Using ChatGPT plan" for them. The status bar offers "Continue with ChatGPT" when the account is signed out.
+  - "Manage usage" stays hidden while `ChatGptAccount.manageUsageUrl` is empty. That URL is still a TODO.
+- **The engine, without the engine.** `modules/` may not import `qs.services.ai`, and Settings does not start `Ai`. `services/AiProviders.qml` holds a `KeyGate` of its own and forwards `ready`, `has`, `store`, `forget` and `isLocal` (`endpoints.js`), so KeyGate is still the one reader and writer of keys.
+- **API keys.** `ApiKeyProviders.qml` lists one row per key id of `ModelRegistry.providers`; `tests/test_ai_providers.sh` keeps the two in step.
+  - Keys go through `KeyGate.storeKey` / `forgetKey`, never before the keyring has loaded, because `secret-tool store` replaces the whole item.
+  - `KeyringStorage` runs one store at a time and queues the next. A second store started while one ran used to be lost.
+- **Custom endpoints.** `CustomEndpoints.qml` and `EndpointForm.qml`, with the rules in `modules/settings/ai/endpoint-form.js`:
+  - A base URL gains `/chat/completions` or `/responses`.
+  - An edit keeps the keys the form does not show.
+  - A new entry that needs a key gets `key_id: "custom:<host>"`. An edited entry keeps its id, so a stored key is not orphaned.
+
+## Request errors in plain words
+
+`services/ai/request-errors.js` (`.pragma library`) maps OpenAI and Responses failures to a title, a sentence and an action. The chat shows them as `**Title.** text \`code\``. For example:
+
+- 401 says "Sign in again" on the plan, and that the API key was refused otherwise.
+- A 429 or usage-limit code gives the reset time from `resets_in_seconds`, `resets_at` or `Retry-After`.
+- A 5xx says try again.
+- The helper's exits `chatgpt_auth_3`, `_4` and `_5` each get their own wording.
+
+Error bodies are often pretty-printed or HTML, and they carry no SSE framing, so the HTTP status is what decides.
+
+- `withStatusTrailer` adds a `--write-out` to the `exec curl` of the request script. It prints one last `data: {"type":"koompi.http","status":"<code>","retry_after":"<header>"}` line.
+- `ResponsesApiStrategy` and `OpenAiApiStrategy` hold lines that are not JSON. On a status of 400 or more they parse those lines as the error body, take them out of the transcript, and explain the error.
+- A status below 400 changes nothing.
+- The compactor's script has no `exec`, so it gets no trailer.
+- Gemini and Mistral strategies are not mapped.
+
 ## The context window
 
 `Conversation.contextWindow`, first match wins:

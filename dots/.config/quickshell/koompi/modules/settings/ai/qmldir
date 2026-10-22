@@ -1,0 +1,12 @@
+# Needed: AiConfig.qml is loaded by path (services/SettingsPages.qml), so
+# quickshell's import scanner never reads its imports and does not generate a
+# qmldir for this directory the way it does for directories reached from shell.qml.
+module qs.modules.settings.ai
+ApiKeyProviders ApiKeyProviders.qml
+ApiKeyRow ApiKeyRow.qml
+ChatGptProvider ChatGptProvider.qml
+CustomEndpoints CustomEndpoints.qml
+EndpointForm EndpointForm.qml
+MemorySection MemorySection.qml
+ProviderRow ProviderRow.qml
+ProvidersSection ProvidersSection.qml

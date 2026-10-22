@@ -173,7 +173,8 @@ Item {
             models: Ai.modelList.map(id => ({
                 id: id,
                 name: Ai.models[id]?.name ?? id,
-                description: Ai.models[id]?.description ?? ""
+                description: Ai.models[id]?.description ?? "",
+                auth: Ai.models[id]?.auth ?? ""
             }))
             currentId: Ai.currentModelId
             onPicked: id => {
