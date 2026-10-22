@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 
 import qs.modules.common
+import qs.modules.koompi.aiControl
 import qs.modules.waffle.actionCenter
 import qs.modules.waffle.background
 import qs.modules.waffle.bar
@@ -47,4 +48,5 @@ Scope {
     PanelLoader { component: ScreenTranslator {} }
     PanelLoader { component: WallpaperSelector {} }
     PanelLoader { component: Tour {} }
+    PanelLoader { component: AiControl {} }
 }

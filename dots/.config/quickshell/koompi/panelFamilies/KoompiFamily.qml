@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 
 import qs.modules.common
+import qs.modules.koompi.aiControl
 import qs.services
 import qs.modules.koompi.background
 import qs.modules.koompi.bar
@@ -39,6 +40,7 @@ Scope {
     PanelLoader { component: Cheatsheet {} }
     PanelLoader { extraCondition: Config.options.dock.enable; component: Dock {} }
     PanelLoader { component: Intelligence {} }
+    PanelLoader { component: AiControl {} }
     PanelLoader { extraCondition: Ai.feedback.panelOpen; component: FeedbackWindow { service: Ai.feedback } }
     PanelLoader { extraCondition: Ai.feedback.correctionOpen; component: CorrectionWindow { service: Ai.feedback } }
     PanelLoader { extraCondition: MemoryService.browserOpen; component: MemoryBrowserWindow {} }

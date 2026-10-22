@@ -2,12 +2,13 @@
 # The Super+/ cheatsheet is generated from each bind's `description`, so a bind
 # without one is invisible to users (docs/navigation.md). A `-- # [hidden]`
 # comment on the statement opts a bind out on purpose; everything else in
-# keybinds.lua and custom/keybinds.lua must be described.
+# keybinds.lua, keybinds_ai.lua and custom/keybinds.lua must be described.
 set -uo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 FILES=(
     "$ROOT/dots/.config/hypr/hyprland/keybinds.lua"
+    "$ROOT/dots/.config/hypr/hyprland/keybinds_ai.lua"
     "$ROOT/dots/.config/hypr/custom/keybinds.lua"
 )
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }

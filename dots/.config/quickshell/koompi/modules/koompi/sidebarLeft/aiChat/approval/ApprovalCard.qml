@@ -26,14 +26,21 @@ Rectangle {
     readonly property string target: {
         const args = root.messageData?.functionCall?.args ?? null;
         if (!args) return root.fallbackTarget;
-        return String(args.command ?? args.task ?? root.fallbackTarget);
+        // a browser step or a setting is shown as the engine put it: the step with its
+        // ref as the snapshot named it, `key = value`
+        return String(args.command ?? args.task ?? root.messageData?.functionCall?.summary ?? root.fallbackTarget);
     }
 
     readonly property string toolName: root.messageData?.functionCall?.name ?? root.fallbackToolName
     readonly property bool isAgent: root.toolName === "ask_agent"
+    readonly property bool isBrowser: root.toolName === "browser"
+    readonly property bool isConfig: root.toolName === "set_shell_config"
+    readonly property bool isCommand: !root.isAgent && !root.isBrowser && !root.isConfig
+    // Page content is in this turn, so what the user allowed before asks again (ToolApproval.tainted).
+    readonly property bool tainted: Ai.toolTainted(root.toolName)
     readonly property string risk: Ai.riskOf(root.toolName)
     readonly property bool canRemember: Ai.approvalOf(root.toolName) === "once"
-    readonly property string rule: root.isAgent ? "" : Ai.commandRule(String(root.target))
+    readonly property string rule: root.isCommand ? Ai.commandRule(String(root.target)) : ""
     // Ask the engine rather than re-test for metacharacters here: a rule that still
     // keys on the program name survives an argument being appended to it.
     readonly property bool ruleIsWholeCommand: Ai.commandRule(`${root.rule} x`) !== root.rule
@@ -80,7 +87,7 @@ Rectangle {
             spacing: Appearance.spacing.normal
 
             MaterialSymbol {
-                text: root.isAgent ? "smart_toy" : "terminal"
+                text: root.isAgent ? "smart_toy" : (root.isBrowser ? "travel_explore" : (root.isConfig ? "settings" : "terminal"))
                 iconSize: Appearance.font.pixelSize.hugeass
                 color: ToolRisk.accent(root.risk)
             }
@@ -93,7 +100,13 @@ Rectangle {
                     Layout.fillWidth: true
                     text: root.isAgent
                         ? Translation.tr("The assistant wants to hand this task to the agent")
-                        : Translation.tr("The assistant wants to run a command")
+                        : root.isBrowser
+                            ? (Ai.browserPaused
+                                ? Translation.tr("You took over the browser. Let the assistant go on?")
+                                : Translation.tr("The assistant wants to act in its browser"))
+                            : root.isConfig
+                                ? Translation.tr("The assistant wants to change a shell setting")
+                                : Translation.tr("The assistant wants to run a command")
                     font.pixelSize: Appearance.font.pixelSize.normal
                     font.weight: Font.DemiBold
                     color: Appearance.colors.colOnLayer2
@@ -144,7 +157,8 @@ Rectangle {
 
                 StyledText {
                     Layout.alignment: Qt.AlignTop
-                    text: root.isAgent ? Translation.tr("task") : Translation.tr("command")
+                    text: root.isAgent ? Translation.tr("task") : (root.isBrowser ? Translation.tr("step")
+                        : (root.isConfig ? Translation.tr("setting") : Translation.tr("command")))
                     font.family: Appearance.font.family.monospace
                     font.pixelSize: Appearance.font.pixelSize.smaller
                     color: Appearance.colors.colSubtext
@@ -209,8 +223,18 @@ Rectangle {
             }
         }
 
-        StyledText { // The scope, before the click, not after it
+        StyledText { // Why something allowed before is asking again
             Layout.fillWidth: true
+            visible: root.tainted
+            text: Translation.tr("This turn read a web page, so what you allowed before asks again.")
+            font.pixelSize: Appearance.font.pixelSize.smaller
+            color: ToolRisk.accent(root.risk)
+            wrapMode: Text.Wrap
+        }
+
+        StyledText { // The scope, before the click, not after it; a tainted card offers none
+            Layout.fillWidth: true
+            visible: !root.tainted
             text: root.scopeSentence
             font.pixelSize: Appearance.font.pixelSize.smaller
             color: Appearance.colors.colSubtext
@@ -245,7 +269,8 @@ Rectangle {
             }
 
             DialogButton {
-                visible: root.canRemember
+                // not from a tainted turn: the page may have written this request
+                visible: root.canRemember && !root.tainted
                 buttonText: Translation.tr("Always allow")
                 activeFocusOnTab: true
                 onClicked: Ai.approveCommand(root.messageData, true)

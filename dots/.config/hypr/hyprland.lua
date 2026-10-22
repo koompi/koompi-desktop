@@ -22,6 +22,7 @@ require("hyprland.keybinds")
 -- Separate file: keybinds.lua is at its file-length allow-list row and may not grow.
 require("hyprland.keybinds_shell_extra")
 require("hyprland.keybinds_groups")
+require("hyprland.keybinds_ai")
 
 -- Custom configurations --
 if is_file_exists(HOME .. "/.config/hypr/custom/execs.lua") then
