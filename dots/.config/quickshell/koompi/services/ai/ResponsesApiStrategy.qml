@@ -3,6 +3,7 @@ import qs.modules.common.functions as CF
 import qs.services
 import QtQuick
 import "request-errors.js" as Errors
+import "screen-rules.js" as Screen
 
 // OpenAI's Responses API, the route a ChatGPT plan requires; it refuses forbiddenFields.
 ApiStrategy {
@@ -25,6 +26,7 @@ ApiStrategy {
 
     // no item ids: with store false the server has nothing to look them up in
     function inputItems(message) {
+        if (message.screenImage !== undefined) return Screen.wire("responses", message);
         if (message.toolCallId && message.toolCallId.length > 0)
             return [{ "type": "function_call_output", "call_id": message.toolCallId, "output": message.functionResponse ?? "" }];
         if (message.role === "tool") {

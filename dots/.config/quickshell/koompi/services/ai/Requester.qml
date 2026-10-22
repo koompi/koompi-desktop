@@ -6,6 +6,7 @@ import qs.services
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "screen-rules.js" as Screen
 
 /**
  * One turn of inference: builds the curl script, streams the reply back into the
@@ -46,6 +47,7 @@ QtObject {
         return runtime.length > 0 ? `${runtime}/quickshell/ai` : `${Quickshell.env("HOME")}/.cache/quickshell/ai`;
     }
     readonly property string scriptFilePath: `${root.scriptDirPath}/request.sh`
+    readonly property string bodyFilePath: `${root.scriptDirPath}/request-body.json`
 
     // blockWrites: setText is asynchronous by default, and on a fresh runtime dir
     // bash reached an empty request.sh before the write landed; the turn went nowhere
@@ -146,7 +148,9 @@ QtObject {
         const conversation = root.engine.conversation;
         const messageArray = conversation.messageIDs.map(id => conversation.messageByID[id]);
         const filteredMessageArray = messageArray.filter(message => message.role !== root.engine.interfaceRole);
-        const data = root.engine.currentApiStrategy.buildRequestData(model, filteredMessageArray, root.engine.systemPrompt, root.engine.temperature, root.toolsForTurn(model, filteredMessageArray), root.engine.pendingFilePath);
+        // the newest screenshot rides as an image turn, only to a model allowed to see it (plan D8)
+        const shots = Screen.withScreens(filteredMessageArray, Screen.gate(model, Config.options?.policies?.ai, root.engine.desktopTool?.service?.consents ?? {}));
+        const data = root.engine.currentApiStrategy.buildRequestData(model, shots, root.engine.systemPrompt, root.engine.temperature, root.toolsForTurn(model, filteredMessageArray), root.engine.pendingFilePath);
 
         let requestHeaders = {
             "Content-Type": "application/json",
@@ -189,11 +193,13 @@ QtObject {
         /* Create command string. `exec` so the kill lands on curl itself rather than on
            a bash that leaves it holding the server's only inference slot, and
            --max-time so curl gives up even if this shell is not around to kill it. */
+        const body = Screen.curlBody(JSON.stringify(data), CF.FileUtils.trimFileProtocol(root.bodyFilePath));
+        scriptFileSetupContent += body.setup;
         let scriptRequestContent = ""
         scriptRequestContent += `exec curl --no-buffer --max-time ${root.deadlineSec} "${endpoint}"`
             + ` ${headerString}`
             + (authHeader ? ` ${authHeader}` : "")
-            + ` --data '${CF.StringUtils.shellSingleQuoteEscape(JSON.stringify(data))}'`
+            + ` ${body.arg}`
             + "\n"
 
         /* Send the request */

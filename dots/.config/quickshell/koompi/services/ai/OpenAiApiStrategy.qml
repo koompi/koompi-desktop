@@ -1,6 +1,7 @@
 import qs.services
 import QtQuick
 import "request-errors.js" as Errors
+import "screen-rules.js" as Screen
 
 ApiStrategy {
     property bool isReasoning: false
@@ -49,6 +50,7 @@ ApiStrategy {
     // existed has neither field; those messages go out unchanged, as plain prose, and a
     // role of "tool" with no id to match would be rejected, so it degrades to "user".
     function wireMessage(message) {
+        if (message.screenImage !== undefined) return Screen.wire("openai", message);
         if (message.toolCallId && message.toolCallId.length > 0) {
             return {
                 "role": "tool",

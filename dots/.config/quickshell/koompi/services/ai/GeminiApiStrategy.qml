@@ -1,5 +1,6 @@
 import QtQuick
 import qs.modules.common.functions as CF
+import "screen-rules.js" as Screen
 
 ApiStrategy {
     readonly property string apiKeyEnvVarName: "API_KEY"
@@ -17,6 +18,7 @@ ApiStrategy {
 
     function buildRequestData(model: AiModel, messages, systemPrompt: string, temperature: real, tools: list<var>, filePath: string) {
         let contents = messages.map(message => {
+            if (message.screenImage !== undefined) return Screen.wire("gemini", message);
             // console.log("[AI] Building request data for message:", JSON.stringify(message, null, 2));
             // gemini has two roles: a functionResponse part is carried by "user"
             const geminiApiRoleName = (message.role === "assistant") ? "model"

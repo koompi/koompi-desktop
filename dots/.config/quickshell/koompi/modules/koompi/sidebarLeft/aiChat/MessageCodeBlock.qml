@@ -21,7 +21,7 @@ ColumnLayout {
     property var segmentLang: "txt"
     property var messageData: {}
     // fence languages the model never writes: the tool layer emits them to ask for approval
-    readonly property var approvalTools: ({ "command": "run_shell_command", "agent": "ask_agent", "browser": "browser", "config": "set_shell_config" })
+    readonly property var approvalTools: ({ "command": "run_shell_command", "agent": "ask_agent", "browser": "browser", "config": "set_shell_config", "desktop": "desktop" })
     property bool isApprovalRequest: Object.keys(approvalTools).includes(segmentLang)
     // a decision the user has not made yet is a card, not a fence
     readonly property bool approvalPending: root.isApprovalRequest && (root.messageData?.functionPending ?? false)

@@ -4,6 +4,7 @@ import qs.modules.common
 import qs.services
 import QtQuick
 import "desktop-rules.js" as Rules
+import "screen-rules.js" as Screen
 
 /**
  * The `desktop` tool: the model's hands in the user's own apps (DesktopService runs
@@ -13,6 +14,8 @@ import "desktop-rules.js" as Rules
  * shell command, and while the user has taken over (`pause`) every step waits. The
  * refusals (the lock screen, the shell's own surfaces, authentication, terminals,
  * browsers, password fields) stay in desktop.py, where no caller can talk past them.
+ * A screenshot (`see`) goes to a remote model only after the user allowed that provider
+ * for this chat, on a card of its own, and never under policies.ai == 2 (plan D8).
  * `engine` is the Ai facade.
  */
 QtObject {
@@ -36,9 +39,31 @@ QtObject {
             runner.runNextCall();
             return;
         }
+        // a screenshot first passes the screen gate, which may ask for consent; that card
+        // stands for the take-over card too. Only a card the user answered carries `consent`.
+        if (req.op === "see") {
+            if (approved && typeof args.consent === "string" && args.consent.length > 0)
+                root.service.consents = Object.assign({}, root.service.consents, { [args.consent]: true });
+            const gate = root.screenGate();
+            if (!gate.send) {
+                if (gate.ask && message) {
+                    runner.askFirst(message, Translation.tr("Screen sharing request"), "desktop",
+                        Rules.describe(req, root.service.refs, root.service.window), "desktop",
+                        Object.assign({}, req, { "consent": gate.provider.key }));
+                    message.functionCall = Object.assign({}, message.functionCall, { "consent": gate.provider.label });
+                    return;
+                }
+                runner.addToolResult("desktop", `No screenshot was taken: ${gate.reason}. Use tree to read the window.`, false);
+                runner.runNextCall();
+                return;
+            }
+        }
         if (!approved && !root.engine.approval.isPreApproved("desktop", req)) {
             runner.askFirst(message, Translation.tr("Desktop step request"), "desktop",
                 Rules.describe(req, root.service.refs, root.service.window), "desktop", req);
+            // a click by pixels is judged by what is under the mark: the card shows the screenshot
+            if (Rules.isRegion(req, root.service.refs) && root.service.lastImage.length > 0)
+                message.functionCall = Object.assign({}, message.functionCall, { "image": root.service.lastImage });
             return;
         }
         // answering the card is the user handing control back
@@ -60,8 +85,14 @@ QtObject {
                 ? `${reply.text ?? ""}`
                 : `The desktop step failed: ${reply.error ?? "no reply"}`;
             result.rawContent = result.functionResponse;
+            if (reply.ok && reply.image) result.imageFile = reply.image;
             runner.runNextCall();
         });
+    }
+
+    // May a screenshot go to the model in use now? (screen-rules.js gate)
+    function screenGate(): var {
+        return Screen.gate(root.engine.models[root.engine.currentModelId], Config.options?.policies?.ai, root.service.consents);
     }
 
     // The take-over pause, from the indicator or from the user switching windows.
@@ -77,7 +108,8 @@ QtObject {
         const conversation = root.engine.conversation;
         for (const id of conversation.messageIDs) {
             const m = conversation.messageByID[id];
-            if (!m?.functionPending || m.functionCall?.name !== "desktop") continue;
+            // a consent is the user's own answer; Resume never gives it
+            if (!m?.functionPending || m.functionCall?.name !== "desktop" || m.functionCall?.consent) continue;
             if (Rules.askReason(m.functionCall.args, root.service.refs) === "") root.engine.toolRunner.approveCommand(m, false);
         }
     }

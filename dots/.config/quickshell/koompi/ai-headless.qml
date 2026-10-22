@@ -40,14 +40,16 @@ ShellRoot {
         return `${typeof m === "string" ? m : (m?.model ?? "")}`.trim().toLowerCase();
     }
 
-    // The body Requester wrote for curl, read back out of `--data '...'`.
+    // The body Requester wrote for curl, read back out of `--data '...'`, or out of
+    // `koompi_body='...'` when a screenshot rides along (its image is a placeholder here).
     function captureRequest() {
         root.requestFile.path = Ai.requester.scriptFilePath;
         root.requestFile.reload();
         const text = root.requestFile.text();
-        const marker = " --data '";
+        const screen = text.indexOf("\nkoompi_body='") >= 0;
+        const marker = screen ? "\nkoompi_body='" : " --data '";
         const start = text.indexOf(marker);
-        const end = text.lastIndexOf("'");
+        const end = screen ? text.indexOf("'\n", start + marker.length) : text.lastIndexOf("'");
         let body = null;
         if (start >= 0 && end > start) {
             try {
@@ -74,6 +76,7 @@ ShellRoot {
             "toolCalls": m.toolCalls ?? [],
             "toolCallId": m.toolCallId,
             "functionResponse": m.functionResponse,
+            "imageFile": m.imageFile,
             "sources": m.sources ?? []
         };
     }

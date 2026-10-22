@@ -73,7 +73,7 @@ export { entry, ops, untrustedMark, taintingTools, guardedTools, truthy, refKey,
 `);
 writeFileSync("./desktop-rules.mjs", `import * as Browser from "./browser-rules.mjs";
 ${desktop.replace(/^\.pragma library$/m, "").replace(/^\.import .*$/m, "")}
-export { entry, ops, requestOf, keysOf, askReason, describe };
+export { entry, ops, requestOf, keysOf, isRegion, askReason, describe };
 `);
 const B = await import("./browser-rules.mjs");
 const R = await import("./desktop-rules.mjs");
@@ -122,10 +122,14 @@ const refs = {
     "12": 'button "OK"',
     "13": 'button "Restart now"',
     "14": 'button "Next"',
+    "15": "region at 412,230",
 };
 const table = [
     // [args, asks?, why]
     [{ op: "windows" }, false, "windows runs"],
+    [{ op: "see" }, false, "see runs (whether the image may go to the model is the screen gate's)"],
+    [{ op: "see", ref: 9 }, false, "see of a window by ref runs"],
+    [{ op: "act", ref: 15 }, true, "a click on a mark found only in the pixels asks: nothing says what it presses"],
     [{ op: "tree", ref: 9 }, false, "tree runs"],
     [{ op: "tree" }, false, "tree of the last window runs"],
     [{ op: "focus", ref: 9 }, false, "focus runs"],
@@ -174,6 +178,13 @@ check("the card names the app to launch", R.describe({ op: "launch", app: "Files
 check("the card says when Enter follows typing",
     R.describe({ op: "type", ref: 3, text: "hi", submit: true }, refs, "Fixture") === 'type "hi" into [3] textbox "Name" in "Fixture", then press Enter');
 check("the card names the keys and the window", R.describe({ op: "key", keys: "ctrl+s" }, refs, "Notes") === 'press ctrl+s in "Notes"');
+check("a click by pixels is called a click on the card",
+    R.describe({ op: "act", ref: 15 }, refs, "Paint") === 'click [15] region at 412,230 in "Paint"', R.describe({ op: "act", ref: 15 }, refs, "Paint"));
+check("the card for see names the window", R.describe({ op: "see" }, refs, "Notes") === 'look at "Notes"', R.describe({ op: "see" }, refs, "Notes"));
+check("only act on a region is a region click", R.isRegion({ op: "act", ref: 15 }, refs) && !R.isRegion({ op: "act", ref: 1 }, refs)
+    && !R.isRegion({ op: "type", ref: 15 }, refs));
+check("a control named like a region is not one: the driver's refs start with it",
+    !R.isRegion({ op: "act", ref: 1 }, { "1": 'button "region at 1,1"' }));
 check("the card says when the ref is unknown", /not in the last tree/.test(R.describe({ op: "act", ref: 99 }, refs, "")));
 
 /* ---- taint ---- */

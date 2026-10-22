@@ -32,6 +32,12 @@ QtObject {
     // The user took over: every step waits for them until they resume.
     property bool paused: false
     readonly property int idleMs: 90000
+    // Screenshots (`see`): where the driver writes them, the newest one, and the remote
+    // providers the user let see the screen in this chat, by host (screen-rules.js gate).
+    // The images and the consents end with the chat, not with the driver.
+    readonly property string shotsDir: (root.engine?.requester?.scriptDirPath ?? "").length > 0 ? `${root.engine.requester.scriptDirPath}/screens` : ""
+    property string lastImage: ""
+    property var consents: ({})
 
     property int _nextId: 0
     property var _waiting: ({})
@@ -71,6 +77,17 @@ QtObject {
         if (reply.refs) root.refs = reply.refs;
         if (reply.window !== undefined) root.window = reply.window;
         if (reply.address !== undefined) root.address = reply.address;
+        if (reply.image) root.lastImage = reply.image;
+    }
+
+    // A new chat forgets what was consented and deletes what was seen.
+    function forgetScreens() {
+        root.consents = ({});
+        root.lastImage = "";
+        // the last request body may hold a screenshot's base64 too
+        const dir = root.engine?.requester?.scriptDirPath ?? "";
+        if (dir.startsWith("/") && dir.length > 1)
+            Quickshell.execDetached(["rm", "-rf", "--", `${dir}/screens`, `${dir}/request-body.json`]);
     }
 
     function answer(id, reply) {
@@ -91,7 +108,7 @@ QtObject {
 
     readonly property Process proc: Process {
         stdinEnabled: true
-        command: ["python3", "-I", root.driverPath]
+        command: ["python3", "-I", root.driverPath, "--shots", root.shotsDir]
         stdout: SplitParser {
             onRead: line => {
                 let reply;
@@ -132,16 +149,24 @@ QtObject {
         }
     }
 
+    // what an earlier shell left in the runtime dir belongs to no chat now
+    Component.onCompleted: root.forgetScreens()
+
     // A new chat, or another thread, is a new session; desktop control does not carry over.
     property string _threadId: ""
     readonly property Connections chatWatch: Connections {
         target: root.engine?.conversation ?? null
         function onMessageIDsChanged() {
-            if (root.engine.conversation.messageIDs.length === 0) root.stop("the chat was cleared");
+            if (root.engine.conversation.messageIDs.length > 0) return;
+            root.stop("the chat was cleared");
+            root.forgetScreens();
         }
         function onThreadIdChanged() {
             const next = root.engine.conversation.threadId;
-            if (root._threadId.length > 0 && next !== root._threadId) root.stop("another chat was opened");
+            if (root._threadId.length > 0 && next !== root._threadId) {
+                root.stop("another chat was opened");
+                root.forgetScreens();
+            }
             root._threadId = next;
         }
     }

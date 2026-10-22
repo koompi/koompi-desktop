@@ -6,7 +6,7 @@
 // `desktop` too. No QML type is reachable from here: tests/test_ai_desktop_rules.sh
 // runs these under bun. DesktopTool.qml imports this as `Rules`.
 
-var ops = ["windows", "tree", "focus", "launch", "act", "type", "key", "close"];
+var ops = ["windows", "tree", "see", "focus", "launch", "act", "type", "key", "close"];
 
 // One tool with an `op`, compact for the same reason as the browser's: gemma4-e4b
 // gets only as many declarations per turn as fit 1461 bytes.
@@ -16,13 +16,13 @@ var entry = {
     "risk": "writes-system",
     // most steps run at once; the steps askReason() names wait for the user every time
     "approval": "never",
-    "hints": "app apps application program window windows desktop launch start focus switch press type key shortcut dialog menu",
-    "description": "Use the apps on screen: list windows, read a window's controls, press a button, type into a field, press keys, open an app. Act on the [ref] numbers the text shows.",
+    "hints": "app apps application program window windows desktop launch start focus switch press type key shortcut dialog menu screen screenshot see look click icon",
+    "description": "Use the apps on screen: list windows, read a window's controls or see it with numbered marks, press a button, type into a field, press keys, open an app. Act on the [ref] numbers.",
     "parameters": {
         "type": "object",
         "properties": {
             "op": { "type": "string", "enum": ops },
-            "ref": { "type": "integer", "description": "from windows or tree" },
+            "ref": { "type": "integer", "description": "from windows, tree or see" },
             "app": { "type": "string", "description": "for launch" },
             "action": { "type": "string", "enum": ["press", "toggle", "activate", "expand"] },
             "text": { "type": "string", "description": "for type" },
@@ -56,6 +56,13 @@ function keysOf(keys) {
     return { "mods": parts.slice(0, -1), "key": parts.length > 0 ? parts[parts.length - 1] : "" };
 }
 
+// A mark `see` found in the pixels of an app with no accessibility tree: the driver names it
+// `region at x,y`, and nothing says what a click there presses.
+function isRegion(args, refs) {
+    const req = requestOf(args);
+    return req.op === "act" && /^region at /.test(String((refs ?? {})[Browser.refKey(req.ref)] ?? ""));
+}
+
 // What a desktop dialog commits with that a web page rarely says: the buttons that
 // throw work away, change the system or end the session.
 var desktopCommitWords = /\b(discard|don'?t save|overwrite|replace|uninstall|install|update|upgrade|format|erase|wipe|empty|trash|restart|reboot|shut ?down|power off|log ?out|sign out|quit|reset|restore|revert|allow|grant|trust|yes|ok)\b/i;
@@ -64,15 +71,16 @@ var desktopCommitWords = /\b(discard|don'?t save|overwrite|replace|uninstall|ins
  * Why this step waits for the user, or "" when it runs at once. The rule:
  * - launch: always; a desktop entry runs a command line, and some entries are actions
  *   (log out, reset, uninstall).
- * - act: a ref not in the last windows or tree reply; a control whose name carries a
+ * - act: a ref not in the last windows, tree or see reply; a mark found only in the pixels
+ *   (a click there may press anything: the card shows the screenshot); a control whose name carries a
  *   commit word (buy, send, delete, save, ... as in the browser, plus discard,
  *   overwrite, uninstall, restart, log out, allow, yes, ok, ... above); a dialog's
  *   default button, which is what Enter would press.
  * - type: a ref not in the last reply; with submit, unless the field is a search field.
  * - key: any shortcut with a modifier (ctrl+w closes, ctrl+s saves, alt+F4 quits);
  *   Enter, Return, Space and Delete, which act on whatever has focus.
- * Everything else (windows, tree, focus, typing without submit, Escape, Tab, arrows)
- * runs. The driver refuses what must never happen whatever is answered here.
+ * Everything else (windows, tree, see, focus, typing without submit, Escape, Tab, arrows)
+ * runs; whether a screenshot may go to the model is screen-rules.js's gate, not this. The driver refuses what must never happen whatever is answered here.
  */
 function askReason(args, refs) {
     const req = requestOf(args);
@@ -83,6 +91,7 @@ function askReason(args, refs) {
         if (line === undefined) return "its target is not in the last tree";
     }
     if (req.op === "act") {
+        if (isRegion(req, refs)) return "a click by pixels: nothing tells what it presses";
         if (Browser.commitWords.test(parts.name)) return "it may send, save, buy or delete";
         if (desktopCommitWords.test(parts.name)) return "it may discard work, change the system or end the session";
         if (/\bdefault\b/.test(parts.states)) return "it is the dialog's default button";
@@ -104,10 +113,11 @@ function describe(args, refs, windowTitle) {
     const where = windowTitle ? ` in "${windowTitle}"` : "";
     switch (req.op) {
     case "launch": return `open the app ${JSON.stringify(req.app ?? "")}`;
-    case "act": return `${req.action || "press"} ${target}${where}`;
+    case "act": return `${req.action || (isRegion(req, refs) ? "click" : "press")} ${target}${where}`;
     case "type": return `type ${JSON.stringify(req.text ?? "")} into ${target}${where}${req.submit ? ", then press Enter" : ""}`;
     case "key": return `press ${req.keys ?? ""}${req.ref !== undefined ? " in " + target : where}`;
     case "focus": case "tree": return `${req.op} ${target}`.trim();
+    case "see": return `look at ${req.ref !== undefined ? target : (windowTitle ? `"${windowTitle}"` : "the focused window")}`;
     default: return req.op;
     }
 }
