@@ -256,7 +256,7 @@ def rollout(task, prompts, model, rdir, timeout, tools=None):
         "task": task["id"], "passed": all(ok for ok, _ in results), "wall": round(wall, 1),
         "checks": [{"spec": c, "ok": ok, "why": why} for c, (ok, why) in zip(task["checks"] + [{"engine": True}], results)],
         "systemPromptBytes": len((out.get("systemPrompt") or "").encode()),
-        "toolBytes": len(json.dumps(((out.get("requests") or [{}])[0].get("body") or {}).get("tools") or [])),
+        "toolBytes": len(json.dumps(((out.get("requests") or [{}])[0].get("body") or {}).get("tools") or [], separators=(",", ":"), ensure_ascii=False)),
     }
     (rdir / "checks.json").write_text(json.dumps(record, indent=2))
     return record
