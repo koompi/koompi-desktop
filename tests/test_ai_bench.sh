@@ -78,7 +78,10 @@ expect("[ACTION] get_shell_config {}" in traj and "[REQUEST 1] tools offered: ge
 # --- validation
 base = tmp / "base"
 shutil.copytree(tune.SECTIONS, base / "system")
-budget = tune.sections_size(base)
+(base / "tools.json").write_text(json.dumps(run.tool_text()))
+budget = tune.sizes(base)
+expect(set(run.tool_text()) >= {"get_shell_config", "set_shell_config", "search_web", "ask_agent"}
+       and run.tool_text()["remember"]["parameters"].keys() == {"text", "type"}, "tool text is read out of ToolRegistry.qml")
 def cand(name, edit):
     c = tmp / name
     shutil.copytree(base, c)
@@ -91,6 +94,22 @@ expect("placeholders" in cand("ph", lambda c: (c / "system/10-machine.md").write
        "a dropped placeholder is refused")
 expect("off the surface" in cand("extra", lambda c: (c / "skills").mkdir() or (c / "skills/x.md").write_text("x")),
        "a file off the surface is refused")
+expect("off the surface" in cand("newsec", lambda c: (c / "system/50-new.md").write_text("x")),
+       "a sixth section is refused: the engine reads five names")
+def tool_edit(fn):
+    def edit(c):
+        t = json.loads((c / "tools.json").read_text()); fn(t); (c / "tools.json").write_text(json.dumps(t))
+    return edit
+expect(cand("tshort", tool_edit(lambda t: t["search_web"].update(description="Look it up on the web."))) == "",
+       "a shorter tool description is valid")
+expect("budget" in cand("tlong", tool_edit(lambda t: t["search_web"].update(description=t["search_web"]["description"] + " x" * 40))),
+       "tool text past its budget is refused")
+expect("parameters" in cand("tparam", tool_edit(lambda t: t["remember"]["parameters"].update(fact="x"))),
+       "a renamed or added parameter is refused")
+expect("exactly the tools" in cand("tnew", tool_edit(lambda t: t.update(new_tool={"description": "x", "parameters": {}}))),
+       "a new tool is refused")
+expect("answers" in cand("tleak", tool_edit(lambda t: t["search_web"].update(description="e.g. the 7840U"))),
+       "a task answer in the tool text is refused")
 def leak(c):
     p = c / "system/40-style.md"
     p.write_text(p.read_text()[:-40] + "\n- The E13 costs US$369.\n")
@@ -107,7 +126,7 @@ h = tune.improve("inv1", "mission", base, evidence, out_dir, fake, budget)
 expect(h is not None and "Brief, straight" in (h / "system/40-style.md").read_text(), "the improver's edit is the candidate")
 expect("Casual, brief" in (base / "system/40-style.md").read_text(), "the base is untouched")
 expect((h / "NOTES.md").read_text().strip() == "00-t-0.md", "evidence reached the workspace, and notes came back")
-bad = "sh -c 'echo x > harness/system/99-new.md; mkdir harness/skills; echo y > harness/skills/a.md'"
+bad = "sh -c 'mkdir harness/skills; echo y > harness/skills/a.md'"
 expect(tune.improve("inv2", "mission", base, evidence, out_dir, bad, budget) is None, "an off-surface edit is rejected")
 
 sys.exit(1 if failed else 0)

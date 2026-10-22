@@ -52,7 +52,7 @@ function liftFn(name) {
     throw new Error(`unbalanced braces in ${name}`);
 }
 
-const FNS = ["activeEntries", "geminiDeclaration", "openaiDeclaration", "renderDeclaration",
+const FNS = ["activeEntries", "withText", "geminiDeclaration", "openaiDeclaration", "renderDeclaration",
              "wrapDeclarations", "significantWords", "relevanceScore", "rankedEntries", "subsetForTurn"];
 
 const strip = s => s
@@ -64,6 +64,7 @@ writeFileSync("./registry.mjs", strip(`
 const emptyParameters = ${liftBlock("readonly property var emptyParameters:", "(", ")").slice(1, -1)};
 const webToolsEnabled = true;
 const agentToolEnabled = true;
+const toolText = null;
 const stopWords = ${liftBlock("readonly property var stopWords:", "(", ")").slice(1, -1)};
 const entries = ${liftBlock("readonly property var entries:", "[", "]")};
 ${FNS.map(liftFn).join("\n")}

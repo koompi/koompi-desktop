@@ -2,7 +2,7 @@
 # headless.sh JOB.json OUT.json: run the AI engine with no surfaces and write the thread to OUT.json.
 # JOB.json: {"model": <ai.extraModels entry> | "<discovered id>", "turns": ["..."],
 #            "approvals": {"<tool>": "approve"}, "stubs": {"<tool>": "canned result"},
-#            "promptDir": "/abs/dir", "tool": "functions",
+#            "promptDir": "/abs/dir", "toolTextFile": "/abs/tools.json", "tool": "functions",
 #            "memory": false, "timeoutSec": 300}
 # Exits 0 when every turn finished, 1 when the engine reported an error, 124 on timeout.
 # HOME and the XDG dirs are throwaway unless KOOMPI_AI_HEADLESS_KEEP_ENV=1.
@@ -18,6 +18,7 @@ rm -f -- "$out"
 
 timeout_sec=$(python3 -I -c 'import json,sys; print(int(json.load(open(sys.argv[1])).get("timeoutSec", 300)))' "$job")
 prompt_dir=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1])).get("promptDir", ""))' "$job")
+tool_text=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1])).get("toolTextFile", ""))' "$job")
 
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
@@ -49,6 +50,9 @@ fi
 
 if [[ -n $prompt_dir ]]; then
     export KOOMPI_AI_PROMPT_DIR="$prompt_dir"
+fi
+if [[ -n $tool_text ]]; then
+    export KOOMPI_AI_TOOL_TEXT="$tool_text"
 fi
 
 export KOOMPI_AI_HEADLESS_JOB="$job" KOOMPI_AI_HEADLESS_OUT="$out"

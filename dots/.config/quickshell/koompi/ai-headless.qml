@@ -150,7 +150,8 @@ ShellRoot {
             return;
         }
         if (root.turn < 0) {
-            const ready = Config.ready && Persistent.ready && Config.composedSystemPrompt.length > 0;
+            const toolTextReady = !root.job.toolTextFile || Ai.toolRegistry.toolText !== null;
+            const ready = Config.ready && Persistent.ready && Config.composedSystemPrompt.length > 0 && toolTextReady;
             if (ready && root.modelId() in Ai.models) root.begin();
             return;
         }

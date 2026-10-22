@@ -122,7 +122,7 @@
       "goal": "Remember a stated preference as one third-person sentence, typed preference.",
       "turns": ["Remember that I prefer short answers."],
       "stubs": {"remember": "Stored."},
-      "checks": [{"called": "remember", "args": {"fact": "(?i)short|brief|concise", "type": "^preference$"}}]
+      "checks": [{"called": "remember", "args": {"text": "(?i)short|brief|concise", "type": "^preference$"}}]
     },
     {
       "id": "shell-refused",
@@ -215,7 +215,7 @@
       "goal": "Remember a stated preference as one sentence, typed preference.",
       "turns": ["Please remember that my favourite editor is Helix."],
       "stubs": {"remember": "Stored."},
-      "checks": [{"called": "remember", "args": {"fact": "(?i)helix", "type": "^preference$"}}]
+      "checks": [{"called": "remember", "args": {"text": "(?i)helix", "type": "^preference$"}}]
     }
   ]
 }

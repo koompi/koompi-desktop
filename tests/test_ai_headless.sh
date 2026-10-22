@@ -127,3 +127,17 @@ bash "$HEADLESS" "$tmp/job4s.json" "$tmp/out4.json" || fail "headless run 4 exit
 jq -e '[.messages[] | select(.role == "tool")] | any(.content | contains("STUB-OUTPUT-5521"))' <(sed -n 2p "$tmp/requests.jsonl") > /dev/null \
     || fail "the stub's text did not reach the model"
 echo "  ok: a stubbed tool answers with the job's text and does not run"
+
+# --- a tool text file replaces the declarations' descriptions for the run
+
+echo '{"get_shell_config": {"description": "TOOL-TEXT-MARKER-4410"}, "set_shell_config": {"parameters": {"key": "KEY-TEXT-MARKER-4411"}}}' > "$tmp/tools.json"
+start_server "$tmp/script1.json"
+write_job "$tmp/job5.json" "Where is my bar?" '{}'
+jq --arg f "$tmp/tools.json" '.toolTextFile = $f' "$tmp/job5.json" > "$tmp/job5t.json"
+bash "$HEADLESS" "$tmp/job5t.json" "$tmp/out5.json" || fail "headless run 5 exited $?: $(tail -20 "$tmp/out5.log")"
+jq -e '[.tools[].function] | any(.name == "get_shell_config" and .description == "TOOL-TEXT-MARKER-4410")' \
+    <(head -1 "$tmp/requests.jsonl") > /dev/null \
+    || fail "the tool text did not replace get_shell_config's description"
+jq -e '[.tools[].function | select(.name == "set_shell_config")] | all(.parameters.properties.key.description == "KEY-TEXT-MARKER-4411" and (.parameters.properties.key.type == "string") and (.description | length > 0))' \
+    <(head -1 "$tmp/requests.jsonl") > /dev/null || fail "a parameter's text was not replaced, or its schema was lost"
+echo "  ok: a tool text file replaces descriptions and keeps the schemas"

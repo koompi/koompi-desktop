@@ -7,7 +7,9 @@
 The method is Harness² (github.com/google-research/harness2, Apache-2.0), ported to
 this agent's surface rather than imported: Harness² edits a coding agent's skills,
 subagents and plugins, and this agent has none of those. What it can change is the
-five always-on section files, every byte of them paid on a 16k-window model.
+five always-on section files, every byte of them paid on a 16k-window model, and the
+tool text (descriptions), which decides both what the model reads and which tools a
+turn is offered.
 
   base     probe the shipped sections on the tune split
   propose  two improvers read the trajectories: INV fixes how the agent works (tools,
@@ -53,7 +55,15 @@ Each turn it sees the system prompt, the conversation and a few tool declaration
 
 The system prompt is the files in `harness/system/`, joined in file-name order. A `{{NAME}}` in
 them is filled in at run time (the machine facts, the owner's name, memories); keep every one
-that is there. Nothing else of the harness is yours to change in this session.
+that is there. Keep the same five file names: the engine reads exactly those.
+
+`harness/tools.json` is the text of each tool: its description and its parameters' descriptions.
+You may rewrite the strings; tool names, parameter names and schemas are fixed. The text does two
+jobs. The model reads it to decide what to call. And before each turn the engine ranks the tools
+by word overlap with the user's message (a word of 3+ letters in the tool's name counts five, one
+in its description counts one; common words do not count) and offers the top ones that fit 1461
+bytes, so a tool whose text shares no word with how people ask for it is never offered. Every
+byte of a description also takes room from other tools that turn.
 
 # The evidence
 
@@ -65,13 +75,14 @@ whether the goal was met. Tools that would leave the machine answered with fixed
 
 - Change only what a trajectory shows needs changing. In `NOTES.md`, for each change, name the
   trajectory and the line that motivates it. A change you cannot tie to a moment is noise.
-- The sections together stay at or under {budget} bytes (they are {size} now). If you add, cut.
+- The sections stay at or under {budget} bytes ({size} now) and the tool text at or under
+  {tool_budget} bytes ({tool_size} now). If you add, cut.
 - This model follows short, concrete, imperative lines best. One rule per line; an example beats
   an explanation; say what to do rather than what not to do.
 - Never write a task's answer, product, price, name or number into the harness: the next owner
   asks about something else. Write how to find answers, not the answers.
-- A tool missing from a request was not offered that turn; prose cannot call it. Say so in
-  `NOTES.md` instead of writing rules for it.
+- A tool missing from a request was not offered that turn; prose in the system prompt cannot
+  call it, but better words in its description can get it offered.
 """
 
 INV = """\
@@ -107,6 +118,16 @@ def sections_size(harness):
     return sum(len(p.read_bytes()) for p in (Path(harness) / "system").glob("*.md"))
 
 
+def tool_text_size(harness):
+    text = json.loads((Path(harness) / "tools.json").read_text())
+    return sum(len(t["description"].encode()) + sum(len(v.encode()) for v in t["parameters"].values())
+               for t in text.values())
+
+
+def sizes(harness):
+    return {"size": sections_size(harness), "tool_size": tool_text_size(harness)}
+
+
 def write_evidence(dest, rollouts):
     dest.mkdir(parents=True, exist_ok=True)
     failing_first = sorted(rollouts.glob("*/*/trajectory.md"),
@@ -116,6 +137,7 @@ def write_evidence(dest, rollouts):
 
 
 def improve(label, mission, harness, evidence, out, improver, budget, candidates=()):
+    """budget: {"size", "tool_size"} that the candidate may not exceed."""
     """One improver session in its own workspace; returns the new harness dir, or None."""
     ws = out / "work" / label
     shutil.rmtree(ws, ignore_errors=True)
@@ -143,22 +165,37 @@ def improve(label, mission, harness, evidence, out, improver, budget, candidates
 
 def validate(candidate, base, budget):
     """Why a candidate cannot be used, or ''."""
-    base_files = sorted(p.name for p in (Path(base) / "system").glob("*.md"))
-    got = sorted(p.name for p in (candidate / "system").glob("*.md"))
-    extra = [p.relative_to(candidate).as_posix() for p in candidate.rglob("*")
-             if p.is_file() and p.parent != candidate / "system" and p.name not in ("NOTES.md", "VALID")]
+    base, candidate = Path(base), Path(candidate)
+    base_files = sorted(p.name for p in (base / "system").glob("*.md"))
+    allowed = {f"system/{n}" for n in base_files} | {"tools.json", "NOTES.md", "VALID"}
+    extra = [p.relative_to(candidate).as_posix() for p in candidate.rglob("*") if p.is_file()]
+    extra = [p for p in extra if p not in allowed]
     if extra:
         return f"files off the surface: {extra}"
-    if not got:
-        return "no sections left"
-    size = sections_size(candidate)
-    if size > budget:
-        return f"sections are {size} bytes, over the {budget}-byte budget"
-    want = set(PLACEHOLDER.findall("".join((Path(base) / "system" / n).read_text() for n in base_files)))
-    have = set(PLACEHOLDER.findall("".join((candidate / "system" / n).read_text() for n in got)))
+    if sorted(p.name for p in (candidate / "system").glob("*.md")) != base_files:
+        return f"the sections must stay the five files {base_files}"
+    try:
+        tools, base_tools = json.loads((candidate / "tools.json").read_text()), json.loads((base / "tools.json").read_text())
+    except (OSError, ValueError) as e:
+        return f"tools.json unreadable: {e}"
+    for name, t in base_tools.items():
+        got = tools.get(name)
+        if not isinstance(got, dict) or not isinstance(got.get("description"), str) \
+                or not isinstance(got.get("parameters"), dict) or set(got["parameters"]) != set(t["parameters"]) \
+                or not all(isinstance(v, str) for v in got["parameters"].values()):
+            return f"tools.json: {name} must keep a description and exactly the parameters {sorted(t['parameters'])}, as strings"
+    if set(tools) != set(base_tools):
+        return f"tools.json must name exactly the tools {sorted(base_tools)}"
+    now = sizes(candidate)
+    for key, what in (("size", "sections"), ("tool_size", "tool text")):
+        if now[key] > budget[key]:
+            return f"{what} are {now[key]} bytes, over the {budget[key]}-byte budget"
+    want = set(PLACEHOLDER.findall("".join((base / "system" / n).read_text() for n in base_files)))
+    have = set(PLACEHOLDER.findall("".join((candidate / "system" / n).read_text() for n in base_files)))
     if want - have:
         return f"placeholders dropped: {sorted(want - have)}"
-    text = "".join((candidate / "system" / n).read_text() for n in got).lower()
+    text = ("".join((candidate / "system" / n).read_text() for n in base_files)
+            + (candidate / "tools.json").read_text()).lower()
     leaked = [w for w in json.loads(bench.TASKS.read_text()).get("leaks", []) if w.lower() in text]
     if leaked:
         return f"task answers written into the harness: {leaked}"
@@ -168,13 +205,15 @@ def validate(candidate, base, budget):
 def probe(label, harness, split, args, out):
     s = bench.run(Path(harness) / "system", out / "rollouts" / label / split, bench.load_tasks(split),
                   bench.model_spec(args.model), args.repeat, args.timeout,
-                  log=lambda line: print(f"[{label}] {line}", flush=True))
+                  log=lambda line: print(f"[{label}] {line}", flush=True), tools=Path(harness) / "tools.json")
     print(f"[{label}] {split}: {s['passed']}/{s['total']}", flush=True)
     return s
 
 
-def mission(part, size, budget, **kw):
-    return COMMON.format(AINAME="{AINAME}", size=size, budget=budget) + "\n" + part.format(**kw)
+def mission(part, harness, budget, **kw):
+    now = sizes(harness)
+    return (COMMON.format(AINAME="{AINAME}", size=now["size"], tool_size=now["tool_size"], budget=budget["size"],
+                          tool_budget=budget["tool_size"]) + "\n" + part.format(**kw))
 
 
 def main():
@@ -186,15 +225,19 @@ def main():
     ap.add_argument("--model", default="gemma4-e4b")
     ap.add_argument("--timeout", type=int, default=180)
     ap.add_argument("--improver", default="", help="command run in the workspace instead of claude -p")
-    ap.add_argument("--base", default="", help="a harness dir with system/, instead of the shipped sections")
+    ap.add_argument("--base", default="", help="a harness dir (system/, tools.json) instead of the shipped one")
     args = ap.parse_args()
 
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     base = out / "harnesses" / "base"
     if not base.exists():
-        shutil.copytree(Path(args.base) / "system" if args.base else SECTIONS, base / "system")
-    budget = sections_size(base)
+        if args.base:
+            shutil.copytree(args.base, base)
+        else:
+            shutil.copytree(SECTIONS, base / "system")
+            (base / "tools.json").write_text(json.dumps(bench.tool_text(), indent=2, ensure_ascii=False) + "\n")
+    budget = sizes(base)
 
     trees, scores = {"base": base}, {"base": probe("base", base, "tune", args, out)}
     ev = lambda label: out / "rollouts" / label / "tune"
@@ -202,7 +245,7 @@ def main():
 
     # improvers run side by side; probes one at a time, because the local model is one engine
     def propose(label, part, harness, from_label):
-        h = improve(label, mission(part, sections_size(harness), budget), harness, ev(from_label), out,
+        h = improve(label, mission(part, harness, budget), harness, ev(from_label), out,
                     args.improver, budget)
         if not h:
             print(f"[{label}] rejected: {(out / 'harnesses' / label / 'VALID').read_text().strip()}", flush=True)
@@ -219,7 +262,7 @@ def main():
         cands = [(name, (trees[name], notes(name), ev(name))) for name in pool if name in trees]
         if not cands:
             return None
-        made = improve(label, mission(COMPOSE, sections_size(harness), budget, n=len(cands)), harness,
+        made = improve(label, mission(COMPOSE, harness, budget, n=len(cands)), harness,
                        ev(from_label), out, args.improver, budget, cands)
         return (probe_all([(label, made)]) or [None])[0]
 
@@ -242,9 +285,11 @@ def main():
                 current, cur_label = trees[c], c
 
     ranked = sorted((l for l in scores if l != "base"),
-                    key=lambda l: (-scores[l]["passed"], sections_size(trees[l])))
-    report = [f"# Tuning run {out.name}", "", "| harness | tune passed | bytes |", "| --- | --- | --- |"]
-    report += [f"| {l} | {scores[l]['passed']}/{scores[l]['total']} | {sections_size(trees[l])} |" for l in scores]
+                    key=lambda l: (-scores[l]["passed"], sum(sizes(trees[l]).values())))
+    report = [f"# Tuning run {out.name}", "", "| harness | tune passed | section bytes | tool text bytes |",
+              "| --- | --- | --- | --- |"]
+    report += [f"| {l} | {scores[l]['passed']}/{scores[l]['total']} | {sizes(trees[l])['size']} | "
+               f"{sizes(trees[l])['tool_size']} |" for l in scores]
     if not ranked:
         report += ["", "No candidate survived validation. Keep the base."]
     else:
@@ -252,13 +297,14 @@ def main():
         held_base = probe("base", base, "held", args, out)
         held_best = probe(best, trees[best], "held", args, out)
         lost = [t for t, n in scores["base"]["tasks"].items() if scores[best]["tasks"].get(t, 0) < n]
-        bigger = sections_size(trees[best]) > budget
+        bigger = any(v > budget[k] for k, v in sizes(trees[best]).items())
         adopt = held_best["passed"] > held_base["passed"] and not lost and not bigger
         report += ["", f"Best: **{best}**. Held out: base {held_base['passed']}/{held_base['total']}, "
                        f"{best} {held_best['passed']}/{held_best['total']}.",
                    f"Tune tasks that lost passes: {', '.join(lost) or 'none'}.",
                    "", f"**{'ADOPT' if adopt else 'KEEP THE BASE'}**: "
-                       + (f"copy `harnesses/{best}/system/*.md` over `defaults/ai/prompts/system/`." if adopt
+                       + (f"copy `harnesses/{best}/system/*.md` over `defaults/ai/prompts/system/`, and carry any "
+                          f"changed text in `harnesses/{best}/tools.json` into `ToolRegistry.qml` by hand." if adopt
                           else "the candidate did not clear held-out improvement, no regression and no growth.")]
     (out / "report.md").write_text("\n".join(report) + "\n")
     print("\n".join(report))

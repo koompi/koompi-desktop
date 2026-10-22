@@ -1,5 +1,7 @@
 import qs.modules.common
 import QtQuick
+import Quickshell
+import Quickshell.Io
 
 /**
  * One declaration per tool, rendered per wire format.
@@ -28,6 +30,22 @@ QtObject {
     readonly property bool agentToolEnabled: Config.options?.ai?.agentTool ?? true
 
     readonly property var emptyParameters: ({ "type": "object", "properties": {} })
+
+    // KOOMPI_AI_TOOL_TEXT names a JSON file, {"<tool>": {"description", "parameters":
+    // {"<field>": "..."}}}, whose text replaces the descriptions below for one run:
+    // the tuning bench (tests/bench/ai) edits tool text the way it edits the prompt.
+    property var toolText: null
+    readonly property FileView toolTextFile: FileView {
+        path: Quickshell.env("KOOMPI_AI_TOOL_TEXT") ?? ""
+        blockAllReads: true
+        onLoaded: {
+            try {
+                root.toolText = JSON.parse(text());
+            } catch (e) {
+                console.warn(`[AI] tool text ${path} unreadable: ${e}`);
+            }
+        }
+    }
 
     readonly property var entries: [
         {
@@ -229,7 +247,18 @@ QtObject {
     // the Responses API takes the same tools as chat completions, in a flatter shape
     function activeEntries(format) {
         const listed = format === "responses" ? "openai" : format;
-        return root.entries.filter(e => e.enabled && e.formats.indexOf(listed) !== -1);
+        return root.entries.filter(e => e.enabled && e.formats.indexOf(listed) !== -1).map(e => root.withText(e));
+    }
+
+    function withText(entry) {
+        const text = root.toolText?.[entry.name];
+        if (!text) return entry;
+        const properties = {};
+        for (const field in entry.parameters?.properties ?? {})
+            properties[field] = Object.assign({}, entry.parameters.properties[field],
+                text.parameters?.[field] !== undefined ? { "description": `${text.parameters[field]}` } : {});
+        const parameters = entry.parameters ? Object.assign({}, entry.parameters, { "properties": properties }) : undefined;
+        return Object.assign({}, entry, { "description": `${text.description ?? entry.description}` }, parameters ? { "parameters": parameters } : {});
     }
 
     // Gemini omits `parameters` entirely for a tool that takes none; sending an
