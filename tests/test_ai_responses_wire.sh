@@ -45,11 +45,16 @@ const strip = s => s
 const [strategyFile, registryFile] = process.argv.slice(2);
 const names = ["stripThinking", "inputItems", "buildRequestData", "buildAuthorizationHeader",
     "parseResponseLine", "handleEvent", "noteItem", "callAt", "appendText", "closeThinking",
-    "takeCalls", "complete", "fail", "onRequestFinished", "reset"];
+    "takeCalls", "complete", "fail", "onRequestFinished", "reset", "onStatus"];
+// the strategy imports request-errors.js as Errors; load the shipped file the same way
+const errorsFile = strategyFile.replace(/[^/]*$/, "request-errors.js");
+writeFileSync("./errors.mjs", readFileSync(errorsFile, "utf8").replace(/^\.pragma library\s*$/m, "")
+    + "\nexport { trailerType, withStatusTrailer, fromBody, fromError, explain, render };\n");
 writeFileSync("./strategy.mjs", strip(`
+import * as Errors from "./errors.mjs";
 const Translation = { tr: s => s };
 const root = { emptyParameters: { type: "object", properties: {} } };
-let isReasoning = false, pendingCalls = {}, completed = false, failed = false;
+let isReasoning = false, pendingCalls = {}, completed = false, failed = false, authKind = "", heldBody = "";
 const tokenVar = "KOOMPI_CHATGPT_TOKEN";
 const forbiddenFields = ${/forbiddenFields: (\[[^\]]*\])/.exec(readFileSync(strategyFile, "utf8"))[1]};
 ${names.map(n => lift(strategyFile, n)).join("\n")}
@@ -153,8 +158,10 @@ check("the assistant turn carries the wire call", message.toolCalls?.[0]?.id ===
     && message.toolCalls[0].arguments === '{"query":"editor"}', JSON.stringify(message.toolCalls));
 check("usage is read", last?.tokenUsage?.input === 120 && last.tokenUsage.output === 30 && last.tokenUsage.total === 150, JSON.stringify(last?.tokenUsage));
 check("no stray SSE text in content", !message.content.includes("event:") && !message.content.includes("data:"), message.content);
+const beforeExit = message.content;
+s.parseResponseLine('data: {"type":"koompi.http","status":"200","retry_after":""}', message);
 s.onRequestFinished(message);
-check("a completed turn gets no error on exit", !message.content.includes("**Error**"), message.content);
+check("a completed turn gets no error on exit, nor from its 200 trailer", message.content === beforeExit, message.content);
 
 // --- response.failed with the plan's usage limit code.
 s.reset();
@@ -168,7 +175,7 @@ for (const line of ev({ type: "response.failed", response: { status: "failed", e
 check("failed finishes the turn", r.finished === true);
 check("failed hands back no tool call", !r.functionCalls);
 check("the error code is visible", message.content.includes("subscription_sharing_usage_limit_exceeded"), message.content);
-check("the error message is visible", message.content.includes("Usage limit reached."), message.content);
+check("the error is said in plain words", message.content.includes("**Usage limit reached.** You have used your ChatGPT plan's limit"), message.content);
 
 // --- error event, incomplete, and a stream that just stops.
 s.reset();
@@ -183,7 +190,7 @@ s.reset();
 message = msg({ role: "assistant" });
 s.parseResponseLine("data: " + JSON.stringify({ type: "response.output_item.done", output_index: 0, item: { type: "function_call", call_id: "c1", name: "recall", arguments: "{}" } }), message);
 s.onRequestFinished(message);
-check("a stream cut before completed shows an error", message.content.includes("**Error**"), message.content);
+check("a stream cut before completed shows an error", message.content.includes("**The reply was cut off.**"), message.content);
 check("and dispatches no call", (message.toolCalls ?? []).length === 0, JSON.stringify(message.toolCalls));
 s.reset();
 message = msg({ role: "assistant" });

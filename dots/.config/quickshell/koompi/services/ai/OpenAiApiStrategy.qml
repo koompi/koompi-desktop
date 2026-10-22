@@ -1,7 +1,12 @@
+import qs.services
 import QtQuick
+import "request-errors.js" as Errors
 
 ApiStrategy {
     property bool isReasoning: false
+    property bool failed: false
+    property string authKind: "" // "key" or "": how a 401 is explained
+    property string heldBody: "" // lines that were not JSON: an error body, until the status says so
     // tool_calls stream as fragments (name in the first delta, arguments split
     // across many); accumulate per index and emit once on finish_reason/[DONE]
     property var pendingToolCalls: ({})
@@ -86,6 +91,7 @@ ApiStrategy {
             "temperature": temperature,
         };
         if (tools && tools.length > 0) baseData.tools = tools;
+        authKind = model?.requires_key ? "key" : "";
         return model.extraParams ? Object.assign({}, baseData, model.extraParams) : baseData;
     }
 
@@ -119,12 +125,11 @@ ApiStrategy {
         try {
             const dataJson = JSON.parse(cleanData);
 
-            // Error response handling
+            if (dataJson.type === Errors.trailerType) return onStatus(dataJson, message);
+            // Error response handling, in plain words (request-errors.js)
             if (dataJson.error) {
-                const errorMsg = `**Error**: ${dataJson.error.message || JSON.stringify(dataJson.error)}`;
-                message.rawContent += errorMsg;
-                message.content += errorMsg;
-                return { finished: true };
+                return explainError(message, typeof dataJson.error === "object"
+                    ? Errors.fromError(dataJson.error) : { "code": `${dataJson.error}`, "message": "" });
             }
 
             let newContent = "";
@@ -194,20 +199,51 @@ ApiStrategy {
             console.log("[AI] OpenAI: Could not parse line: ", e);
             message.rawContent += line;
             message.content += line;
+            heldBody += line;
         }
-        
+
         return {};
     }
-    
+
+    function explainError(message, err) {
+        failed = true;
+        const text = Errors.render(Errors.explain(Object.assign({}, err, { "auth": authKind }), Translation));
+        message.rawContent += text;
+        message.content += text;
+        return { finished: true };
+    }
+
+    // The trailer Errors.withStatusTrailer adds. 400 and up is an error whose body came
+    // as plain lines (pretty-printed JSON); they leave the transcript for the
+    // explanation. 000 with nothing received is no answer at all.
+    function onStatus(event, message) {
+        const status = Number(event.status) || 0;
+        if (failed || (status > 0 && status < 400) || (status === 0 && message.rawContent.length > heldBody.length)) return {};
+        const err = Errors.fromBody(heldBody) ?? {};
+        if (heldBody.length > 0 && message.rawContent.endsWith(heldBody)) {
+            message.rawContent = message.rawContent.slice(0, message.rawContent.length - heldBody.length);
+            message.content = message.content.slice(0, Math.max(0, message.content.length - heldBody.length));
+        }
+        heldBody = "";
+        if (status === 0 && !err.code) err.code = "unreachable";
+        return explainError(message, Object.assign(err, { "status": status === 0 ? -1 : status, "retryAfter": event.retry_after ?? "" }));
+    }
+
+    function finalizeScriptContent(scriptContent: string): string {
+        return Errors.withStatusTrailer(scriptContent);
+    }
+
     function onRequestFinished(message) {
         // OpenAI format doesn't need special finish handling
         return {};
     }
-    
+
     function reset() {
         isReasoning = false;
         pendingToolCalls = ({});
         toolCallEmitted = false;
+        failed = false;
+        heldBody = "";
     }
 
 }

@@ -92,10 +92,18 @@ const strip = s => s
     .replace(/function (\w+)\(([^)]*)\): \w+/g, (_, n, a) => `function ${n}(${a})`)
     .replace(/(\w+): (AiModel|string|real|list<var>|AiMessageData)/g, "$1");
 
+// the strategy imports request-errors.js as Errors; load the shipped file the same way
+writeFileSync("./errors.mjs", readFileSync(process.argv[2].replace(/[^/]*$/, "request-errors.js"), "utf8")
+    .replace(/^\.pragma library\s*$/m, "") + "\nexport { trailerType, withStatusTrailer, fromBody, fromError, explain, render };\n");
 writeFileSync("./strategy.mjs", strip(`
+import * as Errors from "./errors.mjs";
+const Translation = { tr: s => s };
 let isReasoning = false;
 let pendingToolCalls = {};
 let toolCallEmitted = false;
+let failed = false, authKind = "", heldBody = "";
+${lift("explainError")}
+${lift("onStatus")}
 ${lift("takeCompletedToolCalls")}
 ${lift("wireMessage")}
 ${lift("buildRequestData")}

@@ -133,9 +133,12 @@ const strip = s => s.replace(/function (\w+)\(([^)]*)\): \w+/g, (_, n, a) => `fu
     .replace(/(\w+): (AiModel|string)(?!\w)/g, "$1");
 const quote = s => s.replace(/'/g, "'\\''");
 const CF = { StringUtils: { shellSingleQuoteEscape: quote }, FileUtils: { trimFileProtocol: s => s.replace(/^file:\/\//, "") } };
-const make = new Function("CF", "Directories", "tokenVar", strip(
+// the strategy imports request-errors.js as Errors (the status trailer); load the shipped file
+const errorsSrc = readFileSync(qmlFile.replace(/[^/]*$/, "request-errors.js"), "utf8").replace(/^\.pragma library\s*$/m, "");
+const Errors = new Function(`${errorsSrc}\nreturn { trailerType, withStatusTrailer };`)();
+const make = new Function("CF", "Directories", "tokenVar", "Errors", strip(
     `${lift("buildAuthorizationHeader")}\n${lift("finalizeScriptContent")}\nreturn { buildAuthorizationHeader, finalizeScriptContent };`));
-const s = make(CF, { scriptPath }, "KOOMPI_CHATGPT_TOKEN");
+const s = make(CF, { scriptPath }, "KOOMPI_CHATGPT_TOKEN", Errors);
 const auth = s.buildAuthorizationHeader("API_KEY", { auth: "chatgpt", requires_key: true });
 const body = JSON.stringify({ model: "gpt-5", input: [], stream: true, store: false });
 // the shape Requester.makeRequest assembles
