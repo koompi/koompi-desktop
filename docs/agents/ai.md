@@ -153,7 +153,7 @@ Paths: profile `${XDG_DATA_HOME:-~/.local/share}/koompi-ai/browser` (`--profile`
 The model reaches the driver through one tool, `browser`, with an `op` and the op's fields (`url`, `ref`, `text`, `submit`, `key`, `direction`, `index`).
 It is one declaration, not eleven, because gemma4-e4b gets only as many as fit 1461 bytes a turn (`ToolRegistry.subsetForTurn`); its description carries the words people ask with (open, website, page, click, browser).
 It is declared in `services/ai/browser-rules.js` beside the rules below and joins the registry as `extraEntries`; it follows `ai.webSearch`, like `search_web` and `fetch_url`.
-A turn that answers a browser result keeps its tool subset (`Requester.toolsForTurn`), so open, then click, then type works on a small model too. Screenshots answer with the path only.
+A turn that answers a tool result keeps the turn's tool subset (`Requester.toolsForTurn`), so open, then click, then type works on a small model too. The browser's `hints` rank it for turns that never say "browser". Screenshots answer with the path only.
 
 `services/ai/BrowserService.qml` owns the session's one `browser.py`: the first step starts it, and a new chat, another thread, the stop key or the shell exiting closes it.
 Requests go out one per line with an id and replies are routed back by it; the service keeps the last `refs`, `title`, `url` and Chrome's `pid`.
