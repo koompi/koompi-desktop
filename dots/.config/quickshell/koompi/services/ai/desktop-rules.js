@@ -56,13 +56,18 @@ function keysOf(keys) {
     return { "mods": parts.slice(0, -1), "key": parts.length > 0 ? parts[parts.length - 1] : "" };
 }
 
+// What a desktop dialog commits with that a web page rarely says: the buttons that
+// throw work away, change the system or end the session.
+var desktopCommitWords = /\b(discard|don'?t save|overwrite|replace|uninstall|install|update|upgrade|format|erase|wipe|empty|trash|restart|reboot|shut ?down|power off|log ?out|sign out|quit|reset|restore|revert|allow|grant|trust|yes|ok)\b/i;
+
 /**
  * Why this step waits for the user, or "" when it runs at once. The rule:
  * - launch: always; a desktop entry runs a command line, and some entries are actions
  *   (log out, reset, uninstall).
  * - act: a ref not in the last windows or tree reply; a control whose name carries a
- *   commit word (buy, send, delete, save, ... as in the browser); a dialog's default
- *   button, which is what Enter would press.
+ *   commit word (buy, send, delete, save, ... as in the browser, plus discard,
+ *   overwrite, uninstall, restart, log out, allow, yes, ok, ... above); a dialog's
+ *   default button, which is what Enter would press.
  * - type: a ref not in the last reply; with submit, unless the field is a search field.
  * - key: any shortcut with a modifier (ctrl+w closes, ctrl+s saves, alt+F4 quits);
  *   Enter, Return, Space and Delete, which act on whatever has focus.
@@ -79,6 +84,7 @@ function askReason(args, refs) {
     }
     if (req.op === "act") {
         if (Browser.commitWords.test(parts.name)) return "it may send, save, buy or delete";
+        if (desktopCommitWords.test(parts.name)) return "it may discard work, change the system or end the session";
         if (/\bdefault\b/.test(parts.states)) return "it is the dialog's default button";
     }
     if (req.op === "type" && req.submit === true && !Browser.searchLike(parts)) return "it submits what was typed";

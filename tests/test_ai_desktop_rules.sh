@@ -117,6 +117,11 @@ const refs = {
     "7": 'button "Save"',
     "8": 'menuitem "Send now"',
     "9": 'window "Notes" (gnome-text-editor, workspace 1, focused)',
+    "10": 'button "Don\'t Save"',
+    "11": 'button "Uninstall"',
+    "12": 'button "OK"',
+    "13": 'button "Restart now"',
+    "14": 'button "Next"',
 };
 const table = [
     // [args, asks?, why]
@@ -131,6 +136,11 @@ const table = [
     [{ op: "act", ref: 7 }, true, "a Save button asks"],
     [{ op: "act", ref: 8 }, true, "a menu item named with a commit word (send) asks"],
     [{ op: "act", ref: 5 }, true, "a dialog's default button asks whatever it is called"],
+    [{ op: "act", ref: 10 }, true, "Don't Save asks: it throws work away"],
+    [{ op: "act", ref: 11 }, true, "Uninstall asks"],
+    [{ op: "act", ref: 12 }, true, "OK asks even when not marked default"],
+    [{ op: "act", ref: 13 }, true, "Restart asks"],
+    [{ op: "act", ref: 14 }, false, "Next runs"],
     [{ op: "act", ref: 99 }, true, "a ref not in the last tree asks"],
     [{ op: "act" }, true, "act with no ref asks"],
     [{ op: "type", ref: 3, text: "hi" }, false, "typing without submit runs"],
