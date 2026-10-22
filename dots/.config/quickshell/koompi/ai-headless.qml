@@ -83,6 +83,7 @@ ShellRoot {
         root.finished = true;
         Ai.cancelRequest();
         Ai.browserTool.service.stop("the headless run finished");
+        Ai.desktopTool.service.stop("the headless run finished");
         root.outFile.setText(JSON.stringify({
             "ok": ok,
             "error": error,

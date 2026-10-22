@@ -12,13 +12,15 @@ import Quickshell.Hyprland
 
 /**
  * The Control session's safety shell on screen: while the assistant has its own
- * browser open, a pill under the bar on the focused monitor says so and carries
- * Pause and Stop. Super+Shift+Escape stops from anywhere (D9; Super+Escape is Kiri's).
+ * browser open, or is working in the user's apps (desktop control), a pill under the
+ * bar on the focused monitor says so and carries Pause and Stop. Super+Shift+Escape
+ * stops from anywhere (D9; Super+Escape is Kiri's).
  *
- * Take-over: the user focusing the agent's browser window, other than the focus its
- * own steps cause (a step in flight, or one that just answered), pauses the session,
- * and the next step asks before it runs. Typing into a window that already has focus
- * is not visible to the shell, so the Pause button is the dependable way to take over.
+ * Take-over: other than the focus the agent's own steps cause (a step in flight, or one
+ * that just answered), the user focusing the agent's browser window pauses the session,
+ * and so does switching to any window while desktop control is on; the next step asks
+ * before it runs. Typing into a window that already has focus is not visible to the
+ * shell, so the Pause button is the dependable way to take over.
  */
 Scope {
     id: root
@@ -26,13 +28,22 @@ Scope {
     // a step that just answered may have opened or raised the window itself
     readonly property int selfFocusGraceMs: 1500
     readonly property var focusedScreen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? Quickshell.screens[0] ?? null
+    readonly property bool active: Ai.browserActive || Ai.desktopActive
+    readonly property bool paused: (Ai.browserActive && Ai.browserPaused) || (Ai.desktopActive && Ai.desktopPaused)
 
     Connections {
         target: Hyprland
-        enabled: Ai.browserActive && !Ai.browserPaused
+        enabled: (Ai.browserActive && !Ai.browserPaused) || (Ai.desktopActive && !Ai.desktopPaused)
         function onRawEvent(event) {
             if (event.name !== "activewindowv2") return;
-            if (Ai.browserBusy || Date.now() - Ai.browserLastReplyAt < root.selfFocusGraceMs) return;
+            const now = Date.now();
+            if (Ai.browserBusy || now - Ai.browserLastReplyAt < root.selfFocusGraceMs) return;
+            if (Ai.desktopBusy || now - Ai.desktopLastReplyAt < root.selfFocusGraceMs) return;
+            // a window, not focus leaving for a layer (the chat) or for nothing
+            if (Ai.desktopActive && /^(0x)?[0-9a-f]+$/i.test(`${event.data}`.trim())) {
+                Ai.pauseControl();
+                return;
+            }
             focusedPid.running = false;
             focusedPid.running = true;
         }
@@ -55,13 +66,13 @@ Scope {
 
     LazySurface {
         id: surface
-        open: Ai.browserActive
+        open: root.active
         keepWarm: 0
         component: PanelWindow {
             id: pill
             objectName: "aiControlPill"
             screen: root.focusedScreen
-            visible: Ai.browserActive
+            visible: root.active
             color: "transparent"
             WlrLayershell.namespace: "quickshell:aiControl"
             WlrLayershell.layer: WlrLayer.Overlay
@@ -87,7 +98,7 @@ Scope {
                 anchors.fill: parent
                 anchors.margins: Appearance.sizes.elevationMargin
                 radius: Appearance.rounding.full
-                color: Ai.browserPaused ? Appearance.colors.colLayer2 : Appearance.colors.colErrorContainer
+                color: root.paused ? Appearance.colors.colLayer2 : Appearance.colors.colErrorContainer
 
                 RowLayout {
                     id: body
@@ -95,36 +106,39 @@ Scope {
                     spacing: Appearance.spacing.normal
 
                     MaterialSymbol {
-                        text: Ai.browserPaused ? "pause_circle" : "travel_explore"
+                        text: root.paused ? "pause_circle" : Ai.desktopActive ? "touch_app" : "travel_explore"
                         iconSize: Appearance.font.pixelSize.hugeass
-                        color: Ai.browserPaused ? Appearance.colors.colOnLayer2 : Appearance.colors.colOnErrorContainer
+                        color: root.paused ? Appearance.colors.colOnLayer2 : Appearance.colors.colOnErrorContainer
                     }
 
                     ColumnLayout {
                         spacing: 0
                         StyledText {
                             objectName: "aiControlState"
-                            text: Ai.browserPaused ? Translation.tr("Paused") : Translation.tr("The assistant is using its browser")
+                            text: root.paused ? Translation.tr("Paused")
+                                : Ai.desktopActive ? Translation.tr("The assistant is using your apps")
+                                : Translation.tr("The assistant is using its browser")
                             font.weight: Font.DemiBold
-                            color: Ai.browserPaused ? Appearance.colors.colOnLayer2 : Appearance.colors.colOnErrorContainer
+                            color: root.paused ? Appearance.colors.colOnLayer2 : Appearance.colors.colOnErrorContainer
                         }
-                        StyledText { // the page it is on, as the page titles itself
+                        StyledText { // the window it works in, or the page it is on, as they title themselves
                             Layout.maximumWidth: 320
-                            visible: Ai.browserTitle.length > 0
-                            text: Ai.browserTitle
+                            visible: text.length > 0
+                            text: Ai.desktopActive ? Ai.desktopWindow : Ai.browserTitle
                             elide: Text.ElideRight
                             font.pixelSize: Appearance.font.pixelSize.smaller
-                            color: Ai.browserPaused ? Appearance.colors.colSubtext : Appearance.colors.colOnErrorContainer
+                            color: root.paused ? Appearance.colors.colSubtext : Appearance.colors.colOnErrorContainer
                         }
                     }
 
                     DialogButton {
                         objectName: "aiControlPause"
-                        buttonText: Ai.browserPaused ? Translation.tr("Resume") : Translation.tr("Pause")
-                        colEnabled: Ai.browserPaused ? Appearance.colors.colPrimary : Appearance.colors.colOnErrorContainer
-                        onClicked: Ai.browserPaused ? Ai.resumeControl() : Ai.pauseControl()
+                        buttonText: root.paused ? Translation.tr("Resume") : Translation.tr("Pause")
+                        colEnabled: root.paused ? Appearance.colors.colPrimary : Appearance.colors.colOnErrorContainer
+                        onClicked: root.paused ? Ai.resumeControl() : Ai.pauseControl()
                         StyledToolTip {
-                            text: Translation.tr("Take the browser yourself; the assistant asks before its next step")
+                            text: Ai.desktopActive ? Translation.tr("Take over yourself; the assistant asks before its next step")
+                                : Translation.tr("Take the browser yourself; the assistant asks before its next step")
                         }
                     }
 
@@ -136,7 +150,8 @@ Scope {
                         colEnabled: Appearance.colors.colOnError
                         onClicked: Ai.stopControl()
                         StyledToolTip {
-                            text: Translation.tr("Stop the assistant and close its browser (Super+Shift+Escape)")
+                            text: Ai.desktopActive ? Translation.tr("Stop the assistant and end its control of your apps (Super+Shift+Escape)")
+                                : Translation.tr("Stop the assistant and close its browser (Super+Shift+Escape)")
                         }
                     }
                 }
@@ -146,7 +161,7 @@ Scope {
 
     GlobalShortcut {
         name: "aiControlStop"
-        description: "Stops the assistant's turn and closes its browser"
+        description: "Stops the assistant's turn, closes its browser and ends its control of your apps"
         onPressed: Ai.stopControl()
     }
 

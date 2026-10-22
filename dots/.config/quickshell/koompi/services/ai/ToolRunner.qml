@@ -132,11 +132,10 @@ QtObject {
     }
 
     function runApprovedCall(name: string, args: var) {
-        // these two finish in their own handler once nothing is left to ask
-        if (name === "browser" || name === "set_shell_config") return root.handlers[name](args, null, true);
+        // these finish in their own handler once nothing is left to ask
+        if (["browser", "desktop", "set_shell_config"].includes(name)) return root.handlers[name](args, null, true);
         const responseMessage = root.addToolResult(name, "", false, false);
-        // hidden only for the agent: the user just approved a command and gets to
-        // watch its output stream into the bubble
+        // hidden only for the agent: an approved command streams its output into the bubble
         responseMessage.visibleToUser = (name !== "ask_agent");
 
         if (name === "ask_agent") {
@@ -285,6 +284,7 @@ QtObject {
         "search_web": (args, message) => root.runWebTool("search_web", args, message),
         "fetch_url": (args, message) => root.runWebTool("fetch_url", args, message),
         "browser": (args, message, approved) => root.engine.browserTool.handle(args, message, approved === true),
+        "desktop": (args, message, approved) => root.engine.desktopTool.handle(args, message, approved === true),
 
         "ask_agent": (args, message) => {
             const task = (args.task ?? "").trim();

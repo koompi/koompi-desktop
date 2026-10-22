@@ -50,6 +50,7 @@ QtObject {
     function isPreApproved(name: string, args: var): bool {
         if (root.tainted(name)) return false;
         if (name === "browser") return root.engine.browserTool.runsWithoutAsking(args);
+        if (name === "desktop") return root.engine.desktopTool.runsWithoutAsking(args);
         const policy = root.engine.toolRegistry.approvalOf(name);
         if (policy === "never") return true;
         if (policy === "always") return false;

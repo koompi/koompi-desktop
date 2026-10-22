@@ -125,9 +125,10 @@ function describe(args, refs) {
     }
 }
 
-// Results that bring text from outside into the conversation, and the tools whose
+// Results that bring text from outside into the conversation (a window's text is as
+// untrusted as a page's: desktop.py marks it so too), and the tools whose
 // standing "always allow" that text must not be able to use.
-var taintingTools = ["browser", "fetch_url", "search_web"];
+var taintingTools = ["browser", "fetch_url", "search_web", "desktop"];
 var guardedTools = ["run_shell_command", "set_shell_config", "ask_agent"];
 
 // A turn runs from the user's message to the answer. It is tainted from the first
