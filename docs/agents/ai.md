@@ -47,9 +47,9 @@ Only objects the loader created are taken back on a reload: an id a discovered O
 | key | required | default |
 | --- | --- | --- |
 | `model` | yes | the id `/model` takes, stored lower-cased because `/model` lowercases its argument. `remote` and `local` are the slots and are refused |
-| `endpoint` | yes | full chat-completions URL |
+| `endpoint` | yes | full chat-completions URL; for `responses`, the Responses URL (`https://api.openai.com/v1/responses`) |
 | `name` | no | `guessModelName(model)` |
-| `api_format` | no | `openai`; also `gemini`, `mistral` |
+| `api_format` | no | `openai`; also `gemini`, `mistral`, `responses` (OpenAI's Responses API: `instructions`, full history in `input`, `store: false`, no `temperature`) |
 | `key_id` | no | inferred from the name (`inferKeyIdForModel`); models sharing a key share an id |
 | `requires_key` | no | absent: `true` unless the endpoint is local (`localhost`, `127.0.0.1`, `::1`); present: only a literal `false` turns the gate off, `"true"` or `1` count as `true` |
 | `key_get_link` | no | `""`; shown by the `/key` advice |

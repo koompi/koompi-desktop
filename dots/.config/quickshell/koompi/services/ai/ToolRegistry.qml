@@ -226,8 +226,10 @@ QtObject {
         return root.entryFor(name)?.approval ?? "once";
     }
 
+    // the Responses API takes the same tools as chat completions, in a flatter shape
     function activeEntries(format) {
-        return root.entries.filter(e => e.enabled && e.formats.indexOf(format) !== -1);
+        const listed = format === "responses" ? "openai" : format;
+        return root.entries.filter(e => e.enabled && e.formats.indexOf(listed) !== -1);
     }
 
     // Gemini omits `parameters` entirely for a tool that takes none; sending an
@@ -250,14 +252,24 @@ QtObject {
         };
     }
 
+    // strict defaults to true there, and these schemas leave optional fields out of required
+    function responsesDeclaration(entry) {
+        return {
+            "type": "function",
+            "name": entry.name,
+            "description": entry.description,
+            "parameters": entry.parameters ?? root.emptyParameters,
+            "strict": false
+        };
+    }
+
     function declarationsFor(format) {
-        const entries = root.activeEntries(format);
-        if (format === "gemini") return entries.map(e => root.geminiDeclaration(e));
-        return entries.map(e => root.openaiDeclaration(e));
+        return root.activeEntries(format).map(e => root.renderDeclaration(format, e));
     }
 
     function renderDeclaration(format: string, entry): var {
-        return format === "gemini" ? root.geminiDeclaration(entry) : root.openaiDeclaration(entry);
+        if (format === "gemini") return root.geminiDeclaration(entry);
+        return format === "responses" ? root.responsesDeclaration(entry) : root.openaiDeclaration(entry);
     }
 
     function wrapDeclarations(format: string, list): var {
@@ -347,6 +359,11 @@ QtObject {
         },
         "mistral": {
             "functions": root.declarationsFor("mistral"),
+            "search": [],
+            "none": [],
+        },
+        "responses": {
+            "functions": root.declarationsFor("responses"),
             "search": [],
             "none": [],
         }
