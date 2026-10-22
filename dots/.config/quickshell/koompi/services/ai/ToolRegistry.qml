@@ -62,8 +62,8 @@ QtObject {
             "priority": 40,
             "risk": "reads-system",
             "approval": "never",
-            "description": "Get the desktop shell config file contents",
-            "parameters": root.emptyParameters,
+            "description": "Read the desktop shell's settings (bar, dock, appearance, ...). Without a section it lists the sections and their keys",
+            "parameters": { "type": "object", "properties": { "section": { "type": "string", "description": "A section or dotted path, e.g. `bar` or `bar.autoHide`" } } },
             "formats": ["gemini", "openai", "mistral"],
             "enabled": true
         },

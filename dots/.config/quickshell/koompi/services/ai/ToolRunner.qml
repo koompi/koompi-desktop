@@ -6,6 +6,7 @@ import qs.services
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "configView.js" as ConfigView
 
 /**
  * Runs the tool calls a turn asked for, holds the approval rules that gate the
@@ -203,8 +204,7 @@ QtObject {
         },
 
         "get_shell_config": (args, message) => {
-            const configJson = CF.ObjectUtils.toPlainObject(Config.options);
-            root.addToolResult("get_shell_config", JSON.stringify(configJson), false);
+            root.addToolResult("get_shell_config", ConfigView.render(CF.ObjectUtils.toPlainObject(Config.options), args.section), false);
             root.runNextCall();
         },
 
