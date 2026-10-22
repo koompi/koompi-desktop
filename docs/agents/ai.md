@@ -226,6 +226,7 @@ It speaks the browser driver's protocol (one JSON request per stdin line, one re
 | --- | --- | --- |
 | `windows` | | every mapped window with a ref, class, workspace and focus; off-limits windows are marked |
 | `tree` | `ref?`, `budget?` (characters, default 4000) | the window's controls with refs: role, name, value, states (`checked`, `default`, `disabled`, `focused`, `password: do not type`), text in between, a `[cut: ...]` note past the budget. No ref: the window last worked in, else the focused one |
+| `see` | `ref?` | a screenshot of the window with numbered marks, see [Desktop pixels (M7)](#desktop-pixels-m7) |
 | `focus` | `ref` | raises and focuses the window (a control ref also takes the keyboard focus) |
 | `launch` | `app` | finds the desktop entry by id, Name, GenericName or keyword and runs it through `koompi-launch` (app.slice, the bar's launch feedback); waits up to 10 s for its window and answers with `windows` |
 | `act` | `ref`, `action?` (press, toggle, activate, expand) | the AT-SPI action, then the tree of the window that has focus |
@@ -251,7 +252,7 @@ Window to tree is by process id, then title. Apps that publish no tree (Qt and C
 
 ## Desktop tool
 
-`desktop`, one declaration with an `op` (`windows`, `tree`, `focus`, `launch`, `act`, `type`, `key`, `close`) and the op's fields (`ref`, `app`, `action`, `text`, `submit`, `keys`), declared in `services/ai/desktop-rules.js` (746 bytes as the OpenAI wire format renders it) and joined to the registry as the second `extraEntries`.
+`desktop`, one declaration with an `op` (`windows`, `tree`, `see`, `focus`, `launch`, `act`, `type`, `key`, `close`) and the op's fields (`ref`, `app`, `action`, `text`, `submit`, `keys`), declared in `services/ai/desktop-rules.js` (772 bytes as the OpenAI wire format renders it) and joined to the registry as the second `extraEntries`.
 Its hints (app, window, launch, press, type, key, shortcut, dialog, ...) rank it for turns that never say "desktop"; `tests/test_ai_tool_subset.sh` checks a desktop turn reaches it under 1461 bytes.
 `DesktopService.qml` owns the session's one `desktop.py` like `BrowserService` owns `browser.py`: the first step starts it; a new chat, another thread, the stop key, the screen locking, 90 s without a step, or the shell exiting ends it.
 `DesktopTool.qml` is the handler (`ToolRunner.handlers.desktop`) and its safety shell:
@@ -269,6 +270,29 @@ Its hints (app, window, launch, press, type, key, shortcut, dialog, ...) rank it
 - **Take-over**: while desktop control is on, the user switching to any window, other than the focus the agent's own steps cause (a step in flight, or 1.5 s after one), pauses it; every step then asks, and answering a card hands control back.
 
 `tests/test_ai_desktop_rules.sh` runs the rules and the shipped `isPreApproved` under bun. `tests/test_ai_desktop.sh` runs the driver, and `tests/test_ai_desktop_tool.sh` the tool end to end through `headless.sh`, both inside `tests/with-nested-hyprland.sh` with an accessibility bus of their own on the private session bus (`tests/ai-desktop-session.sh`) and GTK fixture windows (`tests/ai-desktop-fixture.py`) standing in for an app, a terminal, a polkit agent, a browser and a shell surface.
+
+## Desktop pixels (M7)
+
+`see` is a screenshot of one window with numbered marks on it. The model reads screens well and points badly (plan, "Vision on the local model"), so it names a mark and never gives an x,y. `scripts/ai/desktop_pixels.py` holds the pixel half; `desktop.py` imports it.
+
+- **Capture**: `grim -T <stableId>`, the window alone through ext-foreign-toplevel and image-copy-capture. Nothing drawn over the window is in the shot: no chat sidebar, notification, pill or other window. A whole output is never captured, and with no window to name `see` asks for a ref. A window on a hidden workspace is focused first, because it draws no frames.
+- **Never captured**: whatever `tree` refuses (a locked screen, the shell's own surfaces, authentication and keyring windows, terminals, browsers). Password fields of an accessible app are blacked out (`(40,40,40)`) before anything else is drawn, and are not marked.
+- **Marks, accessible app**: each control of the tree with AT-SPI extents on screen is a mark with its tree `[ref]`. `act` and `type` take it exactly as a `tree` ref, through AT-SPI.
+- **Marks, no tree** (Qt or Chromium with accessibility off, games, canvases): connected regions of the image's edges, thickened sideways so a word's glyphs or a button's label join into one blob. The window's frame, panels and the faint rules between rows are dropped, as is anything inside a control-sized box. At most 60 marks, in reading order, each `[n] region at x,y` in window pixels. A grid was tried and rejected: its cells rarely centre on a control, and the model then has to point inside a cell, which it does badly.
+- **Image**: scaled to fit 1600x1000, JPEG quality 85, numbers in six colours beside their boxes where they cover the least text. The file is `screens/see-<ms>.jpg` in the shell's runtime dir (`0700`). Only the last three are kept, and a new chat or another thread deletes them.
+- **Act on a region**: always asks; the card shows the marked screenshot. The click is refused if any of these hold: the window changed size since the shot (stale marks); a floating, fullscreen or pinned window, or a shell layer at the top or overlay level, covers the point; the pointer did not land within 2 px; the focus left the window. Otherwise the click goes through the compositor's `zwlr_virtual_pointer_v1`, spoken over `WAYLAND_DISPLAY` by the driver itself. `ydotool` is never used: uinput reaches every compositor on the seat. `type` on a region is refused, because nothing can tell a password field in pixels.
+- **Refs**: one numbering with `windows` and `tree`. Each `see` replaces them, as each `windows` or `tree` does.
+
+**Transport** (`services/ai/screen-rules.js`). A tool result cannot carry an image in the chat-completions formats, so `withScreens` adds a user turn right after the tool results of the call batch that took the newest screenshot ("The screenshot from the desktop tool, with its numbered marks:"). Older screenshots are not resent; their marks are stale. `wire()` gives the part per format: OpenAI `image_url {url: data:...}`, Mistral `image_url: "data:..."`, Responses `input_image`, Gemini `inline_data`. LiteRT-LM reads the OpenAI part (`openai_common.py`). The JSON holds a placeholder; the request script base64s the file into it at run time and curl sends the body from a `0600` file. Image bytes never pass through QML, and a body of any size gets past the 128 KiB argument limit. The image path is not a persisted field (`AiMessageData.imageFile`), so a saved chat keeps no screenshot.
+
+**Who sees it** (plan D8), `Screen.gate`, asked by `DesktopTool` before a `see` and by `Requester` for every request:
+
+- a local endpoint (`endpoints.js` `isLocal`): yes, nothing asked;
+- `policies.ai == 2`: never to anything else, consent or not (and `ExtraModels` does not offer a remote model there at all);
+- a remote endpoint: only after the user answers a "Let <model> (<host>) see your screen?" card with "Allow for this chat". The consent is per host and lasts until the chat is cleared or the thread changes; Resume never answers that card. A refused consent takes no screenshot, and the next `see` asks again;
+- a screenshot taken for one model and a switch to another: the turn says in words that it was withheld, and why.
+
+`tests/test_ai_screen_rules.sh` runs the gate, the placement, every wire format and the request script's body under bun and bash. `tests/test_ai_desktop_marks.sh` draws marks on fixture images and checks the driver's pointer geometry and cover rules, with no compositor. `tests/test_ai_desktop_see.sh` runs `see`, a click by mark through the virtual pointer, and the refusals in nested Hyprland. `tests/test_ai_desktop_see_tool.sh` runs the whole path through `headless.sh` with a fake model on 127.0.0.1, which checks the image part it receives and answers with a mark. That test covers a local model, a remote-looking one (`http://127.1:PORT`) without and with consent, and `policies.ai == 2`.
 
 ## Tuning bench
 
