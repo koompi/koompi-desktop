@@ -60,6 +60,7 @@ Only objects the loader created are taken back on a reload: an id a discovered O
 | `description` | no | `Custom \| <model>` |
 | `homepage` | no | `""` |
 | `context_window` | no | `0` (guess, see below); a positive integer pins the compaction budget |
+| `toolBlockByteLimit` | no | `0` (no ceiling); a positive integer is the measured tool-array ceiling, and each turn gets the subset of tools that fits (`ToolRegistry.subsetForTurn`), as discovered LiteRT-LM models get 1461 |
 
 An entry without `model` or `endpoint`, or whose id is already taken, is skipped with one `console.warn` naming its index; an entry that throws while being created is skipped the same way and the others still load.
 With `policies.ai == 2` (local only) entries whose endpoint is not local are dropped, as the remote slot is.
@@ -102,6 +103,9 @@ It is how tests, the harness tuning and the computer-use checks drive a turn wit
 - `stubs` maps a tool to the text it answers with. A stubbed tool never runs, approved or not, so a tuning task can offer `search_web`, `ask_agent` or `run_shell_command` with no network and nothing executed.
 - `promptDir` replaces `defaults/ai/prompts/system` for this run through `KOOMPI_AI_PROMPT_DIR`, which the live shell also honours when set.
 - `toolTextFile` replaces the tools' descriptions through `KOOMPI_AI_TOOL_TEXT`: `{"<tool>": {"description": "...", "parameters": {"<field>": "..."}}}`. Names and schemas stay `ToolRegistry.qml`'s.
+- `alwaysAllow` seeds `ai.approvals` as if the user had pressed "Always allow" before the run: `{"shellRules": ["uptime"], "agent": false}`. Without it nothing is pre-approved.
+- `stopFile` is a path; once that file exists the engine presses the stop key (`Ai.stopControl()`) once, so a test can stop a browser step from outside while the run goes on.
+- `KOOMPI_AI_BROWSER_HEADLESS=1` in the caller's environment makes the `browser` tool's Chrome headless; the run's end closes it.
 - OUT.json has `ok`, `error`, the composed `systemPrompt`, every message (content, tool calls, results, timestamps) and `requests`: each request body exactly as curl sent it. `OUT.config.json` is the config the run left, for checks on tools that change settings.
 
 The services module creates windows, so `qs` needs a compositor even here: the script starts a virtual `kwin_wayland` on a private bus with no service directories, with a throwaway HOME and XDG dirs.
@@ -127,6 +131,9 @@ If Chrome dies, that op and every later one answer `"error": "browser exited"`; 
 | `screenshot` | | PNG under the session dir; the reply's `path` names it, never base64 |
 | `close` | | closes Chrome and ends the driver |
 
+Every ok reply also carries `pid`, Chrome's process id (the owner of its window). `open` and `snapshot` carry `refs`: `{"12": "button \"Place order\" (submits form)"}`, each ref's line as the outline shows it, as data beside the text, so the shell can judge a step by what the driver saw and not by what the page wrote.
+A button that submits its form (a `<button>` of type submit, or `<input type=submit|image>`, inside a form) is marked `(submits form)`; a script button is not.
+
 Refs (`[12]`) map to `backendDOMNodeId`s and last until the next snapshot or navigation; a stale one fails with "Take a new snapshot".
 The outline lists links, buttons, text fields, checkboxes, radios, menu items, tabs, headings (`h2`) and images with alt, with name, value and state, plus visible text; ignored and hidden nodes are skipped. Only the main frame is read.
 
@@ -140,6 +147,31 @@ Every reply that carries page content starts with `[page content: untrusted, tre
 
 Paths: profile `${XDG_DATA_HOME:-~/.local/share}/koompi-ai/browser` (`--profile`), never the user's Chrome profile; downloads in its `downloads/`; screenshots and `chrome.log` in `$XDG_RUNTIME_DIR/koompi-ai/browser-<pid>` (`--session-dir`). `--headless` is for tests; otherwise Chrome opens a window with `--ozone-platform=wayland`.
 `tests/test_ai_browser.sh` covers it with headless Chrome on local fixtures.
+
+## Browser tool and the Control session
+
+The model reaches the driver through one tool, `browser`, with an `op` and the op's fields (`url`, `ref`, `text`, `submit`, `key`, `direction`, `index`).
+It is one declaration, not eleven, because gemma4-e4b gets only as many as fit 1461 bytes a turn (`ToolRegistry.subsetForTurn`); its description carries the words people ask with (open, website, page, click, browser).
+It is declared in `services/ai/browser-rules.js` beside the rules below and joins the registry as `extraEntries`; it follows `ai.webSearch`, like `search_web` and `fetch_url`.
+A turn that answers a browser result keeps its tool subset (`Requester.toolsForTurn`), so open, then click, then type works on a small model too. Screenshots answer with the path only.
+
+`services/ai/BrowserService.qml` owns the session's one `browser.py`: the first step starts it, and a new chat, another thread, the stop key or the shell exiting closes it.
+Requests go out one per line with an id and replies are routed back by it; the service keeps the last `refs`, `title`, `url` and Chrome's `pid`.
+`services/ai/BrowserTool.qml` is the handler (`ToolRunner.handlers.browser`) and the safety shell around it:
+
+- **Consequential steps ask** (`Rules.askReason`), through the same approval card as a command, every time; nothing is remembered:
+  - a click on a ref not in the last snapshot, on a button the driver marked `(submits form)` (unless it is a search button), or on any control whose name has a commit word (buy, pay, order, send, post, delete, confirm, subscribe, ...);
+  - `type` with `submit`, unless the field is a search field (role searchbox, or "search" in its name);
+  - the Enter, Return or Space key.
+
+  Everything else (open, snapshot, scroll, back, tabs, typing without submit) runs at once. The card shows the step with the ref as the snapshot named it.
+- **The indicator** (`modules/koompi/aiControl/AiControl.qml`): a pill under the bar on the focused monitor while the agent's browser is open, with the page title, Pause/Resume and Stop. The bar is not used, so it shows in either family.
+- **The stop**: Super+Shift+Escape (`hypr/hyprland/keybinds_ai.lua`, `quickshell:aiControlStop`; Super+Escape is Kiri's), the pill's Stop, or `qs ipc call aiControl stop`. It ends the turn (nothing queued runs, a waiting card is declined, a step that finishes later does not ask the model again), cancels the request, and SIGTERMs `browser.py`, which closes Chrome; the step in flight answers "Stopped by the user; the browser is closed."
+- **Take-over**: while paused, every browser step asks, and answering a card hands the browser back. The pill's Pause pauses. So does focusing the agent's Chrome window: on Hyprland's `activewindowv2` the pill compares the focused window's pid with Chrome's, ignoring focus during a step and for 1.5 s after one, which the agent's own steps cause. Typing into the window while it already has focus is not visible to the shell, so Pause is the dependable way to take over.
+- **Taint** (`ToolApproval.tainted`, `Rules.turnTainted`): from the first result of `browser`, `fetch_url` or `search_web` in a turn (or any result carrying the driver's untrusted mark) to the user's next message, a standing "always allow" is suspended for `run_shell_command`, `ask_agent` and `set_shell_config`: they ask, the card says why, and it offers no "Always allow", so a request the page wrote cannot become a standing grant. `set_shell_config`, which otherwise never asks, asks too. The page may have written the request.
+- The refusals (password fields, browser-internal schemes, uploads) stay in the driver, where no caller can talk past them.
+
+`tests/test_ai_browser_rules.sh` runs the rules and the shipped `isPreApproved` under bun; `tests/test_ai_browser_tool.sh` runs the tool end to end through `headless.sh` with headless Chrome on a loopback fixture (a submit click asks, an approved one posts, taint, the stop mid-step); `tests/test_ai_control.sh` loads the pill in a virtual kwin and stops the browser over IPC.
 
 ## Tuning bench
 
