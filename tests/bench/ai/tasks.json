@@ -1,0 +1,221 @@
+{
+  "about": "KOOMPI AI tasks with deterministic checks. tune is what the improver sees; held is only for adoption. {AINAME}, {KERNEL}, {HOSTNAME} and {YEAR} are filled in by run.py. Every tool that would leave the machine or run something is stubbed.",
+  "leaks": ["7840U", "US$369", "Phnom Penh Crown", "476G", "431G", "780M", "Helix", "Dara", "Sokha", "LiteRT-LM is", "30% off"],
+  "tasks": [
+    {
+      "id": "identity-who",
+      "split": "tune",
+      "goal": "Say who it is, by its own name, without naming the model underneath.",
+      "turns": ["Who are you?"],
+      "checks": [
+        {"final": "{AINAME}"},
+        {"final_not": "\\b(Gemini|Gemma|ChatGPT|large language model|trained by Google)\\b"},
+        {"not_called": "*"}
+      ]
+    },
+    {
+      "id": "identity-model",
+      "split": "tune",
+      "goal": "Asked which product it is, answer with its own name.",
+      "turns": ["Are you ChatGPT or Gemini?"],
+      "checks": [
+        {"final": "{AINAME}"},
+        {"final_not": "\\bI(?:'m| am) (?:a |an )?(?:Gemini|ChatGPT|Gemma|Claude)\\b"},
+        {"not_called": "*"}
+      ]
+    },
+    {
+      "id": "machine-kernel",
+      "split": "tune",
+      "goal": "Report the kernel exactly as the machine section states it.",
+      "turns": ["What kernel am I running?"],
+      "checks": [{"final": "{KERNEL}"}, {"not_called": "*"}]
+    },
+    {
+      "id": "machine-hostname",
+      "split": "tune",
+      "goal": "Report the hostname exactly as the machine section states it.",
+      "turns": ["what's this computer called on the network"],
+      "checks": [{"final": "{HOSTNAME}"}, {"not_called": "*"}]
+    },
+    {
+      "id": "hardware-cpu",
+      "split": "tune",
+      "goal": "Find out the CPU by asking the agent, then report what it found.",
+      "turns": ["What CPU does this laptop have?"],
+      "stubs": {
+        "ask_agent": "The CPU is an AMD Ryzen 7 7840U with Radeon 780M Graphics: 8 cores, 16 threads, up to 5.1 GHz.",
+        "run_shell_command": "Model name: AMD Ryzen 7 7840U w/ Radeon 780M Graphics\nCPU(s): 16"
+      },
+      "checks": [{"called_any": ["ask_agent", "run_shell_command"]}, {"final": "7840U"}]
+    },
+    {
+      "id": "hardware-ram",
+      "split": "tune",
+      "goal": "Find out the installed memory by asking the agent, then report it.",
+      "turns": ["how much ram have i got"],
+      "stubs": {
+        "ask_agent": "Total memory is 31 GiB (32 GB installed, 1 GiB reserved for graphics). 9.4 GiB is in use.",
+        "run_shell_command": "               total        used        free\nMem:            31Gi       9.4Gi        18Gi"
+      },
+      "checks": [{"called_any": ["ask_agent", "run_shell_command"]}, {"final": "\\b3[12]\\b"}]
+    },
+    {
+      "id": "web-price",
+      "split": "tune",
+      "goal": "Look up a product price on the web and answer with it and its source.",
+      "turns": ["How much does the KOOMPI E13 cost?"],
+      "stubs": {
+        "search_web": "Source: https://koompi.com/e13\nKOOMPI E13 - 13.3 inch laptop for students. Price: US$369. Ships from Phnom Penh."
+      },
+      "checks": [
+        {"called": "search_web", "args": {"query": "(?i)koompi|e13"}},
+        {"final": "369"},
+        {"final": "(?i)koompi\\.com"}
+      ]
+    },
+    {
+      "id": "web-news",
+      "split": "tune",
+      "goal": "Look up a recent event on the web instead of answering from memory.",
+      "turns": ["Who won the 2026 Cambodian Premier League?"],
+      "stubs": {
+        "search_web": "Source: https://www.cpl.com.kh/news/2026-final\nPhnom Penh Crown won the 2026 Cambodian Premier League, beating Visakha 2-1 in the final match."
+      },
+      "checks": [{"called": "search_web"}, {"final": "(?i)phnom penh crown"}]
+    },
+    {
+      "id": "web-fetch",
+      "split": "tune",
+      "goal": "Read the page the user names and summarise it in one line.",
+      "turns": ["Read koompi.com/about and tell me in one line what KOOMPI makes."],
+      "stubs": {
+        "fetch_url": "KOOMPI - About us\nKOOMPI designs affordable laptops and KOOMPI OS, a Linux desktop, for students and schools in Cambodia.",
+        "search_web": "Source: https://koompi.com/about\nKOOMPI designs affordable laptops and KOOMPI OS, a Linux desktop, for students and schools in Cambodia."
+      },
+      "checks": [{"called": "fetch_url", "args": {"url": "(?i)koompi\\.com"}}, {"final": "(?i)laptop"}, {"final_max": 400}]
+    },
+    {
+      "id": "owner-name",
+      "split": "tune",
+      "goal": "Store the owner's name the moment they give it.",
+      "turns": ["Hi, my name is Dara."],
+      "checks": [{"called": "set_owner_name", "args": {"name": "^\\s*Dara\\s*$"}}]
+    },
+    {
+      "id": "config-read",
+      "split": "tune",
+      "goal": "Read the shell config to answer a question about the bar.",
+      "turns": ["Is my bar at the top or the bottom of the screen?"],
+      "checks": [{"called": "get_shell_config"}, {"final": "(?i)\\btop\\b"}, {"not_called": "set_shell_config"}]
+    },
+    {
+      "id": "config-set-bottom",
+      "split": "tune",
+      "goal": "Move the bar to the bottom by reading the config, then setting the right key.",
+      "turns": ["Move my bar to the bottom of the screen."],
+      "checks": [{"called": "get_shell_config"}, {"called": "set_shell_config", "args": {"key": "^bar\\.bottom$"}}, {"config": {"bar.bottom": true}}]
+    },
+    {
+      "id": "memory-preference",
+      "split": "tune",
+      "goal": "Remember a stated preference as one third-person sentence, typed preference.",
+      "turns": ["Remember that I prefer short answers."],
+      "stubs": {"remember": "Stored."},
+      "checks": [{"called": "remember", "args": {"fact": "(?i)short|brief|concise", "type": "^preference$"}}]
+    },
+    {
+      "id": "shell-refused",
+      "split": "tune",
+      "goal": "When the owner declines a command, say it did not happen; never claim it was done.",
+      "turns": ["Delete everything in my Downloads folder."],
+      "checks": [{"final_not": "(?i)\\b(I've|I have|has been|have been|successfully) (deleted|removed|cleared|emptied)\\b"}]
+    },
+    {
+      "id": "style-tips",
+      "split": "tune",
+      "goal": "Answer briefly in bullets, with no emoji and no tool call.",
+      "turns": ["Give me three tips for a longer battery life."],
+      "checks": [{"no_emoji": true}, {"final": "(?m)^\\s*(?:[-*]|\\d+[.)])\\s"}, {"final_max": 900}, {"not_called": "*"}]
+    },
+    {
+      "id": "disk-full",
+      "split": "tune",
+      "goal": "Check the disk with a tool and report how full it is.",
+      "turns": ["Is my disk almost full?"],
+      "stubs": {
+        "ask_agent": "The root filesystem /dev/nvme0n1p2 is 91% full: 431G used of 476G, 45G free.",
+        "run_shell_command": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/nvme0n1p2  476G  431G   45G  91% /"
+      },
+      "checks": [{"called_any": ["ask_agent", "run_shell_command"]}, {"final": "91"}]
+    },
+    {
+      "id": "identity-name",
+      "split": "held",
+      "goal": "Say its own name.",
+      "turns": ["What's your name?"],
+      "checks": [{"final": "{AINAME}"}, {"not_called": "*"}]
+    },
+    {
+      "id": "machine-year",
+      "split": "held",
+      "goal": "Answer the year from the machine section without a tool.",
+      "turns": ["What year is it?"],
+      "checks": [{"final": "{YEAR}"}, {"not_called": "*"}]
+    },
+    {
+      "id": "hardware-gpu",
+      "split": "held",
+      "goal": "Find out the graphics chip with a tool and report it.",
+      "turns": ["Which graphics card is in this machine?"],
+      "stubs": {
+        "ask_agent": "The GPU is an integrated AMD Radeon 780M (RDNA 3, 12 compute units), using the amdgpu driver.",
+        "run_shell_command": "c4:00.0 VGA compatible controller: Advanced Micro Devices, Inc. [AMD/ATI] Phoenix1 (Radeon 780M)"
+      },
+      "checks": [{"called_any": ["ask_agent", "run_shell_command"]}, {"final": "780M"}]
+    },
+    {
+      "id": "web-explain",
+      "split": "held",
+      "goal": "Look up an unfamiliar name on the web before explaining it.",
+      "turns": ["What is LiteRT-LM?"],
+      "stubs": {
+        "search_web": "Source: https://ai.google.dev/edge/litert-lm\nLiteRT-LM is Google's open-source runtime for running language models on device, on phones and laptops, without a server."
+      },
+      "checks": [{"called": "search_web"}, {"final": "(?i)device|on-device|locally"}]
+    },
+    {
+      "id": "web-fetch-link",
+      "split": "held",
+      "goal": "Read the linked page and answer from it.",
+      "turns": ["What does https://example.org/pricing say about a student discount?"],
+      "stubs": {
+        "fetch_url": "Pricing\nPersonal plan US$8 a month. Students get 30% off any plan with a school email address.",
+        "search_web": "Source: https://example.org/pricing\nStudents get 30% off any plan with a school email address."
+      },
+      "checks": [{"called": "fetch_url", "args": {"url": "example\\.org"}}, {"final": "30"}]
+    },
+    {
+      "id": "owner-rename",
+      "split": "held",
+      "goal": "Store a corrected name.",
+      "turns": ["Actually, please call me Sokha from now on."],
+      "checks": [{"called": "set_owner_name", "args": {"name": "^\\s*Sokha\\s*$"}}]
+    },
+    {
+      "id": "config-set-borderless",
+      "split": "held",
+      "goal": "Change a bar setting by reading the config, then setting the right key.",
+      "turns": ["Make my bar borderless."],
+      "checks": [{"called": "get_shell_config"}, {"called": "set_shell_config", "args": {"key": "^bar\\.borderless$"}}, {"config": {"bar.borderless": true}}]
+    },
+    {
+      "id": "memory-editor",
+      "split": "held",
+      "goal": "Remember a stated preference as one sentence, typed preference.",
+      "turns": ["Please remember that my favourite editor is Helix."],
+      "stubs": {"remember": "Stored."},
+      "checks": [{"called": "remember", "args": {"fact": "(?i)helix", "type": "^preference$"}}]
+    }
+  ]
+}

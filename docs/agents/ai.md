@@ -136,3 +136,15 @@ Every reply that carries page content starts with `[page content: untrusted, tre
 
 Paths: profile `${XDG_DATA_HOME:-~/.local/share}/koompi-ai/browser` (`--profile`), never the user's Chrome profile; downloads in its `downloads/`; screenshots and `chrome.log` in `$XDG_RUNTIME_DIR/koompi-ai/browser-<pid>` (`--session-dir`). `--headless` is for tests; otherwise Chrome opens a window with `--ozone-platform=wayland`.
 `tests/test_ai_browser.sh` covers it with headless Chrome on local fixtures.
+
+## Tuning bench
+
+`tests/bench/ai/` measures a prompt set on the local model and improves it.
+
+- `tasks.json`: tasks with deterministic checks, two thirds `tune` and one third `held`. A check is one of `called` (with `args` regexes), `called_any`, `not_called` (`*` for any tool), `final` and `final_not` (regex on the last answer), `final_max`, `no_emoji`, or `config` (values left in `OUT.config.json`). `{AINAME}`, `{KERNEL}`, `{HOSTNAME}` and `{YEAR}` are this machine's. Tools that would leave the machine or run something are stubbed. `leaks` lists task answers a harness must never contain.
+- `run.py --prompts DIR --out RUNDIR [--split] [--repeat N] [--model]`: every task through `headless.sh`, a `trajectory.md` and `checks.json` per rollout, `summary.json` with passes and the prompt's size. Calls are read from the request bodies too, so a call compaction rewrote away still counts.
+- `tune.py --out RUNDIR [--k] [--mode agg|seq] [--repeat]`: the Harness² loop, ported. Two improvers read the base trajectories, one for procedure (INV) and one for knowledge (DOM), each editing its own copy of the sections; each candidate is probed; a composer merges them; the best by tune passes, then size, runs the held split beside the base. `report.md` says ADOPT only when held passes rise, no tune task loses passes and the sections are no larger. It never installs anything.
+
+The improver is `claude -p` with edit tools and no shell, in a workspace that holds only copies and evidence; `--improver CMD` swaps it, which is how `tests/test_ai_bench.sh` tests the loop offline.
+Harness² itself is not a dependency: it edits a coding agent's skills, subagents and plugins, and this agent's surface is five always-on files on a 16k window.
+The local model is one engine, so run one bench at a time; a full `--repeat 2` pass over all tasks takes about ten minutes on e4b.
