@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The AI's browser driver (scripts/ai/browser.py) against headless Chrome on local
-# fixtures: the snapshot outline with refs and a budget, click, type and submit,
+# fixtures: the snapshot outline with refs and a budget, the form-submit mark, click, type and submit,
 # the refusals (password fields, chrome:// by open and by click), stale refs, the
 # untrusted marker, no TCP listener, and the browser dying with the driver.
 # Throwaway HOME, XDG dirs and profile; no network; no window.
@@ -204,6 +204,8 @@ snap = r.get("text", "")
 link, button = ref_of(snap, r'link "Go to form"'), ref_of(snap, r'button "Say hi"')
 r = d.req("click", ref=button)
 check("click a button replies with no navigation", r.get("ok") and "no navigation" in r.get("text", ""), r)
+check("a script button outside a form is not marked as submitting", "submits form" not in snap, snap)
+check("an ok reply carries the browser's pid", r.get("pid") == d.chrome_pid(), (r.get("pid"), d.chrome_pid()))
 r = d.req("snapshot")
 check("the button's handler ran (trusted click)", "Hi there" in r.get("text", ""), r.get("text", "")[:600])
 
@@ -220,6 +222,10 @@ print("---- form snapshot ----\n" + snap + "\n----")
 q, pw, otp = ref_of(snap, r'textbox "Query"'), ref_of(snap, r'textbox "Secret"'), ref_of(snap, r'textbox "Code"')
 internals = ref_of(snap, r'link "Browser internals"')
 check("form snapshot lists the fields", None not in (q, pw, otp, internals), snap)
+search_btn = ref_of(snap, r'button "Search"')
+check("the reply's refs say what each ref is, as data", r.get("refs", {}).get(str(search_btn)) == 'button "Search" (submits form)'
+      and len(r.get("refs", {})) == len(re.findall(r"^\[\d+\] ", snap, re.M)), r.get("refs"))
+check("the snapshot marks the form's submit button", re.search(r'button "Search" \(submits form\)', snap), snap)
 check("the snapshot marks both secret fields", re.search(r'textbox "Secret" \(password: do not type\)', snap)
       and re.search(r'textbox "Code" \(password: do not type\)', snap), snap)
 r = d.req("type", ref=q, text="hello koompi", submit=True)

@@ -54,6 +54,9 @@ KEY_ALIASES = {"up": "arrowup", "down": "arrowdown", "left": "arrowleft", "right
 STALE = "ref [{}] is not on the current page; it changed since the last snapshot. Take a new snapshot and use its refs."
 DEEP_ACTIVE = ("(()=>{let e=document.activeElement;"
                "while(e&&e.shadowRoot&&e.shadowRoot.activeElement)e=e.shadowRoot.activeElement;return e})()")
+# A button that sends its form: the shell asks the user before the agent clicks one.
+SUBMITS = ("function(){if(!this.form)return false;var t=(this.getAttribute('type')||'').toLowerCase();"
+           "return this.tagName==='BUTTON'?(t===''||t==='submit'):(this.tagName==='INPUT'&&(t==='submit'||t==='image'))}")
 ACTIVE_SECRET = ("(()=>{const e=" + DEEP_ACTIVE + ";if(!e)return false;"
                  "const ac=((e.getAttribute&&e.getAttribute('autocomplete'))||'').toLowerCase();"
                  "return (e.tagName==='INPUT'&&e.type==='password')||ac.includes('password')||ac.includes('one-time-code')})()")
@@ -227,6 +230,7 @@ class Driver:
         self.sessions = {}
         self.targets = {}
         self.refs = {}
+        self.ref_lines = {}  # what the snapshot said each ref is, as data the shell can trust
         self.notes = []
         self.downloaded = []
         self.shots = 0
@@ -591,6 +595,8 @@ class Driver:
             states.append("disabled")
         if secret:
             states.append("password: do not type")
+        if role == "button" and self.submits(node["backendDOMNodeId"], sess):
+            states.append("submits form")
         return line + (f" ({', '.join(states)})" if states else ""), Ref(sess, None, node["backendDOMNodeId"], label, name)
 
     def is_secret(self, backend, ax_name, sess):
@@ -605,13 +611,23 @@ class Driver:
         return ((node.get("nodeName") == "INPUT" and attrs.get("type") == "password")
                 or "password" in attrs.get("autocomplete", "") or "one-time-code" in attrs.get("autocomplete", ""))
 
+    def submits(self, backend, sess):
+        try:
+            obj = self.cdp.send("DOM.resolveNode", {"backendNodeId": backend, "objectGroup": "koompi"},
+                                sess)["object"]["objectId"]
+            r = self.cdp.send("Runtime.callFunctionOn", {"functionDeclaration": SUBMITS, "objectId": obj,
+                                                         "returnByValue": True}, sess, timeout=10)
+        except (CDPError, KeyError):
+            return False
+        return r.get("result", {}).get("value") is True
+
     def snapshot_lines(self, budget):
         sess, tab = self.current()
         self.cdp.post("Runtime.releaseObjectGroup", {"objectGroup": "koompi"}, sess)
         nav = tab.nav
         lines = self.outline(self.cdp.send("Accessibility.getFullAXTree", None, sess).get("nodes", []))
         title, url = self.info()
-        out, refs, used = [], {}, 0
+        out, refs, used, self.ref_lines = [], {}, 0, {}
         for i, (text, node) in enumerate(lines):
             if node is not None:
                 text, ref = self.describe(node, len(refs) + 1, sess)
@@ -626,6 +642,7 @@ class Driver:
             if node is not None:
                 ref.nav = nav
                 refs[len(refs) + 1] = ref
+                self.ref_lines[str(len(refs))] = text[text.index("] ") + 2:]
         self.refs = refs
         if not lines:
             out.append("(the page has no readable content yet)")
@@ -650,7 +667,7 @@ class Driver:
         self.refs = {}
         notes = self.wait_loaded(tab, before) if r.get("loaderId") else []
         lines, title, url = self.snapshot_lines(self.budget(req))
-        return self.reply(notes + lines, title=title, url=url)
+        return self.reply(notes + lines, title=title, url=url, refs=self.ref_lines)
 
     def budget(self, req):
         try:
@@ -660,7 +677,7 @@ class Driver:
 
     def op_snapshot(self, req):
         lines, title, url = self.snapshot_lines(self.budget(req))
-        return self.reply(lines, title=title, url=url)
+        return self.reply(lines, title=title, url=url, refs=self.ref_lines)
 
     def op_click(self, req):
         n, ref = self.resolve(req.get("ref"))
@@ -848,7 +865,10 @@ class Driver:
                     self.launch()
                 if self.cdp.dead or self.proc.poll() is not None:
                     raise Gone()
-            return {"id": rid, "ok": True, **fn(req)}
+            reply = {"id": rid, "ok": True, **fn(req)}
+            if not self.closed and self.proc:
+                reply["pid"] = self.proc.pid  # the shell matches it against the focused window
+            return reply
         except Gone:
             return {"id": rid, "ok": False, "error": "browser exited"}
         except OpError as e:
