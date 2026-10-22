@@ -115,17 +115,14 @@ QtObject {
     // temperature 0. Every turn is held under that ceiling, not only the turn that
     // reads a tool result back — the system prompt carries the battery percentage and
     // the kernel version, and those are numbers the model gets wrong too. The turn
-    // answering a tool result still goes out bare: it does not need to call anything,
-    // and it is the turn where relayed numbers matter most.
+    // answering a tool result gets the same subset, still under the ceiling: going out
+    // bare made every chain impossible (read the config, then set it), and e4b wrote
+    // its own call syntax into the reply instead (tests/bench/ai, config-set-*).
     function toolsForTurn(model, messages) {
         const format = model.api_format;
         const declared = root.engine.tools[format][root.engine.currentTool];
         const limit = model?.toolBlockByteLimit ?? 0;
         if (limit <= 0) return declared;
-
-        const last = messages[messages.length - 1];
-        const answeringATool = (last?.toolCallId ?? "").length > 0 || (last?.functionName ?? "").length > 0;
-        if (answeringATool) return JSON.stringify(declared).length > limit ? [] : declared;
 
         if (root.engine.currentTool !== "functions") return declared;
         return root.engine.toolRegistry.subsetForTurn(format, limit, root.lastUserText(messages));
