@@ -16,6 +16,8 @@ A model with `requires_key` goes out only when the keyring is ready (`loaded` an
   A wait is dropped when the model changes or the chat is cleared meanwhile; the turn stays for a retry.
 - Compaction refused for want of a key: nothing is sent, `compacting` stays false, the conversation is kept, and one note says so.
 
+A model with `auth: "chatgpt"` passes the gate without a key. Its bearer is fetched by the request script itself (`ResponsesApiStrategy.finalizeScriptContent`) and handed to curl through bash's builtin `printf`, so the token is in no QML property, config file, `request.sh` or argv. When the helper fails the script prints one `error` event with the code `chatgpt_auth_<exit>` (3 plan scope missing, 4 sign in again, 5 network) and the turn ends with it.
+
 Belt and braces below the gate: `OpenAiApiStrategy` and `MistralApiStrategy` emit the header as bash's `${API_KEY:+-H "Authorization: Bearer ${API_KEY}"}`, so an empty key produces no `Authorization` header at all.
 The compactor in `Conversation.compact()` goes through the same strategy call with the model, so it carries the key too.
 
@@ -50,6 +52,7 @@ Only objects the loader created are taken back on a reload: an id a discovered O
 | `endpoint` | yes | full chat-completions URL; for `responses`, the Responses URL (`https://api.openai.com/v1/responses`) |
 | `name` | no | `guessModelName(model)` |
 | `api_format` | no | `openai`; also `gemini`, `mistral`, `responses` (OpenAI's Responses API: `instructions`, full history in `input`, `store: false`, no `temperature`) |
+| `auth` | no | `""`; `"chatgpt"` signs in with a ChatGPT plan instead of a key: the request script asks `scripts/ai/chatgpt_auth.py token` for the bearer when it runs, and the send gate needs no API key. Use with `responses` |
 | `key_id` | no | inferred from the name (`inferKeyIdForModel`); models sharing a key share an id |
 | `requires_key` | no | absent: `true` unless the endpoint is local (`localhost`, `127.0.0.1`, `::1`); present: only a literal `false` turns the gate off, `"true"` or `1` count as `true` |
 | `key_get_link` | no | `""`; shown by the `/key` advice |

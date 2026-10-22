@@ -61,6 +61,7 @@ QtObject {
                     "name": `${entry.name ?? ""}`.length > 0 ? `${entry.name}` : root.registry.guessModelName(id),
                     "endpoint": endpoint,
                     "api_format": `${entry.api_format ?? "openai"}`,
+                    "auth": `${entry.auth ?? ""}`,
                     "key_id": `${entry.key_id ?? root.registry.inferKeyIdForModel(id)}`,
                     // absent: a local endpoint needs none; present: only a literal false turns the gate off
                     "requires_key": entry.requires_key === undefined ? !Endpoints.isLocal(endpoint) : entry.requires_key !== false,

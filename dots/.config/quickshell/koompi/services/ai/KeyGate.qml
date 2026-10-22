@@ -31,7 +31,7 @@ QtObject {
     // skipped; the turn decides again after it), a waiting compaction is
     // displaced by a send.
     function admit(model, send, kind = "send"): bool {
-        if (!model?.requires_key) return true;
+        if (!model?.requires_key || model?.auth === "chatgpt") return true; // its bearer comes from chatgpt_auth.py
         if (!root.keyringReady) {
             if (kind === "compact" && root._deferred?.kind === "send") {
                 console.log("[AI] compaction skipped: a message is already waiting on the keyring");

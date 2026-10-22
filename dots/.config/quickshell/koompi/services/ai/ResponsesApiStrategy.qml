@@ -1,3 +1,5 @@
+import qs.modules.common
+import qs.modules.common.functions as CF
 import qs.services
 import QtQuick
 
@@ -7,6 +9,7 @@ ApiStrategy {
     property var pendingCalls: ({}) // output_index -> { call_id, name, arguments }
     property bool completed: false
     property bool failed: false
+    readonly property string tokenVar: "KOOMPI_CHATGPT_TOKEN"
     readonly property var forbiddenFields: ["temperature", "max_output_tokens", "previous_response_id", "metadata", "user"]
 
     function buildEndpoint(model: AiModel): string {
@@ -50,9 +53,19 @@ ApiStrategy {
         return data;
     }
 
+    // the plan token reaches curl through a builtin printf, so it is in no argv and no file
     function buildAuthorizationHeader(apiKeyEnvVarName: string, model: AiModel): string {
+        if (model?.auth === "chatgpt") return `-H @<(printf 'Authorization: Bearer %s\\n' "\$${tokenVar}")`;
         if (!model?.requires_key) return "";
         return `\$\{${apiKeyEnvVarName}:+-H "Authorization: Bearer \$\{${apiKeyEnvVarName}\}"\}`;
+    }
+
+    function finalizeScriptContent(scriptContent: string): string {
+        if (scriptContent.indexOf(`"\$${tokenVar}"`) < 0) return scriptContent;
+        const helper = CF.StringUtils.shellSingleQuoteEscape(CF.FileUtils.trimFileProtocol(`${Directories.scriptPath}/ai/chatgpt_auth.py`));
+        const setup = `${tokenVar}="$('${helper}' token)" || { printf 'data: {"type":"error","code":"chatgpt_auth_%s"}\\n' "$?"; exit 1; }\n`;
+        const cut = scriptContent.indexOf("\n") + 1;
+        return scriptContent.slice(0, cut) + setup + scriptContent.slice(cut);
     }
 
     function parseResponseLine(line, message) {

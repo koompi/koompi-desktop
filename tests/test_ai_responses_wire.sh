@@ -50,6 +50,7 @@ writeFileSync("./strategy.mjs", strip(`
 const Translation = { tr: s => s };
 const root = { emptyParameters: { type: "object", properties: {} } };
 let isReasoning = false, pendingCalls = {}, completed = false, failed = false;
+const tokenVar = "KOOMPI_CHATGPT_TOKEN";
 const forbiddenFields = ${/forbiddenFields: (\[[^\]]*\])/.exec(readFileSync(strategyFile, "utf8"))[1]};
 ${names.map(n => lift(strategyFile, n)).join("\n")}
 ${lift(registryFile, "responsesDeclaration")}
@@ -106,6 +107,8 @@ check("an empty tool list is omitted", bare.tools === undefined);
 const legacy = s.buildRequestData({ model: "gpt-5" }, [msg({ role: "tool", functionResponse: "old" })], "sys", 0, [], "");
 check("a tool result with no id degrades to a user message", legacy.input[0]?.role === "user", JSON.stringify(legacy.input));
 
+check("a plan model's bearer is read from the token variable",
+    s.buildAuthorizationHeader("API_KEY", { auth: "chatgpt" }).includes('"$KOOMPI_CHATGPT_TOKEN"'));
 check("a keyed model still uses the key variable",
     s.buildAuthorizationHeader("API_KEY", { requires_key: true }).includes("${API_KEY}"));
 check("a keyless model sends no bearer", s.buildAuthorizationHeader("API_KEY", { requires_key: false }) === "");

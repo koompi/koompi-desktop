@@ -21,7 +21,7 @@ QtObject {
     readonly property var apiKeysLoaded: KeyringStorage.loaded
     readonly property bool currentModelHasApiKey: {
         const model = root.models[root.currentModelId];
-        if (!model || !model.requires_key) return true;
+        if (!model || !model.requires_key || model.auth === "chatgpt") return true;
         if (!root.apiKeysLoaded) return false;
         const key = root.apiKeys[model.key_id];
         return (key?.length > 0);
