@@ -263,7 +263,7 @@ Singleton {
 
     property var promptSubstitutions: {
         "{DISTRO}": SystemInfo.distroName,
-        "{DATETIME}": `${DateTime.time}, ${DateTime.collapsedCalendarFormat}`,
+        "{DATETIME}": `${DateTime.time}, ${Qt.locale().toString(DateTime.clock.date, "dddd, MMMM d, yyyy")}`,
         "{WINDOWCLASS}": ToplevelManager.activeToplevel?.appId ?? "Unknown",
         "{DE}": `${SystemInfo.desktopEnvironment} (${SystemInfo.windowingSystem})`,
         "{AINAME}": root.aiName,
