@@ -106,13 +106,12 @@ function quote(s) {
  * file. A JPEG in base64 would also pass the 128 KiB a single argument may have. The image
  * bytes never pass through QML.
  */
-function curlBody(body, bodyPath) {
-    const paths = [];
-    const re = /@@KOOMPI_SCREEN:([^@']+)@@/g;
-    let m;
-    while ((m = re.exec(body)) !== null) {
-        if (paths.indexOf(m[1]) < 0) paths.push(m[1]);
-    }
+function curlBody(body, bodyPath, screens) {
+    // Only the screenshots withScreens placed are read, never a path found in the text:
+    // the body carries web pages and window text, and a page that wrote a placeholder
+    // for ~/.ssh/id_ed25519 must not get that file base64'd into the request.
+    const paths = (screens ?? []).filter((path, i, all) => safePath(path) && all.indexOf(path) === i
+        && `${body}`.indexOf(placeholder(path)) >= 0);
     if (paths.length === 0) return { "setup": "", "arg": `--data ${quote(body)}` };
     let setup = `koompi_body=${quote(body)}\n`;
     for (const path of paths) {

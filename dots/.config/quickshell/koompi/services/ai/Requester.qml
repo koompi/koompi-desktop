@@ -193,7 +193,7 @@ QtObject {
         /* Create command string. `exec` so the kill lands on curl itself rather than on
            a bash that leaves it holding the server's only inference slot, and
            --max-time so curl gives up even if this shell is not around to kill it. */
-        const body = Screen.curlBody(JSON.stringify(data), CF.FileUtils.trimFileProtocol(root.bodyFilePath));
+        const body = Screen.curlBody(JSON.stringify(data), CF.FileUtils.trimFileProtocol(root.bodyFilePath), shots.map(m => `${m.screenImage ?? ""}`));
         scriptFileSetupContent += body.setup;
         let scriptRequestContent = ""
         scriptRequestContent += `exec curl --no-buffer --max-time ${root.deadlineSec} "${endpoint}"`
