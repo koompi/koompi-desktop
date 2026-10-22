@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # J22: the bar's right end is in one fixed order and wired to the two panels.
-# Left to right: mode lights, update glyph, sliders glyph, clock. The clock and the
-# glyph both toggle the one right panel, and there is no
-# panel button. Headless: KWin's virtual backend hosts a nested shell; the probe
+# Left to right: mode lights, update glyph, sliders glyph, bell, clock. The clock, the
+# glyph and the bell all toggle the one right panel, and there is no
+# panel button. The unread dot is on the bell, not the clock. Headless: KWin's virtual backend hosts a nested shell; the probe
 # forces the modes on, clicks the real buttons (QML click()) and reads the item
 # tree. BAR_SHOT=<path> keeps the bar image with every mode lit.
 set -uo pipefail
@@ -22,6 +22,10 @@ fi
 grep -q 'sidebarRightOpen = !GlobalStates.sidebarRightOpen' "$BAR/BarContent.qml" || fail "BarContent.qml: the clock does not toggle sidebarRightOpen"
 grep -q 'controlCenterOpen' "$BAR/BarContent.qml" "$VBAR/VerticalBarContent.qml" && fail "a bar button still names controlCenterOpen; there is one panel"
 grep -q 'sidebarRightOpen = !GlobalStates.sidebarRightOpen' "$VBAR/VerticalBarContent.qml" || fail "VerticalBarContent.qml: the clock does not toggle sidebarRightOpen"
+grep -q 'sidebarRightOpen = !GlobalStates.sidebarRightOpen' "$BAR/NotificationButton.qml" || fail "NotificationButton.qml: the bell does not toggle sidebarRightOpen"
+grep -q 'Bar.NotificationButton' "$VBAR/VerticalBarContent.qml" || fail "the vertical bar has no bell"
+grep -q 'NotificationUnreadCount' "$BAR/NotificationButton.qml" || fail "the bell carries no unread dot"
+grep -q 'NotificationUnreadCount' "$BAR/BarContent.qml" "$VBAR/VerticalBarContent.qml" && fail "a clock still carries the unread dot; it is on the bell"
 for f in "$BAR/ClockWidgetPopup.qml"; do
     grep -qi 'uptime' "$f" && fail "$(basename "$f") still shows uptime; it lives in About"
 done
@@ -30,7 +34,7 @@ for f in "$BAR"/*.qml "$VBAR"/*.qml; do
     n="$(wc -l < "$f")"
     (( n <= 400 )) || fail "${f#"$REPO_ROOT"/} is $n lines, cap is 400"
 done
-echo "ok   source: no rightSidebarButton, clock and glyph toggle their panels in both bars, uptime in About only"
+echo "ok   source: no rightSidebarButton, clock, glyph and bell toggle their panels in both bars, the dot is on the bell, uptime in About only"
 
 # --- headless ----------------------------------------------------------------
 if ! command -v qs >/dev/null 2>&1 || ! command -v kwin_wayland >/dev/null 2>&1; then
@@ -87,7 +91,7 @@ ShellRoot {
 
     function checkOrder(win) {
         const names = ["modeRecording", "modeKeepAwake", "modeNightLight", "modeDoNotDisturb", "modeDictation",
-                       "updateBadge", "controlCenterButton", "clockButton"];
+                       "updateBadge", "controlCenterButton", "notificationButton", "clockButton"];
         let prev = null;
         let ok = true;
         let line = "";
@@ -102,8 +106,10 @@ ShellRoot {
         probe.verdict(probe.findNamed(win.contentItem, "rightSidebarButton") === null, "no panel button on the bar");
         const cc = probe.span(win, "controlCenterButton");
         const clock = probe.span(win, "clockButton");
-        probe.verdict(cc.item.width >= 24 && cc.item.height >= 24 && clock.item.width >= 24 && clock.item.height >= 24,
-            "glyph " + cc.item.width + "x" + cc.item.height + " and clock " + clock.item.width + "x" + clock.item.height + " are separate hit areas of 24px or more");
+        const bell = probe.span(win, "notificationButton");
+        probe.verdict([cc, bell, clock].every(s => s && s.item.width >= 24 && s.item.height >= 24),
+            "glyph " + cc.item.width + "x" + cc.item.height + ", bell " + (bell ? bell.item.width + "x" + bell.item.height : "none")
+            + " and clock " + clock.item.width + "x" + clock.item.height + " are separate hit areas of 24px or more");
     }
 
     function checkClicks(win) {
@@ -119,6 +125,11 @@ ShellRoot {
         probe.verdict(GlobalStates.sidebarRightOpen && clock.toggled && cc.toggled, "glyph click opens the same panel");
         cc.click();
         probe.verdict(!GlobalStates.sidebarRightOpen, "a second glyph click closes it");
+        const bell = probe.findNamed(win.contentItem, "notificationButton");
+        bell.click();
+        probe.verdict(GlobalStates.sidebarRightOpen && bell.toggled && clock.toggled && cc.toggled, "bell click opens the same panel, all three drawn toggled");
+        bell.click();
+        probe.verdict(!GlobalStates.sidebarRightOpen && !bell.toggled, "a second bell click closes it");
 
         // the Wi-Fi glyph asks the panel for its network list; the panel itself is not in this probe
         const net = probe.findNamed(win.contentItem, "networkIndicator");
@@ -132,12 +143,22 @@ ShellRoot {
     }
 
     function checkDot(win) {
-        const dot = probe.findNamed(win.contentItem, "unreadDot");
+        const bell = probe.findNamed(win.contentItem, "notificationButton");
+        const dot = bell ? probe.findNamed(bell, "unreadDot") : null;
+        const clock = probe.findNamed(win.contentItem, "clockButton");
+        probe.verdict(dot !== null && probe.findNamed(clock, "unreadDot") === null, "the unread dot is on the bell and not on the clock");
         Notifications.silent = false;
         Notifications.unread = 0;
+        const bellWidth = bell.width;
         probe.verdict(dot && !dot.visible, "no dot with nothing unread");
         Notifications.unread = 3;
         probe.verdict(dot && dot.visible && dot.width <= 8, "unread notifications show a small dot, " + (dot ? dot.width : -1) + "px, no count");
+        const d = dot.mapToItem(bell, 0, 0);
+        probe.verdict(bell.width === bellWidth && d.x >= 0 && d.x + dot.width <= bell.width + 1 && d.y >= -1,
+            "the dot sits on the bell without moving it: bell " + bellWidth + "->" + bell.width + "px, dot at " + Math.round(d.x) + "," + Math.round(d.y));
+        Notifications.silent = true;
+        probe.verdict(!dot.visible, "Do Not Disturb hides the dot");
+        Notifications.silent = false;
         Notifications.unread = 0;
         Notifications.silent = true;
     }
@@ -215,5 +236,5 @@ if loops="$(grep -E 'Binding loop|TypeError|ReferenceError' <<< "$out")"; then
     fail "the bar logged a binding loop or a script error"
 fi
 [[ -n "${BAR_SHOT:-}" && -s "$WORK/out/bar.png" ]] && cp "$WORK/out/bar.png" "$BAR_SHOT"
-(( failed )) || echo "ok   headless: modes, update glyph, Control Center glyph, clock in order; clicks wired; dot, no count; battery percent"
+(( failed )) || echo "ok   headless: modes, update glyph, Control Center glyph, bell, clock in order; clicks wired; dot on the bell, no count; battery percent"
 exit $failed

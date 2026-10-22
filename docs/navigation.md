@@ -58,7 +58,7 @@ The horizontal bar and the vertical bar are alternative bars, so a given session
 | Surface | Keyboard | Bar | Corner | Gesture | IPC |
 | --- | --- | --- | --- | --- | --- |
 | Left sidebar | `Super+A` | one button, hidden unless AI or translator is enabled | top-left | none | yes |
-| Right panel (quick settings and notifications) | `Super+N` | the clock and the sliders glyph (`tune`) left of it, both drawn toggled while open; a dot on the clock while notifications are unread | top-right | none | yes, `sidebarRight`; `controlCenter` is an alias |
+| Right panel (quick settings and notifications) | `Super+N` | the clock, the bell left of it and the sliders glyph (`tune`) left of that, all drawn toggled while open; a dot on the bell while notifications are unread | top-right | none | yes, `sidebarRight`; `controlCenter` is an alias |
 | Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up to open, down to close | yes |
 | Search | `Super` | none | none | none | yes |
 | Launchpad | none, by decision | none | none | 4-finger spread and close | yes |
@@ -74,12 +74,12 @@ The update badge is deliberately not part of any panel button: it used to sit in
 It is its own item with its own hit area, shows a glyph and never a count, and the upgrade runs only from the popup's Update now button, which opens a floating terminal running `koompi update` through Hyprland's Lua `hl.dsp.exec_cmd`.
 A bar popup hangs under the widget it belongs to and is clamped to the screen the bar is on, so the clock at the far right gets a popup that ends at the screen edge instead of running off it.
 
-The bar's right end reads, left to right: tray extras (tray, media, agent usage, a running pomodoro), the mode lights (recording, microphone in use, mic muted, volume muted, keep awake, night light, Do Not Disturb, dictation), the update glyph, the input source, Wi-Fi, the battery as a glyph with its percent, the sliders glyph, the clock.
+The bar's right end reads, left to right: tray extras (tray, media, agent usage, a running pomodoro), the mode lights (recording, microphone in use, mic muted, volume muted, keep awake, night light, Do Not Disturb, dictation), the update glyph, the input source, Wi-Fi, the battery as a glyph with its percent, the sliders glyph, the bell, the clock.
 Every one is its own hit area, and every one answers a click; a glyph that only shows a tooltip reads as broken.
-The sliders glyph and the clock open the right panel. Wi-Fi opens it with the network list dropped down, the battery on its battery page, and the microphone-in-use light on the sound list; a second click closes it.
+The sliders glyph, the bell and the clock open the right panel. The bell carries the unread dot on its corner, so the bar does not shift when a notification arrives; Do Not Disturb has its own mode light and leaves the bell as it is. Wi-Fi opens it with the network list dropped down, the battery on its battery page, and the microphone-in-use light on the sound list; a second click closes it.
 The input source moves to the next layout, as `Super+Space` does. The other mode lights turn their mode off, and the recording light stops the recording.
 No strip-wide section takes a click: the right section of the horizontal bar, and both the top and bottom sections of the vertical bar, are `acceptedButtons: Qt.NoButton`, which leaves them hover and scroll-to-change-volume or brightness, wheel behaviours that survive it.
-The vertical bar has the same wiring: the sliders glyph at the bottom, the clock as a button in the middle group.
+The vertical bar has the same wiring: the sliders glyph at the bottom, the clock and the bell under it as buttons in the middle group.
 Text on the bar reaches 4.5:1 against the bar over the worst wallpaper pixel (`tests/test_bar_contrast.sh`); that does not hold with `bar.showBackground` off.
 
 The window actions menu takes the one pointer path the app identity had spare, so a window's own actions are reachable without knowing a bind.
@@ -508,7 +508,7 @@ Two of them gain a second surface, and no new role is created.
 | --- | --- | --- | --- | --- |
 | Overview | gains the app switcher, its keyboard reflex for "take me back to that app" | `modules/koompi/appSwitcher/` | `Alt+Tab` held | `appSwitcherOpen` |
 | Overview | becomes Mission Control: the desks in use side by side, each drawn with its tiles where they sit, plus a `+` for the next free one; click a desk, drag a window onto a desk, arrows and `Enter`, typing filters | `OverviewPanel.qml` | `Super+Tab`, 4-finger up (down closes) | `overviewOpen` |
-| Today | the right sidebar becomes the Notification Center: date, notifications grouped by app, a System group, then the next events, weather, to-do and timer | `SidebarRight.qml` | `Super+N`, the clock | `sidebarRightOpen` |
+| Today | the right sidebar becomes the Notification Center: date, notifications grouped by app, a System group, then the next events, weather, to-do and timer | `SidebarRight.qml` | `Super+N`, the clock, the bell | `sidebarRightOpen` |
 | Now | the left sidebar becomes one assistant: a 420 px drawer that opens the same thread in the Intelligence window | `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 
 Quick settings and notifications answer one question, what the machine is doing, so they share one panel on the right edge.
@@ -519,12 +519,12 @@ The app switcher joins Overview rather than founding a role: it answers "where a
 | Surface | Keyboard | Bar | Corner | Gesture | IPC |
 | --- | --- | --- | --- | --- | --- |
 | App switcher | `Alt+Tab`, `Alt+Shift+Tab` while held; a quick tap switches to the previous app without drawing | none | none | none | yes, `appSwitcher` |
-| Right panel | `Super+N` | the clock and the sliders glyph; a dot on the clock while notifications are unread | top-right | none | yes, `sidebarRight` |
+| Right panel | `Super+N` | the clock, the bell and the sliders glyph; a dot on the bell while notifications are unread | top-right | none | yes, `sidebarRight` |
 | Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up or down toggles it | yes |
 | Assistant drawer | `Super+A`; its header's Open in window hands the thread to `Super+Shift+I`'s window | one button, as today | top-left | none | yes |
 
 The panel button that wrapped the status indicators is gone.
-The clock and the sliders glyph are the only bar targets that open a panel, and the update glyph keeps its own hit area beside them.
+The clock, the bell and the sliders glyph are the only bar targets that open a panel, and the update glyph keeps its own hit area beside them.
 `Super+Alt+A` (detach left sidebar) is removed: the assistant comes in two sizes, the drawer and the Intelligence window.
 
 ### Keyboard map

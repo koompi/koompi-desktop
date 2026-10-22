@@ -207,7 +207,7 @@ Item { // Bar content region
 
     FocusedScrollMouseArea { // Right side | scroll to change volume
         id: barRightSideMouseArea
-        // Hover and wheel only. The clock and the sliders glyph own their clicks; a
+        // Hover and wheel only. The clock, the bell and the sliders glyph own their clicks; a
         // strip-wide toggle would open the panel, which marks every notification read.
         acceptedButtons: Qt.NoButton
 
@@ -319,32 +319,25 @@ Item { // Bar content region
                 }
             }
 
+            NotificationButton {} // the bell, with the unread dot: opens the same panel
+
             BarPanelButton { // clock: opens the same panel
                 objectName: "clockButton"
                 Layout.rightMargin: Appearance.rounding.screenRounding - Appearance.spacing.small
                 toggled: GlobalStates.sidebarRightOpen
                 onClicked: GlobalStates.sidebarRightOpen = !GlobalStates.sidebarRightOpen
 
-                // the dot is laid out beside the time, not over it: an anchored dot sat on "AM" in 12-hour time
                 contentItem: Item {
-                    implicitWidth: clockRow.implicitWidth
-                    implicitHeight: clockRow.implicitHeight
+                    implicitWidth: clockSlot.implicitWidth
+                    implicitHeight: clockSlot.implicitHeight
 
-                    RowLayout {
-                        id: clockRow
+                    PluginSlot { // time, far-right corner; date removed by default
+                        id: clockSlot
                         anchors.centerIn: parent
-                        spacing: 4
-
-                        PluginSlot { // time, far-right corner; date removed by default
-                            pluginId: "koompi.clock"
-                            builtin: ClockWidget {
-                                showDate: false
-                                color: GlobalStates.sidebarRightOpen ? Appearance.m3colors.m3onSecondaryContainer : root.scheme.fg
-                            }
-                        }
-
-                        NotificationUnreadCount {
-                            Layout.alignment: Qt.AlignVCenter
+                        pluginId: "koompi.clock"
+                        builtin: ClockWidget {
+                            showDate: false
+                            color: GlobalStates.sidebarRightOpen ? Appearance.m3colors.m3onSecondaryContainer : root.scheme.fg
                         }
                     }
                 }

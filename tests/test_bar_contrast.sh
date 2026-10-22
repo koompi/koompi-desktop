@@ -22,7 +22,7 @@ for tool in qs kwin_wayland dbus-run-session; do
     command -v "$tool" > /dev/null 2>&1 || { echo "skip: $tool not installed"; exit 0; }
 done
 
-files=("$SHELL_ROOT"/modules/koompi/bar/{ActiveWindow,BarContent,BarPanelButton,BatteryIndicator,ClockWidget,HyprlandXkbIndicator,ModeIndicators,NotificationUnreadCount,UpdateBadge}.qml
+files=("$SHELL_ROOT"/modules/koompi/bar/{ActiveWindow,BarContent,BarPanelButton,BatteryIndicator,ClockWidget,HyprlandXkbIndicator,ModeIndicators,NotificationButton,NotificationUnreadCount,UpdateBadge}.qml
        "$SHELL_ROOT"/modules/koompi/verticalBar/{VerticalBarContent,VerticalClockWidget,BatteryIndicator}.qml)
 tokens="$(grep -hE '^[[:space:]]*(property color )?(icon)?[cC]olor:|^[[:space:]]*property color colText:' "${files[@]}" \
     | grep -oE 'Appearance\.colors\.(colOn[A-Za-z0-9]*|colSubtext|colBar(Subtext|TextInactive))' | sed 's/Appearance\.colors\.//' | sort -u | tr '\n' ' ')"
