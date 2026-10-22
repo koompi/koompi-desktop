@@ -16,7 +16,9 @@ import qs.services.ai
  *
  * This is the facade. The engine lives in `services/ai/`:
  * - ToolRegistry  - one declaration per tool, rendered per wire format
- * - ToolRunner    - dispatch, approval rules and the tool processes
+ * - ToolRunner    - dispatch, the asking and the tool processes
+ * - ToolApproval  - what runs without asking, and the taint that suspends it
+ * - BrowserTool   - the `browser` tool and the Control session; BrowserService runs browser.py
  * - Conversation  - the message store, its persistence and compaction
  * - Requester     - one turn of inference, cancel, retry and the send queue
  * - ModelRegistry - model slots, inference of endpoint/format/key, discovery
@@ -33,11 +35,13 @@ Singleton {
     signal responseFinished()
     signal tokenStreamed()
 
-    readonly property ToolRegistry toolRegistry: ToolRegistry {}
+    readonly property ToolRegistry toolRegistry: ToolRegistry { extraEntries: [root.browserTool.entry] }
     readonly property ModelRegistry modelRegistry: ModelRegistry { engine: root }
     readonly property Conversation conversation: Conversation { engine: root }
     readonly property Requester requester: Requester { engine: root }
     readonly property ToolRunner toolRunner: ToolRunner { engine: root }
+    readonly property ToolApproval approval: ToolApproval { engine: root }
+    readonly property BrowserTool browserTool: BrowserTool { engine: root }
 
     /* ---- models ---- */
 
@@ -89,12 +93,25 @@ Singleton {
         return true;
     }
 
-    function commandRule(command) { return toolRunner.commandRule(command); }
-    function isPreApproved(name, args) { return toolRunner.isPreApproved(name, args); }
-    function rememberApproval(name, args) { toolRunner.rememberApproval(name, args); }
+    function commandRule(command) { return approval.commandRule(command); }
+    function isPreApproved(name, args) { return approval.isPreApproved(name, args); }
+    function rememberApproval(name, args) { approval.rememberApproval(name, args); }
+    function toolTainted(name) { return approval.tainted(name); }
     function rejectCommand(message) { toolRunner.rejectCommand(message); }
     function approveCommand(message, always) { toolRunner.approveCommand(message, always); }
     function handleFunctionCall(name, args, message) { toolRunner.handleFunctionCall(name, args, message); }
+
+    /* ---- the agent's browser: the Control session ---- */
+
+    readonly property bool browserActive: browserTool.service.running
+    readonly property bool browserBusy: browserTool.service.inFlight > 0
+    readonly property bool browserPaused: browserTool.service.paused
+    readonly property int browserPid: browserTool.service.pid
+    readonly property string browserTitle: browserTool.service.title
+    readonly property double browserLastReplyAt: browserTool.service.lastReplyAt
+    function stopControl() { browserTool.stop(); }
+    function pauseControl() { browserTool.pause(); }
+    function resumeControl() { browserTool.resume(); }
 
     /* ---- conversation ---- */
 

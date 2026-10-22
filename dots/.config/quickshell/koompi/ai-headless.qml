@@ -20,6 +20,7 @@ ShellRoot {
     property int idleTicks: 0
     property double startedAt: Date.now()
     property bool finished: false
+    property bool stopped: false
 
     readonly property FileView jobFile: FileView {
         path: Quickshell.env("KOOMPI_AI_HEADLESS_JOB") ?? ""
@@ -81,6 +82,7 @@ ShellRoot {
         if (root.finished) return;
         root.finished = true;
         Ai.cancelRequest();
+        Ai.browserTool.service.stop("the headless run finished");
         root.outFile.setText(JSON.stringify({
             "ok": ok,
             "error": error,
@@ -156,6 +158,7 @@ ShellRoot {
             return;
         }
         root.answerApprovals();
+        if (root.job.stopFile && !root.stopped && !stopProbe.running) stopProbe.running = true;
         if (root.busy() || root.requests.length === root.requestsAtTurnStart) {
             root.idleTicks = 0;
             return;
@@ -167,6 +170,17 @@ ShellRoot {
         target: Ai.requester
         function onRunningChanged() {
             if (Ai.requester.running) root.captureRequest();
+        }
+    }
+
+    // the job's stop key: pressed once, when its file appears
+    Process {
+        id: stopProbe
+        command: ["test", "-e", `${root.job?.stopFile ?? ""}`]
+        onExited: exitCode => {
+            if (exitCode !== 0 || root.stopped) return;
+            root.stopped = true;
+            Ai.stopControl();
         }
     }
 

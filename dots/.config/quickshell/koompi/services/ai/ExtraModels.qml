@@ -71,6 +71,8 @@ QtObject {
                     "description": `${entry.description ?? Translation.tr("Custom | %1").arg(id)}`,
                     "homepage": `${entry.homepage ?? ""}`,
                     "contextWindow": window > 0 ? window : 0,
+                    // a small model's measured tool ceiling (AiModel), so each turn gets a subset
+                    "toolBlockByteLimit": Math.max(0, Math.floor(Number(entry.toolBlockByteLimit ?? 0)) || 0),
                 });
                 added[id] = models[id];
             } catch (e) {

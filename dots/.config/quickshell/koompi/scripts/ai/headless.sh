@@ -3,7 +3,10 @@
 # JOB.json: {"model": <ai.extraModels entry> | "<discovered id>", "turns": ["..."],
 #            "approvals": {"<tool>": "approve"}, "stubs": {"<tool>": "canned result"},
 #            "promptDir": "/abs/dir", "toolTextFile": "/abs/tools.json", "tool": "functions",
-#            "memory": false, "timeoutSec": 300}
+#            "memory": false, "timeoutSec": 300,
+#            "alwaysAllow": {"shellRules": ["<rule>"], "agent": false}, "stopFile": "/abs/path"}
+# alwaysAllow seeds ai.approvals, as if the user had pressed "Always allow" before.
+# stopFile: once that file exists the engine presses the stop key (Ai.stopControl) once.
 # Exits 0 when every turn finished, 1 when the engine reported an error, 124 on timeout.
 # HOME and the XDG dirs are throwaway unless KOOMPI_AI_HEADLESS_KEEP_ENV=1.
 set -euo pipefail
@@ -36,6 +39,8 @@ ai = {
     "memory": {"enable": bool(job.get("memory", False))},
     "approvals": {"shellRules": [], "agent": False},
 }
+allow = job.get("alwaysAllow") or {}
+ai["approvals"] = {"shellRules": [str(r) for r in allow.get("shellRules", [])], "agent": allow.get("agent") is True}
 if isinstance(job.get("model"), dict):
     ai["extraModels"] = [job["model"]]
 json.dump({"ai": ai, "policies": {"ai": 1}}, open(sys.argv[2], "w"), indent=2)

@@ -49,6 +49,7 @@ QtObject {
         }
     }
 
+    property var extraEntries: [] // tools declared beside their handler: `browser` (BrowserTool.qml)
     readonly property var entries: [
         {
             "name": "switch_to_search_mode",
@@ -239,11 +240,10 @@ QtObject {
             "formats": ["gemini", "openai", "mistral"],
             "enabled": root.agentToolEnabled
         }
-    ]
+    ].concat(root.extraEntries)
 
     function entryFor(name: string): var {
-        const found = root.entries.filter(e => e.name === name);
-        return found.length > 0 ? found[0] : null;
+        return root.entries.find(e => e.name === name) ?? null;
     }
 
     function riskOf(name: string): string {
