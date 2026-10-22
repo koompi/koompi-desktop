@@ -31,7 +31,8 @@ Singleton {
         "30-tools.md",
         "40-style.md"
     ]
-    readonly property string promptSectionDir: `${Directories.defaultAiPrompts}/system`
+    // KOOMPI_AI_PROMPT_DIR swaps the whole set for one run (scripts/ai/headless.sh)
+    readonly property string promptSectionDir: Quickshell.env("KOOMPI_AI_PROMPT_DIR") || `${Directories.defaultAiPrompts}/system`
 
     // The sections joined. `options.ai.systemPrompt` binds to this, so a
     // config.json carrying its own systemPrompt breaks the binding and wins -

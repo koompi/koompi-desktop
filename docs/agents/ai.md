@@ -75,3 +75,30 @@ With `policies.ai == 2` (local only) entries whose endpoint is not local are dro
 Hosted models today are 128k and up.
 An over-estimate delays compaction; an under-estimate throws context away, which is why the hosted fallback is the large number.
 `contextWindowSource` names which rule fired and the meter shows it.
+
+## Headless
+
+`scripts/ai/headless.sh JOB.json OUT.json` runs the real engine (`ai-headless.qml`: the `Ai` services and no surfaces) and writes the thread as data.
+It is how tests, the harness tuning and the computer-use checks drive a turn without a person.
+
+```json
+{
+  "model": {"model": "fake-llm", "endpoint": "http://127.0.0.1:8080/v1/chat/completions", "api_format": "openai", "requires_key": false},
+  "turns": ["Where is my bar?"],
+  "approvals": {"run_shell_command": "approve"},
+  "promptDir": "/abs/dir/with/the/five/section/files",
+  "tool": "functions",
+  "memory": false,
+  "timeoutSec": 300
+}
+```
+
+- `model` is an `ai.extraModels` entry, or the id of a discovered model (`"gemma4-e4b"`), which keeps the discovered model's tool-block limit.
+- `turns` go out in order; each waits for the previous one, tool round trips included, to go quiet for one second.
+- A tool that asks for approval gets `approvals[name]`; anything unlisted is rejected, and the model is told so.
+- `promptDir` replaces `defaults/ai/prompts/system` for this run through `KOOMPI_AI_PROMPT_DIR`, which the live shell also honours when set.
+- OUT.json has `ok`, `error`, the composed `systemPrompt`, every message (content, tool calls, results, timestamps) and `requests`: each request body exactly as curl sent it. `OUT.config.json` is the config the run left, for checks on tools that change settings.
+
+The services module creates windows, so `qs` needs a compositor even here: the script starts a virtual `kwin_wayland` on a private bus with no service directories, with a throwaway HOME and XDG dirs.
+`KOOMPI_AI_HEADLESS_DISPLAY` runs inside a compositor the caller already started; `KOOMPI_AI_HEADLESS_KEEP_ENV=1` keeps the caller's HOME and XDG dirs, which must then be throwaway too.
+Exit 0 when every turn finished, 1 on an engine error, 124 on timeout.
