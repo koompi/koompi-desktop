@@ -96,6 +96,7 @@ It is how tests, the harness tuning and the computer-use checks drive a turn wit
 - `model` is an `ai.extraModels` entry, or the id of a discovered model (`"gemma4-e4b"`), which keeps the discovered model's tool-block limit.
 - `turns` go out in order; each waits for the previous one, tool round trips included, to go quiet for one second.
 - A tool that asks for approval gets `approvals[name]`; anything unlisted is rejected, and the model is told so.
+- `stubs` maps a tool to the text it answers with. A stubbed tool never runs, approved or not, so a tuning task can offer `search_web`, `ask_agent` or `run_shell_command` with no network and nothing executed.
 - `promptDir` replaces `defaults/ai/prompts/system` for this run through `KOOMPI_AI_PROMPT_DIR`, which the live shell also honours when set.
 - OUT.json has `ok`, `error`, the composed `systemPrompt`, every message (content, tool calls, results, timestamps) and `requests`: each request body exactly as curl sent it. `OUT.config.json` is the config the run left, for checks on tools that change settings.
 

@@ -112,7 +112,20 @@ ShellRoot {
         return Ai.toolRunner.toolStatusLabel.length > 0;
     }
 
+    // A stubbed tool answers with the job's text and never runs: no web, no shell, no agent.
+    function installStubs() {
+        const stubs = root.job.stubs ?? {};
+        for (const name in stubs) {
+            const output = `${stubs[name]}`;
+            Ai.toolRunner.handlers[name] = (args, message) => {
+                Ai.toolRunner.addToolResult(name, output, false);
+                Ai.toolRunner.runNextCall();
+            };
+        }
+    }
+
     function begin() {
+        root.installStubs();
         Ai.clearMessages(false);
         Ai.setModel(root.modelId(), false, true);
         root.nextTurn();

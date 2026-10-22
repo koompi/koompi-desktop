@@ -115,3 +115,15 @@ write_job "$tmp/job3.json" "Touch the file." '{"run_shell_command": "approve"}'
 bash "$HEADLESS" "$tmp/job3.json" "$tmp/out3.json" || fail "headless run 3 exited $?: $(tail -20 "$tmp/out3.log")"
 [[ -e $marker ]] || fail "run_shell_command did not run when the job approved it"
 echo "  ok: an approved command runs"
+
+# --- a stubbed tool answers with the job's text and never runs, approved or not
+
+rm -f "$marker"
+start_server "$tmp/script2.json"
+write_job "$tmp/job4.json" "Touch the file." '{"run_shell_command": "approve"}'
+jq '.stubs = {run_shell_command: "STUB-OUTPUT-5521"}' "$tmp/job4.json" > "$tmp/job4s.json"
+bash "$HEADLESS" "$tmp/job4s.json" "$tmp/out4.json" || fail "headless run 4 exited $?: $(tail -20 "$tmp/out4.log")"
+[[ -e $marker ]] && fail "a stubbed run_shell_command ran"
+jq -e '[.messages[] | select(.role == "tool")] | any(.content | contains("STUB-OUTPUT-5521"))' <(sed -n 2p "$tmp/requests.jsonl") > /dev/null \
+    || fail "the stub's text did not reach the model"
+echo "  ok: a stubbed tool answers with the job's text and does not run"

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # headless.sh JOB.json OUT.json: run the AI engine with no surfaces and write the thread to OUT.json.
 # JOB.json: {"model": <ai.extraModels entry> | "<discovered id>", "turns": ["..."],
-#            "approvals": {"<tool>": "approve"}, "promptDir": "/abs/dir", "tool": "functions",
+#            "approvals": {"<tool>": "approve"}, "stubs": {"<tool>": "canned result"},
+#            "promptDir": "/abs/dir", "tool": "functions",
 #            "memory": false, "timeoutSec": 300}
 # Exits 0 when every turn finished, 1 when the engine reported an error, 124 on timeout.
 # HOME and the XDG dirs are throwaway unless KOOMPI_AI_HEADLESS_KEEP_ENV=1.
