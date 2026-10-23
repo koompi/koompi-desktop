@@ -113,4 +113,11 @@ Singleton {
     function open(page) {
         Quickshell.execDetached(["bash", "-c", `~/.local/bin/koompi-settings ${root.pageArg(page)}`]);
     }
+
+    // The page by that argument ("ai", "bar"); nothing happens for a name no page has.
+    function openNamed(arg) {
+        const page = root.list.find(p => root.pageArg(p) === arg);
+        if (page)
+            root.open(page);
+    }
 }

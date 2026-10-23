@@ -17,10 +17,11 @@ PICKER="$SIDEBAR/aiChat/composer/ModelPicker.qml"
 COMMANDS="$SIDEBAR/aiChat/ChatCommands.qml"
 TRANSCRIPT="$SIDEBAR/aiChat/ChatTranscript.qml"
 AICHAT="$SIDEBAR/AiChat.qml"
+CHIP="$SHELL_ROOT/modules/koompi/intelligence/ModelChip.qml"
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
-for f in "$COMPOSER" "$STATUSBAR" "$PICKER" "$COMMANDS" "$TRANSCRIPT" "$AICHAT"; do
+for f in "$COMPOSER" "$STATUSBAR" "$PICKER" "$COMMANDS" "$TRANSCRIPT" "$AICHAT" "$CHIP"; do
     [[ -f "$f" ]] || fail "missing $f"
 done
 
@@ -72,10 +73,21 @@ grep -q 'Accessible.role: Accessible.ListItem' "$PICKER" || fail "ModelPicker.qm
 grep -q 'Accessible.selected: row.selected' "$PICKER" || fail "ModelPicker.qml rows do not report Accessible.selected"
 grep -q 'onHoveredChanged' "$PICKER" && fail "ModelPicker.qml still selects from hovered, which the list scrolling under a resting pointer flips"
 grep -q 'onPositionChanged: mouse => root.noteHover(row.index' "$PICKER" || fail "ModelPicker.qml rows do not select from pointer movement"
-for f in "$COMPOSER" "$STATUSBAR" "$PICKER" "$COMMANDS" "$TRANSCRIPT" "$AICHAT"; do
+for f in "$COMPOSER" "$STATUSBAR" "$PICKER" "$COMMANDS" "$TRANSCRIPT" "$AICHAT" "$CHIP"; do
     lines="$(wc -l < "$f")"
     (( lines <= 400 )) || fail "$(basename -- "$f") is $lines lines, cap is 400"
 done
+# The Intelligence window's composer runs no /model, so its chip is the way to switch
+# there; and the picker's last row leads to Settings > AI, where a cloud model is added.
+grep -q 'signal providersRequested()' "$PICKER" || fail "ModelPicker.qml has no providersRequested signal"
+grep -q 'onClicked: root.providersRequested()' "$PICKER" || fail "the picker's add-a-provider row does not emit providersRequested"
+for f in "$AICHAT" "$CHIP"; do
+    grep -q 'SettingsPages.openNamed("ai")' "$f" || fail "$(basename -- "$f") does not open Settings > AI for providersRequested"
+done
+grep -q 'ModelPicker {' "$CHIP" || fail "ModelChip.qml does not open the model picker"
+grep -q 'Ai.setModel(id)' "$CHIP" || fail "ModelChip.qml does not wire picked to Ai.setModel"
+grep -q 'onClicked: pickerPopup' "$CHIP" || fail "a click on ModelChip does not open its picker"
+echo "ok   static: the Intelligence chip opens the picker; its add-a-provider row opens Settings > AI from both surfaces"
 echo "ok   static: picker takes models, reports picked, knows no Ai, seeds without onVisibleChanged, has list roles; every touched file under 400 lines"
 
 # /usr/bin/qmllint is Qt 5 and rejects list<var> and pragma ComponentBehavior
@@ -83,13 +95,13 @@ QMLLINT=/usr/lib/qt6/bin/qmllint
 if [[ -x "$QMLLINT" ]]; then
     LINT="$(mktemp -d)"
     ln -s "$SHELL_ROOT" "$LINT/qs"
-    for f in "$COMPOSER" "$STATUSBAR" "$PICKER" "$COMMANDS" "$TRANSCRIPT" "$AICHAT"; do
+    for f in "$COMPOSER" "$STATUSBAR" "$PICKER" "$COMMANDS" "$TRANSCRIPT" "$AICHAT" "$CHIP"; do
         out="$("$QMLLINT" -I "$LINT" -I /usr/lib/qt6/qml "$f" 2>&1)" \
             || { echo "$out" | head -20 >&2; fail "qmllint rejects $(basename -- "$f")"; }
         grep -qE '^Error' <<< "$out" && { echo "$out" | grep -A3 '^Error' >&2; fail "qmllint error in $(basename -- "$f")"; }
     done
     rm -rf "$LINT"
-    echo "ok   qmllint: the six touched files parse without errors"
+    echo "ok   qmllint: the seven touched files parse without errors"
 else
     echo "skip: no Qt 6 qmllint at $QMLLINT"
 fi
@@ -124,6 +136,7 @@ ShellRoot {
     property int failures: 0
     property var picks: []
     property int dismissals: 0
+    property int providerAsks: 0
 
     function check(label, got, want) {
         const ok = JSON.stringify(got) === JSON.stringify(want);
@@ -159,6 +172,7 @@ ShellRoot {
             currentId: "beta"
             onPicked: id => probe.picks.push(id)
             onDismissed: probe.dismissals++
+            onProvidersRequested: probe.providerAsks++
         }
     }
 
@@ -198,6 +212,8 @@ ShellRoot {
             probe.check("reopen: mark follows currentId", [0, 1, 2].map(i => picker.rowAt(i).isCurrent), [false, false, true]);
             probe.check("reopen: highlight follows currentId", picker.selectedIndex, 2);
             probe.check("nothing dismissed it", probe.dismissals, 0);
+            picker.providersRow.clicked();
+            probe.check("add a provider: asks for Settings and picks nothing", [probe.providerAsks, probe.picks.length], [1, 2]);
 
             // hover selects on pointer movement only
             tall.visible = true;

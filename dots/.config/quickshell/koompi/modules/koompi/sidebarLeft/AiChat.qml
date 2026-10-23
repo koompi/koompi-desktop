@@ -182,6 +182,10 @@ Item {
                 Ai.setModel(id);
             }
             onDismissed: composer.modelPickerShown = false
+            onProvidersRequested: {
+                composer.modelPickerShown = false;
+                SettingsPages.openNamed("ai");
+            }
         }
 
         ChatComposer {
