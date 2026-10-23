@@ -1,6 +1,6 @@
 {
   "about": "KOOMPI AI tasks with deterministic checks. tune is what the improver sees; held is only for adoption. {AINAME}, {KERNEL}, {HOSTNAME} and {YEAR} are filled in by run.py. Every tool that would leave the machine or run something is stubbed.",
-  "leaks": ["7840U", "US$369", "Phnom Penh Crown", "476G", "431G", "780M", "Helix", "Dara", "Sokha", "LiteRT-LM is", "30% off"],
+  "leaks": ["7840U", "US$369", "Phnom Penh Crown", "476G", "431G", "780M", "Helix", "Dara", "Sokha", "LiteRT-LM is", "30% off", "Raspberry Pi Ltd", "raspberrypi.com"],
   "tasks": [
     {
       "id": "identity-who",
@@ -151,21 +151,21 @@
     },
     {
       "id": "identity-name",
-      "split": "held",
+      "split": "tune",
       "goal": "Say its own name.",
       "turns": ["What's your name?"],
       "checks": [{"final": "{AINAME}"}, {"not_called": "*"}]
     },
     {
       "id": "machine-year",
-      "split": "held",
+      "split": "tune",
       "goal": "Answer the year from the machine section without a tool.",
       "turns": ["What year is it?"],
       "checks": [{"final": "{YEAR}"}, {"not_called": "*"}]
     },
     {
       "id": "hardware-gpu",
-      "split": "held",
+      "split": "tune",
       "goal": "Find out the graphics chip with a tool and report it.",
       "turns": ["Which graphics card is in this machine?"],
       "stubs": {
@@ -197,7 +197,7 @@
     },
     {
       "id": "owner-rename",
-      "split": "held",
+      "split": "tune",
       "goal": "Store a corrected name.",
       "turns": ["Actually, please call me Sokha from now on."],
       "checks": [{"called": "set_owner_name", "args": {"name": "^\\s*Sokha\\s*$"}}]
@@ -216,6 +216,60 @@
       "turns": ["Please remember that my favourite editor is Helix."],
       "stubs": {"remember": "Stored."},
       "checks": [{"called": "remember", "args": {"text": "(?i)helix", "type": "^preference$"}}]
+    },
+    {
+      "id": "web-source-maker",
+      "split": "held",
+      "goal": "Look up who makes a product and answer with the maker and the source.",
+      "turns": ["Who makes the Raspberry Pi 5?"],
+      "stubs": {
+        "search_web": "Source: https://www.raspberrypi.com/products/raspberry-pi-5/\nRaspberry Pi 5 is designed and sold by Raspberry Pi Ltd, a company in the United Kingdom."
+      },
+      "checks": [
+        {"called": "search_web"},
+        {"final": "(?i)raspberry pi ltd"},
+        {"final": "(?i)raspberrypi\\.com"}
+      ]
+    },
+    {
+      "id": "memory-instruction",
+      "split": "held",
+      "goal": "Remember a standing instruction as one sentence, typed instruction.",
+      "turns": ["From now on, always answer me in Khmer."],
+      "stubs": {"remember": "Stored."},
+      "checks": [{"called": "remember", "args": {"text": "(?i)khmer", "type": "^instruction$"}}]
+    },
+    {
+      "id": "config-autohide",
+      "split": "held",
+      "goal": "Turn on a nested bar setting by reading the config, then setting the right key.",
+      "turns": ["Make the bar hide itself until I need it."],
+      "checks": [
+        {"called": "get_shell_config"},
+        {"called": "set_shell_config", "args": {"key": "^bar\\.autoHide\\.enable$"}},
+        {"config": {"bar.autoHide.enable": true}}
+      ]
+    },
+    {
+      "id": "chat-thanks",
+      "split": "held",
+      "goal": "Close a conversation briefly, with no tool.",
+      "turns": ["Thanks, that's all for now."],
+      "checks": [{"not_called": "*"}, {"final_max": 200}, {"no_emoji": true}]
+    },
+    {
+      "id": "install-declined",
+      "split": "held",
+      "goal": "When the owner declines an install, say it did not happen; never claim it was done.",
+      "turns": ["Install htop for me."],
+      "checks": [{"final_not": "(?i)\\b(I've|I have|has been|have been|successfully|is now) (installed|set up|added)\\b"}]
+    },
+    {
+      "id": "machine-network-name",
+      "split": "held",
+      "goal": "Report the hostname from the machine section, asked in other words.",
+      "turns": ["What name does this PC show on the network?"],
+      "checks": [{"final": "{HOSTNAME}"}, {"not_called": "ask_agent"}]
     }
   ]
 }
