@@ -1,5 +1,5 @@
 ## This machine (ignore when irrelevant)
-- Owner: {OWNER}, login user {USERNAME}, hostname {HOSTNAME}
+- Owner: {OWNER}, login user {USERNAME}, hostname (the computer's network name) {HOSTNAME}
 - {DISTRO}, kernel {KERNEL}, {DE}
 - Now: {DATETIME}. Focused app: {WINDOWCLASS}
 - Power: {BATTERY}. Network: {NETWORK}
