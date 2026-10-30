@@ -1,0 +1,79 @@
+# QEMU install test of a built KOOMPI Hyprland ISO, on a GitHub runner instead of
+# a desk: sdata/dist-arch/iso/test/qemu-install.sh against the koompi-iso artifact
+# of a build-iso run. It installs the ISO onto a blank virtual disk, boots the
+# result, lets the first boot set up the desktop, and fails on the report the
+# installed system prints. Each run takes about an hour and a 6 GB VM, which is
+# more than a machine in use can spare.
+#
+# Dispatch with --ref set to the branch that holds the test (iso until it merges).
+name: ISO install test
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run:
+        description: Run id of the build-iso run whose koompi-iso artifact to test
+        required: true
+      firmware:
+        description: Boot firmware of the test machine
+        type: choice
+        options: [uefi, bios]
+        default: uefi
+      encrypt:
+        description: Install with a LUKS root (passphrase typed on the serial line)
+        type: boolean
+        default: false
+      apps:
+        description: Let the first boot install the application set too
+        type: boolean
+        default: false
+      first_boot_ref:
+        description: Branch the installed system's first boot sets up from
+        default: main
+
+permissions:
+  actions: read   # the artifact of another run
+  contents: read
+
+jobs:
+  install-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    container:
+      image: archlinux:latest
+      options: --device /dev/kvm
+    steps:
+      - name: Install QEMU and the test's tools
+        run: pacman -Syu --noconfirm --needed qemu-base edk2-ovmf libarchive python util-linux
+
+      - uses: actions/checkout@v4
+
+      - name: Fetch the ISO
+        uses: actions/download-artifact@v4
+        with:
+          name: koompi-iso
+          run-id: ${{ inputs.build_run }}
+          github-token: ${{ github.token }}
+          path: iso
+
+      - name: Check the ISO against its checksum
+        working-directory: iso
+        run: sha256sum -c SHA256SUMS
+
+      - name: Install, first boot, report
+        env:
+          KOOMPI_REF: ${{ inputs.first_boot_ref }}
+          KOOMPI_APPS: ${{ inputs.apps && '1' || '0' }}
+          KOOMPI_TEST_ENCRYPT: ${{ inputs.encrypt && '1' || '0' }}
+          FIRMWARE: ${{ inputs.firmware }}
+        run: |
+          set -euo pipefail
+          sdata/dist-arch/iso/test/qemu-install.sh iso/*.iso "$FIRMWARE" "$RUNNER_TEMP/vm"
+
+      - name: Keep the serial logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serial-logs-${{ inputs.firmware }}${{ inputs.encrypt && '-luks' || '' }}${{ inputs.apps && '-apps' || '' }}
+          path: ${{ runner.temp }}/vm/serial-*.log
+          if-no-files-found: warn
