@@ -102,4 +102,24 @@ Scope {
             Quickshell.execDetached([Quickshell.shellPath("scripts/colors/random/random_wall.sh"), String(workspaceId)]);
         }
     }
+
+    GlobalShortcut {
+        name: "wallpaperRandomCambodia"
+        description: "Download a random piece of Cambodian art as the wallpaper"
+        onPressed: {
+            // Same workspace pinning as above. --notify because this key names one
+            // online source with nothing to fall back to, so offline must say so.
+            const workspaceId = Hyprland.focusedMonitor?.activeWorkspace?.id ?? 0;
+            Quickshell.execDetached([Quickshell.shellPath("scripts/colors/random/random_cambodia_wall.sh"), String(workspaceId), "--notify"]);
+        }
+    }
+
+    GlobalShortcut {
+        name: "wallpaperRandomAbstract"
+        description: "Draw a new abstract wallpaper"
+        onPressed: {
+            const workspaceId = Hyprland.focusedMonitor?.activeWorkspace?.id ?? 0;
+            Quickshell.execDetached([Quickshell.shellPath("scripts/colors/random/random_abstract_wall.sh"), String(workspaceId), "--notify"]);
+        }
+    }
 }

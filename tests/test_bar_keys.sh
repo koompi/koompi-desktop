@@ -34,7 +34,7 @@ grep -A2 'require("hyprland.keybinds")' "$HYPR/hyprland.lua" | grep -q 'require(
 described="$(lua - "$BINDS" <<'LUA' 2>&1
 local binds = {}
 hl = { bind = function(keys, _, opts) binds[#binds + 1] = { keys = keys, desc = opts and opts.description } end,
-       dsp = { exec_cmd = function(cmd) return cmd end } }
+       dsp = { exec_cmd = function(cmd) return cmd end, global = function(name) return name end } }
 dofile(arg[1])
 local n = 0
 for _, b in ipairs(binds) do

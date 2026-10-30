@@ -68,6 +68,39 @@ ContentPage {
     }
 
     ContentSection {
+        icon: "palette"
+        title: Translation.tr("Wallpaper art")
+
+        // Read before any save: setNestedField writes the whole keyring entry, so a
+        // save on an unread one would drop every other stored key.
+        Component.onCompleted: {
+            if (!KeyringStorage.loaded)
+                KeyringStorage.fetchKeyringData();
+        }
+
+        MaterialTextField {
+            id: pixabayKeyField
+            readonly property bool hasKey: (KeyringStorage.keyringData?.apiKeys?.pixabay ?? "").length > 0
+            Layout.fillWidth: true
+            enabled: KeyringStorage.loaded
+            placeholderText: hasKey ? Translation.tr("Pixabay API key saved. Type a new one and press Enter to replace it") : Translation.tr("Pixabay API key, then Enter")
+            echoMode: TextInput.Password
+            inputMethodHints: Qt.ImhSensitiveData
+            onAccepted: {
+                KeyringStorage.setNestedField(["apiKeys", "pixabay"], text.trim());
+                text = "";
+            }
+        }
+        StyledText {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            color: Appearance.colors.colSubtext
+            font.pixelSize: Appearance.font.pixelSize.small
+            text: Translation.tr("Super+Alt+Shift+W downloads digital art of Cambodia from Pixabay with this key, and photos from Wikimedia Commons without one. The key is free at pixabay.com/api/docs.")
+        }
+    }
+
+    ContentSection {
         icon: "memory"
         title: Translation.tr("Resources")
 
