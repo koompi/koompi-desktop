@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 # KOOMPI Hyprland archiso profile. Arch's `releng` trimmed to the minimum KOOMPI
-# needs, sourced by mkarchiso. The live session starts koompi-install (archinstall
-# with KOOMPI's defaults); the installed system sets up the desktop on first boot.
+# needs, sourced by mkarchiso. The live session starts koompi-installer (the TUI),
+# which runs koompi-install (archinstall with KOOMPI's defaults); the installed
+# system sets up the desktop on first boot.
 
 iso_name="koompi-hyprland"              # base name of the output .iso file
 # Volume label burned into the ISO9660 filesystem: the edition + YYYYMM
@@ -39,5 +40,8 @@ file_permissions=(
   ["/root/.automated_script.sh"]="0:0:755"              # live-session autostart (run by ~/.zlogin)
   ["/etc/shadow"]="0:0:0400"
   ["/usr/local/bin/koompi-install"]="0:0:755"
+  # the TUI: built by CI (zig build in installer/) and copied in before mkarchiso;
+  # not in git. Static, so the live session needs no zig.
+  ["/usr/local/bin/koompi-installer"]="0:0:755"
   ["/usr/share/koompi/firstboot/firstboot"]="0:0:755"
 )

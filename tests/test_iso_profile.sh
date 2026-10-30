@@ -23,12 +23,23 @@ read_profile() {
 }
 read_profile
 
-for want in /root/.automated_script.sh /usr/local/bin/koompi-install /usr/share/koompi/firstboot/firstboot; do
+for want in /root/.automated_script.sh /usr/local/bin/koompi-install /usr/local/bin/koompi-installer \
+    /usr/share/koompi/firstboot/firstboot; do
     [[ "${file_permissions[$want]:-}" == "0:0:755" ]] \
         || fail "mkarchiso does not see $want as 0:0:755 (got '${file_permissions[$want]:-}')"
 done
+# Built into airootfs by the ISO workflow before mkarchiso, never in git; named here
+# one by one, so any other missing path still fails.
+built_in_ci=(/usr/local/bin/koompi-installer)
 for path in "${!file_permissions[@]}"; do
+    [[ " ${built_in_ci[*]} " == *" $path "* ]] && continue
     [[ -e "$PROFILE/airootfs$path" ]] || fail "file_permissions names $path, which airootfs does not have"
+done
+for path in "${built_in_ci[@]}"; do
+    grep -qF "airootfs$path" "$REPO_ROOT/.github/workflows/build-iso.yml" \
+        || fail "$path is allowed missing as built in CI, but build-iso.yml does not put it in airootfs"
+    git -C "$REPO_ROOT" check-ignore -q "sdata/dist-arch/iso/koompi/airootfs$path" \
+        || fail "the CI-built $path is not gitignored; a local build would get committed"
 done
 
 # systemd-firstboot asks for whatever the live root does not set

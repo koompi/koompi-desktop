@@ -1,59 +1,48 @@
 #!/usr/bin/env bash
 # Run inside the live ISO by the QEMU install test (script= boot parameter).
-# Partitions /dev/vda, runs koompi-install's archinstall config unattended, makes
-# the installed system report its first boot on the serial line, powers off.
+# Installs onto /dev/vda the way the KOOMPI installer does: an answers file and
+# `koompi-install --answers`, the engine the TUI runs. Then makes the installed
+# system report its first boot on the serial line, and powers off.
 #
-# test.env, next to this script on the test's HTTP server: ref=, repo= (what the
-# first boot installs from), apps=0 (first boot skips the application set, quicker).
+# Next to this script on the test's HTTP server:
+#   test.env         ref=, repo= (what the first boot installs from), apps=0 (first
+#                    boot skips the application set, quicker), encrypt=1 (LUKS root,
+#                    passphrase koompi)
+#   mirrorlist       the host's, quicker than every mirror in the world
+#   overlay.tar.gz   optional: the repo's engine, profile and first-boot files,
+#                    unpacked over the live root first (an ISO older than them)
 
 set -euo pipefail
 exec > >(tee /dev/ttyS0) 2>&1
 set -x
+# a failed step powers off too, so the test reads the failure instead of waiting out its timeout
+# shellcheck disable=SC2154  # rc is assigned inside the trap string
+trap 'rc=$?; (( rc == 0 )) || { echo "KOOMPI-TEST-INSTALL-FAILED ($rc)"; sleep 2; systemctl poweroff; }' EXIT
 
-ref=main repo=https://github.com/koompi/koompi-desktop.git apps=1
+ref=main repo=https://github.com/koompi/koompi-desktop.git apps=1 encrypt=0
 script_url="$(tr ' ' '\n' </proc/cmdline | sed -n 's/^script=//p')"
-curl -fsS "${script_url%/*}/test.env" -o /tmp/test.env
+base="${script_url%/*}"
+curl -fsS "$base/test.env" -o /tmp/test.env
 # shellcheck source=/dev/null
 . /tmp/test.env
-curl -fsS "${script_url%/*}/mirrorlist" -o /tmp/mirrorlist && mv /tmp/mirrorlist /etc/pacman.d/mirrorlist || true
-disk=/dev/vda
-share=/usr/share/koompi/archinstall
-
-until systemctl is-active --quiet pacman-init.service; do sleep 2; done
-
-firmware=bios
-[[ -d /sys/firmware/efi ]] && firmware=uefi
-
-sgdisk --zap-all "$disk"
-if [[ $firmware == uefi ]]; then
-    sgdisk -n1:0:+1G -t1:ef00 -n2:0:0 -t2:8300 "$disk"
-else
-    sgdisk -n1:0:+1M -t1:ef02 -n2:0:0 -t2:8300 "$disk"
-fi
-partprobe "$disk"; udevadm settle
-root="${disk}2"
-mkfs.btrfs -f -L koompi "$root"
-mount -t btrfs "$root" /mnt
-btrfs subvolume create /mnt/@
-btrfs subvolume create /mnt/@home
-umount /mnt
-mount -t btrfs -o subvol=@,compress=zstd "$root" /mnt
-mkdir -p /mnt/home
-mount -t btrfs -o subvol=@home,compress=zstd "$root" /mnt/home
-if [[ $firmware == uefi ]]; then
-    mkfs.fat -F32 "${disk}1"
-    mkdir -p /mnt/boot
-    # by type: right after mkfs, blkid may not know it yet, and vfat is a module not yet loaded
-    mount -t vfat "${disk}1" /mnt/boot
+curl -fsS "$base/mirrorlist" -o /tmp/mirrorlist && mv /tmp/mirrorlist /etc/pacman.d/mirrorlist || true
+if curl -fsS "$base/overlay.tar.gz" -o /tmp/overlay.tar.gz; then
+    tar -xzf /tmp/overlay.tar.gz --no-same-owner -C /
+    chmod 755 /usr/local/bin/koompi-install*
 fi
 
-jq --arg pw koompi '. + {
-    disk_config: {config_type: "pre_mounted_config", mountpoint: "/mnt"},
-    users: [{username: "koompi", "!password": $pw, sudo: true}],
-    "!root-password": $pw
-}' "$share/config.json" > /tmp/test-config.json
+luks=false
+[[ $encrypt == 1 ]] && luks=true
+mkdir -p /run/koompi
+(umask 077; jq -n --argjson luks "$luks" '{
+    version: 1, disk: "/dev/vda", encrypt: $luks, encryption_password: (if $luks then "koompi" else "" end),
+    hostname: "koompi", full_name: "KOOMPI Test", username: "koompi", password: "koompi",
+    timezone: "Asia/Phnom_Penh", keyboard: "us", locale: "en_US.UTF-8"
+}' > /run/koompi/answers.json)
 
-KOOMPI_REF="$ref" KOOMPI_REPO="$repo" archinstall --config /tmp/test-config.json --silent
+# --keep-mounted: the test-only changes below go into the new system before it is
+# unmounted; the engine waits for pacman-init and the network itself
+KOOMPI_REF="$ref" KOOMPI_REPO="$repo" koompi-install --answers /run/koompi/answers.json --keep-mounted
 
 # test only: the first boot speaks on the serial line, and a report follows it
 grep -q KOOMPI_USER /mnt/etc/koompi/firstboot.conf
@@ -109,5 +98,6 @@ arch-chroot /mnt systemctl enable koompi-test-report.service
 
 sync
 umount -R /mnt
+[[ ! -e /dev/mapper/root ]] || cryptsetup close root
 echo "KOOMPI-TEST-INSTALL-DONE"
 systemctl poweroff

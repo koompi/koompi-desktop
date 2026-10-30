@@ -2,9 +2,10 @@
 # GitHub Release.
 #
 # Runs mkarchiso against the archiso profile at sdata/dist-arch/iso/koompi/. The
-# live session starts koompi-install (archinstall with KOOMPI's defaults and
-# profile); the installed system sets up the desktop on its first boot from main,
-# the same way the one-line installer does. No [koompi] pacman repo is needed:
+# live session starts koompi-installer, the Zig TUI in installer/ built here, which
+# runs koompi-install (archinstall with KOOMPI's defaults and profile); the
+# installed system sets up the desktop on its first boot from main, the same way
+# the one-line installer does. No [koompi] pacman repo is needed:
 # pacman.conf keeps it commented out until that repo is signed and published.
 #
 # publish=false builds and uploads the ISO as a workflow artifact only, for the
@@ -45,6 +46,16 @@ jobs:
             echo "archiso profile not scaffolded (sdata/dist-arch/iso/koompi/)." >&2
             exit 1
           }
+
+      # The binary is static, so the live ISO itself needs no zig. It is copied into
+      # airootfs only here (gitignored); profiledef.sh gives it mode 755.
+      - name: Build the installer TUI
+        run: |
+          set -euo pipefail
+          pacman -S --noconfirm --needed zig
+          (cd installer && zig build -Doptimize=ReleaseSafe)
+          install -Dm755 installer/zig-out/bin/koompi-installer \
+            sdata/dist-arch/iso/koompi/airootfs/usr/local/bin/koompi-installer
 
       - name: Build the ISO
         run: |

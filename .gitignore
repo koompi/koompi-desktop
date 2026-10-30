@@ -28,3 +28,6 @@ plugins/koompi-swipe-progress/*.so
 
 globalmenu/target/
 /cli/.zig-cache/
+
+# the ISO's TUI, built by .github/workflows/build-iso.yml into the archiso tree
+/sdata/dist-arch/iso/koompi/airootfs/usr/local/bin/koompi-installer

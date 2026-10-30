@@ -2,8 +2,10 @@
 # KOOMPI live session, first login on tty1 (root's ~/.zlogin runs this).
 #
 # A script= boot parameter runs that script instead (Arch releng's hook: an
-# unattended install, or the QEMU install test). Otherwise the installer starts;
-# Ctrl+C at its first prompt leaves a root shell, and `koompi-install` restarts it.
+# unattended install, or the QEMU install test). Otherwise the KOOMPI installer
+# starts: koompi-installer (the TUI, built into the ISO by CI), or, on an ISO
+# without it, koompi-install (archinstall's own menu with KOOMPI's defaults).
+# Leaving either one leaves a root shell.
 
 script_cmdline() {
     local param
@@ -39,6 +41,16 @@ automated_script() {
     return 0
 }
 
+start_installer() {
+    if ! command -v koompi-installer >/dev/null 2>&1; then
+        koompi-install
+        return
+    fi
+    if ! koompi-installer; then
+        printf '\n%s\n' "The installer stopped. Type koompi-installer to start it again, or koompi-install for archinstall's own menu."
+    fi
+}
+
 if [[ $(tty) == "/dev/tty1" ]]; then
-    automated_script || koompi-install
+    automated_script || start_installer
 fi
