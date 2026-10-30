@@ -3,17 +3,18 @@
 # Partitions /dev/vda, runs koompi-install's archinstall config unattended, makes
 # the installed system report its first boot on the serial line, powers off.
 #
-# Boot parameters: koompi.ref=, koompi.repo= (what the first boot installs from),
-# koompi.apps=0 (first boot skips the application set, for a quicker run).
+# test.env, next to this script on the test's HTTP server: ref=, repo= (what the
+# first boot installs from), apps=0 (first boot skips the application set, quicker).
 
 set -euo pipefail
 exec > >(tee /dev/ttyS0) 2>&1
 set -x
 
-param() { local p; for p in $(</proc/cmdline); do [[ "$p" == "$1="* ]] && { echo "${p#*=}"; return; }; done; echo "$2"; }
-ref="$(param koompi.ref main)"
-repo="$(param koompi.repo https://github.com/koompi/koompi-desktop.git)"
-apps="$(param koompi.apps 1)"
+ref=main repo=https://github.com/koompi/koompi-desktop.git apps=1
+script_url="$(tr ' ' '\n' </proc/cmdline | sed -n 's/^script=//p')"
+curl -fsS "${script_url%/*}/test.env" -o /tmp/test.env
+# shellcheck source=/dev/null
+. /tmp/test.env
 disk=/dev/vda
 share=/usr/share/koompi/archinstall
 
@@ -63,6 +64,7 @@ TTYPath=/dev/ttyS0
 EOF
 if [[ $apps == 0 ]]; then
     # ./setup install takes its flags through install.sh; the test drops the application set
+    # shellcheck disable=SC2016  # $DEST is the firstboot script's own, matched literally
     sed -i 's|exec bash "\$DEST/install.sh" -y|exec bash "$DEST/install.sh" -y --no-apps|' /mnt/usr/local/lib/koompi/firstboot
 fi
 cat > /mnt/usr/local/lib/koompi/test-report <<'EOF'
