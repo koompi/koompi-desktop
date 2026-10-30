@@ -98,6 +98,6 @@ jobs:
             gh release create "$tag" \
               --repo "$GITHUB_REPOSITORY" \
               --title "KOOMPI Hyprland — ${iso%.iso}" \
-              --notes "Boot it, run the installer it starts, reboot: the first start sets up the KOOMPI desktop (needs the internet). Check the download with SHA256SUMS. Built from commit ${GITHUB_SHA}." \
+              --notes "Boot it, run the installer it starts, reboot: the first start sets up the KOOMPI desktop (needs the internet). Check the download with SHA256SUMS. Tested in QEMU virtual machines (UEFI and BIOS, with and without disk encryption), not yet on real hardware. Built from commit ${GITHUB_SHA}." \
               "$iso" SHA256SUMS
           fi

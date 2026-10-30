@@ -99,8 +99,13 @@ first start set up the desktop, and prints the report the new system writes on i
 serial line. `KOOMPI_APPS=0` skips the application set for a quicker run;
 `KOOMPI_TEST_OVERLAY=1` puts this checkout's engine, profile and first-boot files
 over an older ISO's; `KOOMPI_TEST_ENCRYPT=1` installs with LUKS (passphrase
-`koompi`), the install only for now. Needs KVM, `qemu`, `bsdtar`, and `edk2-ovmf`
-for UEFI.
+`koompi`, typed on the serial line at the first boot). Needs KVM, `qemu`, `bsdtar`,
+and `edk2-ovmf` for UEFI.
+
+The same test runs on a GitHub runner: `iso-install-test.yml` (manual dispatch)
+takes the run id of a `build-iso` run and tests its `koompi-iso` artifact, with the
+firmware, LUKS, the application set and the first boot's branch as inputs. A run is
+about an hour with a 6 GB VM, so a machine in use is better left out of it.
 
 `sdata/dist-arch/iso/test/check-archinstall-config.py` loads a `--dry-run` config
 through archinstall's own parser and partitioner on an image file (its header says
