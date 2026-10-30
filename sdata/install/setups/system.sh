@@ -289,4 +289,6 @@ setup_services() {
     else
         run systemctl --user enable koompi-crash-watch
     fi
+
+    setup_local_ai_units
 }
