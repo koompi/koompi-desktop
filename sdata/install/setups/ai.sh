@@ -37,19 +37,27 @@ setup_local_ai() {
         fi
     fi
 
-    if ! systemd_user_running; then
-        warn "no user systemd manager here; enable litert-lm.socket after your next login"
-    else
-        # the socket only: litert-lm and its watchdog are pulled in on the first
-        # request and released again once the sidebar has been shut for 5min
-        run systemctl --user enable litert-lm.socket
-        # an install from before the socket wanted these off
-        # graphical-session.target, which pins the engine for the whole session
-        # and leaves StopWhenUnneeded nothing to act on
-        run systemctl --user disable litert-lm.service litert-lm-watchdog.service
-    fi
+    # the units ship from dots/, which a first install has not copied yet;
+    # setup_services enables them after the files step
+    LOCAL_AI_UNITS=true
 
     setup_local_search
+}
+
+# Called from setup_services, after the files step.
+setup_local_ai_units() {
+    [[ "${LOCAL_AI_UNITS:-false}" == true ]] || return 0
+    if ! systemd_user_running; then
+        warn "no user systemd manager here; enable litert-lm.socket after your next login"
+        return 0
+    fi
+    # the socket only: litert-lm and its watchdog are pulled in on the first
+    # request and released again once the sidebar has been shut for 5min
+    run systemctl --user enable litert-lm.socket
+    # an install from before the socket wanted these off
+    # graphical-session.target, which pins the engine for the whole session
+    # and leaves StopWhenUnneeded nothing to act on
+    run systemctl --user disable litert-lm.service litert-lm-watchdog.service
 }
 
 # The sidebar's search_web tool. Every free engine blocks a scraper, so the
