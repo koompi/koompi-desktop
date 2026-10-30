@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""How many fingers are on the touchpad, for the KOOMPI touchpad gestures extension.
+
+A browser native messaging host (browser/pull-to-refresh/background.js starts it). A page
+cannot tell fingers resting still on the touchpad from fingers that have left it: either
+way the wheel events just stop, and the browser keeps the end-of-scroll event to itself.
+Pull to refresh has to reload when the fingers lift and never while they hold, so this
+reads the touchpad itself and says {"fingers": n} each time the count changes. The user
+is in the `input` group (sdata/install/setups/system.sh), which is what lets it open the
+device; it opens touchpads only, never a keyboard.
+
+Native messaging frames each message as a 4-byte native-endian length and then JSON. The
+browser closing stdin is the signal to exit.
+
+KOOMPI_TOUCHPAD_DEVICE names one device file to read instead of looking for touchpads,
+for tests.
+"""
+
+import fcntl
+import json
+import os
+import re
+import select
+import struct
+import sys
+
+EV_SYN, EV_KEY = 0x00, 0x01
+SYN_REPORT, SYN_DROPPED = 0, 3
+BTN_TOUCH = 0x14A
+# the tool bits the kernel sets for 1..5 fingers
+TOOLS = {0x145: 1, 0x14D: 2, 0x14E: 3, 0x14F: 4, 0x148: 5}
+INPUT_PROP_POINTER, INPUT_PROP_DIRECT = 0, 1
+EVENT = struct.Struct("llHHi")
+KEY_BYTES = 96
+EVIOCGKEY = (2 << 30) | (KEY_BYTES << 16) | (ord("E") << 8) | 0x18
+RESCAN_S = 5.0
+
+
+def send(out, msg):
+    data = json.dumps(msg, separators=(",", ":")).encode()
+    out.write(struct.pack("=I", len(data)) + data)
+    out.flush()
+
+
+def has_bit(mask, bit):
+    words = mask.split()
+    word, offset = divmod(bit, 64)
+    return word < len(words) and (int(words[-1 - word], 16) >> offset) & 1 == 1
+
+
+def touchpads(devices="/proc/bus/input/devices"):
+    """Event nodes of every touchpad: a pointer, not a touchscreen, that reports fingers."""
+    try:
+        text = open(devices).read()
+    except OSError:
+        return []
+    found = []
+    for block in text.split("\n\n"):
+        prop = re.search(r"^B: PROP=(.*)$", block, re.M)
+        key = re.search(r"^B: KEY=(.*)$", block, re.M)
+        event = re.search(r"^H: Handlers=.*?\b(event\d+)\b", block, re.M)
+        if not (prop and key and event):
+            continue
+        if has_bit(prop.group(1), INPUT_PROP_POINTER) and not has_bit(prop.group(1), INPUT_PROP_DIRECT) \
+                and has_bit(key.group(1), 0x145) and has_bit(key.group(1), 0x14D):
+            found.append("/dev/input/" + event.group(1))
+    return found
+
+
+class Pad:
+    def __init__(self, fd):
+        self.fd = fd
+        self.buf = b""
+        self.keys = {}
+        self.fingers = 0
+
+    def sync(self):
+        """Reads which tool bits are down now, for fingers already on the touchpad when it opens."""
+        try:
+            bits = fcntl.ioctl(self.fd, EVIOCGKEY, bytes(KEY_BYTES))
+        except OSError:
+            return
+        for code in (BTN_TOUCH, *TOOLS):
+            self.keys[code] = (bits[code // 8] >> (code % 8)) & 1
+
+    def count(self):
+        if not self.keys.get(BTN_TOUCH, 0) and not any(self.keys.get(code, 0) for code in TOOLS):
+            return 0
+        return max((n for code, n in TOOLS.items() if self.keys.get(code, 0)), default=0)
+
+    def feed(self, data):
+        """Takes raw input_event bytes; returns the finger count each time a report changes it."""
+        self.buf += data
+        changes = []
+        while len(self.buf) >= EVENT.size:
+            _, _, kind, code, value = EVENT.unpack_from(self.buf)
+            self.buf = self.buf[EVENT.size:]
+            if kind == EV_KEY and (code == BTN_TOUCH or code in TOOLS):
+                self.keys[code] = value
+            elif kind == EV_SYN and code == SYN_DROPPED:
+                # events were lost: ask the device what is down rather than guess
+                self.sync()
+            elif kind == EV_SYN and code == SYN_REPORT:
+                now = self.count()
+                if now != self.fingers:
+                    self.fingers = now
+                    changes.append(now)
+        return changes
+
+
+def main():
+    out = sys.stdout.buffer
+    fixed = os.environ.get("KOOMPI_TOUCHPAD_DEVICE")
+    pads = {}
+
+    def scan():
+        for path in [fixed] if fixed else touchpads():
+            if any(p.path == path for p in pads.values()):
+                continue
+            try:
+                fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+            except OSError:
+                continue
+            pad = Pad(fd)
+            pad.path = path
+            pad.sync()
+            pad.fingers = pad.count()
+            pads[fd] = pad
+
+    scan()
+    send(out, {"ready": bool(pads), "fingers": max((p.fingers for p in pads.values()), default=0)})
+    stdin = sys.stdin.buffer.fileno()
+    while True:
+        ready, _, _ = select.select([stdin, *pads], [], [], None if pads else RESCAN_S)
+        if not ready and not pads:
+            scan()
+            if pads:
+                send(out, {"ready": True, "fingers": 0})
+            continue
+        for fd in ready:
+            if fd == stdin:
+                if not os.read(stdin, 65536):
+                    return
+                continue
+            pad = pads[fd]
+            try:
+                data = os.read(fd, EVENT.size * 64)
+            except BlockingIOError:
+                continue
+            except OSError:
+                data = b""
+            if not data:
+                # unplugged
+                os.close(fd)
+                del pads[fd]
+                if not pads:
+                    send(out, {"ready": False, "fingers": 0})
+                continue
+            total = max((p.fingers for p in pads.values()), default=0)
+            for _ in pad.feed(data):
+                now = max(p.fingers for p in pads.values())
+                if now != total:
+                    total = now
+                    send(out, {"ready": True, "fingers": now})
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (BrokenPipeError, KeyboardInterrupt):
+        pass

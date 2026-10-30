@@ -80,3 +80,37 @@ setup_toolkit_defaults() {
         try update-desktop-database "${XDG_DATA_HOME}/applications" 2>/dev/null || true
     fi
 }
+
+# Pull to refresh in the browsers reloads when the fingers leave the touchpad, which a page
+# cannot see; libexec/touchpad-fingers can, and the extension reaches it by native
+# messaging. A browser only starts a host it finds a manifest for, under its own config
+# directory, naming the host by absolute path and the extension by id. The extension is
+# loaded unpacked from ~/.local/share/koompi/browser/pull-to-refresh, and an unpacked
+# extension's id is the sha256 of that path, its first 32 hex digits spelled a-p.
+readonly KOOMPI_TOUCHPAD_HOST='org.koompi.touchpad'
+readonly KOOMPI_BROWSER_CONFIG_DIRS=(google-chrome chromium BraveSoftware/Brave-Browser thorium)
+
+setup_browser_touchpad() {
+    local ext="${XDG_DATA_HOME}/koompi/browser/pull-to-refresh"
+    local helper="${XDG_DATA_HOME}/koompi/libexec/touchpad-fingers"
+    local id dir manifest want written=0
+    id="$(printf '%s' "$ext" | sha256sum | head -c 32 | tr '0-9a-f' 'a-p')"
+    want="$(printf '{\n  "name": "%s",\n  "description": "Fingers on the touchpad, for KOOMPI pull to refresh",\n  "path": "%s",\n  "type": "stdio",\n  "allowed_origins": ["chrome-extension://%s/"]\n}' \
+        "$KOOMPI_TOUCHPAD_HOST" "$helper" "$id")"
+    for dir in "${KOOMPI_BROWSER_CONFIG_DIRS[@]}"; do
+        # a browser never run has no directory yet; the next update reaches it
+        [[ -d "${XDG_CONFIG_HOME}/$dir" ]] || continue
+        manifest="${XDG_CONFIG_HOME}/$dir/NativeMessagingHosts/${KOOMPI_TOUCHPAD_HOST}.json"
+        [[ -f "$manifest" && "$(cat "$manifest")" == "$want" ]] && continue
+        if [[ "$DRY_RUN" == true ]]; then
+            info "would write $manifest"
+            continue
+        fi
+        mkdir -p "$(dirname "$manifest")"
+        printf '%s\n' "$want" > "$manifest" || { err "could not write $manifest"; return 1; }
+        manifest_add "$manifest"
+        written=$((written + 1))
+    done
+    (( written > 0 )) && info "pull to refresh can now see the touchpad in ${written} browser(s)"
+    return 0
+}
