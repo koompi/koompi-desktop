@@ -82,8 +82,9 @@ log="$work/serial-$firmware-firstboot.log"
 if [[ $encrypt == 1 ]]; then
     # The initramfs asks for the LUKS passphrase on the last console=, ttyS0: the serial
     # is a socket that also logs, and the passphrase goes in once the prompt shows.
-    sock="$work/serial.sock"
-    rm -f "$sock" "$log"
+    # a unix socket path must stay under 108 bytes, which the work dir may not
+    sock="$(mktemp -u "${XDG_RUNTIME_DIR:-/tmp}/koompi-serial-XXXXXX.sock")"
+    rm -f "$log"
     first=("${common[@]/PHASE/firstboot}")
     first=("${first[@]/#file:*/chardev:s0}")
     qemu-system-x86_64 "${first[@]}" -chardev "socket,id=s0,path=$sock,server=on,wait=off,logfile=$log" &
@@ -108,6 +109,7 @@ s.sendall(b'koompi\r')
 s.close()
 PY
     wait "$vm"
+    rm -f "$sock"
 else
     qemu-system-x86_64 "${common[@]/PHASE/firstboot}"
 fi
