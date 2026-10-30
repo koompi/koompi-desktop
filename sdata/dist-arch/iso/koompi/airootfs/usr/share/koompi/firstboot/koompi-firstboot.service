@@ -5,9 +5,10 @@
 Description=KOOMPI first boot: set up the desktop
 ConditionPathExists=/etc/koompi/firstboot.conf
 Wants=network-online.target
-After=network-online.target NetworkManager.service systemd-user-sessions.service getty@tty1.service
-Before=display-manager.service
-Conflicts=getty@tty1.service
+After=network-online.target NetworkManager.service systemd-user-sessions.service
+# tty1's login prompt waits for this, as it does for systemd-firstboot; a getty on
+# the same tty would hang it up mid-setup
+Before=getty@tty1.service display-manager.service
 
 [Service]
 Type=oneshot

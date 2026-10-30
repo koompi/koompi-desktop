@@ -61,6 +61,8 @@ sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="/&console=tty0 console=ttyS0,115200 /' /m
 arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 mkdir -p /mnt/etc/systemd/system/koompi-firstboot.service.d
 cat > /mnt/etc/systemd/system/koompi-firstboot.service.d/test.conf <<'EOF'
+[Unit]
+Before=serial-getty@ttyS0.service
 [Service]
 TTYPath=/dev/ttyS0
 EOF
