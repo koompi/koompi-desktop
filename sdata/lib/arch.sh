@@ -18,6 +18,12 @@ arch_exact_installed_packages() {
     return 0
 }
 
+# Every paru install goes through here, for paru-gpg: an AUR key fetch that
+# stalls fails after a while instead of holding the install for good.
+arch_paru() {
+    run paru --gpg "$REPO_ROOT/sdata/lib/paru-gpg" "$@"
+}
+
 arch_install_paru() {
     paru --version >/dev/null 2>&1 && return 0
     info "paru not found or not runnable; building it (needed for the AUR dependencies)"
@@ -124,7 +130,7 @@ arch_install_pkgbuild() {
         # paru calls sudo on its own account, part-way through a resolve it does
         # not report progress for. Take the prompt here, at a boundary.
         sudo_refresh
-        run paru -S --needed --noconfirm --asdeps "${wanted[@]}"
+        arch_paru -S --needed --noconfirm --asdeps "${wanted[@]}"
     fi
 
     # With `debug` in /etc/makepkg.conf, the Arch default, every meta also yields a
