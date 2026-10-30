@@ -4,7 +4,7 @@
 # Rolls the root subvolume back to the @baseline snapshot the installer pinned
 # (installer/src/post_install.sh pin_baseline) AND removes every human account
 # with `userdel -r`, because /home is a separate btrfs subvolume (@home,
-# installer/src/archinstall.zig) that a root rollback does not touch. Deleting
+# the ISO's koompi-install) that a root rollback does not touch. Deleting
 # the accounts without the rollback leaves the previous owner's system settings;
 # rolling back without deleting the accounts leaves their files.
 #
@@ -271,7 +271,7 @@ check_refusals() {
         warn "  owner's account, not a fresh one. 'userdel -r' removes the home"
         warn "  directories for good, but the accounts come back at the next boot."
         warn "  The installer pins @baseline after archinstall has already created the"
-        warn "  first user (installer/src/archinstall.zig, installer/src/post_install.sh)."
+        warn "  first user (the ISO's koompi-install, installer/src/post_install.sh)."
         exit "$EX_NOT_PRISTINE"
     fi
 

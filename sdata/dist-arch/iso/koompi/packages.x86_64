@@ -1,60 +1,50 @@
-# KOOMPI OS — LIVE-ISO package set.  *** SKELETON ***
+# KOOMPI Hyprland live/install medium. These go into the live session only; the
+# installed system gets its packages from archinstall (koompi_hyprland.py) and the
+# desktop from ./setup install on its first boot.
 #
-# These packages go INTO the live/installer environment only.  The TARGET edition
-# the user picks at install time — koompi-desktop-hyprland OR koompi-desktop-kde —
-# is pacstrapped onto the disk BY the Zig installer (archinstall engine).  Do NOT
-# list the edition metas here; the live ISO stays small and DE-agnostic.
-#
-# One package per line.  Full-line comments only (inline `# ...` leaves trailing
-# whitespace in the package name and breaks pacstrap).
+# One package per line. Full-line comments only: an inline `# ...` leaves trailing
+# whitespace in the package name and breaks pacstrap.
 
-# --- Base system + kernel -----------------------------------------------------
+# --- Base system, kernel, firmware -------------------------------------------
 base
 linux
 linux-firmware
+linux-firmware-marvell
+sof-firmware
+amd-ucode
+intel-ucode
 mkinitcpio
-# archiso runtime initramfs hook — finds + mounts the live squashfs at boot
+# archiso runtime initramfs hook: finds and mounts the live squashfs at boot
 mkinitcpio-archiso
 
-# --- Live-ISO bootloader + shell ----------------------------------------------
-# BIOS boot modules (isolinux.bin + *.c32) for the syslinux bootmodes; UEFI
-# systemd-boot comes from `base`. mkarchiso reads these from the airootfs.
+# --- Live boot and shell -----------------------------------------------------
+# BIOS boot modules for the syslinux bootmodes; UEFI systemd-boot comes from base
 syslinux
-# live root shell — archiso autostarts the installer via root's ~/.zlogin (zsh)
+# root's ~/.zlogin starts koompi-install
 zsh
 
-# --- Installer: FACE + ENGINE -------------------------------------------------
-# archinstall is the dangerous-20% engine (partition/LUKS/pacstrap/bootloader/btrfs).
-# PIN a known-good archinstall version on the ISO — its user_configuration.json
-# schema drifts between releases (locked decision).  Pinning is done at repo/build
-# level, not expressible in this flat list — see README.md.
+# --- Installer ---------------------------------------------------------------
+# the engine koompi-install drives (disk, encryption, pacstrap, bootloader)
 archinstall
+arch-install-scripts
 
-# The Zig FACE (libvaxis TUI) — a thin orchestrator that collects answers, emits
-# archinstall JSON, selects the KOOMPI profile, and runs the post-install hook.
-# PLACEHOLDER: this is built from installer/ in this repo and dropped into the
-# airootfs as /usr/local/bin/koompi-installer (it is NOT yet a packaged binary in
-# the [koompi] repo).  Once packaged, replace this comment with:  koompi-installer
-#koompi-installer
-
-# --- Live-environment tooling the installer needs -----------------------------
-# fetch profiles / post-install assets
-git
-# network in the live session (installer needs connectivity)
+# --- What the installer needs in the live session ----------------------------
 networkmanager
-# btrfs subvolume layout (@, @home, @var_log, @baseline ...)
+# Wi-Fi without NetworkManager's menu, for anyone who knows iwctl
+iwd
+wpa_supplicant
+wireless-regdb
 btrfs-progs
-# snapshot mgmt on the target (semi-immutable / resettable)
-snapper
-# auto pre/post pacman-txn snapshots (configured on target)
-snap-pac
-# target bootloader (grub-btrfs needs GRUB)
-grub
-# bootable snapshot menu in GRUB
-grub-btrfs
-# mkfs.fat for the ESP
 dosfstools
+e2fsprogs
+cryptsetup
+lvm2
+git
+curl
 sudo
-# edit configs in the live session
 nano
 vim
+less
+jq
+gptfdisk
+parted

@@ -1,0 +1,394 @@
+#!/usr/bin/env bash
+# Installs KOOMPI Hyprland from the live ISO, with archinstall as the engine
+# (partitions, LUKS, pacstrap, GRUB) and KOOMPI's defaults and profile
+# (/usr/share/koompi/archinstall). The profile leaves a first-boot step on the new
+# system that puts the desktop on the account made here, the same way the
+# one-line installer does, so every machine updates the same way.
+#
+#   koompi-install                   archinstall's own menu with KOOMPI's defaults
+#   koompi-install --answers FILE    no questions: the answers koompi-installer (the
+#                                    TUI) collected, as JSON (below); the whole disk
+#                                    is wiped
+#       --dry-run DIR                only check the answers and write archinstall's
+#                                    config (and the creds, passwords redacted) to DIR
+#       --keep-mounted               leave the new system on /mnt (the QEMU test edits it)
+#
+# The answers file (version 1) is read and deleted at once; it holds passwords:
+#   {"version": 1, "disk": "/dev/nvme0n1", "encrypt": false, "encryption_password": "",
+#    "hostname": "koompi", "full_name": "Sok Dara", "username": "dara", "password": "...",
+#    "timezone": "Asia/Phnom_Penh", "keyboard": "us", "locale": "en_US.UTF-8"}
+# Progress, on stdout and in /var/log/koompi-install.log, is free text plus
+#   @@koompi step N/TOTAL LABEL     @@koompi done     @@koompi fail REASON
+# and the exit status is 0 only when the new system checks out.
+#
+# KOOMPI_REF and KOOMPI_REPO pass through to the first-boot step (a test install of
+# a branch). KOOMPI_FIRMWARE=uefi|bios, KOOMPI_DISK_BYTES and KOOMPI_SECTOR_SIZE
+# stand in for the machine, in --dry-run only.
+
+set -euo pipefail
+
+# the ISO's tree, or the repo's when run from a checkout (the tests)
+here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+share="$here/../../share/koompi/archinstall"
+[[ -r "$share/config.json" ]] || share=/usr/share/koompi/archinstall
+
+export KOOMPI_REF="${KOOMPI_REF:-main}"
+export KOOMPI_REPO="${KOOMPI_REPO:-https://github.com/koompi/koompi-desktop.git}"
+
+online() { curl -fsI --max-time 6 https://github.com >/dev/null 2>&1; }
+
+# --- archinstall's own menu (no arguments; the fallback) ------------------------
+
+archinstall_menu() {
+    local C_BOLD='' C_GREEN='' C_RED='' C_RST=''
+    if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
+        C_BOLD=$'\e[1m'; C_GREEN=$'\e[32m'; C_RED=$'\e[31m'; C_RST=$'\e[0m'
+    fi
+
+    [[ "$(id -u)" -eq 0 ]] || { echo "run koompi-install as root (the live session is root)" >&2; exit 1; }
+
+    cat <<EOF
+
+${C_BOLD}${C_GREEN}KOOMPI Hyprland installer${C_RST}
+
+  1. Pick the disk (Disk configuration). Everything on it is erased.
+     "Use a best-effort default partition layout" with btrfs is the KOOMPI default.
+  2. Set your account (Authentication > User account).
+  3. Choose Install. When it finishes, choose Reboot.
+
+  The first start of the new system then sets up the KOOMPI desktop. It needs the
+  internet and takes 15-40 minutes. Do not switch the machine off while it runs.
+
+EOF
+
+    until online; do
+        printf '%sNo internet connection.%s Opening the network menu (Wi-Fi: "Activate a connection").\n' "$C_RED" "$C_RST"
+        read -rp "Press Enter to continue, or Ctrl+C to stop. " _
+        nmtui || true
+    done
+
+    read -rp "Press Enter to start the installer. " _
+
+    # archinstall runs the profile in this process; it reads KOOMPI_REF/REPO there
+    exec archinstall --config "$share/config.json" "$@"
+}
+
+# --- the engine: answers in, an installed system out ----------------------------
+
+STEPS=8
+step_now=0
+reported=0
+dry_dir=''
+keep_mounted=0
+work=''
+
+step() {
+    # forward only: archinstall's output can repeat a marker
+    (( $1 > step_now )) || return 0
+    step_now=$1
+    printf '@@koompi step %d/%d %s\n' "$1" "$STEPS" "$2"
+}
+
+fail() {
+    reported=1
+    printf '@@koompi fail %s\n' "$*"
+    exit 1
+}
+
+on_exit() {
+    local rc=$?
+    [[ -z "$work" ]] || rm -rf -- "$work"
+    if (( rc != 0 && reported == 0 )); then
+        printf '@@koompi fail the installer stopped unexpectedly (see %s)\n' "$LOG"
+    fi
+}
+
+# A field that is not a secret. Passwords are never read into the shell: jq takes
+# them from the file straight into the creds file.
+# (not `// ""`: that would turn encrypt=false into "")
+field() { jq -r --arg k "$1" '.[$k] | if . == null then "" else tostring end' "$answers_file"; }
+
+check_answers() {
+    local problems
+    jq -e 'type == "object"' "$answers_file" >/dev/null 2>&1 || fail "the answers file is not a JSON object"
+    # jq's own errors could quote the file; only these messages are shown
+    problems="$(jq -r '
+        def str(k): (.[k] | type) == "string";
+        def clean(k): (.[k] // "") | test("[[:cntrl:]]") | not;
+        (if .version != 1 then "unsupported answers version (this engine reads 1)" else empty end),
+        (if str("disk") and (.disk | startswith("/dev/")) then empty else "disk must be a /dev path" end),
+        (if (.encrypt | type) != "boolean" then "encrypt must be true or false" else empty end),
+        (if .encrypt == true and ((str("encryption_password") | not) or .encryption_password == "")
+            then "an encrypted disk needs a passphrase" else empty end),
+        (if str("hostname") and (.hostname | test("^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")) then empty
+            else "hostname: letters, digits and -, at most 63, not starting or ending with -" end),
+        (if str("username") and (.username | test("^[a-z][a-z0-9_-]{0,31}$")) then empty
+            else "username: lowercase letters, digits, _ or -, starting with a letter, at most 32" end),
+        (if str("username") and (.username | test("^(root|bin|daemon|mail|ftp|http|nobody|dbus|polkitd|git|sddm|rtkit|avahi|colord|systemd-.*)$"))
+            then "username \(.username) is taken by the system" else empty end),
+        (if str("password") and .password != "" then empty else "the password is empty" end),
+        (if ((.full_name // "") | type) == "string" and clean("full_name") and ((.full_name // "") | test("[:,=\\\\]") | not)
+            then empty else "full name: no control characters or : , = \\" end),
+        (if str("timezone") and (.timezone | test("^[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)*$")) then empty else "timezone looks wrong" end),
+        (if str("keyboard") and (.keyboard | test("^[A-Za-z0-9_.-]+$")) then empty else "keyboard layout looks wrong" end),
+        (if str("locale") and (.locale | test("^[A-Za-z0-9_.@-]+$")) then empty else "locale looks wrong" end)
+    ' "$answers_file")"
+    [[ -z "$problems" ]] || fail "$(head -n1 <<<"$problems")"
+}
+
+check_names() {
+    # checked against the live system's own lists where it has them
+    if [[ -d /usr/share/zoneinfo ]] && [[ ! -f "/usr/share/zoneinfo/$timezone" ]]; then
+        fail "unknown timezone $timezone"
+    fi
+    if [[ -r /usr/share/i18n/SUPPORTED ]] && ! grep -qxF "$sys_lang $sys_enc" /usr/share/i18n/SUPPORTED; then
+        fail "unknown locale $locale"
+    fi
+    if [[ -d /usr/share/kbd/keymaps ]] && [[ -z "$(find /usr/share/kbd/keymaps -name "$keyboard.map*" -print -quit)" ]]; then
+        fail "unknown keyboard layout $keyboard"
+    fi
+}
+
+# Size and logical sector size of the disk, from sysfs (no root needed for --dry-run).
+# A path that does not exist is a stand-in, allowed in --dry-run only.
+read_disk() {
+    local name
+    if [[ -n "$dry_dir" ]] && [[ ! -e "$disk" ]]; then
+        disk_bytes="${KOOMPI_DISK_BYTES:-$((64 * 1024 ** 3))}"
+        sector_size="${KOOMPI_SECTOR_SIZE:-512}"
+        echo "dry run: $disk is a stand-in ($disk_bytes bytes, $sector_size-byte sectors)"
+        return 0
+    fi
+    # archinstall knows a disk by its kernel name; a by-id link would match nothing
+    # and it would install with no disk change at all
+    disk="$(readlink -f -- "$disk")"
+    [[ -b "$disk" ]] || fail "$disk is not a block device"
+    [[ "$(lsblk -dno TYPE -- "$disk")" == disk ]] || fail "$disk is not a whole disk"
+    [[ "$(lsblk -dno RO -- "$disk" | tr -d ' ')" == 0 ]] || fail "$disk is read-only"
+    # the boot USB (/run/archiso/bootmnt), active swap, a mounted partition
+    if lsblk -nro MOUNTPOINTS -- "$disk" | grep -q .; then
+        fail "$disk is in use (something on it is mounted); pick another disk"
+    fi
+    name="${disk##*/}"
+    disk_bytes=$(( $(<"/sys/class/block/$name/size") * 512 ))
+    sector_size="$(<"/sys/class/block/$name/queue/logical_block_size")"
+}
+
+# archinstall's own default layout ("best-effort", btrfs with its default
+# subvolumes and compression), as its suggest_single_disk_layout() makes it and
+# json() writes it. On BIOS archinstall partitions MBR, where GRUB sits after the
+# MBR, so there is no bios_grub partition; /boot is FAT32 either way.
+build_config() {
+    local out="$1" MiB=$((1024 ** 2)) GiB=$((1024 ** 3)) avail root_start root_size
+    avail=$disk_bytes
+    [[ $firmware == uefi ]] && avail=$((avail - MiB))   # the backup GPT
+    avail=$((avail - avail % MiB))
+    (( disk_bytes >= 20 * GiB )) || fail "$disk is too small: KOOMPI needs at least 20 GiB"
+    root_start=$((MiB + GiB))
+    root_size=$((avail - root_start))
+
+    jq --arg disk "$disk" --arg hostname "$hostname" --arg timezone "$timezone" \
+       --arg keyboard "$keyboard" --arg sys_lang "$sys_lang" --arg sys_enc "$sys_enc" \
+       --argjson sector "$sector_size" --argjson root_start "$root_start" --argjson root_size "$root_size" \
+       --argjson gpt "$([[ $firmware == uefi ]] && echo true || echo false)" \
+       --argjson encrypt "$encrypt" \
+       --arg boot_id "$(</proc/sys/kernel/random/uuid)" --arg root_id "$(</proc/sys/kernel/random/uuid)" '
+        def size(v; u): {value: v, unit: u, sector_size: {value: $sector, unit: "B"}};
+        def part(id; start; len): {obj_id: id, status: "create", type: "primary",
+            start: start, size: len, dev_path: null};
+        . + {
+            hostname: $hostname,
+            timezone: $timezone,
+            locale_config: ((.locale_config // {}) + {kb_layout: $keyboard, sys_lang: $sys_lang, sys_enc: $sys_enc}),
+            disk_config: ({
+                config_type: "default_layout",
+                device_modifications: [{
+                    device: $disk,
+                    wipe: true,
+                    partitions: [
+                        part($boot_id; size(1; "MiB"); size(1; "GiB")) + {
+                            fs_type: "fat32", mountpoint: "/boot", mount_options: [],
+                            flags: (if $gpt then ["boot", "esp"] else ["boot"] end), btrfs: []},
+                        part($root_id; size($root_start; "B"); size($root_size; "B")) + {
+                            fs_type: "btrfs", mountpoint: null, mount_options: ["compress=zstd"], flags: [],
+                            btrfs: [
+                                {name: "@", mountpoint: "/"},
+                                {name: "@home", mountpoint: "/home"},
+                                {name: "@log", mountpoint: "/var/log"},
+                                {name: "@pkg", mountpoint: "/var/cache/pacman/pkg"}]}
+                    ]
+                }]
+            } + if $encrypt then {disk_encryption: {encryption_type: "luks", partitions: [$root_id], lvm_volumes: []}} else {} end)
+        }' "$share/config.json" > "$out"
+}
+
+# The account (sudo, so the first boot can run ./setup install as it) and the LUKS
+# passphrase, from the answers file straight into archinstall's --creds file.
+creds_filter='{users: [{username: .username, "!password": .password, sudo: true, groups: []}]}
+    + (if .encrypt then {encryption_password: .encryption_password} else {} end)'
+
+wait_ready() {
+    local i
+    # pacman-init fills the keyring; archinstall's pacstrap fails without it
+    for i in $(seq 150); do
+        systemctl is-active --quiet pacman-init.service && break
+        systemctl is-failed --quiet pacman-init.service && fail "the package keyring could not be set up (pacman-init.service)"
+        (( i == 1 )) && echo "waiting for pacman-init.service (the package keyring)"
+        sleep 2
+    done
+    systemctl is-active --quiet pacman-init.service || fail "the package keyring is not ready (pacman-init.service)"
+    for i in $(seq 30); do online && return 0; (( i == 1 )) && echo "waiting for the internet"; sleep 2; done
+    fail "no internet connection"
+}
+
+# An earlier attempt that stopped half way leaves the disk mounted and unlocked
+release_mnt() {
+    if mountpoint -q /mnt; then umount -R /mnt; fi
+    if [[ -e /dev/mapper/root ]]; then cryptsetup close root; fi
+}
+
+# archinstall's own messages mark how far it has come
+follow_archinstall() {
+    local line
+    while IFS= read -r line; do
+        printf '%s\n' "$line"
+        case "$line" in
+            *'Wiping partitions and metadata'*|*'Creating partitions'*) step 3 "Preparing the disk" ;;
+            *'Starting installation'*) step 4 "Installing the base system" ;;
+            *'Adding bootloader'*) step 5 "Installing the boot loader" ;;
+            *'Creating user'*) step 6 "Creating your account" ;;
+            *'Installing profile'*) step 7 "Installing the KOOMPI packages" ;;
+        esac
+    done
+}
+
+# archinstall can end with status 0 and an incomplete system (offline, a failed
+# post-install step), so the result is checked, not the status
+check_result() {
+    mountpoint -q /mnt || fail "the new system is not on /mnt"
+    grep -qxF "KOOMPI_USER=$username" /mnt/etc/koompi/firstboot.conf 2>/dev/null \
+        || fail "the first-boot setup was not written (/etc/koompi/firstboot.conf)"
+    [[ -L /mnt/etc/systemd/system/multi-user.target.wants/koompi-firstboot.service ]] \
+        || fail "koompi-firstboot.service is not enabled"
+    grep -q "^$username:" /mnt/etc/passwd || fail "the account $username was not made"
+    grep -rqs "^$username ALL=(ALL) ALL" /mnt/etc/sudoers.d || fail "$username has no sudo rule"
+    [[ -s /mnt/boot/grub/grub.cfg ]] || fail "GRUB has no configuration"
+    if [[ $firmware == uefi ]] && [[ ! -f /mnt/boot/EFI/BOOT/BOOTX64.EFI ]]; then
+        fail "GRUB is not on the EFI partition"
+    fi
+    grep -q '[[:space:]]/[[:space:]]' /mnt/etc/fstab || fail "the new fstab has no root"
+    local d
+    # not /boot: the ESP is FAT, mounted 0700 on purpose (fmask/dmask 0077)
+    for d in / /etc /usr /var /var/log /var/cache/pacman /home; do
+        (( 8#$(stat -c %a "/mnt$d") & 1 )) || fail "/mnt$d is not open to other users ($(stat -c %a "/mnt$d"))"
+    done
+}
+
+install_from_answers() {
+    local answers=''
+    while (( $# )); do
+        case "$1" in
+            --answers) answers="${2:?--answers needs a file}"; shift 2 ;;
+            --dry-run) dry_dir="${2:?--dry-run needs a directory}"; shift 2 ;;
+            --keep-mounted) keep_mounted=1; shift ;;
+            *) echo "koompi-install: unknown option $1" >&2; exit 2 ;;
+        esac
+    done
+    [[ -n "$answers" ]] || { echo "koompi-install: --answers FILE is required with $*" >&2; exit 2; }
+
+    umask 077
+    if [[ -n "$dry_dir" ]]; then
+        mkdir -p -- "$dry_dir"
+        LOG="${KOOMPI_INSTALL_LOG:-$dry_dir/koompi-install.log}"
+    else
+        LOG="${KOOMPI_INSTALL_LOG:-/var/log/koompi-install.log}"
+    fi
+    # The engine is a subshell: when it ends, however it ends, tee sees the end of
+    # its output and the pipeline returns after the last line is out. Its status
+    # is the engine's (pipefail).
+    engine "$answers" 2>&1 | tee -a "$LOG"
+}
+
+engine() {
+    local answers="$1" rc
+    trap on_exit EXIT
+    echo "koompi-install $(date -Is): from $KOOMPI_REPO ($KOOMPI_REF)"
+
+    [[ -n "$dry_dir" ]] || [[ "$(id -u)" -eq 0 ]] || fail "run koompi-install as root (the live session is root)"
+
+    step 1 "Checking your answers"
+    work="$(mktemp -d -p /run koompi-install.XXXXXX 2>/dev/null || mktemp -d)"
+    answers_file="$work/answers.json"
+    [[ -f "$answers" ]] || fail "no answers file at $answers"
+    cat -- "$answers" > "$answers_file"
+    rm -f -- "$answers" || fail "could not delete $answers (it holds passwords)"
+    check_answers
+
+    disk="$(field disk)"; encrypt="$(field encrypt)"; hostname="$(field hostname)"
+    username="$(field username)"; full_name="$(field full_name)"; timezone="$(field timezone)"
+    keyboard="$(field keyboard)"; locale="$(field locale)"
+    # archinstall's split: en_US.UTF-8 -> en_US.UTF-8 + UTF-8, km_KH -> km_KH + UTF-8
+    sys_lang="$locale"; sys_enc=UTF-8
+    if [[ "$locale" == *.* ]]; then sys_enc="${locale#*.}"; sys_enc="${sys_enc%%@*}"; fi
+    check_names
+
+    firmware=bios
+    [[ -d /sys/firmware/efi ]] && firmware=uefi
+    [[ -n "$dry_dir" ]] && firmware="${KOOMPI_FIRMWARE:-$firmware}"
+    [[ $firmware == uefi || $firmware == bios ]] || fail "KOOMPI_FIRMWARE must be uefi or bios"
+
+    [[ -n "$dry_dir" ]] || release_mnt
+    read_disk
+    printf 'disk %s (%s bytes), %s, encrypted %s; %s@%s, %s, %s, %s\n' "$disk" "$disk_bytes" \
+        "$firmware" "$encrypt" "$username" "$hostname" "$timezone" "$keyboard" "$locale"
+    build_config "$work/config.json" || fail "could not write archinstall's configuration"
+
+    if [[ -n "$dry_dir" ]]; then
+        cp -- "$work/config.json" "$dry_dir/config.json"
+        jq '.password = "<redacted>" | if .encrypt then .encryption_password = "<redacted>" else . end
+            | '"$creds_filter" "$answers_file" > "$dry_dir/creds.json"
+        echo "dry run: archinstall's config and creds (passwords redacted) are in $dry_dir"
+        reported=1; echo "@@koompi done"
+        return 0
+    fi
+    jq "$creds_filter" "$answers_file" > "$work/creds.json"
+    rm -f -- "$answers_file"
+
+    step 2 "Getting ready"
+    wait_ready
+
+    # unbuffered, or archinstall's lines (and the steps) come in one lump at the end;
+    # stdin closed, so a question it should not ask fails instead of hanging
+    # The new system gets the usual umask, not the 077 that keeps this script's secrets:
+    # archinstall makes /mnt/etc, /mnt/home, /mnt/boot and /mnt/var/log with it, and under
+    # 077 they came out 0700 - D-Bus could not start, so no network, so no desktop.
+    umask 022
+    if PYTHONUNBUFFERED=1 archinstall --config "$work/config.json" --creds "$work/creds.json" \
+        --silent --skip-wifi-check </dev/null 2>&1 | follow_archinstall; then rc=0; else rc=$?; fi
+    rm -f -- "$work/creds.json"
+    (( rc == 0 )) || fail "archinstall stopped with an error (status $rc)"
+
+    step 8 "Finishing"
+    check_result
+    [[ -z "$full_name" ]] || arch-chroot /mnt usermod -c "$full_name" -- "$username"
+    # the account has sudo; root gets no password
+    arch-chroot /mnt passwd -l root >/dev/null
+
+    echo "copying the install logs to the new system's /var/log"
+    install -Dm600 -- "$LOG" /mnt/var/log/koompi-install.log
+    if [[ -r /var/log/archinstall/install.log ]]; then
+        install -Dm600 -- /var/log/archinstall/install.log /mnt/var/log/archinstall/install.log
+    fi
+    sync
+    if (( keep_mounted == 0 )); then
+        umount -R /mnt
+        if [[ -e /dev/mapper/root ]]; then cryptsetup close root; fi
+    fi
+    reported=1
+    echo "@@koompi done"
+}
+
+case "${1:-}" in
+    --answers|--dry-run|--keep-mounted) install_from_answers "$@" ;;
+    *) archinstall_menu "$@" ;;
+esac

@@ -1,14 +1,9 @@
-// KOOMPI installer — package manifest (Zig 0.16).
-//
-// No dependencies: rendering is direct ANSI (see main.zig), so nothing is fetched.
+// KOOMPI installer - package manifest. No dependencies: rendering is plain
+// ANSI and the OS calls are std.os.linux, so nothing is fetched.
 .{
-    // Zig 0.14+ uses the enum-literal name form `.name = .koompi_installer`
-    // plus a required `.fingerprint` field. (Pre-0.14 / 0.13.x used a quoted
-    // string `.name = "koompi_installer"` with no fingerprint; if you ever pin
-    // an older toolchain, switch both.)
     .name = .koompi_installer,
     .fingerprint = 0x07b1b58585e0597d,
-    .version = "0.0.0-scaffold",
+    .version = "0.1.0",
     .minimum_zig_version = "0.16.0",
 
     .dependencies = .{},
@@ -17,6 +12,7 @@
         "build.zig",
         "build.zig.zon",
         "src",
+        "test",
         "README.md",
     },
 }

@@ -1,273 +1,184 @@
-//! ui.zig - frame rendering.
-//!
-//! Chrome (header/rail/footer) per docs/ui-ux.md "Persistent chrome":
-//! 80x24 budget, clamped to 72 columns of drawn width, rail = 20 cols incl. its
-//! divider, content = the remainder.
+//! ui.zig - a cell grid drawn with plain ANSI, sized for an 80x25 VGA
+//! console. 16 colors only, bold for bright (what TERM=linux does), ASCII
+//! and box-drawing glyphs only.
 
 const std = @import("std");
+const sys = @import("sys.zig");
 
-const archinstall = @import("archinstall.zig");
-const theme_mod = @import("theme.zig");
-const Theme = theme_mod.Theme;
-const term = @import("term.zig");
-const ColorTier = term.ColorTier;
-const fg = term.fg;
-const resetSGR = term.resetSGR;
-const icon = term.icon;
-const stepGlyph = term.stepGlyph;
-const selectGlyph = term.selectGlyph;
-const app_mod = @import("app.zig");
-const Step = app_mod.Step;
-const all_steps = app_mod.all_steps;
-const App = app_mod.App;
-
-const TOTAL_WIDTH = 72;
-const RAIL_LABEL_WIDTH = 19;
-const CONTENT_WIDTH = TOTAL_WIDTH - 1 - RAIL_LABEL_WIDTH - 1 - 1;
-
-fn codepointLen(s: []const u8) usize {
-    return std.unicode.utf8CountCodepoints(s) catch s.len;
-}
-
-fn writeCell(w: anytype, text: []const u8, width: usize) !void {
-    try w.writeAll(text);
-    const len = codepointLen(text);
-    var i: usize = len;
-    while (i < width) : (i += 1) try w.writeAll(" ");
-}
-
-fn writeHRun(w: anytype, glyph: []const u8, count: usize) !void {
-    var i: usize = 0;
-    while (i < count) : (i += 1) try w.writeAll(glyph);
-}
-
-pub const Ctx = struct {
-    io: std.Io,
-    theme: *const Theme,
-    tier: ColorTier,
-    ascii_forced: bool,
+pub const Style = enum(u8) {
+    text,
+    strong,
+    dim,
+    accent,
+    header,
+    select,
+    field,
+    field_focus,
+    danger,
+    ok,
+    warn,
 };
 
-fn drawTopBorder(w: anytype, ctx: Ctx) !void {
-    try fg(w, ctx.theme, ctx.tier, .brandAlt);
-    try w.writeAll(ctx.theme.glyphs.tl);
-    try writeHRun(w, ctx.theme.glyphs.h, TOTAL_WIDTH - 2);
-    try w.writeAll(ctx.theme.glyphs.tr);
-    try resetSGR(w, ctx.tier);
-    try w.writeAll("\n");
+pub var no_color = false;
+
+fn sgr(s: Style) []const u8 {
+    if (no_color) return switch (s) {
+        .header, .select, .field_focus => "\x1b[0;7m",
+        .strong, .danger, .accent, .ok, .warn => "\x1b[0;1m",
+        else => "\x1b[0m",
+    };
+    return switch (s) {
+        .text => "\x1b[0;37;40m",
+        .strong => "\x1b[0;1;37;40m",
+        .dim => "\x1b[0;90;40m",
+        .accent => "\x1b[0;1;36;40m",
+        .header => "\x1b[0;1;37;44m",
+        .select => "\x1b[0;30;46m",
+        .field => "\x1b[0;1;37;40m",
+        .field_focus => "\x1b[0;1;37;44m",
+        .danger => "\x1b[0;1;31;40m",
+        .ok => "\x1b[0;1;32;40m",
+        .warn => "\x1b[0;1;33;40m",
+    };
 }
 
-fn drawBottomBorder(w: anytype, ctx: Ctx) !void {
-    try fg(w, ctx.theme, ctx.tier, .brandAlt);
-    try w.writeAll(ctx.theme.glyphs.bl);
-    try writeHRun(w, ctx.theme.glyphs.h, TOTAL_WIDTH - 2);
-    try w.writeAll(ctx.theme.glyphs.br);
-    try resetSGR(w, ctx.tier);
-    try w.writeAll("\n");
+/// Box drawing is in every console font; anything else non-ASCII may not be.
+fn consoleSafe(cp: u21) bool {
+    return cp < 0x80 or (cp >= 0x2500 and cp <= 0x257f);
 }
 
-fn drawDivider(w: anytype, ctx: Ctx) !void {
-    try fg(w, ctx.theme, ctx.tier, .brandAlt);
-    try w.writeAll(ctx.theme.glyphs.tee_l);
-    try writeHRun(w, ctx.theme.glyphs.h, RAIL_LABEL_WIDTH);
-    try w.writeAll(ctx.theme.glyphs.cross);
-    try writeHRun(w, ctx.theme.glyphs.h, CONTENT_WIDTH);
-    try w.writeAll(ctx.theme.glyphs.tee_r);
-    try resetSGR(w, ctx.tier);
-    try w.writeAll("\n");
-}
+pub const Cell = struct { ch: u21 = ' ', style: Style = .text };
 
-fn drawHeader(w: anytype, ctx: Ctx, screen: Step) !void {
-    try drawTopBorder(w, ctx);
+pub const max_cols = 256;
+pub const max_rows = 100;
 
-    var buf: [TOTAL_WIDTH * 4]u8 = undefined;
-    var bw = std.Io.Writer.fixed(&buf);
-    try bw.print(" {s} {s} · {s}", .{ ctx.theme.logo_fallback_glyph, ctx.theme.brand_name, ctx.theme.brand_edition });
-    const left = bw.buffered();
+/// The drawn frame is at most this big and centered in a larger terminal.
+pub const frame_cols = 80;
+pub const frame_rows = 25;
+pub const min_rows = 24;
 
-    var buf2: [TOTAL_WIDTH * 4]u8 = undefined;
-    var bw2 = std.Io.Writer.fixed(&buf2);
-    try bw2.print("{s} ", .{screen.title()});
-    const right = bw2.buffered();
+pub const Screen = struct {
+    cells: [max_rows][max_cols]Cell = undefined,
+    cols: u16 = 80,
+    rows: u16 = 25,
+    /// top-left of the 80x25 frame inside the terminal
+    ox: u16 = 0,
+    oy: u16 = 0,
+    /// frame height actually used (24 or 25)
+    h: u16 = 25,
 
-    try fg(w, ctx.theme, ctx.tier, .brandAlt);
-    try w.writeAll(ctx.theme.glyphs.v);
-    try resetSGR(w, ctx.tier);
-    try fg(w, ctx.theme, ctx.tier, .brand);
-    try w.writeAll(left);
-    const used = codepointLen(left) + codepointLen(right);
-    var pad = used;
-    while (pad < TOTAL_WIDTH - 2) : (pad += 1) try w.writeAll(" ");
-    try fg(w, ctx.theme, ctx.tier, .textDim);
-    try w.writeAll(right);
-    try resetSGR(w, ctx.tier);
-    try fg(w, ctx.theme, ctx.tier, .brandAlt);
-    try w.writeAll(ctx.theme.glyphs.v);
-    try resetSGR(w, ctx.tier);
-    try w.writeAll("\n");
+    pub fn begin(self: *Screen, size: sys.Size) void {
+        self.cols = @min(size.cols, max_cols);
+        self.rows = @min(size.rows, max_rows);
+        self.h = @min(self.rows, frame_rows);
+        self.ox = if (self.cols > frame_cols) (self.cols - frame_cols) / 2 else 0;
+        self.oy = if (self.rows > frame_rows) (self.rows - frame_rows) / 2 else 0;
+        for (self.cells[0..self.rows]) |*row| @memset(row[0..self.cols], Cell{});
+    }
 
-    try drawDivider(w, ctx);
-}
+    pub fn fits(self: *const Screen) bool {
+        return self.cols >= frame_cols and self.rows >= min_rows;
+    }
 
-fn drawFooter(w: anytype, ctx: Ctx, hint: []const u8) !void {
-    try drawDivider(w, ctx);
-    try fg(w, ctx.theme, ctx.tier, .brandAlt);
-    try w.writeAll(ctx.theme.glyphs.v);
-    try resetSGR(w, ctx.tier);
-    try fg(w, ctx.theme, ctx.tier, .textDim);
-    try writeCell(w, hint, TOTAL_WIDTH - 2);
-    try resetSGR(w, ctx.tier);
-    try fg(w, ctx.theme, ctx.tier, .brandAlt);
-    try w.writeAll(ctx.theme.glyphs.v);
-    try resetSGR(w, ctx.tier);
-    try w.writeAll("\n");
-    try drawBottomBorder(w, ctx);
-}
-
-fn railLine(ctx: Ctx, current: Step, s: Step, buf: []u8) []const u8 {
-    const glyph = if (s == current)
-        stepGlyph(ctx.theme, ctx.ascii_forced, .current)
-    else if (@intFromEnum(s) < @intFromEnum(current))
-        stepGlyph(ctx.theme, ctx.ascii_forced, .done)
-    else
-        stepGlyph(ctx.theme, ctx.ascii_forced, .upcoming);
-    return std.fmt.bufPrint(buf, " {s} {s}", .{ glyph, s.title() }) catch buf;
-}
-
-fn drawRailAndContent(w: anytype, ctx: Ctx, screen: Step, content_lines: []const []const u8) !void {
-    const row_count = @max(all_steps.len, content_lines.len);
-    var row: usize = 0;
-    while (row < row_count) : (row += 1) {
-        try fg(w, ctx.theme, ctx.tier, .brandAlt);
-        try w.writeAll(ctx.theme.glyphs.v);
-        try resetSGR(w, ctx.tier);
-
-        if (row < all_steps.len) {
-            const s = all_steps[row];
-            var buf: [64]u8 = undefined;
-            const text = railLine(ctx, screen, s, &buf);
-            if (s == screen) {
-                try fg(w, ctx.theme, ctx.tier, .brand);
-            } else if (@intFromEnum(s) < @intFromEnum(screen)) {
-                try fg(w, ctx.theme, ctx.tier, .success);
-            } else {
-                try fg(w, ctx.theme, ctx.tier, .textDim);
-            }
-            try writeCell(w, text, RAIL_LABEL_WIDTH);
-            try resetSGR(w, ctx.tier);
-        } else {
-            try writeCell(w, "", RAIL_LABEL_WIDTH);
+    /// Writes ASCII/UTF-8 text at frame coordinates, clipped to `max_w`
+    /// cells and the frame. Returns the cells used.
+    pub fn text(self: *Screen, x: u16, y: u16, s: []const u8, style: Style, max_w: u16) u16 {
+        if (y >= self.h) return 0;
+        const ay = y + self.oy;
+        var col = x;
+        var used: u16 = 0;
+        var i: usize = 0;
+        while (i < s.len) {
+            if (used >= max_w or col >= frame_cols) break;
+            var cp: u21 = s[i];
+            var n: usize = 1;
+            if (s[i] >= 0x80) {
+                n = std.unicode.utf8ByteSequenceLength(s[i]) catch 1;
+                cp = if (i + n <= s.len) std.unicode.utf8Decode(s[i .. i + n]) catch '?' else '?';
+                if (cp == '?') n = @max(1, @min(n, s.len - i));
+                if (!consoleSafe(cp)) cp = '?';
+            } else if (cp < 0x20 or cp == 0x7f) cp = '?';
+            i += n;
+            const ax = col + self.ox;
+            if (ax < self.cols and ay < self.rows) self.cells[ay][ax] = .{ .ch = cp, .style = style };
+            col += 1;
+            used += 1;
         }
-
-        try fg(w, ctx.theme, ctx.tier, .brandAlt);
-        try w.writeAll(ctx.theme.glyphs.v);
-        try resetSGR(w, ctx.tier);
-
-        const line = if (row < content_lines.len) content_lines[row] else "";
-        try fg(w, ctx.theme, ctx.tier, .text);
-        try writeCell(w, line, CONTENT_WIDTH);
-        try resetSGR(w, ctx.tier);
-
-        try fg(w, ctx.theme, ctx.tier, .brandAlt);
-        try w.writeAll(ctx.theme.glyphs.v);
-        try resetSGR(w, ctx.tier);
-        try w.writeAll("\n");
+        return used;
     }
-}
 
-fn footerFor(screen: Step, ascii_forced: bool) []const u8 {
-    if (screen == .review) {
-        return if (ascii_forced) "Enter: INSTALL (destructive)  Esc: back  ^C: quit" else "⏎ INSTALL (destructive)   Esc back   ^C quit";
+    pub fn fill(self: *Screen, x: u16, y: u16, w: u16, ch: u21, style: Style) void {
+        var i: u16 = 0;
+        while (i < w) : (i += 1) {
+            const ax = x + i + self.ox;
+            const ay = y + self.oy;
+            if (x + i < frame_cols and y < self.h and ax < self.cols and ay < self.rows)
+                self.cells[ay][ax] = .{ .ch = ch, .style = style };
+        }
     }
-    if (screen == .welcome) {
-        return if (ascii_forced) "Enter: continue  ^C: quit" else "⏎ continue   ^C quit";
-    }
-    if (screen == .done or screen == .run) {
-        return "^C quit";
-    }
-    return if (ascii_forced) "Enter: next  Esc: back  ^C: quit" else "⏎ next   Esc back   ^C quit";
-}
 
-fn contentLines(app: *App, ctx: Ctx, alloc: std.mem.Allocator) ![]const []const u8 {
-    var lines: std.ArrayList([]const u8) = .empty;
-    const cfg = app.cfg;
+    pub fn fmt(self: *Screen, x: u16, y: u16, style: Style, max_w: u16, comptime f: []const u8, args: anytype) u16 {
+        var buf: [256]u8 = undefined;
+        const s = std.fmt.bufPrint(&buf, f, args) catch buf[0..];
+        return self.text(x, y, s, style, max_w);
+    }
 
-    switch (app.step) {
-        .welcome => {
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "{s} {s} — {s}", .{ ctx.theme.logo_fallback_glyph, ctx.theme.brand_name, ctx.theme.brand_edition }));
-            try lines.append(alloc, "");
-            try lines.append(alloc, "This installer will set up your machine.");
-        },
-        .locale => {
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "{s} locale    {s}", .{ icon(ctx.theme, ctx.ascii_forced, .lang), cfg.locale }));
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "  timezone  {s}", .{cfg.timezone}));
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "  keymap    {s}", .{cfg.keymap}));
-        },
-        .disk => {
-            const shown = if (cfg.disk_path.len != 0) cfg.disk_path else "<none>";
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "{s} target disk", .{icon(ctx.theme, ctx.ascii_forced, .disk)}));
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "{s} {s}", .{ selectGlyph(ctx.theme, ctx.ascii_forced), shown }));
-        },
-        .identity => {
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "{s} hostname  {s}", .{ icon(ctx.theme, ctx.ascii_forced, .user), cfg.hostname }));
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "  username  {s}", .{cfg.username}));
-            try lines.append(alloc, "  password  <hidden>");
-        },
-        .edition => {
-            for (ctx.theme.profiles) |p| {
-                const marker = if (std.mem.eql(u8, p.id, archinstall.targetPackage(cfg.edition))) selectGlyph(ctx.theme, ctx.ascii_forced) else " ";
-                try lines.append(alloc, try std.fmt.allocPrint(alloc, "{s} {s} {s}  {s}", .{ marker, icon(ctx.theme, ctx.ascii_forced, .desktop), p.label, p.summary }));
+    /// A box-drawing frame around (x,y,w,h), inside cleared.
+    pub fn box(self: *Screen, x: u16, y: u16, w: u16, h: u16, style: Style) void {
+        self.fill(x, y, w, 0x2500, style);
+        self.fill(x, y + h - 1, w, 0x2500, style);
+        var r: u16 = 1;
+        while (r + 1 < h) : (r += 1) {
+            self.fill(x, y + r, 1, 0x2502, style);
+            self.fill(x + 1, y + r, w - 2, ' ', .text);
+            self.fill(x + w - 1, y + r, 1, 0x2502, style);
+        }
+        self.fill(x, y, 1, 0x250c, style);
+        self.fill(x + w - 1, y, 1, 0x2510, style);
+        self.fill(x, y + h - 1, 1, 0x2514, style);
+        self.fill(x + w - 1, y + h - 1, 1, 0x2518, style);
+    }
+
+    /// Paints the whole terminal in one write.
+    pub fn flush(self: *const Screen) void {
+        var out: std.ArrayList(u8) = .empty;
+        defer out.deinit(std.heap.page_allocator);
+        const a = std.heap.page_allocator;
+        out.appendSlice(a, "\x1b[H") catch return;
+        var last: ?Style = null;
+        for (self.cells[0..self.rows], 0..) |row, y| {
+            if (y > 0) out.appendSlice(a, "\r\n") catch return;
+            for (row[0..self.cols]) |c| {
+                if (last != c.style) {
+                    out.appendSlice(a, sgr(c.style)) catch return;
+                    last = c.style;
+                }
+                var enc: [4]u8 = undefined;
+                const n = std.unicode.utf8Encode(c.ch, &enc) catch 1;
+                if (n == 1 and c.ch > 0x7f) enc[0] = '?';
+                out.appendSlice(a, enc[0..n]) catch return;
             }
-        },
-        .encrypt => {
-            const state = if (cfg.encrypt) "ON" else "OFF";
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "{s} encryption (LUKS)  {s}", .{ icon(ctx.theme, ctx.ascii_forced, .lock), state }));
-        },
-        .review => {
-            const pkg = archinstall.targetPackage(cfg.edition);
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "edition   {s}  ({s})", .{ cfg.edition.label(), pkg }));
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "{s} disk    {s}  WILL BE ERASED", .{ icon(ctx.theme, ctx.ascii_forced, .warn), cfg.disk_path }));
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "hostname  {s}", .{cfg.hostname}));
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "user      {s}", .{cfg.username}));
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "locale    {s}  tz {s}  keymap {s}", .{ cfg.locale, cfg.timezone, cfg.keymap }));
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "encrypt   {s}  fs {s}", .{ if (cfg.encrypt) "yes" else "no", if (cfg.btrfs) "btrfs" else "ext4" }));
-        },
-        .run => {
-            const spinner_frame = if (ctx.tier == .truecolor) ctx.theme.glyphs.spinner[0] else "*";
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "{s} Running archinstall + post-install hook…", .{spinner_frame}));
-            var bar: [40]u8 = undefined;
-            var i: usize = 0;
-            var bw = std.Io.Writer.fixed(&bar);
-            while (i < 6) : (i += 1) _ = bw.write(ctx.theme.glyphs.progress_full) catch {};
-            while (i < 20) : (i += 1) _ = bw.write(ctx.theme.glyphs.progress_empty) catch {};
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "{s}", .{bw.buffered()}));
-        },
-        .done => {
-            try lines.append(alloc, try std.fmt.allocPrint(alloc, "{s} Installation complete.", .{icon(ctx.theme, ctx.ascii_forced, .ok)}));
-            try lines.append(alloc, "Reboot into KOOMPI OS.");
-        },
+        }
+        out.appendSlice(a, "\x1b[0m") catch return;
+        sys.writeAll(1, out.items);
     }
-    return lines.toOwnedSlice(alloc);
-}
+};
 
-pub fn draw(app: *App, ctx: Ctx) void {
-    var out_buf: [4096]u8 = undefined;
-    var stdout = std.Io.File.stdout().writerStreaming(ctx.io, &out_buf);
-    const out = &stdout.interface;
-    defer out.flush() catch {};
-    out.writeAll("\x1b[2J\x1b[H") catch {};
+/// Entering and leaving the full-screen UI. Autowrap off so the last cell
+/// does not scroll; cursor hidden, the UI draws its own.
+pub const enter_seq = "\x1b[?1049h\x1b[?7l\x1b[?25l\x1b[0;37;40m\x1b[2J\x1b[H";
+pub const leave_seq = "\x1b[0m\x1b[2J\x1b[H\x1b[?25h\x1b[?7h\x1b[?1049l";
 
-    var arena = std.heap.ArenaAllocator.init(app.alloc);
-    defer arena.deinit();
+/// Layout of the frame, in frame cells.
+pub const rail_x = 2;
+pub const rail_w = 14;
+pub const sep_x = 17;
+pub const cx = 20;
+pub const cw = 58;
+pub const top = 2;
 
-    drawHeader(out, ctx, app.step) catch {};
-    const lines = contentLines(app, ctx, arena.allocator()) catch &.{};
-    drawRailAndContent(out, ctx, app.step, lines) catch {};
-    drawFooter(out, ctx, footerFor(app.step, ctx.ascii_forced)) catch {};
-
-    if (app.step == .review and !app.cfg.isComplete()) {
-        fg(out, ctx.theme, ctx.tier, .danger) catch {};
-        out.print("{s} incomplete: fill in the required fields before installing.\n", .{icon(ctx.theme, ctx.ascii_forced, .warn)}) catch {};
-        resetSGR(out, ctx.tier) catch {};
-    }
+pub fn progressBar(s: *Screen, x: u16, y: u16, w: u16, num: u32, den: u32) void {
+    const filled: u16 = if (den == 0) 0 else @intCast(@min(@as(u64, w), @as(u64, w) * num / den));
+    s.fill(x, y, filled, 0x2550, .accent);
+    s.fill(x + filled, y, w - filled, 0x2500, .dim);
 }

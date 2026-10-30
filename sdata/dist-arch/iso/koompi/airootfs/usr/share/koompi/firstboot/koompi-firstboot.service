@@ -1,0 +1,25 @@
+# The first start of a KOOMPI Hyprland install sets up the desktop on tty1, before
+# the login screen. Written and enabled by the installer's profile; the script
+# renames its config when it is done, so this never runs again.
+[Unit]
+Description=KOOMPI first boot: set up the desktop
+ConditionPathExists=/etc/koompi/firstboot.conf
+Wants=network-online.target
+After=network-online.target NetworkManager.service systemd-user-sessions.service
+# tty1's login prompt waits for this, as it does for systemd-firstboot; a getty on
+# the same tty would hang it up mid-setup
+Before=getty@tty1.service display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/koompi/firstboot
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=multi-user.target
