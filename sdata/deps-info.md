@@ -78,8 +78,8 @@ Tips:
   - Used in fuzzel, Hyprland, kdeglobals and Quickshell config; kitty config is also included as dots.
 - `matugen-bin`
   - Used in Quickshell.
-- `otf-space-grotesk`
-  - [source](https://events.ccc.de/congress/2024/infos/styleguide.html)
+- `ttf-koompi-space-grotesk` (built from `sdata/dist-arch/`; replaces the AUR's `otf-space-grotesk`)
+  - [source](https://github.com/google/fonts/tree/main/ofl/spacegrotesk)
   - Used in Quickshell and matugen config.
 - `starship`
   - Used in Fish config.
