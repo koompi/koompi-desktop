@@ -28,10 +28,13 @@ airootfs_image_type="squashfs"          # live root filesystem image format
 airootfs_image_tool_options=('-comp' 'xz' '-Xbcj' 'x86' '-b' '1M' '-Xdict-size' '1M')
 bootstrap_tarball_compression=('zstd' '-c' '-T0' '--auto-threads=logical' '-19')
 
-# File permissions/ownership applied to airootfs paths.
+# File permissions/ownership applied to airootfs paths. mkarchiso declares the
+# array and sources this file inside a function: a `declare -A` here would make a
+# local copy it never sees (the live ISO then shipped .automated_script.sh not
+# executable, and the installer never started).
 # Format:  ["/path"]="UID:GID:MODE"  (octal MODE).  Paths absent here keep the
 # permissions they have on disk in airootfs/.
-declare -A file_permissions=(
+file_permissions=(
   ["/root"]="0:0:750"                                   # private root home
   ["/root/.automated_script.sh"]="0:0:755"              # live-session autostart (run by ~/.zlogin)
   ["/etc/shadow"]="0:0:0400"

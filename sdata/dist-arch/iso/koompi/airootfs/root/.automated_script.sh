@@ -21,6 +21,8 @@ automated_script() {
     [[ ! -x /tmp/startup_script ]] || return 0
     if [[ "${script}" =~ ^((http|https|ftp|tftp)://) ]]; then
         printf '%s: waiting for network-online.target\n' "$0"
+        # nothing else on the live ISO pulls the target in; started, it waits on NetworkManager
+        systemctl --no-block start network-online.target
         until systemctl --quiet is-active network-online.target; do sleep 1; done
         printf '%s: downloading %s\n' "$0" "${script}"
         curl "${script}" --location --retry-connrefused --retry 10 --fail -s -o /tmp/startup_script
