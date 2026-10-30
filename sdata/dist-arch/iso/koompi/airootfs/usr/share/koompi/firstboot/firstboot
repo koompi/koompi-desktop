@@ -48,7 +48,9 @@ install_desktop() {
     home="$(getent passwd "$KOOMPI_USER" | cut -d: -f6)"
     dest="$home/.local/share/koompi-desktop"
 
-    printf '%s ALL=(ALL) NOPASSWD: ALL\n' "$KOOMPI_USER" > "$SUDOERS"
+    # !authenticate, not only NOPASSWD: the account's own "ALL" rule from the
+    # installer stays, and with one rule wanting a password `sudo -v` asks for it
+    printf 'Defaults:%s !authenticate\n%s ALL=(ALL) NOPASSWD: ALL\n' "$KOOMPI_USER" "$KOOMPI_USER" > "$SUDOERS"
     chmod 440 "$SUDOERS"
 
     # the user manager ./setup enables units in, as at a real login
