@@ -2,7 +2,9 @@
 # The plate is drawn once and reused: sixteen real AppIconPlates, animated for seconds, cost one plate texture and
 # one mask texture per distinct full-bleed icon, and a second grid of the same icons costs nothing. Icons the
 # theme does not draw stay unmasked, and a name that resolves to nothing gets the letter. A fake WhiteSur-green
-# (the one theme with body metadata) and a fake hicolor stand in for the real ones, in a headless KWin.
+# (the one theme with body metadata) and a fake hicolor stand in for the real ones, in a headless KWin. A bare
+# icon (the bar's workspaces) draws no plate and is never masked, so it adds no texture of either kind, and
+# where the theme draws a full-bleed tile and the app ships its own icon in hicolor, the bare one is the app's.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -28,8 +30,10 @@ svg() { printf '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"
 mkdir -p "$WORK/data/icons/WhiteSur-green/apps/scalable" "$WORK/data/icons/hicolor/scalable/apps"
 theme_index WhiteSur-green hicolor apps/scalable > "$WORK/data/icons/WhiteSur-green/index.theme"
 theme_index hicolor "" scalable/apps > "$WORK/data/icons/hicolor/index.theme"
-for i in $(seq 0 11); do svg 8 112 "#3a7bd5" > "$WORK/data/icons/WhiteSur-green/apps/scalable/m$i.svg"; done
+for i in $(seq 0 11) bare; do svg 8 112 "#3a7bd5" > "$WORK/data/icons/WhiteSur-green/apps/scalable/m$i.svg"; done
 for i in 0 1 2; do svg 24 80 "#d57b3a" > "$WORK/data/icons/hicolor/scalable/apps/p$i.svg"; done
+svg 8 112 "#3a7bd5" > "$WORK/data/icons/WhiteSur-green/apps/scalable/mown.svg"
+svg 24 80 "#d57b3a" > "$WORK/data/icons/hicolor/scalable/apps/mown.svg"
 
 cat > "$WORK/shell/plate_probe.qml" <<'QML'
 import Quickshell
@@ -69,6 +73,9 @@ ShellRoot {
         implicitHeight: 360
         color: "#202020"
         Grid16 { id: first; x: 12; y: 12 }
+        AppIconPlate { id: bareFull; bare: true; iconName: "mbare"; size: 18; x: 12; y: 330 }
+        AppIconPlate { id: barePlain; bare: true; iconName: "p0"; size: 18; x: 40; y: 330 }
+        AppIconPlate { id: bareOwn; bare: true; iconName: "mown"; size: 18; x: 68; y: 330 }
         Loader {
             active: probe.second
             x: 12
@@ -81,7 +88,8 @@ ShellRoot {
         target: "probe"
         function second(on: bool): void { probe.second = on; }
         function states(): string {
-            return probe.names.map((n, i) => `${n}:${first.plates.itemAt(i)?.masked}:${first.plates.itemAt(i)?.resolved}`).join(" ");
+            return probe.names.map((n, i) => `${n}:${first.plates.itemAt(i)?.masked}:${first.plates.itemAt(i)?.resolved}`).join(" ")
+                + [bareFull, barePlain, bareOwn].map(p => ` bare-${p.iconName}:${p.masked}:${p.resolved}:${p.glyph}:${p.path.indexOf("/hicolor/") >= 0}`).join("");
         }
     }
 }
@@ -96,6 +104,7 @@ qs -p plate_probe.qml > "$WORK/qs.log" 2>&1 &
 call() { qs -p plate_probe.qml ipc call "$@" 2> /dev/null < /dev/null; }
 for _ in $(seq 1 80); do call probe states > /dev/null && break; sleep 0.5; done
 for _ in $(seq 1 40); do [[ $(call appIconPlates stats) == "base=1 mask=12 "* ]] && break; sleep 0.25; done
+for _ in $(seq 1 40); do [[ $(call probe states) == *"bare-mown:false:true:1:true" ]] && break; sleep 0.25; done
 echo "READ states $(call probe states)"
 echo "READ first $(call appIconPlates stats)"
 sleep 3
@@ -120,8 +129,8 @@ check() { [[ $2 == "$3" ]] || fail "$1: got '$2', want '$3'"; }
 
 masked=""; for i in $(seq 0 11); do masked+="m$i:true:true "; done
 check "full-bleed icons of the theme are masked, the rest are not, a missing name is unresolved" \
-    "$(reading states)" "${masked}p0:false:true p1:false:true p2:false:true nothing-like-this:false:false"
+    "$(reading states)" "${masked}p0:false:true p1:false:true p2:false:true nothing-like-this:false:false bare-mbare:false:true:1:false bare-p0:false:true:1:false bare-mown:false:true:1:true"
 check "sixteen plates cost one plate texture and one mask per distinct icon" "$(reading first)" "base=1 mask=12 cached=13"
 check "three seconds of animation render nothing more" "$(reading animated)" "base=1 mask=12 cached=13"
 check "a second grid of the same icons renders nothing more" "$(reading second)" "base=1 mask=12 cached=13"
-echo "ok   icon plate: one plate texture, one mask per full-bleed icon, none per frame, unmasked and letter cases"
+echo "ok   icon plate: one plate texture, one mask per full-bleed icon, none per frame, unmasked, letter and bare cases"

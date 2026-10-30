@@ -16,7 +16,7 @@ MaterialSymbol {
     objectName: "networkIndicator"
 
     text: Network.materialSymbol
-    fill: Network.connected ? 1 : 0
+    fill: Network.linked ? 1 : 0
     iconSize: Appearance.font.pixelSize.larger
     color: root.barScheme.fg
 

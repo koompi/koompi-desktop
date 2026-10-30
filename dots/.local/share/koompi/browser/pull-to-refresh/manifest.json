@@ -2,16 +2,28 @@
   "manifest_version": 3,
   "name": "KOOMPI Touchpad Gestures",
   "description": "Swipe with two fingers to go back and forward with the page sliding, as on a Mac, and pull down at the top of a page to reload.",
-  "version": "2.0.0",
-  "permissions": ["webNavigation", "storage", "tabs"],
-  "host_permissions": ["<all_urls>"],
+  "version": "2.1.0",
+  "permissions": [
+    "webNavigation",
+    "storage",
+    "tabs",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["pull.js", "swipe.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "pull.js",
+        "swipe.js"
+      ],
       "run_at": "document_idle"
     }
   ]

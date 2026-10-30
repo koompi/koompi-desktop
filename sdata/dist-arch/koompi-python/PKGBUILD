@@ -1,7 +1,7 @@
 groups=(koompi)
 pkgname=koompi-python
 pkgver=1.1
-pkgrel=6
+pkgrel=7
 pkgdesc='KOOMPI Python Dependencies'
 arch=(any)
 license=(None)
@@ -20,4 +20,7 @@ depends=(
   #   dots/.config/quickshell/koompi/scripts/thumbnails/thumbgen.py
   python-gobject
   python-opencv
+  # the AI desktop tool's `see`: marks drawn on a window's screenshot
+  #   dots/.config/quickshell/koompi/scripts/ai/desktop_pixels.py
+  python-pillow
 )

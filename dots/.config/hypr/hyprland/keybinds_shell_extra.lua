@@ -39,3 +39,13 @@ for n = 1, 9 do
     -- keycode twin for layouts whose number row types other characters, as keybinds.lua does
     hl.bind("SUPER + CTRL + code:" .. (n + 9), hl.dsp.exec_cmd(bar .. " popup " .. n)) -- # [hidden]
 end
+
+-- Wallpaper re-rolls without opening anything. Ctrl+Super+Alt+T in keybinds.lua
+-- does the first too; W is the one a hand finds. Both pin the workspace the key
+-- was pressed on (modules/koompi/wallpaperSelector/WallpaperSelector.qml).
+hl.bind("SUPER + ALT + W", hl.dsp.global("quickshell:wallpaperSelectorRandom"),
+    { description = "Shell: Next random wallpaper" })
+hl.bind("SUPER + ALT + SHIFT + W", hl.dsp.global("quickshell:wallpaperRandomCambodia"),
+    { description = "Shell: Random Cambodian art wallpaper (downloads)" })
+hl.bind("CTRL + SUPER + ALT + W", hl.dsp.global("quickshell:wallpaperRandomAbstract"),
+    { description = "Shell: New abstract wallpaper (drawn offline)" })

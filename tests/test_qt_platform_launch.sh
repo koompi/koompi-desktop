@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# env.lua, koompi-launch and koompi doctor agree: xcb for the four menu apps, wayland first for the rest
+# env.lua, koompi-launch and koompi doctor agree: wayland first, xcb as the fallback, for every Qt app.
+# Dolphin, Okular, Konsole and Ark were pinned to xcb for their menubar until the global
+# menu learnt to find a Qt menubar on Wayland (globalmenu/core/src/qtmenu.rs).
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -77,19 +79,17 @@ expect() {
 check_launches() {
     local rt=$1 label=$2 app
     for app in dolphin okular konsole ark; do
-        expect "$label: bare command $app" xcb "$(launched_platform "$rt" "$inherited" "$app")"
-        expect "$label: desktop entry org.kde.$app" xcb "$(launched_platform "$rt" "$inherited" "org.kde.$app.desktop")"
-        expect "$label: --id org.kde.$app" xcb "$(launched_platform "$rt" "$inherited" --id "org.kde.$app" -- "$tmp/bin/platform_probe")"
-        expect "$label: --id other, binary $app" xcb "$(launched_platform "$rt" "$inherited" --id some-launcher -- "$app")"
-        expect "$label: $app with no platform in the session" xcb "$(launched_platform "$rt" - "$app")"
+        expect "$label: bare command $app" "$inherited" "$(launched_platform "$rt" "$inherited" "$app")"
+        expect "$label: desktop entry org.kde.$app" "$inherited" "$(launched_platform "$rt" "$inherited" "org.kde.$app.desktop")"
+        expect "$label: --id org.kde.$app" "$inherited" "$(launched_platform "$rt" "$inherited" --id "org.kde.$app" -- "$tmp/bin/platform_probe")"
+        expect "$label: $app with no platform in the session" '<unset>' "$(launched_platform "$rt" - "$app")"
     done
     expect "$label: kdeconnect-app" "$inherited" "$(launched_platform "$rt" "$inherited" kdeconnect-app)"
     expect "$label: desktop entry org.kde.kdeconnect.app" "$inherited" "$(launched_platform "$rt" "$inherited" org.kde.kdeconnect.app.desktop)"
     expect "$label: --id org.kde.kdeconnect.app" "$inherited" "$(launched_platform "$rt" "$inherited" --id org.kde.kdeconnect.app -- "$tmp/bin/platform_probe")"
-    expect "$label: --id okular-nightly is not okular" "$inherited" "$(launched_platform "$rt" "$inherited" --id okular-nightly -- "$tmp/bin/platform_probe")"
     expect "$label: kdeconnect-app with no platform in the session" '<unset>' "$(launched_platform "$rt" - kdeconnect-app)"
     expect "$label: the shell's wayland pin gets the xcb fallback" 'wayland;xcb' "$(launched_platform "$rt" wayland kdeconnect-app)"
-    expect "$label: the shell's wayland pin and a menu app" xcb "$(launched_platform "$rt" wayland okular)"
+    expect "$label: the shell's wayland pin and okular" 'wayland;xcb' "$(launched_platform "$rt" wayland okular)"
     expect "$label: xcb is left alone" xcb "$(launched_platform "$rt" xcb kdeconnect-app)"
     expect "$label: wayland-egl is left alone" wayland-egl "$(launched_platform "$rt" wayland-egl kdeconnect-app)"
     expect "$label: offscreen is left alone" offscreen "$(launched_platform "$rt" offscreen kdeconnect-app)"
@@ -101,7 +101,7 @@ before=$failed
 check_launches "$tmp/rt-manager" "systemd-run path"
 [[ "$(grep -c -- '--scope .*--slice=app.slice' "$tmp/sysd.log")" == "$(wc -l < "$tmp/launches")" ]] \
     || fail "the systemd-run path was not taken for every launch: $(wc -l < "$tmp/sysd.log") of $(wc -l < "$tmp/launches")"
-passed_since "$before" "koompi-launch via systemd-run: xcb for dolphin okular konsole ark, a bare wayland becomes wayland;xcb, nothing else changes"
+passed_since "$before" "koompi-launch via systemd-run: a bare wayland becomes wayland;xcb for every app, nothing else changes"
 
 before=$failed
 : > "$tmp/sysd.log"

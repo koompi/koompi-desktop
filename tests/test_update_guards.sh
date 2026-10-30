@@ -224,7 +224,7 @@ for _ in $(seq 20); do   # the restart is backgrounded; the shim may still be wr
 done
 grep -q '^setsid env QT_QPA_PLATFORM=wayland qs -c koompi' "$T/order" \
     || fail "koompi-reload did not restart the shell: $(cat "$T/order")"
-grep -qE 'global-menu-daemon|quickshell' "$T/killall-log" \
+grep -qE 'koompi-global-menu-daemon|quickshell' "$T/killall-log" \
     && fail "koompi-reload handed killall a name that was not running: $(cat "$T/killall-log")"
 
 printf 'update guards test passed\n'

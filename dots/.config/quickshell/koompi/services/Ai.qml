@@ -16,7 +16,10 @@ import qs.services.ai
  *
  * This is the facade. The engine lives in `services/ai/`:
  * - ToolRegistry  - one declaration per tool, rendered per wire format
- * - ToolRunner    - dispatch, approval rules and the tool processes
+ * - ToolRunner    - dispatch, the asking and the tool processes
+ * - ToolApproval  - what runs without asking, and the taint that suspends it
+ * - BrowserTool   - the `browser` tool and the Control session; BrowserService runs browser.py
+ * - DesktopTool   - the `desktop` tool: the user's apps by reference; DesktopService runs desktop.py
  * - Conversation  - the message store, its persistence and compaction
  * - Requester     - one turn of inference, cancel, retry and the send queue
  * - ModelRegistry - model slots, inference of endpoint/format/key, discovery
@@ -33,11 +36,14 @@ Singleton {
     signal responseFinished()
     signal tokenStreamed()
 
-    readonly property ToolRegistry toolRegistry: ToolRegistry {}
+    readonly property ToolRegistry toolRegistry: ToolRegistry { extraEntries: [root.browserTool.entry, root.desktopTool.entry] }
     readonly property ModelRegistry modelRegistry: ModelRegistry { engine: root }
     readonly property Conversation conversation: Conversation { engine: root }
     readonly property Requester requester: Requester { engine: root }
     readonly property ToolRunner toolRunner: ToolRunner { engine: root }
+    readonly property ToolApproval approval: ToolApproval { engine: root }
+    readonly property BrowserTool browserTool: BrowserTool { engine: root }
+    readonly property DesktopTool desktopTool: DesktopTool { engine: root }
 
     /* ---- models ---- */
 
@@ -89,12 +95,31 @@ Singleton {
         return true;
     }
 
-    function commandRule(command) { return toolRunner.commandRule(command); }
-    function isPreApproved(name, args) { return toolRunner.isPreApproved(name, args); }
-    function rememberApproval(name, args) { toolRunner.rememberApproval(name, args); }
+    function commandRule(command) { return approval.commandRule(command); }
+    function isPreApproved(name, args) { return approval.isPreApproved(name, args); }
+    function rememberApproval(name, args) { approval.rememberApproval(name, args); }
+    function toolTainted(name) { return approval.tainted(name); }
     function rejectCommand(message) { toolRunner.rejectCommand(message); }
     function approveCommand(message, always) { toolRunner.approveCommand(message, always); }
     function handleFunctionCall(name, args, message) { toolRunner.handleFunctionCall(name, args, message); }
+
+    /* ---- the Control session: the agent's browser and the user's apps ---- */
+
+    readonly property bool browserActive: browserTool.service.running
+    readonly property bool browserBusy: browserTool.service.inFlight > 0
+    readonly property bool browserPaused: browserTool.service.paused
+    readonly property int browserPid: browserTool.service.pid
+    readonly property string browserTitle: browserTool.service.title
+    readonly property double browserLastReplyAt: browserTool.service.lastReplyAt
+    readonly property bool desktopActive: desktopTool.service.running
+    readonly property bool desktopBusy: desktopTool.service.inFlight > 0
+    readonly property bool desktopPaused: desktopTool.service.paused
+    readonly property string desktopWindow: desktopTool.service.window
+    readonly property double desktopLastReplyAt: desktopTool.service.lastReplyAt
+    // the stop key ends the turn and both: the browser closes and desktop control ends
+    function stopControl() { browserTool.stop(); desktopTool.stop(); }
+    function pauseControl() { browserTool.pause(); desktopTool.pause(); }
+    function resumeControl() { browserTool.resume(); desktopTool.resume(); }
 
     /* ---- conversation ---- */
 
@@ -263,7 +288,7 @@ Singleton {
 
     property var promptSubstitutions: {
         "{DISTRO}": SystemInfo.distroName,
-        "{DATETIME}": `${DateTime.time}, ${DateTime.collapsedCalendarFormat}`,
+        "{DATETIME}": `${DateTime.time}, ${Qt.locale().toString(DateTime.clock.date, "dddd, MMMM d, yyyy")}`,
         "{WINDOWCLASS}": ToplevelManager.activeToplevel?.appId ?? "Unknown",
         "{DE}": `${SystemInfo.desktopEnvironment} (${SystemInfo.windowingSystem})`,
         "{AINAME}": root.aiName,

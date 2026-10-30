@@ -37,6 +37,8 @@ export PATH="$tmp/bin:$PATH"
 entry() { printf '[Desktop Entry]\nType=Application\nName=%s\nExec=true\n' "$2" > "$XDG_CONFIG_HOME/autostart/$1.desktop"; }
 status() { jq -r --arg id "$1" 'if (.allowed | index($id)) then "allowed" elif (.denied | index($id)) then "denied" elif (.pending | index($id)) then "pending" else "none" end' "$XDG_CONFIG_HOME/koompi/startup-apps.json"; }
 settle() { local _; for _ in $(seq 1 40); do [[ "$(status "$1")" == "$2" ]] && return 0; sleep 0.1; done; return 1; }
+# the question goes out in the background, so it can land after scan returns
+asked() { local _; for _ in $(seq 1 40); do grep -q "$1" "$LOG.notify" 2>/dev/null && return 0; sleep 0.1; done; return 1; }
 
 entry fcitx5 "Fcitx 5"
 "$TOOL" scan
@@ -47,7 +49,7 @@ entry chrome-whatsapp "WhatsApp Web"
 printf 'deny\n' > "$REPLY_FILE"
 "$TOOL" scan
 grep -qxF -- '--user mask app-chrome\x2dwhatsapp@autostart.service' "$LOG" || fail "a new entry was not turned off: $(cat "$LOG")"
-grep -q 'WhatsApp Web wants to open when you sign in' "$LOG.notify" 2>/dev/null || fail "nobody was asked about the new entry"
+asked 'WhatsApp Web wants to open when you sign in' || fail "nobody was asked about the new entry"
 settle chrome-whatsapp denied || fail "Don't allow did not stick: $(status chrome-whatsapp)"
 
 entry discord "Discord"

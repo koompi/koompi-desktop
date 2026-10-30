@@ -31,6 +31,9 @@ QtObject {
     // must be echoed back verbatim on the next request or the API rejects the turn.
     property string thoughtSignature: ""
     property string functionResponse
+    // A `see` result's marked screenshot, in the shell's runtime dir. Requester sends the
+    // newest one as an image turn, to a model allowed to see it; it is not saved with the chat.
+    property string imageFile: ""
     property bool functionPending: false
     property bool visibleToUser: true
     property double timestamp: 0

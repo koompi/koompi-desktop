@@ -16,8 +16,8 @@ SECTION_DIR="$SHELL_ROOT/defaults/ai/prompts/system"
 # The committed expectation. Both numbers move only on a deliberate prompt
 # change, and a deliberate prompt change is one that was re-tested against
 # gemma4-e4b - see .work/J11-report.md for the A/B that set them.
-EXPECTED_SHA256=6a26708755832051c128040a314dc8067644089c1daa030beb62588f1df45a2c
-EXPECTED_CHARS=3426
+EXPECTED_SHA256=d3dce920728e74e027e579f6634e76e954f482ce6a75bf43129e81076115f36b
+EXPECTED_CHARS=3402
 
 # gemma4-e4b corrupts numbers it relays once enough bytes ride along with the
 # request; the shipped tool array is already 3900 of them. The prompt shares that

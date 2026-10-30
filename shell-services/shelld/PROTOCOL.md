@@ -275,7 +275,8 @@ invisible to the automatic swap that has to undo it on AC.
 | `available` | boolean | NetworkManager answered |
 | `version` | string | NetworkManager's own version |
 | `state` | string | `unknown`, `asleep`, `disconnected`, `disconnecting`, `connecting`, `connected (local)`, `connected (site)`, `connected (global)` |
-| `connectivity` | string | `unknown`, `none`, `portal`, `limited`, `full` |
+| `connectivity` | string | `unknown`, `none`, `portal`, `limited`, `full`. NetworkManager's verdict, except a `limited` the 443 probe got through, which is `full` |
+| `nm_connectivity` | string | NetworkManager's verdict as it gave it, same words |
 | `wifi` | object | below |
 | `wired` | array of wired device | below |
 | `primary` | active connection, optional | the one carrying the default route |
@@ -289,6 +290,14 @@ invisible to the automatic swap that has to undo it on AC.
 The five derived fields are computed here rather than in JavaScript, which is the whole
 point of `network/src/model.rs`. A consumer that recomputes them has reintroduced the bug
 the crate's tests cover.
+
+NetworkManager's check is a plain-HTTP fetch of its `ConnectivityCheckUri`, so a network
+that blocks outbound port 80 reads `limited` while HTTPS works. While NetworkManager says
+`limited`, the daemon tries a TCP connect to the same host on 443, at once and then every
+300 s; if it completes, `connectivity` is `full`, `wifi.status` is `connected` and
+`connected` is true. A captive portal answers the HTTP fetch and is `portal`, which the
+probe never overrides. `nm_connectivity` keeps NetworkManager's word for a consumer that
+wants it. See `network/src/probe.rs`.
 
 `captive_portal` is new. `Network.qml:84` opens `nmcheck.gnome.org` in a browser because
 nmcli never told it whether there was a portal; NetworkManager knows.

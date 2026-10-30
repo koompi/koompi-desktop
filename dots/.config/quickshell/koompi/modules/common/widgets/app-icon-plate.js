@@ -30,6 +30,17 @@ function parseIndex(text) {
     return { theme: lines[0] || "", names: names };
 }
 
+// app_own_icons.sh: "name<TAB>path" per line, "<TAB>cut" after the path when it is a logo cut from a light tile
+function parseOwn(text) {
+    const own = {};
+    const lines = (text || "").split("\n");
+    for (let i = 0; i < lines.length; i++) {
+        const fields = lines[i].split("\t");
+        if (fields.length >= 2 && fields[0] && fields[1]) own[fields[0]] = { path: fields[1], cut: fields[2] === "cut" };
+    }
+    return own;
+}
+
 function unresolved(name) {
     return !name || name.indexOf("image-missing") >= 0;
 }

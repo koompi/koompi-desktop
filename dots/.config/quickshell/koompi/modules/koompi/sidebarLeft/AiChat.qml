@@ -173,7 +173,8 @@ Item {
             models: Ai.modelList.map(id => ({
                 id: id,
                 name: Ai.models[id]?.name ?? id,
-                description: Ai.models[id]?.description ?? ""
+                description: Ai.models[id]?.description ?? "",
+                auth: Ai.models[id]?.auth ?? ""
             }))
             currentId: Ai.currentModelId
             onPicked: id => {
@@ -181,6 +182,10 @@ Item {
                 Ai.setModel(id);
             }
             onDismissed: composer.modelPickerShown = false
+            onProvidersRequested: {
+                composer.modelPickerShown = false;
+                SettingsPages.openNamed("ai");
+            }
         }
 
         ChatComposer {

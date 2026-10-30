@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
 # Override the source set at .background.randomWallpaper.sources in config.json.
-# Only the offline library ships; any extra source is a user-added script here.
+# The default is the offline library alone. "cambodia" downloads art about
+# Cambodia, "abstract" draws one offline; any other source is a user-added
+# script here.
 
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

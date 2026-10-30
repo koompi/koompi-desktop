@@ -5,7 +5,7 @@ Read from `setup` and `sdata/` as they are; if a step changes, change this page 
 
 `install.sh` is only a bootstrap: it clones the repo to `~/.local/share/koompi-desktop` (`KOOMPI_DEST`) and runs `./setup install`.
 `./setup` runs as a normal user and refuses root; it calls `sudo` only for the rows marked system.
-Order in `setup`: deps, apps, `run_setups`, files, then the global-menu build, `setup_services`, `reload_session`, `record_repo_path`.
+Order in `setup`: deps, apps, `run_setups`, files, `setup_services`, `reload_session`, `record_repo_path`.
 `--no-deps`, `--no-apps`, `--no-setups`, `--no-files` and the `--only-*` forms skip or pick steps; `-n` prints and changes nothing.
 
 ## Packages
@@ -20,7 +20,7 @@ Order in `setup`: deps, apps, `run_setups`, files, then the global-menu build, `
 | firewall, zram | `sdata/install/setups/system.sh` | `ufw` and `zram-generator` if missing. |
 
 Build toolchains the setups look for and warn about, never install: zig 0.16.0 or newer, cargo 1.87 or newer, `uv`.
-Without them the matching binary below is skipped with a warning and the shell falls back where it can.
+Without them the matching binary below is skipped with a warning that says what goes missing: without cargo the bar shows no app menus.
 
 ## Built into `~/.local/bin` (from the checkout or a clone)
 
@@ -30,7 +30,6 @@ Without them the matching binary below is skipped with a warning and the shell f
 | `koompi-global-menu-daemon` | `setup_globalmenu_rs`, `globalmenu/` | cargo |
 | `koompi-shelld` | `setup_shell_services`, `shell-services/` | cargo |
 | `koompi-agent-memd` | `setup_agent_memory`; source from the sibling `../koompi-agent-memd`, else cloned into `~/.cache/koompi/src/koompi-agent-memd` | cargo, git |
-| `global-menu-daemon` (zig fallback) | `setup_global_menu`, into `~/.config/quickshell/koompi/scripts/global-menu/zig-out/bin`, where the QML resolves it | zig |
 
 Build output goes to `~/.cache/koompi/build/` and `~/.cache/zig`, never into the checkout.
 

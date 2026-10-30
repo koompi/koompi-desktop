@@ -113,3 +113,49 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
         return true;
     }
 });
+
+// Fingers on the touchpad, for pull to refresh: a page cannot tell fingers resting still
+// from fingers that have left, and the reload must wait for them to leave. The count comes
+// from libexec/touchpad-fingers through native messaging; a pull that is under way holds a
+// port here and hears every change. Without the helper (not installed, no touchpad, not in
+// the `input` group) the pulls are told so and judge by the wheel events alone.
+const FINGERS_HOST = "org.koompi.touchpad";
+let fingers = { ready: false, fingers: 0 };
+let host = null;
+let answered = false;     // the helper has said whether it can see a touchpad
+const listening = new Set();
+
+function startHost() {
+    if (host) return;
+    answered = false;
+    try {
+        host = chrome.runtime.connectNative(FINGERS_HOST);
+    } catch (e) {
+        host = null;
+        answered = true;
+        return;
+    }
+    host.onMessage.addListener(msg => {
+        answered = true;
+        fingers = { ready: !!msg.ready, fingers: msg.fingers | 0 };
+        for (const port of listening) port.postMessage(fingers);
+    });
+    host.onDisconnect.addListener(() => {
+        void chrome.runtime.lastError;
+        host = null;
+        answered = true;
+        fingers = { ready: false, fingers: 0 };
+        for (const port of listening) port.postMessage(fingers);
+    });
+}
+
+chrome.runtime.onConnect.addListener(port => {
+    if (port.name !== "fingers") return;
+    startHost();
+    listening.add(port);
+    port.onDisconnect.addListener(() => listening.delete(port));
+    // a helper still starting is not a missing one: its first word reaches every port
+    if (answered || !host) port.postMessage(fingers);
+});
+// up before the first pull, so the first pull does not wait for the helper to start
+startHost();

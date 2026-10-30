@@ -69,7 +69,17 @@ Singleton {
         getData.running = true;
     }
 
+    // One store at a time. Starting saveData while it runs is a no-op, and reopening
+    // its stdin then leaves secret-tool waiting for an end of input that never comes,
+    // so a second key saved in quick succession was lost along with every one after
+    // it. A store asked for meanwhile runs when the current one exits, with the data
+    // as it is by then.
+    property bool _saveAgain: false
     function saveKeyringData() {
+        if (saveData.running) {
+            root._saveAgain = true;
+            return;
+        }
         saveData.stdinEnabled = true;
         saveData.running = true;
     }
@@ -87,6 +97,11 @@ Singleton {
                 root.dataChanged()
                 stdinEnabled = false // End input stream
             }
+        }
+        onExited: {
+            if (!root._saveAgain) return;
+            root._saveAgain = false;
+            root.saveKeyringData();
         }
     }
 

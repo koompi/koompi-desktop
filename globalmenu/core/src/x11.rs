@@ -111,7 +111,6 @@ pub fn active_window_id() -> Option<u32> {
 mod tests {
     use super::*;
 
-    // Same captured output as src/x11.zig's own tests.
 
     #[test]
     fn parse_props_reads_the_gtk_menu_properties() {

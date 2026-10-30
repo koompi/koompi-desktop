@@ -4,11 +4,11 @@
 # assistant where being slightly too generous is a privilege escalation the user
 # never sees. It had no test until the merge review.
 #
-# Runs the shipped commandRule out of ToolRunner.qml, not a copy of it.
+# Runs the shipped commandRule out of ToolApproval.qml, not a copy of it.
 set -uo pipefail
 
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-RUNNER="$REPO_ROOT/dots/.config/quickshell/koompi/services/ai/ToolRunner.qml"
+RUNNER="$REPO_ROOT/dots/.config/quickshell/koompi/services/ai/ToolApproval.qml"
 
 [[ -f "$RUNNER" ]] || { echo "missing $RUNNER" >&2; exit 1; }
 command -v bun >/dev/null || { echo "bun not installed; skipping" >&2; exit 0; }
@@ -19,13 +19,13 @@ src = open(sys.argv[1]).read()
 
 m = re.search(r"readonly property var argumentsDecideRisk:\s*\[(.*?)\]", src, re.S)
 if not m:
-    print("ToolRunner.qml no longer declares argumentsDecideRisk", file=sys.stderr)
+    print("ToolApproval.qml no longer declares argumentsDecideRisk", file=sys.stderr)
     sys.exit(1)
 risky = m.group(1)
 
 m = re.search(r"function commandRule\(command: string\): string \{(.*?)\n    \}", src, re.S)
 if not m:
-    print("ToolRunner.qml no longer declares commandRule", file=sys.stderr)
+    print("ToolApproval.qml no longer declares commandRule", file=sys.stderr)
     sys.exit(1)
 body = m.group(1).replace("root.argumentsDecideRisk", "risky")
 

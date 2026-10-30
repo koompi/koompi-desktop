@@ -36,18 +36,14 @@ grep -q 'hyprctl reload.*picks up the new config' "$SETUP" \
 grep -qi 'shell restarted above\|session was reloaded' "$SETUP" \
     && fail "the closing message asserts a restart reload_session may not have done"
 
-# Same ordering trap, found on a first install into a container: the global-menu
-# daemon builds inside the installed config and the shell loads it from there by
-# relative path, so run_setups was reaching a directory the files step had not
-# created yet. Every fresh machine came up with an empty global menu.
-grep -q '^setup_global_menu()' "$REPO_ROOT/sdata/install/setups/globalmenu.sh" \
-    || fail "setup_global_menu is gone from setups/globalmenu.sh"
-grep -qE '^\s*setup_global_menu\s*$' <(sed -n '/^run_setups()/,/^}/p' "$REPO_ROOT/sdata/install/setups.sh") \
-    && fail "run_setups builds the global menu again; it runs before install_files, so on a first install there is nothing to build"
-menu_line="$(grep -n 'setup_global_menu' "$SETUP" | head -1 | cut -d: -f1)"
-[[ -n "$menu_line" ]] || fail "setup never calls setup_global_menu, so the daemon is never built"
-if [[ -n "$files_line" && -n "$menu_line" ]]; then
-    (( menu_line > files_line )) || fail "setup_global_menu runs before install_files"
-fi
+# Same ordering trap, found on a first install into a container: the zig daemon
+# built inside the installed config, so run_setups reached a directory the files
+# step had not created yet and every fresh machine came up with an empty global
+# menu. The daemon is now built from the checkout into ~/.local/bin, so run_setups
+# can build it, and nothing may build inside the installed shell tree again.
+grep -qE '^\s*setup_globalmenu_rs\s*$' <(sed -n '/^run_setups()/,/^}/p' "$REPO_ROOT/sdata/install/setups.sh") \
+    || fail "run_setups no longer builds the global menu daemon"
+grep -q 'quickshell/koompi' "$REPO_ROOT/sdata/install/setups/globalmenu.sh" \
+    && fail "setups/globalmenu.sh reaches into the installed shell tree, which the files step creates after run_setups"
 
 exit "$failed"

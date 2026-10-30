@@ -21,7 +21,7 @@ QtObject {
     readonly property var apiKeysLoaded: KeyringStorage.loaded
     readonly property bool currentModelHasApiKey: {
         const model = root.models[root.currentModelId];
-        if (!model || !model.requires_key) return true;
+        if (!model || !model.requires_key || model.auth === "chatgpt") return true;
         if (!root.apiKeysLoaded) return false;
         const key = root.apiKeys[model.key_id];
         return (key?.length > 0);
@@ -32,6 +32,7 @@ QtObject {
     property Component geminiApiStrategy: GeminiApiStrategy {}
     property Component openaiApiStrategy: OpenAiApiStrategy {}
     property Component mistralApiStrategy: MistralApiStrategy {}
+    property Component responsesApiStrategy: ResponsesApiStrategy {}
 
     function safeModelName(modelName) {
         return modelName.replace(/:/g, "_").replace(/ /g, "-").replace(/\//g, "-")
@@ -104,6 +105,7 @@ QtObject {
         "openai": root.openaiApiStrategy.createObject(root),
         "gemini": root.geminiApiStrategy.createObject(root),
         "mistral": root.mistralApiStrategy.createObject(root),
+        "responses": root.responsesApiStrategy.createObject(root),
     }
     property ApiStrategy currentApiStrategy: root.apiStrategies[root.models[root.currentModelId]?.api_format || "openai"]
 
@@ -145,8 +147,7 @@ QtObject {
         });
         if (words[words.length - 1] === "Latest") words.pop();
         else words[words.length - 1] = `(${words[words.length - 1]})`; // Surround the last word with square brackets
-        const result = words.join(' ');
-        return result;
+        return words.join(' ');
     }
 
     function addModel(modelName, data) {
@@ -178,9 +179,7 @@ QtObject {
                             "requires_key": false,
                         })
                     });
-
                     root.modelList = Object.keys(root.models);
-
                 } catch (e) {
                     console.log("Could not fetch Ollama models:", e);
                 }

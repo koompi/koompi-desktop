@@ -127,7 +127,13 @@ pub struct NetworkState {
     pub version: String,
     pub state: NmState,
     /// D09 item 7. `Portal` is the answer `Network.qml` opens a browser to guess at.
+    /// NetworkManager's own verdict; [`NetworkState::effective_connectivity`] is the one
+    /// the status is derived from.
     pub connectivity: Connectivity,
+    /// `ConnectivityCheckUri`, which names the host [`crate::probe`] tries on 443.
+    pub check_uri: String,
+    /// NetworkManager said `Limited` and a connect to its check host on 443 completed.
+    pub https_reachable: bool,
     pub wifi: WifiState,
     pub wired: Vec<WiredDevice>,
     /// `PrimaryConnection`: the one carrying the default route.
@@ -168,6 +174,15 @@ impl NetworkState {
     /// D09 item 7: associated, addressed, and still behind a login page.
     pub fn captive_portal(&self) -> bool {
         self.connectivity == Connectivity::Portal
+    }
+
+    /// NetworkManager's verdict, except a `Limited` that the 443 probe got through,
+    /// which is a network blocking plain HTTP and reads as `Full`.
+    pub fn effective_connectivity(&self) -> Connectivity {
+        match self.connectivity {
+            Connectivity::Limited if self.https_reachable => Connectivity::Full,
+            other => other,
+        }
     }
 }
 
@@ -240,6 +255,8 @@ mod tests {
             }),
             active_connections: Vec::new(),
             poll_rate: PollRate::NORMAL,
+            check_uri: "http://ping.archlinux.org/nm-check.txt".into(),
+            https_reachable: false,
         }
     }
 
@@ -271,6 +288,25 @@ mod tests {
         state.wifi.status = WifiStatus::Limited;
         assert!(!state.connected());
         assert!(state.captive_portal());
+    }
+
+    /// A network that blocks plain HTTP: NetworkManager's check fails, 443 gets through.
+    #[test]
+    fn a_limited_check_that_443_got_through_reads_as_full_and_nothing_else_moves() {
+        let mut state = this_seat();
+        state.connectivity = Connectivity::Limited;
+        assert_eq!(state.effective_connectivity(), Connectivity::Limited);
+
+        state.https_reachable = true;
+        assert_eq!(state.effective_connectivity(), Connectivity::Full);
+        assert!(!state.captive_portal());
+
+        // a portal answered NetworkManager's fetch, so the probe has no say there
+        state.connectivity = Connectivity::Portal;
+        assert_eq!(state.effective_connectivity(), Connectivity::Portal);
+        assert!(state.captive_portal());
+        state.connectivity = Connectivity::None;
+        assert_eq!(state.effective_connectivity(), Connectivity::None);
     }
 
     #[test]

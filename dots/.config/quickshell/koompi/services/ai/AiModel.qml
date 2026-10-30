@@ -11,7 +11,8 @@ import QtQuick;
  * - key_id: The identifier of the API key. Use the same identifier for models that can be accessed with the same key.
  * - key_get_link: Link to get an API key
  * - key_get_description: Description of pricing and how to get an API key
- * - api_format: The API format of the model. Can be "openai" or "gemini". Default is "openai".
+ * - api_format: "openai" (default), "gemini", "mistral" or "responses".
+ * - auth: "chatgpt" when the bearer is a ChatGPT sign-in (scripts/ai/chatgpt_auth.py), not an API key.
  * - extraParams: Extra parameters to be passed to the model. This is a JSON object.
  * - toolBlockByteLimit: measured ceiling on the serialised tool array, 0 for none.
  * - contextWindow: the model's context in tokens when known (ai.extraModels), 0 to guess.
@@ -29,6 +30,7 @@ QtObject {
     property string key_get_link
     property string key_get_description
     property string api_format: "openai"
+    property string auth
     property var tools
     property var extraParams: ({})
     // gemma4-e4b on LiteRT-LM drops and transposes digits in its own reply once the

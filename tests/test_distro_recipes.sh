@@ -82,12 +82,13 @@ zig_says 0.16.0-dev.164+bc7955306; floor_accepts && fail "a 0.16.0-dev build pas
 zig_says 0.17.0-dev.1+aaaaaaaaa;   floor_accepts || fail "a 0.17.0-dev build failed the floor"
 rm -f "$tmp/bin/zig"; floor_accepts && fail "no zig at all passed the floor"
 
-# 5. The floor has to match what the daemon actually declares, or one moves
+# 5. The floor has to match what the zig projects actually declare, or one moves
 #    without the other and the check starts lying.
-declared="$(sed -n 's/.*\.minimum_zig_version = "\([^"]*\)".*/\1/p' \
-    "$ROOT/dots/.config/quickshell/koompi/scripts/global-menu/build.zig.zon")"
-[[ "$declared" == "$ZIG_MIN" ]] \
-    || fail "global-menu declares zig $declared but common.sh floors at $ZIG_MIN"
+for zon in "$ROOT/audiod/build.zig.zon" "$ROOT/installer/build.zig.zon"; do
+    declared="$(sed -n 's/.*\.minimum_zig_version = "\([^"]*\)".*/\1/p' "$zon")"
+    [[ "$declared" == "$ZIG_MIN" ]] \
+        || fail "${zon#"$ROOT"/} declares zig $declared but common.sh floors at $ZIG_MIN"
+done
 
 # 5b. Same trap on the rust side. cargo_usable is a plain version compare, so
 #     the pre-release trap zig has does not apply, but the drift one does.

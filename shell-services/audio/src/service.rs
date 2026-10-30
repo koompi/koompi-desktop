@@ -16,7 +16,7 @@ use koompi_service::{Backoff, Error, PollRate, Result, Service};
 use crate::model::{AudioState, DaemonStatus};
 use crate::proto::{Command, Message, MAX_VOLUME};
 
-/// `GlobalMenuService.qml:105-109` restarts the global menu daemon after 3000 ms. Scaled
+/// `GlobalMenuService.qml`'s `restartTimer` restarts the global menu daemon after 3000 ms. Scaled
 /// by [`PollRate`], never used raw.
 const RESTART_BASE: Duration = Duration::from_millis(3000);
 const RESTART_CAP: Duration = Duration::from_secs(30);
@@ -28,8 +28,7 @@ pub const BINARY_ENV: &str = "AUDIOD";
 
 const IN_TREE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../audiod/zig-out/bin/audiod");
 
-/// The resolution `GlobalMenuService.qml:14-21` performs for its own daemon: an override,
-/// then what a package installed, then the build in this tree.
+/// An override, then what a package installed, then the build in this tree.
 pub fn resolve_binary() -> Result<PathBuf> {
     // an override that does not exist is unavailable, not a reason to fall back to
     // whatever else happens to be installed

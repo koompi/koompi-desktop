@@ -127,10 +127,13 @@ if [[ "$state" == running || "$state" == degraded ]]; then
         sleep 0.1
     done
     cg="$(cut -d: -f3 "/proc/$pid/cgroup" 2>/dev/null)"
+    # one OOM kill inside a terminal's scope must not stop the scope, and every tab with it
+    policy="$(systemctl --user show -p OOMPolicy --value "${cg##*/}" 2>/dev/null)"
     kill "$pid" 2>/dev/null
     wait "$pid" 2>/dev/null
     [[ "$cg" =~ /app\.slice/app-probe\\x2dx-[0-9]+\.scope$ ]] \
         || fail "launched sleep is in '$cg', not app.slice/app-probe\\x2dx-<n>.scope"
+    [[ "$policy" == continue ]] || fail "launched scope has OOMPolicy='$policy', want continue"
     grep -q '/app.slice/app-argdump-[0-9]*.scope$' "$tmp/o1" \
         || fail "raw launch is in '$(grep '^cg=' "$tmp/o1")', not app.slice"
 else

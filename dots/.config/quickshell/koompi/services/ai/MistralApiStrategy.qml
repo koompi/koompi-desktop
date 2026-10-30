@@ -1,4 +1,5 @@
 import QtQuick
+import "screen-rules.js" as Screen
 
 ApiStrategy {
     property bool isReasoning: false
@@ -26,6 +27,7 @@ ApiStrategy {
     // Same protocol as OpenAI: the call rides on the assistant turn, the result is
     // its own message keyed by the id of the call it answers.
     function wireMessage(message) {
+        if (message.screenImage !== undefined) return Screen.wire("mistral", message);
         if (message.toolCallId && message.toolCallId.length > 0) {
             return {
                 "role": "tool",

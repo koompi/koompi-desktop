@@ -6,19 +6,25 @@ import "app-icon-plate.js" as Plate
 
 // Every app icon in the shell goes through here: a squircle plate, the icon at 72 % of it, or, when the
 // icon's theme declares a full-bleed body, the icon cut to the squircle. An icon that resolves to nothing
-// gets the first letter of `label` on the plate.
+// gets the first letter of `label` on the plate. `bare` drops the plate: the icon alone, at full size, for
+// a surface such as the bar's glass where a lit tile would sit on a tile; where the theme draws the icon as a
+// full-bleed tile of its own, a bare icon is the one the app ships instead (AppIconBodies.ownPath).
 Item {
     id: root
 
     property string iconName: ""
     property string label: ""
     property real size: 48
+    property bool bare: false
 
-    readonly property string path: Plate.unresolved(root.iconName) ? "" : (root.iconName.startsWith("/") ? "file://" + root.iconName : Quickshell.iconPath(root.iconName, true))
+    readonly property string ownPath: root.bare && !Plate.unresolved(root.iconName) ? AppIconBodies.ownPath(root.iconName) : ""
+    readonly property string path: Plate.unresolved(root.iconName) ? "" : root.ownPath ? "file://" + root.ownPath
+        : (root.iconName.startsWith("/") ? "file://" + root.iconName : Quickshell.iconPath(root.iconName, true))
     readonly property bool resolved: root.path.length > 0
     readonly property var box: root.resolved ? AppIconBodies.box(root.iconName) : null
     property bool maskFailed: false
-    readonly property bool masked: root.box !== null && !root.maskFailed
+    readonly property bool masked: !root.bare && root.box !== null && !root.maskFailed
+    readonly property real glyph: root.bare ? 1 : Plate.glyphRatio()
 
     readonly property real tile: Plate.bucket(root.size)
     readonly property real margin: Plate.shadowMargin(root.tile)
@@ -37,7 +43,7 @@ Item {
     property string maskOwned: ""
 
     function refresh(): void {
-        if (root.baseOwned !== root.baseKey && AppIconPlates.claim(root.baseKey, root.scheme)) root.baseOwned = root.baseKey;
+        if (!root.bare && root.baseOwned !== root.baseKey && AppIconPlates.claim(root.baseKey, root.scheme)) root.baseOwned = root.baseKey;
         if (root.masked && root.maskOwned !== root.maskKey && AppIconPlates.claim(root.maskKey, "")) root.maskOwned = root.maskKey;
     }
 
@@ -72,7 +78,7 @@ Item {
     implicitHeight: root.size
 
     Image {
-        visible: root.baseUrl !== ""
+        visible: !root.bare && root.baseUrl !== ""
         anchors.centerIn: parent
         width: (root.tile + root.margin * 2) * root.ratio
         height: width
@@ -81,7 +87,7 @@ Item {
     }
 
     Loader {
-        active: root.baseUrl === ""
+        active: !root.bare && root.baseUrl === ""
         anchors.centerIn: parent
         scale: root.ratio
         sourceComponent: AppIconPlateBase {
@@ -101,9 +107,9 @@ Item {
     Image {
         visible: root.resolved && !root.masked
         anchors.centerIn: parent
-        width: root.size * Plate.glyphRatio()
+        width: root.size * root.glyph
         height: width
-        sourceSize: Qt.size(root.tile * Plate.glyphRatio() * 2, root.tile * Plate.glyphRatio() * 2)
+        sourceSize: Qt.size(root.tile * root.glyph * 2, root.tile * root.glyph * 2)
         source: visible ? root.path : ""
         asynchronous: true
         smooth: true

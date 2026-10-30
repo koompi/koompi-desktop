@@ -58,7 +58,7 @@ The horizontal bar and the vertical bar are alternative bars, so a given session
 | Surface | Keyboard | Bar | Corner | Gesture | IPC |
 | --- | --- | --- | --- | --- | --- |
 | Left sidebar | `Super+A` | one button, hidden unless AI or translator is enabled | top-left | none | yes |
-| Right panel (quick settings and notifications) | `Super+N` | the clock and the sliders glyph (`tune`) left of it, both drawn toggled while open; a dot on the clock while notifications are unread | top-right | none | yes, `sidebarRight`; `controlCenter` is an alias |
+| Right panel (quick settings and notifications) | `Super+N` | the clock, the bell left of it and the sliders glyph (`tune`) left of that, all drawn toggled while open; a dot on the bell while notifications are unread | top-right | none | yes, `sidebarRight`; `controlCenter` is an alias |
 | Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up to open, down to close | yes |
 | Search | `Super` | none | none | none | yes |
 | Launchpad | none, by decision | none | none | 4-finger spread and close | yes |
@@ -74,12 +74,19 @@ The update badge is deliberately not part of any panel button: it used to sit in
 It is its own item with its own hit area, shows a glyph and never a count, and the upgrade runs only from the popup's Update now button, which opens a floating terminal running `koompi update` through Hyprland's Lua `hl.dsp.exec_cmd`.
 A bar popup hangs under the widget it belongs to and is clamped to the screen the bar is on, so the clock at the far right gets a popup that ends at the screen edge instead of running off it.
 
-The bar's right end reads, left to right: tray extras (tray, media, agent usage, a running pomodoro), the mode lights (recording, microphone in use, mic muted, volume muted, keep awake, night light, Do Not Disturb, dictation), the update glyph, the input source, Wi-Fi, the battery as a glyph with its percent, the sliders glyph, the clock.
+The menus that hang from the bar itself, the app's own (File, Edit, View) and the window actions under the app's name, are cut from the bar's glass (`GlobalMenuPopup.qml`).
+They take the bar's tone and tint, and its text colours, flipped as well: when the bar turns to dark text on light glass over a bright wallpaper, its menus turn with it.
+They are layers (`quickshell:barMenu`), not popups of the bar, because Hyprland blurs a layer from the wallpaper, as it blurs the bar, and a popup through the window under it; as a popup the same tint over a white window came out a different colour from the bar.
+The bar's tint is the least that keeps its text at 4.5:1 over the strip of wallpaper under it (`BarTone`), and a menu reaches further down, so the same pass measures the wallpaper in ten bands and a menu's tint rises from the bar's to what the bands under it ask, up to solid.
+A solid bar gives its menus its solid colour, and a bar drawn with no background still gives them that colour.
+The top level sits flush under its title, with the border row on the shared edge outside the surface; a submenu opens beside its entry and turns to the left of it where the screen ends.
+
+The bar's right end reads, left to right: tray extras (tray, media, agent usage, a running pomodoro), the mode lights (recording, microphone in use, mic muted, volume muted, keep awake, night light, Do Not Disturb, dictation), the update glyph, the input source, Wi-Fi, the battery as a glyph with its percent, the sliders glyph, the bell, the clock.
 Every one is its own hit area, and every one answers a click; a glyph that only shows a tooltip reads as broken.
-The sliders glyph and the clock open the right panel. Wi-Fi opens it with the network list dropped down, the battery on its battery page, and the microphone-in-use light on the sound list; a second click closes it.
+The sliders glyph, the bell and the clock open the right panel. The bell carries the unread dot on its corner, so the bar does not shift when a notification arrives; Do Not Disturb has its own mode light and leaves the bell as it is. Wi-Fi opens it with the network list dropped down, the battery on its battery page, and the microphone-in-use light on the sound list; a second click closes it.
 The input source moves to the next layout, as `Super+Space` does. The other mode lights turn their mode off, and the recording light stops the recording.
 No strip-wide section takes a click: the right section of the horizontal bar, and both the top and bottom sections of the vertical bar, are `acceptedButtons: Qt.NoButton`, which leaves them hover and scroll-to-change-volume or brightness, wheel behaviours that survive it.
-The vertical bar has the same wiring: the sliders glyph at the bottom, the clock as a button in the middle group.
+The vertical bar has the same wiring: the sliders glyph at the bottom, the clock and the bell under it as buttons in the middle group.
 Text on the bar reaches 4.5:1 against the bar over the worst wallpaper pixel (`tests/test_bar_contrast.sh`); that does not hold with `bar.showBackground` off.
 
 The window actions menu takes the one pointer path the app identity had spare, so a window's own actions are reachable without knowing a bind.
@@ -313,11 +320,11 @@ The call names the launch id, the program that will own the window (for `launch_
 A shell surface that already told the shell passes `--registered`, and a launch inside a terminal says nothing, because its window is the terminal's.
 No shell running is silent, and any other failure is a line in the journal under `koompi-launch`.
 
-`koompi-launch` also chooses the platform of the Qt apps it starts.
-Qt exports a menubar to the bar only on X11, so Dolphin, Okular, Konsole and Ark start with `QT_QPA_PLATFORM=xcb` and show their menus in the bar, and every other Qt app runs on Wayland with its menus inside its own window.
-The session default in `hyprland/env.lua` is `wayland;xcb`, and the list is `xcb_menu_apps` at the top of `koompi-launch`.
-The shell itself runs with `QT_QPA_PLATFORM=wayland` and passes it to what it starts, so `koompi-launch` turns an inherited bare `wayland` into `wayland;xcb`, and a Qt app without a Wayland plugin still starts from Search, the Launchpad, the dock, the waffle start menu and taskbar, and a restored session.
-An app started outside `koompi-launch`, from a terminal or by D-Bus activation, runs on the platform of whatever started it, usually Wayland, and then has no menu in the bar.
+Qt apps run on Wayland: the session default in `hyprland/env.lua` is `wayland;xcb`, so only a Qt app without a Wayland plugin falls back to X11.
+The shell itself runs with `QT_QPA_PLATFORM=wayland` and passes it to what it starts, so `koompi-launch` turns an inherited bare `wayland` into `wayland;xcb`, and such an app still starts from Search, the Launchpad, the dock, the waffle start menu and taskbar, and a restored session.
+A Qt app's menus are in the bar on either platform, however it was started.
+On X11 Qt registers its menubar with the bar's registrar.
+On Wayland, Qt 6.10 and later only export it on the app's own D-Bus connection, and hide the menubar in the window, so the global menu daemon finds it there by the focused window's process (`globalmenu/core/src/qtmenu.rs`).
 A window rule for a Qt app has to match its class on both platforms, because the same app reports `kdialog` on xcb and `org.kde.kdialog` on Wayland.
 The dock and a restored session match a window to its app by desktop entry, not by class.
 A pinned `org.kde.dolphin` and a running X11 `dolphin` are one dock entry, and a saved `dolphin` claims the window that `org.kde.dolphin` opens.
@@ -410,8 +417,8 @@ Conformance as of 2026-07-30:
 | Bar popups | dismissable while keyboard-opened or click-pinned | `OnDemand` while keyboard-opened, so `Escape` reaches it |
 | Cheatsheet | dismissable | gated on `cheatsheetOpen` |
 | On-screen keyboard | persistent, correctly | commented out |
-| Global menu | own `HyprlandFocusGrab` over the bar and every open popup | bar takes focus only while a menu is open |
-| Window actions menu | own `HyprlandFocusGrab` over the bar and every open popup | bar takes focus only while a menu is open |
+| Global menu | own `HyprlandFocusGrab` over the bar and every open menu layer | bar takes focus only while a menu is open; each menu layer `OnDemand` |
+| Window actions menu | own `HyprlandFocusGrab` over the bar and every open menu layer | bar takes focus only while a menu is open; each menu layer `OnDemand` |
 | Snap preview | none needed, empty input mask | `None` |
 | Workspace hint | none, dismissed by its own button only | `None` |
 | Launchpad | none needed, see below | gated on `launchpadOpen`, `Exclusive` |
@@ -450,6 +457,9 @@ The plate is a squircle whose corner is 28 % of its side and follows `rounding_p
 An icon sits at 72 % of the plate.
 When the active icon theme draws the icon itself and declares a full-bleed body (`app-icon-plate.js` lists the themes, WhiteSur-green at 6.25 % to 93.75 % of the canvas), the icon is cut to the squircle instead, so its body fills the plate and any overhang is clipped.
 The theme comes from `QS_ICON_THEME`, else `[Icons] Theme` in `kdeglobals`, and a theme with no entry is never masked.
+`bare: true` drops the plate and draws the icon alone at full size, never masked; the bar uses it (the workspace strip and the launch icon beside the title), since a pill already is the tile there and a white plate on the glass reads as a sticker.
+Where the active theme draws an app as a full-bleed tile of its own (koompi-icons gives Chrome a white squircle), a bare icon is the one the app ships instead: `scripts/colors/app_own_icons.sh` indexes hicolor, then pixmaps, then the themes the active one inherits (breeze), and `AppIconBodies.ownPath` hands it out. An app that ships no icon of its own keeps the theme's.
+Some apps ship a logo on a flat light tile themselves (Antigravity's white squircle, a web app's white disc); for an app with a desktop entry, `scripts/colors/light_tile.sh` cuts the logo out of it with ImageMagick, cached in `~/.cache/koompi/bare-icons` per source file and pruned when no app asks for it. A dark tile keeps its ground, since its logo was drawn for the dark, and so does a logo that is mostly near-black, which would vanish on the dark bar.
 An icon that resolves to nothing (including `image-missing`) shows the first letter of the app's name on the plate.
 
 The plate's shadow and each masked icon are drawn once into a texture (`AppIconPlates`, keyed by size, colours and icon) and every plate reuses it, so nothing runs a shader per plate per frame.
@@ -505,7 +515,7 @@ Two of them gain a second surface, and no new role is created.
 | --- | --- | --- | --- | --- |
 | Overview | gains the app switcher, its keyboard reflex for "take me back to that app" | `modules/koompi/appSwitcher/` | `Alt+Tab` held | `appSwitcherOpen` |
 | Overview | becomes Mission Control: the desks in use side by side, each drawn with its tiles where they sit, plus a `+` for the next free one; click a desk, drag a window onto a desk, arrows and `Enter`, typing filters | `OverviewPanel.qml` | `Super+Tab`, 4-finger up (down closes) | `overviewOpen` |
-| Today | the right sidebar becomes the Notification Center: date, notifications grouped by app, a System group, then the next events, weather, to-do and timer | `SidebarRight.qml` | `Super+N`, the clock | `sidebarRightOpen` |
+| Today | the right sidebar becomes the Notification Center: date, notifications grouped by app, a System group, then the next events, weather, to-do and timer | `SidebarRight.qml` | `Super+N`, the clock, the bell | `sidebarRightOpen` |
 | Now | the left sidebar becomes one assistant: a 420 px drawer that opens the same thread in the Intelligence window | `SidebarLeft.qml` | `Super+A` | `sidebarLeftOpen` |
 
 Quick settings and notifications answer one question, what the machine is doing, so they share one panel on the right edge.
@@ -516,12 +526,12 @@ The app switcher joins Overview rather than founding a role: it answers "where a
 | Surface | Keyboard | Bar | Corner | Gesture | IPC |
 | --- | --- | --- | --- | --- | --- |
 | App switcher | `Alt+Tab`, `Alt+Shift+Tab` while held; a quick tap switches to the previous app without drawing | none | none | none | yes, `appSwitcher` |
-| Right panel | `Super+N` | the clock and the sliders glyph; a dot on the clock while notifications are unread | top-right | none | yes, `sidebarRight` |
+| Right panel | `Super+N` | the clock, the bell and the sliders glyph; a dot on the bell while notifications are unread | top-right | none | yes, `sidebarRight` |
 | Overview | `Super+Tab` | right-click on the workspaces widget | none | 4-finger up or down toggles it | yes |
 | Assistant drawer | `Super+A`; its header's Open in window hands the thread to `Super+Shift+I`'s window | one button, as today | top-left | none | yes |
 
 The panel button that wrapped the status indicators is gone.
-The clock and the sliders glyph are the only bar targets that open a panel, and the update glyph keeps its own hit area beside them.
+The clock, the bell and the sliders glyph are the only bar targets that open a panel, and the update glyph keeps its own hit area beside them.
 `Super+Alt+A` (detach left sidebar) is removed: the assistant comes in two sizes, the drawer and the Intelligence window.
 
 ### Keyboard map
@@ -547,6 +557,7 @@ The clock and the sliders glyph are the only bar targets that open a panel, and 
 The bar shows the workspaces in use: the occupied desks of the current group of ten, the active desk if it is empty, and one empty "new desk" slot (the lowest free number), from one shared rule in `modules/common/functions/workspace-slots.js`.
 Desk numbers are fixed. Nothing is renumbered, created or destroyed by the bar, so `Super+<number>` always reaches that desk, and a gap stays a gap: desks 1, 2 and 5 in use draw 1, 2, 5 and an empty 3.
 `Super+<number>`, `Super+Alt+<number>` (the desk gets a window) and the 4-finger swipe onto an empty desk make that desk appear in the bar; it leaves again once it is empty and you are elsewhere.
+A desk with a window shows the icon of its biggest window, an empty one its number; holding Super, or `bar.workspaces.alwaysShowNumbers`, shows every number (`face()` in the same file). With `bar.workspaces.showAppIcons` off, or an icon that does not resolve, the number is drawn instead; the fixed row keeps a dot for an empty desk.
 Slots fade and resize with the `elementMove` role, which Reduce Motion cuts to instant.
 `bar.workspaces.dynamic: false` (Settings, Bar, "Show only the workspaces in use") brings back the fixed row of `bar.workspaces.shown`.
 

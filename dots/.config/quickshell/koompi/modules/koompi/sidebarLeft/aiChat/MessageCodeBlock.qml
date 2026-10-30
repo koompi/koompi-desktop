@@ -21,12 +21,13 @@ ColumnLayout {
     property var segmentLang: "txt"
     property var messageData: {}
     // fence languages the model never writes: the tool layer emits them to ask for approval
-    property bool isApprovalRequest: segmentLang === "command" || segmentLang === "agent"
+    readonly property var approvalTools: ({ "command": "run_shell_command", "agent": "ask_agent", "browser": "browser", "config": "set_shell_config", "desktop": "desktop" })
+    property bool isApprovalRequest: Object.keys(approvalTools).includes(segmentLang)
     // a decision the user has not made yet is a card, not a fence
     readonly property bool approvalPending: root.isApprovalRequest && (root.messageData?.functionPending ?? false)
     property var displayLang: {
         if (segmentLang === "command") return "bash";
-        if (segmentLang === "agent") return "plaintext";
+        if (root.isApprovalRequest) return "plaintext";
         return segmentLang;
     }
 
@@ -43,7 +44,7 @@ ColumnLayout {
         sourceComponent: ApprovalCard {
             messageData: root.messageData
             fallbackTarget: String(root.segmentContent)
-            fallbackToolName: root.segmentLang === "agent" ? "ask_agent" : "run_shell_command"
+            fallbackToolName: root.approvalTools[root.segmentLang] ?? "run_shell_command"
         }
     }
 

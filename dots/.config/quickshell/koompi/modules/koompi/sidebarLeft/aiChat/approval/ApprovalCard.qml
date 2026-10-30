@@ -26,14 +26,27 @@ Rectangle {
     readonly property string target: {
         const args = root.messageData?.functionCall?.args ?? null;
         if (!args) return root.fallbackTarget;
-        return String(args.command ?? args.task ?? root.fallbackTarget);
+        // a browser step or a setting is shown as the engine put it: the step with its
+        // ref as the snapshot named it, `key = value`
+        return String(args.command ?? args.task ?? root.messageData?.functionCall?.summary ?? root.fallbackTarget);
     }
 
     readonly property string toolName: root.messageData?.functionCall?.name ?? root.fallbackToolName
     readonly property bool isAgent: root.toolName === "ask_agent"
-    readonly property string risk: Ai.riskOf(root.toolName)
+    readonly property bool isBrowser: root.toolName === "browser"
+    readonly property bool isConfig: root.toolName === "set_shell_config"
+    readonly property bool isDesktop: root.toolName === "desktop"
+    readonly property bool isCommand: !root.isAgent && !root.isBrowser && !root.isConfig && !root.isDesktop
+    // A screenshot for a remote model: the provider it would go to (DesktopTool, plan D8)
+    readonly property string consentTo: String(root.messageData?.functionCall?.consent ?? "")
+    readonly property bool isConsent: root.consentTo.length > 0
+    // A click by pixels: the marked screenshot it was chosen on
+    readonly property string shot: String(root.messageData?.functionCall?.image ?? "")
+    // Page content is in this turn, so what the user allowed before asks again (ToolApproval.tainted).
+    readonly property bool tainted: Ai.toolTainted(root.toolName)
+    readonly property string risk: root.isConsent ? "leaves-machine" : Ai.riskOf(root.toolName)
     readonly property bool canRemember: Ai.approvalOf(root.toolName) === "once"
-    readonly property string rule: root.isAgent ? "" : Ai.commandRule(String(root.target))
+    readonly property string rule: root.isCommand ? Ai.commandRule(String(root.target)) : ""
     // Ask the engine rather than re-test for metacharacters here: a rule that still
     // keys on the program name survives an argument being appended to it.
     readonly property bool ruleIsWholeCommand: Ai.commandRule(`${root.rule} x`) !== root.rule
@@ -51,6 +64,8 @@ Rectangle {
     }
 
     readonly property string scopeSentence: {
+        if (root.isConsent)
+            return Translation.tr("Allowing sends screenshots of the windows the assistant looks at to %1 until this chat ends. Password fields are blacked out. The lock screen, sign-in prompts, terminals, browsers and the shell are never captured.").arg(root.consentTo);
         if (!root.canRemember)
             return Translation.tr("This tool asks every time. Nothing here can be remembered.");
         if (root.isAgent)
@@ -80,7 +95,8 @@ Rectangle {
             spacing: Appearance.spacing.normal
 
             MaterialSymbol {
-                text: root.isAgent ? "smart_toy" : "terminal"
+                text: root.isConsent ? "screen_share" : root.isDesktop ? "desktop_windows"
+                    : root.isAgent ? "smart_toy" : (root.isBrowser ? "travel_explore" : (root.isConfig ? "settings" : "terminal"))
                 iconSize: Appearance.font.pixelSize.hugeass
                 color: ToolRisk.accent(root.risk)
             }
@@ -91,9 +107,21 @@ Rectangle {
 
                 StyledText {
                     Layout.fillWidth: true
-                    text: root.isAgent
+                    text: root.isConsent
+                        ? Translation.tr("Let %1 see your screen?").arg(root.consentTo)
+                        : root.isDesktop
+                        ? (Ai.desktopPaused
+                            ? Translation.tr("You took over your apps. Let the assistant go on?")
+                            : Translation.tr("The assistant wants to act in your apps"))
+                        : root.isAgent
                         ? Translation.tr("The assistant wants to hand this task to the agent")
-                        : Translation.tr("The assistant wants to run a command")
+                        : root.isBrowser
+                            ? (Ai.browserPaused
+                                ? Translation.tr("You took over the browser. Let the assistant go on?")
+                                : Translation.tr("The assistant wants to act in its browser"))
+                            : root.isConfig
+                                ? Translation.tr("The assistant wants to change a shell setting")
+                                : Translation.tr("The assistant wants to run a command")
                     font.pixelSize: Appearance.font.pixelSize.normal
                     font.weight: Font.DemiBold
                     color: Appearance.colors.colOnLayer2
@@ -144,7 +172,8 @@ Rectangle {
 
                 StyledText {
                     Layout.alignment: Qt.AlignTop
-                    text: root.isAgent ? Translation.tr("task") : Translation.tr("command")
+                    text: root.isAgent ? Translation.tr("task") : ((root.isBrowser || root.isDesktop) ? Translation.tr("step")
+                        : (root.isConfig ? Translation.tr("setting") : Translation.tr("command")))
                     font.family: Appearance.font.family.monospace
                     font.pixelSize: Appearance.font.pixelSize.smaller
                     color: Appearance.colors.colSubtext
@@ -178,6 +207,16 @@ Rectangle {
             }
         }
 
+        Image { // the marked screenshot a click by pixels was chosen on
+            Layout.fillWidth: true
+            Layout.preferredHeight: visible ? Math.min(220, width * sourceSize.height / Math.max(1, sourceSize.width)) : 0
+            visible: root.shot.length > 0 && status === Image.Ready
+            source: root.shot.length > 0 ? `file://${root.shot}` : ""
+            fillMode: Image.PreserveAspectFit
+            asynchronous: true
+            cache: false
+        }
+
         Rectangle { // Where the data goes. Amber-equivalent when it leaves.
             Layout.fillWidth: true
             implicitHeight: localityRow.implicitHeight + Appearance.spacing.normal * 2
@@ -209,8 +248,18 @@ Rectangle {
             }
         }
 
-        StyledText { // The scope, before the click, not after it
+        StyledText { // Why something allowed before is asking again
             Layout.fillWidth: true
+            visible: root.tainted
+            text: Translation.tr("This turn read a web page, so what you allowed before asks again.")
+            font.pixelSize: Appearance.font.pixelSize.smaller
+            color: ToolRisk.accent(root.risk)
+            wrapMode: Text.Wrap
+        }
+
+        StyledText { // The scope, before the click, not after it; a tainted card offers none
+            Layout.fillWidth: true
+            visible: !root.tainted
             text: root.scopeSentence
             font.pixelSize: Appearance.font.pixelSize.smaller
             color: Appearance.colors.colSubtext
@@ -245,14 +294,15 @@ Rectangle {
             }
 
             DialogButton {
-                visible: root.canRemember
+                // not from a tainted turn: the page may have written this request
+                visible: root.canRemember && !root.tainted
                 buttonText: Translation.tr("Always allow")
                 activeFocusOnTab: true
                 onClicked: Ai.approveCommand(root.messageData, true)
             }
 
             DialogButton {
-                buttonText: Translation.tr("Allow once")
+                buttonText: root.isConsent ? Translation.tr("Allow for this chat") : Translation.tr("Allow once")
                 colBackground: Appearance.colors.colPrimary
                 colBackgroundHover: Appearance.colors.colPrimaryHover
                 colRipple: Appearance.colors.colPrimaryActive

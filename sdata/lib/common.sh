@@ -39,7 +39,7 @@ die()     { err "$*"; exit 1; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
-# scripts/global-menu/build.zig.zon floors at 0.16.0, and a distro zig is not
+# audiod/ and installer/ build.zig.zon floor at 0.16.0, and a distro zig is not
 # enough on its own: Debian 13 has no zig at all and Ubuntu's `zig` metapackage
 # still points at 0.14, which fails the build rather than skipping it.
 ZIG_MIN=0.16.0
@@ -131,13 +131,20 @@ run_in_dir() {
 # the || is reached. One name at a time, asked about first.
 # this session's processes of a binary: same uid and XDG_RUNTIME_DIR. A nested test shell runs with a
 # runtime dir of its own (tests/run.sh, the hyprshot and shellshot tools), and a restart must not kill it
+# The kernel keeps 15 characters of a process name and pgrep -x on a longer one matches nothing, so a
+# longer name (koompi-global-menu-daemon) is looked up by its first 15 and confirmed on argv[0].
 session_pids() {
-    local pid rt
+    local pid rt argv0
     while read -r pid; do
         [[ -n "$pid" ]] || continue
+        if (( ${#1} > 15 )); then
+            argv0=""
+            { IFS= read -r -d '' argv0 < "/proc/$pid/cmdline"; } 2>/dev/null || true
+            [[ "${argv0##*/}" == "$1" ]] || continue
+        fi
         rt="$(tr '\0' '\n' 2>/dev/null < "/proc/$pid/environ" | sed -n 's/^XDG_RUNTIME_DIR=//p')"
         if [[ "$rt" == "${XDG_RUNTIME_DIR:-}" ]]; then printf '%s\n' "$pid"; fi
-    done < <(pgrep -u "$(id -u)" -x -- "$1" 2>/dev/null)
+    done < <(pgrep -u "$(id -u)" -x -- "${1:0:15}" 2>/dev/null)
     return 0
 }
 
@@ -311,9 +318,9 @@ reload_session() {
     have qs || return 0
     session_locked && { defer_shell_restart; return 0; }
 
-    # global-menu-daemon is started by the shell itself
+    # koompi-global-menu-daemon is started by the shell itself
     # (services/GlobalMenuService.qml), so relaunching qs is what brings it back.
-    stop_processes global-menu-daemon qs quickshell
+    stop_processes koompi-global-menu-daemon qs quickshell
     if [[ "$DRY_RUN" == true ]]; then
         info "would restart the shell"
         return 0

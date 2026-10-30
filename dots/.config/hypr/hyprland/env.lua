@@ -24,7 +24,7 @@ hl.env("GTK_USE_PORTAL", "1")
 hl.env("KDE_DEBUG", "1")
 
 -- Themes
--- qt exports a menubar only on x11; koompi-launch keeps its xcb_menu_apps there
+-- wayland first, x11 for a qt app without the wayland plugin; the global menu finds a qt menubar on either
 hl.env("QT_QPA_PLATFORM", "wayland;xcb")
 -- qt6ct, not kde: Qt apps read the matugen-rendered qt6ct palette instead of
 -- loading plasma-integration (M5/M7 Qt unwind).

@@ -93,9 +93,9 @@ pub fn event(conn: &Connection, bus: &str, path: &str, id: i32, kind: &str) {
 /// did not answer" the same as "the app has no menu".
 ///
 /// The timeout is the connection's, set once by whoever builds it (see
-/// `connect()`), not per call. A thread per call would express the zig daemon's
-/// 3000/2000 ms split exactly, but it leaks one thread per focus change against
-/// an application that never answers, and this daemon runs all session.
+/// `connect()`), not per call. A thread per call could give each kind of call its
+/// own budget, but it leaks one thread per focus change against an application
+/// that never answers, and this daemon runs all session.
 fn call(method: impl FnOnce() -> zbus::Result<Message>) -> Option<Message> {
     method().ok()
 }

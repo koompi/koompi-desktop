@@ -1,10 +1,14 @@
 import qs.modules.common
 import QtQuick
+import Quickshell
+import Quickshell.Io
+import "toolRanking.js" as Ranking
 
 /**
  * One declaration per tool, rendered per wire format.
  *
- * An entry is `name`, `description`, `parameters`, `formats`, `enabled`, plus
+ * An entry is `name`, `description`, `parameters`, `formats`, `enabled`, `hints`
+ * (words that rank it for a turn, see toolRanking.js), plus
  * `risk` (safe | reads-system | writes-system | leaves-machine) and `approval`
  * (never | once | always). `risk` is what the approval surface renders;
  * `approval` is what ToolRunner asks before running. The handler lives next to
@@ -29,6 +33,23 @@ QtObject {
 
     readonly property var emptyParameters: ({ "type": "object", "properties": {} })
 
+    // KOOMPI_AI_TOOL_TEXT names a JSON file, {"<tool>": {"description", "parameters":
+    // {"<field>": "..."}}}, whose text replaces the descriptions below for one run:
+    // the tuning bench (tests/bench/ai) edits tool text the way it edits the prompt.
+    property var toolText: null
+    readonly property FileView toolTextFile: FileView {
+        path: Quickshell.env("KOOMPI_AI_TOOL_TEXT") ?? ""
+        blockAllReads: true
+        onLoaded: {
+            try {
+                root.toolText = JSON.parse(text());
+            } catch (e) {
+                console.warn(`[AI] tool text ${path} unreadable: ${e}`);
+            }
+        }
+    }
+
+    property var extraEntries: [] // tools declared beside their handler: `browser` (BrowserTool.qml)
     readonly property var entries: [
         {
             "name": "switch_to_search_mode",
@@ -44,8 +65,9 @@ QtObject {
             "priority": 40,
             "risk": "reads-system",
             "approval": "never",
-            "description": "Get the desktop shell config file contents",
-            "parameters": root.emptyParameters,
+            "hints": "bar dock panel top bottom position move borderless border theme dark light wallpaper font clock transparent setting settings config change enable disable turn hide",
+            "description": "Read the desktop shell's settings (bar, dock, appearance, ...). Without a section it lists the sections and their keys",
+            "parameters": { "type": "object", "properties": { "section": { "type": "string", "description": "A section or dotted path, e.g. `bar` or `bar.autoHide`" } } },
             "formats": ["gemini", "openai", "mistral"],
             "enabled": true
         },
@@ -54,6 +76,7 @@ QtObject {
             "priority": 30,
             "risk": "writes-system",
             "approval": "never",
+            "hints": "bar dock panel top bottom position move borderless border theme dark light wallpaper font clock transparent setting settings config change enable disable turn hide",
             "description": "Set a field in the desktop graphical shell config file. Must only be used after `get_shell_config`.",
             "parameters": {
                 "type": "object",
@@ -77,6 +100,7 @@ QtObject {
             "priority": 70,
             "risk": "writes-system",
             "approval": "once",
+            "hints": "run command terminal shell bash execute script",
             "description": "Run a shell command in bash and get its output. Use this only for quick commands that don't require user interaction. For commands that require interaction, ask the user to run manually instead.",
             "parameters": {
                 "type": "object",
@@ -96,6 +120,7 @@ QtObject {
             "priority": 35,
             "risk": "writes-system",
             "approval": "never",
+            "hints": "name named call rename",
             "description": "Remember the name the user wants to be called. Call this as soon as the user tells you their name, so you can address them properly in this and future conversations.",
             "parameters": {
                 "type": "object",
@@ -115,6 +140,7 @@ QtObject {
             "priority": 60,
             "risk": "writes-system",
             "approval": "never",
+            "hints": "remember prefer preference favourite favorite always never forget note",
             "description": "Store a durable fact in long-term memory for future conversations. Use for preferences, important personal facts, and ongoing projects — not trivial chatter.",
             "parameters": {
                 "type": "object",
@@ -125,10 +151,11 @@ QtObject {
                     },
                     "type": {
                         "type": "string",
-                        "description": "One of: profile, preference, fact, task",
+                        "enum": ["identity", "contact", "preference", "instruction", "project", "task", "fact"],
+                        "description": "`preference` for likes and ways of working, `identity` for who the user is",
                     },
                 },
-                "required": ["text"]
+                "required": ["text", "type"]
             },
             "formats": ["gemini", "openai", "mistral"],
             "enabled": true
@@ -158,6 +185,7 @@ QtObject {
             "priority": 80,
             "risk": "leaves-machine",
             "approval": "never",
+            "hints": "price cost costs news latest won winner weather search web internet online google",
             "description": "Search the web and read the top result. Use this for anything you are not certain of: a company, a person, a product, a price, news, documentation, an unfamiliar error. Prefer this over telling the user you have no information.",
             "parameters": {
                 "type": "object",
@@ -177,6 +205,7 @@ QtObject {
             "priority": 50,
             "risk": "leaves-machine",
             "approval": "never",
+            "hints": "http https www com org net read page site link url article",
             "description": "Read the text of one web page. Use this when the user names a website or gives a link, and to follow up on a URL that search returned.",
             "parameters": {
                 "type": "object",
@@ -193,9 +222,10 @@ QtObject {
         },
         {
             "name": "ask_agent",
-            "priority": 90,
+            "priority": 75,
             "risk": "leaves-machine",
             "approval": "once",
+            "hints": "laptop computer machine hardware cpu processor gpu graphics ram memory disk storage space battery driver drivers package packages installed service services log logs broken crash slow wifi",
             "description": "Delegate a task to a capable agent that can run commands on this computer and search the internet. Use it for anything about THIS machine - hardware, laptop model, CPU, RAM, GPU, disk, battery health, drivers, installed packages, running services, logs, why something is broken - and for research that needs several steps. It is slower than the other tools, so send one complete task and answer from what it returns.",
             "parameters": {
                 "type": "object",
@@ -210,11 +240,10 @@ QtObject {
             "formats": ["gemini", "openai", "mistral"],
             "enabled": root.agentToolEnabled
         }
-    ]
+    ].concat(root.extraEntries)
 
     function entryFor(name: string): var {
-        const found = root.entries.filter(e => e.name === name);
-        return found.length > 0 ? found[0] : null;
+        return root.entries.find(e => e.name === name) ?? null;
     }
 
     function riskOf(name: string): string {
@@ -226,8 +255,21 @@ QtObject {
         return root.entryFor(name)?.approval ?? "once";
     }
 
+    // the Responses API takes the same tools as chat completions, in a flatter shape
     function activeEntries(format) {
-        return root.entries.filter(e => e.enabled && e.formats.indexOf(format) !== -1);
+        const listed = format === "responses" ? "openai" : format;
+        return root.entries.filter(e => e.enabled && e.formats.indexOf(listed) !== -1).map(e => root.withText(e));
+    }
+
+    function withText(entry) {
+        const text = root.toolText?.[entry.name];
+        if (!text) return entry;
+        const properties = {};
+        for (const field in entry.parameters?.properties ?? {})
+            properties[field] = Object.assign({}, entry.parameters.properties[field],
+                text.parameters?.[field] !== undefined ? { "description": `${text.parameters[field]}` } : {});
+        const parameters = entry.parameters ? Object.assign({}, entry.parameters, { "properties": properties }) : undefined;
+        return Object.assign({}, entry, { "description": `${text.description ?? entry.description}` }, parameters ? { "parameters": parameters } : {});
     }
 
     // Gemini omits `parameters` entirely for a tool that takes none; sending an
@@ -250,58 +292,37 @@ QtObject {
         };
     }
 
+    // strict defaults to true there, and these schemas leave optional fields out of required
+    function responsesDeclaration(entry) {
+        return {
+            "type": "function",
+            "name": entry.name,
+            "description": entry.description,
+            "parameters": entry.parameters ?? root.emptyParameters,
+            "strict": false
+        };
+    }
+
     function declarationsFor(format) {
-        const entries = root.activeEntries(format);
-        if (format === "gemini") return entries.map(e => root.geminiDeclaration(e));
-        return entries.map(e => root.openaiDeclaration(e));
+        return root.activeEntries(format).map(e => root.renderDeclaration(format, e));
     }
 
     function renderDeclaration(format: string, entry): var {
-        return format === "gemini" ? root.geminiDeclaration(entry) : root.openaiDeclaration(entry);
+        if (format === "gemini") return root.geminiDeclaration(entry);
+        return format === "responses" ? root.responsesDeclaration(entry) : root.openaiDeclaration(entry);
     }
 
     function wrapDeclarations(format: string, list): var {
         return format === "gemini" ? [{ "functionDeclarations": list }] : list;
     }
 
-    // Words carried by nearly every description, so matching on them ranks nothing.
-    readonly property var stopWords: ({
-        "the": 1, "this": 1, "that": 1, "with": 1, "from": 1, "into": 1, "your": 1, "you": 1,
-        "and": 1, "for": 1, "not": 1, "use": 1, "used": 1, "using": 1, "user": 1, "its": 1,
-        "one": 1, "only": 1, "any": 1, "all": 1, "can": 1, "call": 1, "get": 1, "set": 1,
-        "it": 1, "is": 1, "are": 1, "was": 1, "has": 1, "have": 1, "what": 1, "when": 1,
-        "how": 1, "why": 1, "who": 1, "does": 1, "did": 1, "will": 1, "would": 1, "should": 1,
-        "please": 1, "want": 1, "need": 1, "tell": 1, "show": 1, "give": 1, "make": 1,
-        "instead": 1, "before": 1, "after": 1, "other": 1, "than": 1, "them": 1, "they": 1,
-        "here": 1, "there": 1, "about": 1, "over": 1, "just": 1, "also": 1, "like": 1
-    })
-
-    function significantWords(text: string): var {
-        const found = (text ?? "").toLowerCase().match(/[a-z0-9]{3,}/g) ?? [];
-        const out = ({});
-        for (const word of found) if (!root.stopWords[word]) out[word] = 1;
-        return out;
-    }
-
-    // Keyword overlap, no model call and no embedding, so the ranking can be read off
-    // the entry itself. A hit on the tool's own name is worth five in its description.
-    function relevanceScore(entry, words): int {
-        let score = 0;
-        const nameWords = root.significantWords(entry.name.replace(/_/g, " "));
-        for (const word in nameWords) if (words[word]) score += 5;
-        const descWords = root.significantWords(entry.description);
-        for (const word in descWords) if (words[word]) score += 1;
-        return score;
-    }
-
     // Core first, then most relevant to this turn, then the static prior, then whichever
     // costs fewer bytes — so a tie never spends the budget on the bigger declaration.
     function rankedEntries(format: string, text: string): var {
-        const words = root.significantWords(text);
         const scored = root.activeEntries(format).map(entry => ({
             "entry": entry,
             "core": entry.core === true,
-            "score": root.relevanceScore(entry, words),
+            "score": Ranking.relevanceScore(entry, text),
             "priority": entry.priority ?? 0,
             "bytes": JSON.stringify(root.renderDeclaration(format, entry)).length
         }));
@@ -347,6 +368,11 @@ QtObject {
         },
         "mistral": {
             "functions": root.declarationsFor("mistral"),
+            "search": [],
+            "none": [],
+        },
+        "responses": {
+            "functions": root.declarationsFor("responses"),
             "search": [],
             "none": [],
         }

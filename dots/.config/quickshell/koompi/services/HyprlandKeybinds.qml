@@ -26,7 +26,7 @@ Singleton {
         return FileUtils.trimFileProtocol(`${Directories.config}/hypr`);
     }
     // The modules hyprland.lua requires for binds, in its order.
-    readonly property list<string> bindModules: ["hyprland.keybinds", "hyprland.keybinds_shell_extra", "hyprland.keybinds_groups", "custom.keybinds"]
+    readonly property list<string> bindModules: ["hyprland.keybinds", "hyprland.keybinds_shell_extra", "hyprland.keybinds_groups", "hyprland.keybinds_ai", "custom.keybinds"]
 
     property var rawBinds: []
     // recordKey -> Lua expression, from the recorder. A Lua config reports every

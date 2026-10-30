@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Speaks the shell's stdio menu protocol; a drop-in for the zig global-menu-daemon"
+description = "Serves the shell's stdio menu protocol: the focused application's menus for the bar"
 
 [[bin]]
 name = "global-menu-daemon"

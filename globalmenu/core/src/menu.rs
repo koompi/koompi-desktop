@@ -1,9 +1,8 @@
 // The menu tree the daemon hands to the shell, plus the activation table that
 // turns a click in the bar back into a D-Bus call on the owning application.
 //
-// The JSON is written by hand rather than derived: the shell parses key order
-// nowhere, but the Zig daemon this replaces emits an exact byte sequence and the
-// conformance suite diffs the two, so the order is part of the contract.
+// The JSON is written by hand rather than derived, so its byte layout is fixed
+// by this file and the unit tests below pin it.
 
 use std::fmt::Write as _;
 
@@ -62,8 +61,8 @@ pub enum Target {
 }
 
 /// A GTK action target. Only the shapes GTK actually puts in a menu model are
-/// represented; anything else is dropped rather than guessed at, which matches
-/// the Zig daemon refusing to synthesise a variant it cannot round-trip.
+/// represented; anything else is dropped rather than guessed at: a variant we
+/// cannot round-trip is not synthesised.
 #[derive(Debug, Clone, PartialEq)]
 pub enum OwnedArg {
     Str(String),
@@ -271,9 +270,8 @@ fn write_string(out: &mut String, s: &str) {
 mod tests {
     use super::*;
 
-    // The cases below are lifted from src/menu.zig's own tests. They are the
-    // conformance bar at unit level: the two implementations must agree here
-    // before the end-to-end suite is worth running.
+    // The conformance bar at unit level, before the end-to-end suite
+    // (globalmenu/tests/test_daemon.py) is worth running.
 
     #[test]
     fn strip_mnemonics_keeps_escaped_markers() {

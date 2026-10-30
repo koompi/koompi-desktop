@@ -118,6 +118,34 @@ ContentPage {
                     }
                 }
                 RippleButtonWithIcon {
+                    enabled: !randomWallProc.running
+                    Layout.fillWidth: true
+                    buttonRadius: Appearance.rounding.small
+                    materialIcon: "temple_buddhist"
+                    mainText: randomWallProc.running ? Translation.tr("Be patient...") : Translation.tr("Random: Cambodian art")
+                    onClicked: {
+                        randomWallProc.scriptPath = `${Directories.scriptPath}/colors/random/random_cambodia_wall.sh`;
+                        randomWallProc.running = true;
+                    }
+                    StyledToolTip {
+                        text: Translation.tr("Digital art of Cambodia from Pixabay, with a key in Settings > Services\nPhotos from Wikimedia Commons without one\nSaved to Pictures/Wallpapers/Cambodia. Super+Alt+Shift+W")
+                    }
+                }
+                RippleButtonWithIcon {
+                    enabled: !randomWallProc.running
+                    Layout.fillWidth: true
+                    buttonRadius: Appearance.rounding.small
+                    materialIcon: "gradient"
+                    mainText: randomWallProc.running ? Translation.tr("Be patient...") : Translation.tr("Random: Abstract")
+                    onClicked: {
+                        randomWallProc.scriptPath = `${Directories.scriptPath}/colors/random/random_abstract_wall.sh`;
+                        randomWallProc.running = true;
+                    }
+                    StyledToolTip {
+                        text: Translation.tr("Thirteen styles, from silk folds and auroras to topographic lines and retro stripes, drawn on this computer\nWorks offline, a new one every time\nSaved to Pictures/Wallpapers/Abstract. Ctrl+Super+Alt+W")
+                    }
+                }
+                RippleButtonWithIcon {
                     Layout.fillWidth: true
                     materialIcon: "wallpaper"
                     StyledToolTip {

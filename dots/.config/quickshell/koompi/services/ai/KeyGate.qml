@@ -31,7 +31,7 @@ QtObject {
     // skipped; the turn decides again after it), a waiting compaction is
     // displaced by a send.
     function admit(model, send, kind = "send"): bool {
-        if (!model?.requires_key) return true;
+        if (!model?.requires_key || model?.auth === "chatgpt") return true; // its bearer comes from chatgpt_auth.py
         if (!root.keyringReady) {
             if (kind === "compact" && root._deferred?.kind === "send") {
                 console.log("[AI] compaction skipped: a message is already waiting on the keyring");
@@ -46,6 +46,27 @@ QtObject {
         if (key.length > 0) return true;
         root.engine.addApiKeyAdvice(model);
         return false;
+    }
+
+    // Settings > AI writes keys here, beside the one reader of them. Never before the
+    // keyring has loaded: the store replaces the whole item, so writing into an
+    // unread keyring would wipe every other key. The key goes to secret-tool's
+    // stdin and nowhere else; nothing here logs it.
+    function hasKey(keyId: string): bool {
+        return `${KeyringStorage.keyringData?.apiKeys?.[keyId] ?? ""}`.length > 0;
+    }
+    function storeKey(keyId: string, key: string): bool {
+        const value = `${key ?? ""}`.trim();
+        if (!root.keyringReady || `${keyId ?? ""}`.length === 0 || value.length === 0) return false;
+        KeyringStorage.setNestedField(["apiKeys", keyId], value);
+        return true;
+    }
+    function forgetKey(keyId: string): bool {
+        if (!root.keyringReady || `${keyId ?? ""}`.length === 0) return false;
+        const keys = Object.assign({}, KeyringStorage.keyringData?.apiKeys ?? {});
+        delete keys[keyId];
+        KeyringStorage.setNestedField(["apiKeys"], keys);
+        return true;
     }
 
     // The wait was for this model and this chat. A switch or a clear while the

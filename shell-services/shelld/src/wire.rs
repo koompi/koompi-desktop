@@ -15,7 +15,8 @@ pub fn network(state: &NetworkState) -> Value {
         "available": state.available,
         "version": state.version,
         "state": state.state.as_str(),
-        "connectivity": state.connectivity.as_str(),
+        "connectivity": state.effective_connectivity().as_str(),
+        "nm_connectivity": state.connectivity.as_str(),
         "wifi": wifi(&state.wifi),
         "wired": state.wired.iter().map(wired).collect::<Vec<_>>(),
         "primary": state.primary.as_ref().map(active_connection),
@@ -267,7 +268,7 @@ fn value<T: serde::Serialize>(item: &T) -> Value {
 mod tests {
     use super::*;
     use koompi_hyprland::{Client, Monitor, Workspace};
-    use koompi_network::{Security, WifiStatus};
+    use koompi_network::{Connectivity, Security, WifiStatus};
 
     fn ap(bytes: &[u8], strength: u8) -> AccessPoint {
         AccessPoint {
@@ -322,6 +323,23 @@ mod tests {
         assert_eq!(value["network_strength"], json!(94));
         assert_eq!(value["network_name"], json!(""));
         assert_eq!(value["captive_portal"], json!(false));
+    }
+
+    /// A network that blocks plain HTTP: NetworkManager says limited, 443 got through.
+    #[test]
+    fn a_limited_check_that_443_got_through_goes_out_as_full_with_the_verdict_beside_it() {
+        let mut state = NetworkState {
+            available: true,
+            connectivity: Connectivity::Limited,
+            https_reachable: true,
+            ..NetworkState::default()
+        };
+        let value = network(&state);
+        assert_eq!(value["connectivity"], json!("full"));
+        assert_eq!(value["nm_connectivity"], json!("limited"));
+
+        state.https_reachable = false;
+        assert_eq!(network(&state)["connectivity"], json!("limited"));
     }
 
     #[test]

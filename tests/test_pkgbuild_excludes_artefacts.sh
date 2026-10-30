@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # koompi-shell and koompi-hyprland-config copy dots/ into their packages. A
-# developer checkout that has built the global-menu daemon carries .zig-cache/
-# (367 MB on 2026-08-25) and zig-out/ under the shell tree, gitignored but on
+# developer checkout that has built something inside dots/ carries its build
+# output there (the zig global-menu daemon, since removed, left a 367 MB
+# .zig-cache/ and a zig-out/ in the shell tree on 2026-08-25), gitignored but on
 # disk, and both packages used to ship them: into /etc/xdg/quickshell and,
 # through /etc/skel, into every new user's $HOME (BUG-AUDIT H3). Runs each
 # package() the way makepkg would, against a copy of dots/ with the artefacts
@@ -27,8 +28,8 @@ cp -a "$REPO_ROOT/sdata/dist-arch/koompi-hyprland-config" "$fake/sdata/dist-arch
 
 shell="$fake/dots/.config/quickshell/koompi"
 planted=(
-    "$shell/scripts/global-menu/.zig-cache/h/deadbeef/global-menu.o"
-    "$shell/scripts/global-menu/zig-out/bin/global-menu"
+    "$shell/scripts/colors/.zig-cache/h/deadbeef/helper.o"
+    "$shell/scripts/colors/zig-out/bin/helper"
     "$shell/scripts/__pycache__/helper.cpython-313.pyc"
     "$shell/services/stale.pyc"
     "$shell/.claude/settings.local.json"
@@ -43,8 +44,8 @@ for p in "${planted[@]}"; do
 done
 
 # Sourced and run as makepkg does: top-level assignments, then package() with
-# startdir/srcdir/pkgdir set. build() is not run; the one artefact package()
-# takes from it is faked.
+# startdir/srcdir/pkgdir set. build() is not run; the artefacts package()
+# takes from it (the koompi CLI, the global menu daemon) are faked.
 run_package() {
     local name="$1" srcdir="$2" pkgdir="$3"
     mkdir -p "$srcdir" "$pkgdir"
@@ -60,6 +61,7 @@ run_package() {
 
 printf '#!/bin/sh\n' > "$tmp/koompi"
 install -Dm755 "$tmp/koompi" "$tmp/shell-src/koompi-cli-out/bin/koompi"
+install -Dm755 "$tmp/koompi" "$tmp/shell-src/globalmenu-target/release/global-menu-daemon"
 run_package koompi-shell "$tmp/shell-src" "$tmp/shell-pkg"
 run_package koompi-hyprland-config "$tmp/config-src" "$tmp/config-pkg"
 
@@ -76,10 +78,12 @@ done
     || fail "koompi-shell lost the shell tree (etc/xdg/quickshell/koompi/shell.qml)"
 [[ -f "$tmp/shell-pkg/etc/xdg/quickshell/koompi-quicklook/shell.qml" ]] \
     || fail "koompi-shell lost the quicklook tree"
-[[ -f "$tmp/shell-pkg/etc/xdg/quickshell/koompi/scripts/global-menu/build.zig" ]] \
-    || fail "koompi-shell lost scripts/global-menu/build.zig next to the pruned cache"
+[[ -f "$tmp/shell-pkg/etc/xdg/quickshell/koompi/scripts/colors/switchwall.sh" ]] \
+    || fail "koompi-shell lost scripts/colors/switchwall.sh next to the pruned cache"
 [[ -x "$tmp/shell-pkg/usr/bin/koompi-migrate" ]] \
     || fail "koompi-shell lost the tools (usr/bin/koompi-migrate)"
+[[ -x "$tmp/shell-pkg/usr/lib/koompi/koompi-global-menu-daemon" ]] \
+    || fail "koompi-shell does not ship the global menu daemon (usr/lib/koompi/koompi-global-menu-daemon)"
 [[ -f "$tmp/config-pkg/etc/skel/.config/hypr/hyprland.lua" ]] \
     || fail "koompi-hyprland-config lost the hypr config (etc/skel/.config/hypr/hyprland.lua)"
 [[ -x "$tmp/config-pkg/etc/skel/.local/bin/koompi-session" ]] \

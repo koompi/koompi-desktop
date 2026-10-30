@@ -146,15 +146,11 @@ Item { // Bar content region
                 contentItem: VerticalClockWidget {
                     color: GlobalStates.sidebarRightOpen ? Appearance.m3colors.m3onSecondaryContainer : Appearance.colors.colOnLayer0
                 }
+            }
 
-                Bar.NotificationUnreadCount {
-                    anchors {
-                        right: parent.right
-                        top: parent.top
-                        rightMargin: 2
-                        topMargin: 2
-                    }
-                }
+            Bar.NotificationButton { // the bell, with the unread dot: opens the same panel
+                vertical: true
+                Layout.fillWidth: true
             }
 
             HorizontalBarSeparator {

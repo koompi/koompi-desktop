@@ -42,7 +42,8 @@ Four steps, each skippable:
    separately; `--no-apps` skips it.
    See [Applications](#applications).
 3. **Setups** - creates the Python virtualenv the colour pipeline runs in,
-   builds the global-menu daemon, adds you to `video`/`input`/`i2c`, loads the
+   builds the global-menu daemon with cargo (without cargo the bar shows no
+   app menus), adds you to `video`/`input`/`i2c`, loads the
    `uinput` and `i2c-dev` modules, enables `ydotool`, and registers the KOOMPI
    session system-wide so GDM and SDDM can show it before login.
 4. **Files** - copies `dots/` into `$HOME`, backing up anything it overwrites to

@@ -39,5 +39,6 @@ run_setups() {
     setup_agent_memory
     setup_portals
     setup_toolkit_defaults
+    setup_browser_touchpad
     setup_system_session
 }

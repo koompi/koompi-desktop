@@ -6,6 +6,9 @@
 # ~/.config/quickshell/koompi (seeded from /etc/skel by koompi-hyprland-config)
 # overrides this one and the packaged tree is the always-present fallback.
 # The tools go to /usr/bin; ~/.local/bin copies still win via session PATH.
+# The global menu daemon (globalmenu/) goes to /usr/lib/koompi, which the shell
+# tries after ~/.local/bin (services/GlobalMenuService.qml): without it the bar
+# shows no app menus at all.
 # koompi-migrate syncs existing users' copies up to these defaults.
 #
 # BUILD NOTE: via the existing sdata/dist-arch flow (plain makepkg in-tree) this
@@ -15,16 +18,16 @@
 groups=(koompi)
 pkgname=koompi-shell
 pkgver=1.1
-pkgrel=14
+pkgrel=15
 pkgdesc='KOOMPI desktop shell (Quickshell config) and koompi-* tools'
 arch=(x86_64 aarch64)
 license=(GPL-3.0-only)
-# xorg-xprop and xorg-xwayland are not optional: Qt exports its menubar over
-# D-Bus only on X11, so the global menu reads the menu address off XWayland
-# window properties with xprop. Without either one the bar is silently empty.
+# xorg-xprop: the global menu reads an X11 window's id, and the menu address a
+# GTK or KDE app on X11 publishes, off the window's properties with xprop.
+# xorg-xwayland: X11 apps at all.
 # python-gobject: koompi-remotedesktop-portal is a Python script on Gio/GLib.
 depends=(quickshell rsync jq libnotify xorg-xprop xorg-xwayland python-gobject)
-makedepends=(zig rsync)
+makedepends=(zig rsync cargo)
 
 # Every dots/.local/bin/koompi-* executable ships, by name, so what the package
 # puts in /usr/bin can be read off this file. tests/test_packaged_tools.sh
@@ -90,6 +93,13 @@ build() {
     --cache-dir "$srcdir/koompi-cli-cache" \
     --prefix "$srcdir/koompi-cli-out" \
     -Doptimize=ReleaseSafe
+
+  # same as koompi-kiri: crates and build output stay in $srcdir, not the builder's ~/.cargo or the checkout
+  export CARGO_HOME="$srcdir/cargo-home"
+  cargo build --release --locked \
+    --manifest-path "$_repo_root/globalmenu/Cargo.toml" \
+    --target-dir "$srcdir/globalmenu-target" \
+    -p koompi-globalmenu-daemon
 }
 
 package() {
@@ -102,9 +112,9 @@ package() {
   fi
 
   # Build artefacts and caches never ship (the list ./setup uses in
-  # sdata/install/files.sh): a checkout that has built the global-menu daemon
-  # carries hundreds of MB of .zig-cache under the shell tree, gitignored but
-  # on disk, and cp -a used to package it (BUG-AUDIT H3).
+  # sdata/install/files.sh): a checkout that had built the old zig global-menu
+  # daemon carried hundreds of MB of .zig-cache under the shell tree, gitignored
+  # but on disk, and cp -a used to package it (BUG-AUDIT H3).
   local -a _excludes=(
     --exclude='.git' --exclude='.gitignore' --exclude='.claude'
     --exclude='zig-out' --exclude='.zig-cache' --exclude='__pycache__'
@@ -119,6 +129,8 @@ package() {
     "$pkgdir/etc/xdg/quickshell/koompi-quicklook/"
 
   install -Dm755 "$srcdir/koompi-cli-out/bin/koompi" "$pkgdir/usr/bin/koompi"
+  install -Dm755 "$srcdir/globalmenu-target/release/global-menu-daemon" \
+    "$pkgdir/usr/lib/koompi/koompi-global-menu-daemon"
   install -Dm755 "$_repo_root/dots/.local/share/koompi/libexec/update" \
     "$pkgdir/usr/lib/koompi/update"
   # update sources this from its own directory and exits if it is missing.

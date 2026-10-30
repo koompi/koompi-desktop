@@ -15,12 +15,13 @@ import QtQuick.Layouts
 FocusScope {
     id: root
 
-    // [{ id, name, description }]
+    // [{ id, name, description, auth }]; auth "chatgpt" is a model on the ChatGPT plan
     property var models: []
     property string currentId: ""
     property int selectedIndex: -1
     property real maxHeight: 260
     readonly property int rowCount: rows.count
+    readonly property Item providersRow: addProvider
     // A reveal asked for before the list had a size; retried when it gets one.
     property int pendingReveal: -1
     // Where the pointer last was, in the picker's own coordinates. The list
@@ -29,6 +30,7 @@ FocusScope {
 
     signal picked(string id)
     signal dismissed()
+    signal providersRequested() // the last row: a cloud model is added in Settings, not here
 
     implicitHeight: sheet.implicitHeight
     Accessible.role: Accessible.List
@@ -219,6 +221,7 @@ FocusScope {
                             required property int index
                             readonly property bool isCurrent: row.modelData.id === root.currentId
                             readonly property bool selected: root.selectedIndex === row.index
+                            readonly property bool usesPlan: (row.modelData.auth ?? "") === "chatgpt"
 
                             Layout.fillWidth: true
                             implicitHeight: rowContent.implicitHeight + 6 * 2
@@ -257,11 +260,12 @@ FocusScope {
                                     }
                                     StyledText {
                                         Layout.fillWidth: true
-                                        visible: (row.modelData.description ?? "").length > 0
+                                        visible: text.length > 0
                                         font.pixelSize: Appearance.font.pixelSize.smallest
                                         color: Appearance.colors.colSubtext
                                         elide: Text.ElideRight
-                                        text: row.modelData.description ?? ""
+                                        // a plan model is paid for by the sign-in, not a key; say so where it is picked
+                                        text: row.usesPlan ? Translation.tr("Using ChatGPT plan") : (row.modelData.description ?? "")
                                     }
                                 }
                             }
@@ -273,6 +277,49 @@ FocusScope {
                                 onPositionChanged: mouse => root.noteHover(row.index, row.mapToItem(root, mouse.x, mouse.y))
                             }
                             onClicked: root.picked(row.modelData.id)
+                        }
+                    }
+                }
+            }
+
+            // Without it the list is only what is already set up, and a remote
+            // model has no way in from where people look for one.
+            RippleButton {
+                id: addProvider
+                Layout.fillWidth: true
+                implicitHeight: addContent.implicitHeight + 6 * 2
+                buttonRadius: Appearance.rounding.small
+                focusPolicy: Qt.NoFocus
+                colBackground: "transparent"
+                colBackgroundHover: Appearance.colors.colSecondaryContainerHover
+                Accessible.name: Translation.tr("Add a provider")
+                onClicked: root.providersRequested()
+
+                contentItem: RowLayout {
+                    id: addContent
+                    spacing: 8
+
+                    MaterialSymbol {
+                        Layout.leftMargin: 4
+                        text: "add"
+                        iconSize: Appearance.font.pixelSize.larger
+                        color: Appearance.colors.colPrimary
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+                        StyledText {
+                            Layout.fillWidth: true
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: Appearance.colors.colPrimary
+                            text: Translation.tr("Add a provider")
+                        }
+                        StyledText {
+                            Layout.fillWidth: true
+                            font.pixelSize: Appearance.font.pixelSize.smallest
+                            color: Appearance.colors.colSubtext
+                            elide: Text.ElideRight
+                            text: Translation.tr("ChatGPT plan, an API key or your own server")
                         }
                     }
                 }

@@ -111,7 +111,7 @@ reload_session() {
     # killing qs under a lock strands the seat on Hyprland's failsafe lock
     session_locked && { defer_shell_restart; return 0; }
     info "session lock: unlocked (logind LockedHint); restarting the shell"
-    stop_processes global-menu-daemon qs quickshell
+    stop_processes koompi-global-menu-daemon qs quickshell
     if [[ "$DRY_RUN" == true ]]; then
         info "would restart the shell"
         return 0

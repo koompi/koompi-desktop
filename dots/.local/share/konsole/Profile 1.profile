@@ -1,5 +1,5 @@
 [Appearance]
-ColorScheme=MaterialYou
+ColorScheme=KoompiGreen
 
 [General]
 Command=/bin/fish

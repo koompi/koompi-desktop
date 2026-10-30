@@ -11,14 +11,10 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    readonly property string rustDaemonBin: Quickshell.env("HOME") + "/.local/bin/koompi-global-menu-daemon"
-    // setups.sh skips the Rust build where cargo is too old to compile it, so
-    // the Zig daemon it always builds stays reachable. Both answer the same
-    // protocol; tests/test_globalmenu.sh is what keeps that true.
-    readonly property string zigDaemonBin: {
-        const url = Qt.resolvedUrl("../scripts/global-menu/zig-out/bin/global-menu-daemon");
-        return url.toString().replace("file://", "");
-    }
+    // first one present wins: KOOMPI_GLOBAL_MENU_DAEMON (a test or dev build, as KOOMPI_SHELLD is for
+    // ShellServices), ./setup's ~/.local/bin (sdata/install/setups/globalmenu.sh), the koompi-shell
+    // package's /usr/lib/koompi; the installed two share a basename, so a restart stops either by name
+    readonly property var daemonCandidates: [Quickshell.env("KOOMPI_GLOBAL_MENU_DAEMON"), Quickshell.env("HOME") + "/.local/bin/koompi-global-menu-daemon", "/usr/lib/koompi/koompi-global-menu-daemon"].filter(path => path && path.length > 0)
 
     property var menuItems: []
     // Lazy submenu contents keyed by the stable daemon item id.
@@ -60,7 +56,7 @@ Singleton {
 
     Process {
         id: daemon
-        command: ["bash", "-c", 'if [ -x "$1" ]; then exec "$1"; fi; exec "$2"', "bash", root.rustDaemonBin, root.zigDaemonBin]
+        command: ["bash", "-c", 'for bin; do if [ -x "$bin" ]; then exec "$bin"; fi; done; exit 127', "bash", ...root.daemonCandidates]
         running: true
         stdinEnabled: true
 
@@ -97,8 +93,16 @@ Singleton {
                 root.patchedChildren = ({});
                 root.generation = 0;
                 root.menuItems = [];
-                restartTimer.start();
             }
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            // 127: none installed, which a retry cannot change; the next shell start looks again
+            if (exitCode === 127) {
+                console.warn("[GlobalMenuService] no global menu daemon in", root.daemonCandidates.join(", "), "- the bar shows no app menus");
+                return;
+            }
+            restartTimer.start();
         }
     }
 

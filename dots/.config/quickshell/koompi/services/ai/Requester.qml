@@ -6,6 +6,7 @@ import qs.services
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "screen-rules.js" as Screen
 
 /**
  * One turn of inference: builds the curl script, streams the reply back into the
@@ -46,6 +47,7 @@ QtObject {
         return runtime.length > 0 ? `${runtime}/quickshell/ai` : `${Quickshell.env("HOME")}/.cache/quickshell/ai`;
     }
     readonly property string scriptFilePath: `${root.scriptDirPath}/request.sh`
+    readonly property string bodyFilePath: `${root.scriptDirPath}/request-body.json`
 
     // blockWrites: setText is asynchronous by default, and on a fresh runtime dir
     // bash reached an empty request.sh before the write landed; the turn went nowhere
@@ -115,17 +117,14 @@ QtObject {
     // temperature 0. Every turn is held under that ceiling, not only the turn that
     // reads a tool result back — the system prompt carries the battery percentage and
     // the kernel version, and those are numbers the model gets wrong too. The turn
-    // answering a tool result still goes out bare: it does not need to call anything,
-    // and it is the turn where relayed numbers matter most.
+    // answering a tool result gets the same subset, still under the ceiling: going out
+    // bare made every chain impossible (read the config, then set it), and e4b wrote
+    // its own call syntax into the reply instead (tests/bench/ai, config-set-*).
     function toolsForTurn(model, messages) {
         const format = model.api_format;
         const declared = root.engine.tools[format][root.engine.currentTool];
         const limit = model?.toolBlockByteLimit ?? 0;
         if (limit <= 0) return declared;
-
-        const last = messages[messages.length - 1];
-        const answeringATool = (last?.toolCallId ?? "").length > 0 || (last?.functionName ?? "").length > 0;
-        if (answeringATool) return JSON.stringify(declared).length > limit ? [] : declared;
 
         if (root.engine.currentTool !== "functions") return declared;
         return root.engine.toolRegistry.subsetForTurn(format, limit, root.lastUserText(messages));
@@ -149,7 +148,9 @@ QtObject {
         const conversation = root.engine.conversation;
         const messageArray = conversation.messageIDs.map(id => conversation.messageByID[id]);
         const filteredMessageArray = messageArray.filter(message => message.role !== root.engine.interfaceRole);
-        const data = root.engine.currentApiStrategy.buildRequestData(model, filteredMessageArray, root.engine.systemPrompt, root.engine.temperature, root.toolsForTurn(model, filteredMessageArray), root.engine.pendingFilePath);
+        // the newest screenshot rides as an image turn, only to a model allowed to see it (plan D8)
+        const shots = Screen.withScreens(filteredMessageArray, Screen.gate(model, Config.options?.policies?.ai, root.engine.desktopTool?.service?.consents ?? {}));
+        const data = root.engine.currentApiStrategy.buildRequestData(model, shots, root.engine.systemPrompt, root.engine.temperature, root.toolsForTurn(model, filteredMessageArray), root.engine.pendingFilePath);
 
         let requestHeaders = {
             "Content-Type": "application/json",
@@ -192,11 +193,13 @@ QtObject {
         /* Create command string. `exec` so the kill lands on curl itself rather than on
            a bash that leaves it holding the server's only inference slot, and
            --max-time so curl gives up even if this shell is not around to kill it. */
+        const body = Screen.curlBody(JSON.stringify(data), CF.FileUtils.trimFileProtocol(root.bodyFilePath), shots.map(m => `${m.screenImage ?? ""}`));
+        scriptFileSetupContent += body.setup;
         let scriptRequestContent = ""
         scriptRequestContent += `exec curl --no-buffer --max-time ${root.deadlineSec} "${endpoint}"`
             + ` ${headerString}`
             + (authHeader ? ` ${authHeader}` : "")
-            + ` --data '${CF.StringUtils.shellSingleQuoteEscape(JSON.stringify(data))}'`
+            + ` ${body.arg}`
             + "\n"
 
         /* Send the request */

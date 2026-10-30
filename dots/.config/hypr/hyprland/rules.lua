@@ -184,6 +184,12 @@ hl.layer_rule({ match = { namespace = "quickshell:bar" }, animation = "slide"})
 -- The bar is glass over the wallpaper: a flat tint from 0.3 alpha (BarContent.glassFloor),
 -- under the 0.79 cutoff above, so its own lower cutoff lets the blur through.
 hl.layer_rule({ match = { namespace = "quickshell:bar" }, ignore_alpha = 0.2})
+-- The bar's menus are cut from that glass (GlobalMenuPopup). They are layers rather than popups
+-- because a layer is blurred from the wallpaper, as the bar is, and a popup through the window
+-- under it. No layer animation: they scale in themselves, and a fade would cross two menus as
+-- the pointer runs along the titles.
+hl.layer_rule({ match = { namespace = "quickshell:barMenu" }, ignore_alpha = 0.2})
+hl.layer_rule({ match = { namespace = "quickshell:barMenu" }, no_anim = true})
 hl.layer_rule({ match = { namespace = "quickshell:actionCenter" }, no_anim = true})
 hl.layer_rule({ match = { namespace = "quickshell:cheatsheet" }, animation = "slide bottom"})
 hl.layer_rule({ match = { namespace = "quickshell:dock" }, animation = "slide bottom"})

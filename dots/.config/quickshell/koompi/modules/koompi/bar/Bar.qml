@@ -69,6 +69,11 @@ Scope {
                 property bool mustShow: hoverRegion.containsMouse || superShow
                 // the colours of the bar's surface, glass or solid, for the widgets drawn on it
                 readonly property BarScheme barScheme: barContent.scheme
+                // what the menus hanging from it are cut from: the glass ({flipped, tint}, null when
+                // solid), the colour drawn, and the wallpaper under it (GlobalMenuPopup)
+                readonly property var barGlass: barContent.glassChoice
+                readonly property color barSurface: barContent.surfaceColor
+                readonly property string barWallpaper: barContent.wallpaper
                 // Which right-section popup the keyboard holds open (StyledPopup.keyIndex), 0 for none
                 property int keyboardPopup: 0
 

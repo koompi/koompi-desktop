@@ -107,11 +107,12 @@ Item {
         return false;
     }
 
-    function drawnIds() {
+    // each drawn desk's id, or "id:face" with withFaces
+    function drawnIds(withFaces) {
         const out = [];
         for (let i = 0; i < numberButtons.count; i++) {
             const item = numberButtons.itemAt(i);
-            if (item && item.shown) out.push(item.workspaceValue);
+            if (item && item.shown) out.push(withFaces ? item.workspaceValue + ":" + item.background.face : item.workspaceValue);
         }
         return out;
     }
@@ -281,13 +282,13 @@ Item {
                     implicitHeight: workspaceButtonWidth
                     property var biggestWindow: HyprlandData.biggestWindowForWorkspace(button.workspaceValue)
                     property string mainAppIconName: AppSearch.guessIcon(biggestWindow?.class)
-                    // with empty desks hidden a slot's place no longer says its number, so the number is drawn
-                    readonly property bool showLabel: root.showNumbers || Config.options?.bar.workspaces.alwaysShowNumbers
-                        || Config.options?.bar.workspaces.dynamic
-                    readonly property bool showIcon: !showLabel
-                        && Config.options?.bar.workspaces.showAppIcons
-                        && !!biggestWindow
-                        && AppSearch.iconExists(mainAppIconName)
+                    // the app on the desk, else its number; holding Super shows the numbers to type
+                    readonly property string face: Slots.face(
+                        root.showNumbers || !!Config.options?.bar.workspaces.alwaysShowNumbers,
+                        !!Config.options?.bar.workspaces.showAppIcons && !!biggestWindow && AppSearch.iconExists(mainAppIconName),
+                        root.dynamicSlots)
+                    readonly property bool showLabel: face === "number"
+                    readonly property bool showIcon: face === "icon"
 
                     StyledText { // Workspace number text
                         opacity: workspaceButtonBackground.showLabel ? 1 : 0
@@ -314,7 +315,7 @@ Item {
                     }
                     Rectangle { // Dot instead of ws number
                         id: wsDot
-                        opacity: (!workspaceButtonBackground.showLabel && !workspaceButtonBackground.showIcon) ? (button.isNew ? 0.45 : 1) : 0
+                        opacity: workspaceButtonBackground.face === "dot" ? (button.isNew ? 0.45 : 1) : 0
                         visible: opacity > 0
                         anchors.centerIn: parent
                         width: root.workspaceVisualSize * 0.18
@@ -345,6 +346,7 @@ Item {
                             iconName: workspaceButtonBackground.mainAppIconName
                             label: workspaceButtonBackground.biggestWindow?.class ?? ""
                             size: workspaceIconSize
+                            bare: true // the pill is the tile here
 
                             Behavior on opacity {
                                 animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
