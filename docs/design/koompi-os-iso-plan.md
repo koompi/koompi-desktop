@@ -1,6 +1,6 @@
 # KOOMPI OS ISO: plan
 
-Status: **plan only, nothing built yet** (decided 2026-10-12).
+Status (2026-10-30): **the shortcut route is built on the `iso` branch.** The live USB opens the Zig installer (`installer/`), which writes the answers and runs `koompi-install --answers`: archinstall with the KOOMPI profile does the disk, and the new system's first boot runs the one-line installer from `main`. No `[koompi]` repo and no edition packages are involved. The rest of this file is the original plan (decided 2026-10-12); where it disagrees, the code and `sdata/dist-arch/iso/koompi/README.md` win.
 Goal: a person downloads one ISO, boots it, installs KOOMPI OS, and keeps getting updates.
 
 ## Decision
@@ -23,7 +23,7 @@ Goal: a person downloads one ISO, boots it, installs KOOMPI OS, and keeps gettin
 | Archiso profile | `sdata/dist-arch/iso/koompi/` | Boots BIOS and UEFI to a root shell with `archinstall`. It is stock Arch, and `[koompi]` is commented out in its `pacman.conf`. |
 | ISO workflow | `.github/workflows/build-iso.yml` (manual dispatch) | Works. Published `iso-koompi-2026.08.25-x86_64`. |
 | Repo build | `sdata/dist-arch/repo/build-repo.sh`, `.github/workflows/build-packages.yml` | Skeleton. No key, no host. |
-| Zig installer (C) | `installer/` (`archinstall.zig`, `post_install.sh`) | Scaffold. No disk step is wired up, and the README says so. |
+| Zig installer (C) | `installer/` | The live USB's installer: screens only, it runs `koompi-install --answers`. `post_install.sh` (snapper `@baseline`, grub-btrfs, firewall, hibernation) is not run by anything yet. |
 | Updates for git installs | `koompi update` following `main` | Works (tests `test_update_follow_main`, `test_update_from_git`). |
 
 ## Decisions needed before Phase 1

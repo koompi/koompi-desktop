@@ -1,5 +1,5 @@
 # KOOMPI GRUB theme — star mark on dark, mono menu, words big and legible.
-# Palette: installer/themes/koompi.toml [colors] — bg #0B0E14, textDim #8B98A5,
+# Palette: the KOOMPI dark set — bg #0B0E14, textDim #8B98A5,
 # accent #56C2E6; the mark in background.png is brand #1793D1. Font:
 # JetBrainsMono NF Regular 24, pre-built from ttf-jetbrains-mono-nerd via
 # grub-mkfont into koompi-jetbrainsmono-nerd-regular-24.pf2 (00_header
