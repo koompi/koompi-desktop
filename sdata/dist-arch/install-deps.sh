@@ -21,6 +21,7 @@ ARCH_DEP_PKGBUILDS=(
     koompi-audio
     koompi-backlight
     ttf-koompi-star
+    ttf-koompi-space-grotesk
     koompi-fonts-themes
     koompi-kde
     koompi-portal
@@ -35,7 +36,8 @@ ARCH_DEP_PKGBUILDS=(
 )
 
 # Package names from the pre-KOOMPI era, plus koompi-quickshell-git (replaced by
-# Arch's quickshell). Left installed they sit as orphans and, worse, the -git
+# Arch's quickshell) and otf-space-grotesk (replaced by ttf-koompi-space-grotesk;
+# both installed would be two "Space Grotesk" families). Left installed they sit as orphans and, worse, the -git
 # builds shadow the repo versions the metas now pull in.
 arch_drop_deprecated() {
     local superseded=(
@@ -44,6 +46,7 @@ arch_drop_deprecated() {
         illogical-impulse-{fonts-themes,hyprland,kde,microtex-git,portal,python}
         illogical-impulse-{screencapture,toolkit,widgets}
         koompi-quickshell-git matugen-bin hyprland-qtutils
+        otf-space-grotesk
         {quickshell,hyprutils,hyprpicker,hyprlang,hypridle,hyprland-qt-support}-git
         {hyprland-qtutils,hyprlock,xdg-desktop-portal-hyprland,hyprcursor}-git
         {hyprwayland-scanner,hyprland}-git
