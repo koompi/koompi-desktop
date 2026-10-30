@@ -6,7 +6,7 @@ directory.
 The school-laptop case — one student's machine passing to the next — is what it exists for.
 
 Both halves are needed.
-`installer/src/archinstall.zig` puts `/home` on its own `@home` subvolume, and the installer's
+`koompi-install` on the ISO (sdata/dist-arch/iso/koompi/airootfs/usr/local/bin/koompi-install) puts `/home` on its own `@home` subvolume, and the installer's
 only snapper config is `root` on `/` (`installer/src/post_install.sh`), so a rollback never
 touches anyone's files; and deleting the accounts alone leaves the previous owner's system
 configuration in place.

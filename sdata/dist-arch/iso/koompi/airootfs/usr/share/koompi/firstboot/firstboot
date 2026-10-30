@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# First boot of a KOOMPI Hyprland install (koompi-firstboot.service, tty1, before
+# the login screen). Puts the desktop on the account the installer made the way
+# the one-line installer does: clone the repo into the user's home, run its
+# install.sh. That checkout is what `koompi update` follows afterwards.
+#
+# Done: the config is renamed, the unit disabled. Failed or skipped: the config
+# stays and the next boot asks again; the login screen comes up either way.
+
+set -uo pipefail
+
+CONF=/etc/koompi/firstboot.conf
+LOG=/var/log/koompi-firstboot.log
+SUDOERS=/etc/sudoers.d/90-koompi-firstboot
+
+# shellcheck source=/dev/null
+. "$CONF" || exit 1
+: "${KOOMPI_USER:?}" "${KOOMPI_REF:=main}" "${KOOMPI_REPO:=https://github.com/koompi/koompi-desktop.git}"
+
+exec > >(tee -a "$LOG") 2>&1
+
+B=$'\e[1m'; G=$'\e[32m'; R=$'\e[31m'; N=$'\e[0m'
+say() { printf '%s==>%s %s\n' "$B$G" "$N" "$*"; }
+bad() { printf '%s==>%s %s\n' "$B$R" "$N" "$*"; }
+
+online() { curl -fsI --max-time 6 https://github.com >/dev/null 2>&1; }
+
+wait_online() {
+    local _
+    for _ in $(seq 30); do online && return 0; sleep 2; done
+    while ! online; do
+        bad "No internet connection. The desktop is downloaded now and needs one."
+        printf '  Enter: open the network menu (Wi-Fi: "Activate a connection")\n  s: skip, and set up the desktop on the next start\n'
+        read -r answer
+        [[ "$answer" == s ]] && return 1
+        nmtui || true
+    done
+}
+
+# ./setup install runs as the user and asks sudo for the system half; nobody is at
+# a password prompt here, so the account gets sudo without one until this ends.
+cleanup() { rm -f "$SUDOERS"; }
+trap cleanup EXIT
+
+install_desktop() {
+    local uid home dest
+    uid="$(id -u "$KOOMPI_USER")" || return 1
+    home="$(getent passwd "$KOOMPI_USER" | cut -d: -f6)"
+    dest="$home/.local/share/koompi-desktop"
+
+    # !authenticate, not only NOPASSWD: the account's own "ALL" rule from the
+    # installer stays, and with one rule wanting a password `sudo -v` asks for it
+    printf 'Defaults:%s !authenticate\n%s ALL=(ALL) NOPASSWD: ALL\n' "$KOOMPI_USER" "$KOOMPI_USER" > "$SUDOERS"
+    chmod 440 "$SUDOERS"
+
+    # the user manager ./setup enables units in, as at a real login
+    systemctl start "user@$uid.service"
+
+    runuser -u "$KOOMPI_USER" -- env -i \
+        HOME="$home" USER="$KOOMPI_USER" LOGNAME="$KOOMPI_USER" SHELL=/bin/bash \
+        PATH=/usr/local/bin:/usr/bin TERM="${TERM:-linux}" LANG="${LANG:-C.UTF-8}" \
+        XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        KOOMPI_REF="$KOOMPI_REF" KOOMPI_REPO="$KOOMPI_REPO" DEST="$dest" \
+        bash -c '
+            set -euo pipefail
+            if [[ ! -d "$DEST/.git" ]]; then
+                mkdir -p "$(dirname "$DEST")"
+                git clone --depth 1 --branch "$KOOMPI_REF" "$KOOMPI_REPO" "$DEST"
+            fi
+            KOOMPI_DEST="$DEST" exec bash "$DEST/install.sh" -y
+        '
+}
+
+clear
+say "Setting up the KOOMPI desktop for $KOOMPI_USER (from $KOOMPI_REPO, $KOOMPI_REF)"
+say "This downloads and builds the desktop: 15-40 minutes. Keep the machine on."
+echo
+
+while :; do
+    if ! wait_online; then
+        bad "Skipped. The login screen comes next; the desktop is set up on the next start."
+        sleep 5
+        exit 0
+    fi
+    if install_desktop; then
+        mv "$CONF" "$CONF.done"
+        systemctl disable koompi-firstboot.service >/dev/null 2>&1
+        echo
+        say "KOOMPI is ready. The login screen comes next: pick the KOOMPI session and sign in."
+        sleep 5
+        exit 0
+    fi
+    echo
+    bad "The setup stopped with an error. The full log is $LOG."
+    printf '  Enter: try again (it carries on where it stopped)\n  s: skip to the login screen, and try again on the next start\n'
+    read -r answer
+    [[ "$answer" == s ]] && exit 0
+done

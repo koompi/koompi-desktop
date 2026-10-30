@@ -1,125 +1,109 @@
-# The KOOMPI OS installer
+# koompi-installer
 
-> **⚠️ THIS IS A SCAFFOLD. ⚠️**
-> Nothing here is tested. **No real disk operations are wired up.** Every
-> dangerous step (partitioning, LUKS, pacstrap, bootloader) is delegated to
-> `archinstall` and is currently a **TODO / REVIEW** stub. Do **not** run this
-> against a machine you care about. It compiles toward a TUI skeleton, not a
-> working installer.
+The KOOMPI OS installer's face. The live ISO opens it on tty1. It asks a few
+questions, writes them to an answers file, runs the install engine and shows
+its progress. It does no disk work itself: the engine does, so the installed
+system is the same desktop `install.sh` sets up.
 
-The **KOOMPI installer** sets up **KOOMPI OS — Naga** on your machine.
-It is a deliberately *thin* program: a **Zig + [libvaxis](https://github.com/rockorager/libvaxis)
-TUI face** over the **`archinstall` engine**.
+Screens and copy: [`docs/ui-ux.md`](docs/ui-ux.md).
 
-> **Design spec:** [`docs/ui-ux.md`](docs/ui-ux.md) — the authoritative 10-screen
-> flow, the visual/theme system, and the face/engine/spec seams that make the
-> installer rebrandable. The shipped theme is [`themes/koompi.toml`](themes/koompi.toml).
+## Build
 
-## The split: face vs. engine
-
-It does **not** reimplement partitioning, encryption, `pacstrap`, or
-bootloader installation. That is the dangerous ~20% of an installer, and
-`archinstall` already owns it (and is maintained by Arch). The installer's only jobs:
-
-```
-  ┌─────────────────────────────────────────────────────────────────────┐
-  │ KOOMPI installer (Zig + libvaxis)   "the FACE"                      │
-  │   collect answers via a TUI state machine                           │
-  │   → InstallConfig (src/config.zig)                                   │
-  │   → emit archinstall user_configuration.json + user_credentials.json│
-  │   → pick the KOOMPI edition package                                  │
-  └───────────────┬─────────────────────────────────────────────────────┘
-                  │ exec
-                  ▼
-  ┌─────────────────────────────────────────────────────────────────────┐
-  │ archinstall (pinned)              "the ENGINE"                       │
-  │   partition · LUKS · btrfs subvolumes · pacstrap · GRUB             │
-  └───────────────┬─────────────────────────────────────────────────────┘
-                  │ chroot
-                  ▼
-  ┌─────────────────────────────────────────────────────────────────────┐
-  │ post_install.sh                   "the FINISH"                      │
-  │   snapper @baseline · snap-pac · grub-btrfs · enable sddm · os-release│
-  └─────────────────────────────────────────────────────────────────────┘
-```
-
-## Data flow
-
-1. **Collect** — the TUI (`src/main.zig`) walks a state machine:
-   `Welcome → Locale/Timezone/Keyboard → Disk → User/Hostname → Edition →
-   Encrypt → Review → Run`. Answers accumulate into an `InstallConfig`
-   (`src/config.zig`).
-2. **Serialize** — `src/archinstall.zig` turns the `InstallConfig` into the two
-   files `archinstall` reads:
-   - `user_configuration.json` — disk layout (btrfs `@`, `@home`, … subvolumes),
-     `bootloader = "Grub"`, locale/keyboard, and the **target package**
-     (`koompi-desktop-hyprland` **or** `koompi-desktop-kde`, chosen by edition).
-   - `user_credentials.json` — the primary user's password (root is left LOCKED;
-     admin is via the sudo user). **Secret.** Written to tmpfs, `chmod 600`,
-     deleted right after `archinstall` exits, never logged.
-3. **Run** — `archinstall --config … --creds … --silent` does the install.
-4. **Finish** — a post-install **chroot hook** (`src/post_install.sh`) pins the
-   read-only `@baseline` snapshot, installs `snap-pac` + `grub-btrfs`, enables
-   `sddm.service`, and writes `/etc/os-release` to the target.
-
-## ⚠️ The schema-pinning risk
-
-`archinstall`'s `user_configuration.json` / `user_credentials.json` schema
-**drifts between releases**. If the ISO ships a different `archinstall` than the
-one this code was written against, the JSON we emit may be silently rejected or
-misinterpreted.
-
-**Mitigation:** the version is a single named constant — `ARCHINSTALL_VERSION`
-in `src/archinstall.zig` — and the **archiso profile must pin exactly that
-version**. Bump the constant and the JSON serializer together, never one alone.
-
-## Editions
-
-Chosen at install time, both KOOMPI-branded, both top-bar / no-dock / no-global-menu:
-
-| Edition          | Target metapackage         |
-|------------------|----------------------------|
-| KOOMPI Hyprland  | `koompi-desktop-hyprland`  |
-| KOOMPI KDE       | `koompi-desktop-kde`       |
-
-The two `*-config` packages `conflicts=` each other on `/etc/skel` theming
-paths, so pacman enforces **one edition per machine** — exactly what "choose at
-install" needs.
-
-## Layout (semi-immutable / resettable)
-
-btrfs subvolumes (`@`, `@home`, `@var_log`, …) + `snapper` + `snap-pac`
-(auto pre/post snapshot per pacman txn) + `grub-btrfs` (bootable snapshot menu)
-+ a pinned **read-only `@baseline` snapshot** taken at first boot = "factory
-reset to original installed state". GRUB is the bootloader specifically so
-`grub-btrfs` can offer snapshots at boot.
-
-## Build / run
-
-Target toolchain: **Zig 0.14.x**.
+Zig 0.16 or 0.17, no dependencies.
 
 ```sh
-# Fetch deps (fills the placeholder hash in build.zig.zon) and build:
-zig build
-
-# Run the (skeleton) TUI:
-zig build run
-# or:
-./zig-out/bin/koompi-installer
+cd installer
+zig build -Doptimize=ReleaseSafe   # -> zig-out/bin/koompi-installer
+zig build test                     # unit tests, on the build host
 ```
 
-> The `.hash` in `build.zig.zon` is a **placeholder**. The first `zig build`
-> will fail and print the real hash to paste in — see the comment there.
-> The libvaxis revision is also pinned in `build.zig.zon`; pick a tag/commit
-> that supports your Zig **0.14.x** toolchain (libvaxis `main` tracks newer Zig).
+The default target is `x86_64-linux-musl` and nothing links libc, so the
+binary is static and the same on any build host. The ISO copies it to
+`/usr/local/bin/koompi-installer`.
+
+## The engine contract
+
+The installer writes `/run/koompi/answers.json` (directory 0700, file 0600)
+and runs:
+
+```sh
+/usr/local/bin/koompi-install --answers /run/koompi/answers.json
+```
+
+```json
+{
+  "version": 1,
+  "disk": "/dev/nvme0n1",
+  "encrypt": false,
+  "encryption_password": "",
+  "hostname": "koompi",
+  "full_name": "Sok Dara",
+  "username": "dara",
+  "password": "secret",
+  "timezone": "Asia/Phnom_Penh",
+  "keyboard": "us",
+  "locale": "en_US.UTF-8"
+}
+```
+
+- The engine deletes the file once read; the installer deletes it again when
+  the engine exits, in case it did not. The file is never logged or shown.
+- The engine runs in its own session, stdin `/dev/null`, stdout and stderr
+  on one pipe. Lines starting `@@koompi ` are progress:
+  `@@koompi step <n>/<total> <label>`, `@@koompi done`,
+  `@@koompi fail <reason>`. Everything else is log text; the last 10 lines
+  are shown. Exit 0 is success.
+- The full log is the engine's, at `/var/log/koompi-install.log`.
+
+## Running it
+
+```
+koompi-installer [--engine PATH] [--demo] [--disks FILE]
+                 [--answers-dir DIR] [--check-url URL] [--allow-host]
+```
+
+| Option / env | Effect |
+|---|---|
+| `--engine PATH`, `KOOMPI_ENGINE` | engine to run (default `/usr/local/bin/koompi-install`) |
+| `--demo` | touches nothing: built-in fake disks, no `loadkeys`, no reboot, answers under `$XDG_RUNTIME_DIR/koompi-demo`. Needs `--engine`. |
+| `--disks FILE` | read the disk list from saved `lsblk -J -b -d -o NAME,PATH,SIZE,MODEL,TYPE,RM,RO,TRAN` output |
+| `--answers-dir DIR` | where `answers.json` goes (default `/run/koompi`) |
+| `--check-url URL` | what the network check fetches (default `https://github.com`) |
+| `--allow-host` | run as root outside the live ISO (no `/run/archiso`) |
+| `NO_COLOR` | no colors, reverse video for the selection |
+
+Without `--demo` it refuses to start unless it is root and `/run/archiso`
+exists. Exit codes: 0 installed (the person restarted or chose to stay), 1
+quit or gave up after a failure, 2 bad command line or not allowed here.
+
+## Trying it on a dev machine
+
+```sh
+zig build
+./zig-out/bin/koompi-installer --demo --engine test/fake-engine.sh
+```
+
+`test/fake-engine.sh` reads and deletes the answers file and prints four
+steps. `KOOMPI_FAKE_FAIL=2` fails in step 2, `KOOMPI_FAKE_DELAY=3` slows it.
+
+`python3 test/drive.py zig-out/bin/koompi-installer` runs the demo in a pty
+at 80x25 with `TERM=linux` and prints each screen: a full install, a failed
+one (shell and retry), no network, and stopping a running install.
 
 ## Files
 
-| File                  | Role                                                        |
-|-----------------------|-------------------------------------------------------------|
-| `build.zig`           | declares the `koompi-installer` exe + the libvaxis dependency wiring   |
-| `build.zig.zon`       | package manifest + pinned libvaxis dep (placeholder hash)   |
-| `src/main.zig`        | TUI state machine (the face) — **draw loop is a stub**      |
-| `src/config.zig`      | `InstallConfig` — the accumulated answers                   |
-| `src/archinstall.zig` | serialize JSON · exec archinstall · run the chroot hook     |
-| `src/post_install.sh` | the actual post-install chroot script (embedded via Zig)    |
+| File | Role |
+|---|---|
+| `src/main.zig` | options, safety checks, start-up |
+| `src/app.zig` | state, page flow, chrome, event loop |
+| `src/pages.zig` | welcome, network, keyboard, time zone, disk, encryption, account |
+| `src/finish.zig` | review, install (engine run and progress), done |
+| `src/answers.zig` | answers JSON and the name/password checks |
+| `src/disks.zig` | lsblk parsing, live-medium filter, sizes |
+| `src/progress.zig` | `@@koompi` lines and the log tail |
+| `src/system.zig` | network check, keymaps, time zones, disks, loadkeys, reboot |
+| `src/input.zig` | keys, text fields, the searchable list |
+| `src/ui.zig` | the cell grid and its ANSI output |
+| `src/sys.zig` | the Linux calls, on `std.os.linux` (same on Zig 0.16 and 0.17) |
+| `src/strings.zig` | every word on screen |
+| `src/post_install.sh` | not used by the installer; left from the old scaffold because three repo tests still source it |

@@ -19,6 +19,14 @@ cd koompi-desktop
 ./setup install
 ```
 
+A new machine, or one you are ready to wipe? Download the **KOOMPI Hyprland** ISO from
+[Releases](https://github.com/koompi/koompi-desktop/releases), check it against
+`SHA256SUMS`, write it to a USB stick, and boot it with Secure Boot off. It starts the
+installer: pick the disk, make your account, Install, Reboot. The first start of the
+new system sets up this same desktop from `main` (it needs the internet, 15-40
+minutes), so an ISO install updates exactly like a `curl` install.
+See [`sdata/dist-arch/iso/koompi/`](sdata/dist-arch/iso/koompi/README.md).
+
 Then log out and pick **KOOMPI** at your display manager. It is installed as
 an additional Hyprland-based session; existing KDE Plasma and GNOME sessions
 stay installed and selectable.
@@ -181,11 +189,11 @@ Update this section when a stage changes hands, not per commit.
 | `koompi` CLI | Shipping. Zig front door over the `koompi-*` tools: update, doctor, settings, theme, wallpaper, reload, hooks, webapps, plugins, snapshots. |
 | Boot look | Done. Plymouth splash with logo and progress bar, GRUB theme, both wired into `koompi-branding`. |
 | Login screen | Done. SDDM theme is a frosted-glass card over the blurred wallpaper (`sdata/dist-arch/koompi-branding/files/sddm/theme/Main.qml`). |
-| Live ISO | v1 builds in CI (`build-iso.yml`, manual dispatch) and publishes to GitHub Releases. Stock-Arch package set; the `[koompi]` repo is disabled in its `pacman.conf`. First release: `iso-koompi-2026.08.25-x86_64`. |
+| Live ISO | KOOMPI Hyprland: the live session starts `koompi-installer`, the Zig TUI in `installer/`, over `koompi-install` (archinstall with KOOMPI's defaults and profile), and the new system sets up the desktop from `main` on its first start, the one-line installer's path. Built and released by `build-iso.yml` (manual dispatch); `sdata/dist-arch/iso/test/qemu-install.sh` installs it in QEMU and checks the first start, locally or on a runner (`iso-install-test.yml`). |
 | Signed `[koompi]` repo | Skeleton only (`build-packages.yml`). Signing key and publish target are not decided, so the sign and publish steps stay commented out. |
-| Installer | Zig TUI renders with the ANSI theme; not yet autostarted from the live ISO, and the branded pacstrap path waits on the signed repo. |
+| Installer | archinstall drives ISO installs today. The Zig TUI renders with the ANSI theme and is not wired in yet. |
 | Quickshell package | Done. Arch's `quickshell` from [extra], pulled in by `koompi-hyprland`; Arch rebuilds it with every Qt bump, so `pacman -Syu` upgrades both together. `koompi-widgets` carries the extra Qt and KDE runtime packages the shell loads; both replace the old `koompi-quickshell-git`. |
 | Quickwork drawer | Not built. `Super+O` is reserved; the left sidebar still carries the inherited AI and translator tabs. |
 
 Blocked on decisions: the `[koompi]` repo signing key and where the repo is hosted.
-Everything after that in the chain (branded ISO, installer autostart) is waiting on it.
+Installing and updating the desktop from pacman packages waits on it; the ISO does not.
