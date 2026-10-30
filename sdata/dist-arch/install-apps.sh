@@ -36,6 +36,6 @@ unset _koompi_pending
 # other wallpaper type works without it, so it is asked for rather than assumed.
 if ! pacman -Qq mpvpaper >/dev/null 2>&1; then
     if confirm "Install mpvpaper? (lets you set a video as the wallpaper; AUR build)"; then
-        run paru -S --needed --noconfirm mpvpaper
+        arch_paru -S --needed --noconfirm mpvpaper
     fi
 fi

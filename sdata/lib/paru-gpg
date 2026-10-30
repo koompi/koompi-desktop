@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# The gpg paru runs (`paru --gpg`): plain gpg, except that a key fetch cannot hang.
+# paru imports an AUR package's signing key with `gpg --recv-keys`, and nothing
+# bounds that: dirmngr times out a connect, not a keyserver that answers and then
+# stalls. One held an ISO install's first boot at ":: import? [Y/n]" for good.
+# A fetch gets KOOMPI_GPG_FETCH_TIMEOUT seconds (default 120) and three tries.
+
+keys=()
+recv=false
+for arg in "$@"; do
+    if [[ "$recv" == true ]]; then
+        keys+=("$arg")
+    elif [[ "$arg" == --recv-keys ]]; then
+        recv=true
+    fi
+done
+[[ "$recv" == true ]] || exec gpg "$@"
+
+limit="${KOOMPI_GPG_FETCH_TIMEOUT:-120}"
+for try in 1 2 3; do
+    timeout "$limit" gpg "$@" && exit 0
+    # a wedged dirmngr would hold the next try as well
+    gpgconf --kill dirmngr 2>/dev/null
+    printf 'paru-gpg: key fetch %d of 3 failed or took over %ss\n' "$try" "$limit" >&2
+done
+printf 'paru-gpg: could not fetch %s from the keyserver; check the network and run the install again\n' \
+    "${keys[*]}" >&2
+exit 1

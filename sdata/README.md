@@ -20,9 +20,13 @@ holds two recipes, and the split matters:
   `variables.lua` is written around.
   Skip it and you keep whatever you already had.
 
-`lib/arch.sh` exists only because both Arch recipes need `arch_install_yay` and
-`arch_install_pkgbuild`, and neither can source the other: a recipe does its
-work at the top level, so sourcing one to borrow a function would run it.
+`lib/arch.sh` exists only because both Arch recipes need `arch_install_paru`,
+`arch_paru` and `arch_install_pkgbuild`, and neither can source the other: a recipe
+does its work at the top level, so sourcing one to borrow a function would run it.
+
+Install AUR packages with `arch_paru`, never a bare `paru -S`. It hands paru
+`lib/paru-gpg`, the gpg that bounds a signing-key fetch, so a stalled keyserver
+fails the step instead of hanging the install.
 
 ## Writing a recipe
 
