@@ -24,6 +24,6 @@ dots/.local/bin/koompi-remotedesktop-portal	526
 dots/.local/share/koompi/libexec/update	688
 sdata/dist-arch/koompi-branding/files/sddm/theme/Main.qml	437
 shell-services/mpris/src/service.rs	898
-shell-services/network/src/service.rs	1198
+shell-services/network/src/service.rs	1331
 shell-services/tray/src/service.rs	682
 shell-services/tray/src/watcher.rs	683
