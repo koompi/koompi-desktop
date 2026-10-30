@@ -252,6 +252,32 @@ entry "$UID" nested 6000 /usr/bin/nested SIGSEGV > "$WORK/fixture.jsonl"
 [[ "$(wc -l < "$WORK/notify.log")" == 1 ]] || fail "an entry without COREDUMP_ENVIRON was not announced"
 echo "ok   environ: foreign XDG_RUNTIME_DIR skipped and logged; own dir, none, or no environ announced"
 
+# --- 5d. a program dying inside a terminal is the terminal's to show ---------
+# noos's suite aborts a heap-capped node on purpose; that toasted every minute.
+
+unit_entry() { # unit_entry <comm> <exe> <user unit>
+    entry "$UID" "$1" 6100 "$2" SIGABRT | jq -c --arg u "$3" '. + {COREDUMP_USER_UNIT: $u}'
+}
+rm -f "$WORK/notify.log"
+{
+    unit_entry MainThread /usr/bin/node app-terminal-1605579976.scope
+    unit_entry python3 /usr/bin/python3 'app-term\x2dscratch-42.scope'
+    unit_entry MainThread /usr/bin/node app-org.wezfurlong.wezterm-3707771985.scope
+} > "$WORK/fixture.jsonl"
+err="$("$WATCH" 2>&1 >/dev/null)"
+[[ -e "$WORK/notify.log" ]] && fail "a crash inside a terminal was announced: $(cat "$WORK/notify.log")"
+grep -q 'node (pid 6100) inside terminal app-terminal-1605579976.scope' <<<"$err" || fail "the in-terminal skip was silent: $err"
+grep -q 'inside terminal app-term-scratch-42.scope' <<<"$err" || fail "the escaped term-scratch unit was not recognised: $err"
+rm -f "$WORK/notify.log"
+unit_entry wezterm-gui /usr/bin/wezterm-gui app-terminal-1605579976.scope > "$WORK/fixture.jsonl"
+"$WATCH" >/dev/null 2>&1
+[[ "$(wc -l < "$WORK/notify.log" 2>/dev/null)" == 1 ]] || fail "the terminal itself crashing was not announced"
+rm -f "$WORK/notify.log"
+unit_entry MainThread /usr/bin/node app-com.google.Chrome-469215.scope > "$WORK/fixture.jsonl"
+"$WATCH" >/dev/null 2>&1
+[[ "$(wc -l < "$WORK/notify.log" 2>/dev/null)" == 1 ]] || fail "a crash in an app that is not a terminal was not announced"
+echo "ok   terminal: programs dying inside a terminal scope are logged, not toasted; the terminal itself and other apps still are"
+
 # --- 6. diagnose: report written, model absent -> refusal --------------------
 
 rm -f "$WORK"/*.argv "$WORK/notify.log"

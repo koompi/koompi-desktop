@@ -341,7 +341,12 @@ escape_id "$id"
 unit="app-${REPLY}-${SRANDOM:-$RANDOM$RANDOM}.scope"
 
 if command -v systemd-run >/dev/null 2>&1 && [[ -S ${XDG_RUNTIME_DIR:-/run/user/$UID}/systemd/private ]]; then
-    exec systemd-run --user --scope --quiet --collect --expand-environment=no --slice=app.slice --unit="$unit" -- "$@"
+    # OOMPolicy=continue: when app.slice hits its memory cap the kernel kills one
+    # process, and the default (stop) then tears down the whole scope with it. For a
+    # terminal that is every tab and every agent session in it; observed 2026-10-17,
+    # a test worker started by one Claude session closed the WezTerm window twice.
+    exec systemd-run --user --scope --quiet --collect --expand-environment=no --slice=app.slice --unit="$unit" \
+        -p OOMPolicy=continue -- "$@"
 fi
 
 msg="no user manager, $1 runs outside app.slice"

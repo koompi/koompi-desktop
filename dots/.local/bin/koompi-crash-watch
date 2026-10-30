@@ -25,6 +25,11 @@
 #   KOOMPI_CRASH_NOTIFY_WAIT     seconds to wait for a notification server (30)
 set -uo pipefail
 
+# koompi-launch names each scope app-<id>-<n>.scope; these ids are terminals.
+# "terminal" and "term-scratch" are the keybinds' ids, the rest desktop ids.
+readonly terminal_ids='terminal|term-scratch|org\.wezfurlong\.wezterm|org\.kde\.konsole|kitty|foot|footclient|Alacritty|com\.mitchellh\.ghostty|org\.gnome\.Console|xterm|uxterm'
+readonly terminal_bins='wezterm|wezterm-gui|konsole|kitty|foot|footclient|alacritty|ghostty|kgx|xterm|uxterm'
+
 readonly COREDUMP_MESSAGE_ID=fc2e22bc6ee647b6b90729ab34a250b1
 SELF="$(realpath -- "${BASH_SOURCE[0]}")"
 readonly SELF
@@ -135,7 +140,7 @@ fi
         # A field that is not valid UTF-8 comes as a byte array and @tsv refuses
         # it; the read then fails the pid check and the entry is reported, not
         # silently dropped.
-        IFS=$'\t' read -r uid comm pid exe signal rundir < <(
+        IFS=$'\t' read -r uid comm pid exe signal rundir unit < <(
             jq -r '[(.COREDUMP_UID // ._UID // "-"),
                     (.COREDUMP_COMM // "-"),
                     (.COREDUMP_PID // "-"),
@@ -143,7 +148,8 @@ fi
                     (.COREDUMP_SIGNAL_NAME // "-"),
                     ((.COREDUMP_ENVIRON | if type == "string" then
                         (split("\n") | map(select(startswith("XDG_RUNTIME_DIR="))) | first // "" | ltrimstr("XDG_RUNTIME_DIR="))
-                      else "" end) | if . == "" then "-" else . end)] | @tsv' <<<"$entry" 2>/dev/null
+                      else "" end) | if . == "" then "-" else . end),
+                    (.COREDUMP_USER_UNIT // "-" | gsub("\\\\x2d"; "-"))] | @tsv' <<<"$entry" 2>/dev/null
         )
         if [[ ! ${pid:-} =~ ^[0-9]+$ ]]; then
             echo "koompi-crash-watch: journal entry without a usable COREDUMP_PID, skipped" >&2
@@ -165,6 +171,15 @@ fi
         # comm is truncated to 15 characters; the executable's basename is not.
         name=$comm
         [[ $exe == /* ]] && name=${exe##*/}
+
+        # Anything running inside a terminal prints its own death there, and
+        # that is where agents and test suites run: one suite that checks its
+        # memory caps aborts a capped node on purpose, a toast a minute. The
+        # terminal itself crashing still gets one.
+        if [[ $unit =~ ^app-($terminal_ids)-[0-9]+\.scope$ && ! $name =~ ^($terminal_bins)$ ]]; then
+            echo "koompi-crash-watch: crash of $name (pid $pid) inside terminal $unit, not announced" >&2
+            continue
+        fi
 
         [[ -n $ignore_pattern && $name =~ $ignore_pattern ]] && continue
         # Never announce our own machinery, or it notifies about itself.
