@@ -1,86 +1,83 @@
-# KOOMPI OS — archiso profile
+# KOOMPI Hyprland: the archiso profile
 
-A minimal [archiso] profile for building the **KOOMPI OS** live/installer ISO.
-It mirrors Arch's official `releng` profile, trimmed to what KOOMPI needs.
+The live/install ISO for **KOOMPI Hyprland**, built from Arch's `releng` profile
+trimmed to what KOOMPI needs. Arch Linux only, x86_64.
 
-**v1 builds a bootable ISO**: DE-agnostic stock Arch + `archinstall`, boots (BIOS +
-UEFI) to a networked root shell with the keyring initialized. The KOOMPI-*branded*
-path (pacstrap a `koompi-desktop-*` edition from the signed repo, autostart the Zig
-installer) is still deferred — see **Status** below.
-
-Base: **Arch Linux only** (x86_64). Release era: **Naga** (v1). The era codename
-is set in `profiledef.sh`.
-
-## Where this sits in the ISO chain
+## How an install goes
 
 ```
-(later) signed [koompi] pacman repo (repo-add + GPG)
-        ->  THIS archiso profile (profiledef.sh, packages.x86_64, pacman.conf, airootfs/)
-        ->  mkarchiso
-        ->  (later) the Zig installer on the live ISO  ->  archinstall  ->  installed KOOMPI
+boot the ISO ─> tty1 starts koompi-install
+             ─> archinstall with KOOMPI's defaults (config.json) and the
+                KOOMPI Hyprland profile (koompi_hyprland.py): the user picks the
+                disk and makes an account, then Install, then Reboot
+             ─> first start of the new system: koompi-firstboot.service on tty1
+                clones github.com/koompi/koompi-desktop (main) into the user's
+                ~/.local/share/koompi-desktop and runs its install.sh, the same
+                path as the one-line installer
+             ─> the login screen (SDDM), the KOOMPI session
 ```
 
-The live ISO is **DE-agnostic**. The TARGET edition the user picks at install time
-— `koompi-desktop-hyprland` **or** `koompi-desktop-kde` — is pacstrapped onto the
-disk by the installer (archinstall engine), **not** listed in `packages.x86_64`.
+So an ISO install and a `curl | bash` install end up the same machine, and both
+update with `koompi update` from `main`. No `[koompi]` pacman repo is needed; it
+stays commented out in `pacman.conf` until it is signed and published.
 
-## Files in this profile
+The first start needs the internet. Wi-Fi joined in the live session (`nmtui`) is
+copied to the new system; without a connection the first start opens `nmtui`, or
+skips to the login screen and asks again on the next start. A failed setup can be
+retried on the spot and carries on where it stopped; its log is
+`/var/log/koompi-firstboot.log`.
+
+## Defaults (config.json)
+
+GRUB, PipeWire, Bluetooth on, NetworkManager, zram swap, hostname `koompi`,
+timezone Asia/Phnom_Penh, `en_US.UTF-8`, all open-source graphics drivers, SDDM.
+Every one can be changed in archinstall's menu before Install; the disk layout and
+the account are always the user's choice. The best-effort layout with btrfs is the
+one to pick.
+
+## Files
 
 | File | Purpose |
 |------|---------|
-| `profiledef.sh` | ISO identity, bootmodes (BIOS syslinux + UEFI systemd-boot), file permissions. |
-| `pacman.conf` | Build-time repos: standard Arch. `[koompi]` is present but **commented out** for v1. |
-| `packages.x86_64` | Live-ISO set: base, kernel, `mkinitcpio-archiso`, `syslinux`, `zsh`, `archinstall`, btrfs/snapper/grub tooling. |
-| `syslinux/` | BIOS boot menu (from releng, rebranded; speech + memtest entries trimmed). |
-| `efiboot/loader/` | UEFI systemd-boot menu (main entry only). |
-| `airootfs/etc/mkinitcpio.conf.d/archiso.conf`, `…/mkinitcpio.d/linux.preset` | archiso runtime initramfs (mounts the live squashfs). |
-| `airootfs/etc/systemd/system/getty@tty1.service.d/autologin.conf` | Root autologin on tty1. |
-| `airootfs/root/.zlogin` | Fires `~/.automated_script.sh` on login. |
-| `airootfs/etc/passwd`, `…/shadow` | Live root (zsh shell, passwordless + autologin). |
-| `…/multi-user.target.wants/NetworkManager.service` | Networking in the live session. |
-| `…/pacman-init.service` + `etc-pacman.d-gnupg.mount` | Initializes the live pacman keyring so `archinstall` can verify packages. |
-| `airootfs/etc/os-release` | The KOOMPI os-release for the live env. |
-| `airootfs/root/.automated_script.sh` | Installer autostart **stub** (drops to a shell until the installer ships). |
+| `profiledef.sh` | ISO identity (`koompi-hyprland-YYYY.MM.DD-x86_64.iso`), BIOS syslinux + UEFI systemd-boot, file modes. |
+| `pacman.conf` | Build-time repos: stock Arch. `[koompi]` is commented out. |
+| `packages.x86_64` | The live session: base, kernel, firmware, microcode, `archinstall`, network and disk tools. |
+| `syslinux/`, `efiboot/loader/` | Boot menus, each with a safe-graphics (`nomodeset`) entry. |
+| `airootfs/root/.automated_script.sh` | tty1: runs a `script=` boot parameter if given, else `koompi-install`. |
+| `airootfs/usr/local/bin/koompi-install` | Banner, network check, then archinstall with the KOOMPI config. |
+| `airootfs/usr/share/koompi/archinstall/` | `config.json` (defaults) and `koompi_hyprland.py` (the profile). |
+| `airootfs/usr/share/koompi/firstboot/` | The first-boot script and unit the profile puts on the new system. |
+| `airootfs/etc/...` | Live root autologin, NetworkManager, pacman keyring init, os-release. |
 
-## Prerequisites
-
-- `archiso` installed on the build host (`pacman -S archiso`).
-- Run as **root** (mkarchiso needs it).
-- Internet access (pacstraps the live root from the Arch mirrors). **No `[koompi]`
-  repo needed for v1** — it is commented out in `pacman.conf`.
+`KOOMPI_REF` and `KOOMPI_REPO`, set before `koompi-install`, change what the first
+start installs (a test of a branch).
 
 ## Build
 
+On GitHub: Actions > *Build & Release KOOMPI Hyprland ISO* > Run workflow.
+`publish` off keeps the ISO as a workflow artifact for testing; on, it becomes a
+GitHub Release with `SHA256SUMS`.
+
+Locally (root, `archiso` installed, internet):
+
 ```sh
-# from the repo root
 sudo mkarchiso -v -w /tmp/koompi-work -o /tmp/koompi-out sdata/dist-arch/iso/koompi/
 ```
 
-Output: `/tmp/koompi-out/koompi-YYYY.MM.DD-x86_64.iso`. It boots (BIOS + UEFI) to a
-root shell with networking and `archinstall` available.
+## Test
 
-## Status
+`sdata/dist-arch/iso/test/qemu-install.sh ISO uefi|bios` installs the ISO onto a
+blank QEMU disk unattended (`unattended.sh`, through `script=`), boots the result,
+lets the first start set up the desktop, and prints the report the new system
+writes on its serial line. `KOOMPI_APPS=0` skips the application set for a quicker
+run. Needs KVM, `qemu`, `bsdtar`, and `edk2-ovmf` for UEFI.
 
-**Wired (v1 builds + boots + installs via archinstall):** bootloader config dirs
-(syslinux + systemd-boot), archiso runtime initramfs, root autologin, live
-networking, pacman keyring init, stock-Arch package set.
+## Not yet
 
-**Still deferred (KOOMPI-branded ISO):**
-
-1. **Signed `[koompi]` repo.** Commented out in `pacman.conf`. Build the koompi-*
-   packages (`repo/build-repo.sh`), GPG-sign + publish, then uncomment `[koompi]`,
-   set a real `Server=`, keep `SigLevel = Required`. Never ship `TrustAll`.
-2. **Zig installer binary.** `packages.x86_64` has `koompi-installer` commented out;
-   it is built from `installer/` and dropped into the airootfs at
-   `/usr/local/bin/koompi-installer` (or packaged into `[koompi]`). Until then the
-   live session drops to a shell (`.automated_script.sh` is a stub).
-3. **Edition pacstrap + repo trust.** Once `[koompi]` is live, the installer
-   pacstraps `koompi-desktop-hyprland`/`-kde`; the live env also needs the koompi
-   signing key + a `pacman-key` import hook to trust the repo.
-4. **Pin archinstall.** Its `user_configuration.json` schema drifts between releases;
-   pin a known-good version at the repo/build level.
-5. **Branding art.** Boot splash (still releng's `splash.png`), Plymouth / SDDM Naga
-   themes are interim placeholders; see `koompi-branding`. Microcode (`amd-ucode` /
-   `intel-ucode`) is not yet in the live set.
+- The signed `[koompi]` repo, and installing the desktop from packages.
+- The Zig installer in `installer/` as the face of `koompi-install`.
+- Secure Boot, an offline install, branding art (the splash is still releng's).
+- Pinning archinstall: the ISO takes Arch's current one. `config.json` is read by
+  4.5; a format change shows up as the QEMU test failing.
 
 [archiso]: https://gitlab.archlinux.org/archlinux/archiso

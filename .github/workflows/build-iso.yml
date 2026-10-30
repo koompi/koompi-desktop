@@ -1,18 +1,23 @@
-# Build the KOOMPI OS live ISO with mkarchiso and publish it as a GitHub Release.
+# Build the KOOMPI Hyprland live/install ISO with mkarchiso and publish it as a
+# GitHub Release.
 #
-# Runs mkarchiso against the archiso profile at sdata/dist-arch/iso/koompi/,
-# then publishes the resulting .iso (+ sha256 checksum) as a GitHub Release so
-# users can download and install it directly.
+# Runs mkarchiso against the archiso profile at sdata/dist-arch/iso/koompi/. The
+# live session starts koompi-install (archinstall with KOOMPI's defaults and
+# profile); the installed system sets up the desktop on its first boot from main,
+# the same way the one-line installer does. No [koompi] pacman repo is needed:
+# pacman.conf keeps it commented out until that repo is signed and published.
 #
-# v1 NOTE: sdata/dist-arch/iso/koompi/pacman.conf deliberately disables the
-# [koompi] repo — the v1 live ISO installs a 100% stock-Arch package set (see
-# packages.x86_64), so no signed [koompi] repo is required to build it. Once the
-# [koompi] repo (sdata/dist-arch/repo/) is signed + published and the live set
-# starts pulling koompi-* packages, re-enable it in pacman.conf first.
-name: Build & Release KOOMPI ISO
+# publish=false builds and uploads the ISO as a workflow artifact only, for the
+# QEMU install test (sdata/dist-arch/iso/test/qemu-install.sh) before a release.
+name: Build & Release KOOMPI Hyprland ISO
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a GitHub Release (off = workflow artifact only)
+        type: boolean
+        default: true
 
 permissions:
   contents: write  # needed to create the GitHub Release
@@ -64,6 +69,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish GitHub Release
+        if: ${{ inputs.publish }}
         working-directory: out
         env:
           GH_TOKEN: ${{ github.token }}
@@ -80,7 +86,7 @@ jobs:
           else
             gh release create "$tag" \
               --repo "$GITHUB_REPOSITORY" \
-              --title "KOOMPI OS — ${iso%.iso}" \
-              --notes "Automated live/install ISO build from commit ${GITHUB_SHA}." \
+              --title "KOOMPI Hyprland — ${iso%.iso}" \
+              --notes "Boot it, run the installer it starts, reboot: the first start sets up the KOOMPI desktop (needs the internet). Check the download with SHA256SUMS. Built from commit ${GITHUB_SHA}." \
               "$iso" SHA256SUMS
           fi

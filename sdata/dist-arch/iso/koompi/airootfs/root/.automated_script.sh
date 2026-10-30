@@ -1,17 +1,42 @@
 #!/usr/bin/env bash
-# KOOMPI OS live-session autostart stub. SKELETON.
+# KOOMPI live session, first login on tty1 (root's ~/.zlogin runs this).
 #
-# Does not run on its own: in archiso it executes only because root's ~/.zlogin
-# sources it on the first VT login, and that trigger is not shipped here (see
-# README.md). A no-op until the wiring and the koompi-installer binary exist.
-#
-# When complete the body becomes: exec /usr/local/bin/koompi-installer
+# A script= boot parameter runs that script instead (Arch releng's hook: an
+# unattended install, or the QEMU install test). Otherwise the installer starts;
+# Ctrl+C at its first prompt leaves a root shell, and `koompi-install` restarts it.
 
-set -euo pipefail
+script_cmdline() {
+    local param
+    for param in $(</proc/cmdline); do
+        case "${param}" in
+            script=*) echo "${param#*=}"; return 0 ;;
+        esac
+    done
+}
 
-if [[ ! -x /usr/local/bin/koompi-installer ]]; then
-  echo "KOOMPI live session: installer not present yet (skeleton ISO). Dropping to a shell."
-  exit 0
+automated_script() {
+    local script rt
+    script="$(script_cmdline)"
+    [[ -n "${script}" ]] || return 1
+    [[ ! -x /tmp/startup_script ]] || return 0
+    if [[ "${script}" =~ ^((http|https|ftp|tftp)://) ]]; then
+        printf '%s: waiting for network-online.target\n' "$0"
+        until systemctl --quiet is-active network-online.target; do sleep 1; done
+        printf '%s: downloading %s\n' "$0" "${script}"
+        curl "${script}" --location --retry-connrefused --retry 10 --fail -s -o /tmp/startup_script
+        rt=$?
+    else
+        cp "${script}" /tmp/startup_script
+        rt=$?
+    fi
+    if [[ ${rt} -eq 0 ]]; then
+        chmod +x /tmp/startup_script
+        printf '%s: executing automated script\n' "$0"
+        /tmp/startup_script
+    fi
+    return 0
+}
+
+if [[ $(tty) == "/dev/tty1" ]]; then
+    automated_script || koompi-install
 fi
-
-# exec /usr/local/bin/koompi-installer   # <- enable once the installer is on the ISO

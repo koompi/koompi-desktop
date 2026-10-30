@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
-# KOOMPI OS archiso profile. Arch's `releng` trimmed to the minimum KOOMPI needs,
-# sourced by mkarchiso. v1 is buildable and boots to a root shell; still deferred
-# are the signed [koompi] repo and the packaged Zig installer (README.md).
+# KOOMPI Hyprland archiso profile. Arch's `releng` trimmed to the minimum KOOMPI
+# needs, sourced by mkarchiso. The live session starts koompi-install (archinstall
+# with KOOMPI's defaults); the installed system sets up the desktop on first boot.
 
-iso_name="koompi"                       # base name of the output .iso file
-# Release-era codename slot.  Era v1 == "Naga".  Bump per era.
-codename="naga"
-# Volume label burned into the ISO9660 filesystem.  Upper-cased codename + YYYYMM
+iso_name="koompi-hyprland"              # base name of the output .iso file
+# Volume label burned into the ISO9660 filesystem: the edition + YYYYMM
 # so each monthly snapshot is distinguishable.  Keep <= 32 chars, [A-Z0-9_] only.
-iso_label="KOOMPI_${codename^^}_$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y%m)"
+iso_label="KOOMPI_HYPR_$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y%m)"
 iso_publisher="KOOMPI <https://koompi.org>"   # appears in ISO metadata
-iso_application="KOOMPI OS Live/Install (${codename^})"
+iso_application="KOOMPI Hyprland live/install"
 iso_version="$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)"
 install_dir="koompi"                    # in-ISO dir holding the squashfs + kernels
 buildmodes=('iso')                      # produce a bootable ISO (not netboot)
@@ -37,4 +35,6 @@ declare -A file_permissions=(
   ["/root"]="0:0:750"                                   # private root home
   ["/root/.automated_script.sh"]="0:0:755"              # live-session autostart (run by ~/.zlogin)
   ["/etc/shadow"]="0:0:0400"
+  ["/usr/local/bin/koompi-install"]="0:0:755"
+  ["/usr/share/koompi/firstboot/firstboot"]="0:0:755"
 )

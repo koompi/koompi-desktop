@@ -1,0 +1,26 @@
+{
+    "archinstall-language": "English",
+    "app_config": {
+        "audio_config": { "audio": "pipewire" },
+        "bluetooth_config": { "enabled": true }
+    },
+    "bootloader_config": { "bootloader": "Grub", "uki": false, "removable": true },
+    "hostname": "koompi",
+    "kernels": ["linux"],
+    "locale_config": { "kb_layout": "us", "sys_enc": "UTF-8", "sys_lang": "en_US.UTF-8" },
+    "network_config": { "type": "nm" },
+    "ntp": true,
+    "packages": [],
+    "pacman_config": { "color": true, "parallel_downloads": 5 },
+    "profile_config": {
+        "gfx_driver": "All open-source",
+        "greeter": "sddm",
+        "profile": {
+            "main": "Desktop",
+            "details": ["KOOMPI Hyprland"],
+            "path": "/usr/share/koompi/archinstall/koompi_hyprland.py"
+        }
+    },
+    "swap": { "enabled": true, "algorithm": "zstd" },
+    "timezone": "Asia/Phnom_Penh"
+}

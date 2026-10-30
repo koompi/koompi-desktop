@@ -43,7 +43,7 @@ case "\$1 \$2" in
 esac
 SH
 chmod +x "$tmp/bin/gh"
-: > "$tmp/out/koompi-2026.08.25-x86_64.iso"
+: > "$tmp/out/koompi-hyprland-2026.08.25-x86_64.iso"
 : > "$tmp/out/SHA256SUMS"
 
 publish() {
@@ -57,16 +57,16 @@ publish 89abcdef0123456789abcdef0123456789abcdef > "$tmp/run2.log" 2>&1 \
 publish 89abcdef0123456789abcdef0123456789abcdef > "$tmp/run3.log" 2>&1 \
     || { cat "$tmp/run3.log" >&2; fail "re-running the same commit failed"; }
 
-grep -q '^release create iso-koompi-2026.08.25-x86_64-0123456 ' "$tmp/gh.log" \
+grep -q '^release create iso-koompi-hyprland-2026.08.25-x86_64-0123456 ' "$tmp/gh.log" \
     || fail "the first tag does not carry the ISO version and the short commit"
-grep -q '^release create iso-koompi-2026.08.25-x86_64-89abcde ' "$tmp/gh.log" \
+grep -q '^release create iso-koompi-hyprland-2026.08.25-x86_64-89abcde ' "$tmp/gh.log" \
     || fail "the second build the same day did not get a tag of its own"
-grep -q '^release upload iso-koompi-2026.08.25-x86_64-89abcde .*--clobber' "$tmp/gh.log" \
+grep -q '^release upload iso-koompi-hyprland-2026.08.25-x86_64-89abcde .*--clobber' "$tmp/gh.log" \
     || fail "re-running the same commit did not upload over its own release"
 (( $(grep -c '^release create' "$tmp/gh.log") == 2 )) \
     || fail "expected exactly two 'release create' calls, got: $(grep -c '^release create' "$tmp/gh.log")"
 grep -q -- '--repo koompi/koompi-desktop' "$tmp/gh.log" || fail "the repo flag was lost"
-grep -q -- 'koompi-2026.08.25-x86_64.iso SHA256SUMS' "$tmp/gh.log" || fail "the ISO and checksum are not both attached"
+grep -q -- 'koompi-hyprland-2026.08.25-x86_64.iso SHA256SUMS' "$tmp/gh.log" || fail "the ISO and checksum are not both attached"
 
 (( failed == 0 )) || exit 1
 echo "ok: same-day ISO builds get distinct tags and a re-run replaces its own assets"
