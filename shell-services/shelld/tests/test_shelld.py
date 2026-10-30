@@ -300,6 +300,7 @@ def test_the_network_state_carries_what_the_qml_binds_to():
         "network_strength",
         "captive_portal",
         "connectivity",
+        "nm_connectivity",
     ):
         check(field in state, "network state carries %s" % field)
 

@@ -47,15 +47,25 @@ Singleton {
     // openPublicWifiPortal exists at all.
     readonly property bool captivePortal: root.state?.captive_portal ?? false
 
+    // Joined to a network, whether or not NetworkManager's internet check passed. That
+    // check is a plain-HTTP fetch, so a network that blocks port 80 reads as limited
+    // while the web works over HTTPS. The glyph shows the link, as it already does for
+    // a cable, whose state never looked at the check.
+    readonly property bool linked: root.ethernet || (root.wifiEnabled && (root.wifiStatus === "connected" || root.wifiStatus === "limited"))
+
+    // The daemon's own reading of the associated AP, which is there before the scan
+    // list that `active` comes from has landed.
+    readonly property int linkStrength: root.active?.strength ?? root.networkStrength
+
     property string materialSymbol: root.ethernet
         ? "lan"
-        : (root.wifiEnabled && root.wifiStatus === "connected")
+        : root.linked
             ? (
-                (root.active?.strength ?? 0) > 83 ? "signal_wifi_4_bar" :
-                (root.active?.strength ?? 0) > 67 ? "network_wifi" :
-                (root.active?.strength ?? 0) > 50 ? "network_wifi_3_bar" :
-                (root.active?.strength ?? 0) > 33 ? "network_wifi_2_bar" :
-                (root.active?.strength ?? 0) > 17 ? "network_wifi_1_bar" :
+                root.linkStrength > 83 ? "signal_wifi_4_bar" :
+                root.linkStrength > 67 ? "network_wifi" :
+                root.linkStrength > 50 ? "network_wifi_3_bar" :
+                root.linkStrength > 33 ? "network_wifi_2_bar" :
+                root.linkStrength > 17 ? "network_wifi_1_bar" :
                 "signal_wifi_0_bar"
             )
             : (root.wifiStatus === "connecting")

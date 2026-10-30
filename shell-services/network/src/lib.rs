@@ -12,6 +12,8 @@
 //!   terse output loses the bytes before the shell ever sees them.
 //! - `Connectivity` distinguishes a captive portal from a working link.
 //!   `Network.qml:85` opens `nmcheck.gnome.org` because it cannot.
+//! - A network that blocks plain HTTP fails NetworkManager's check and reads `Limited`
+//!   while HTTPS works; [`probe`] tries the check host on 443 before believing it.
 //! - The security label comes from the `Flags` / `WpaFlags` / `RsnFlags` triple, so a
 //!   consumer can ask whether a network wants a passphrase or an EAP identity, not just
 //!   read the string nmcli would have printed.
@@ -34,6 +36,7 @@
 pub mod ap;
 pub mod enums;
 pub mod model;
+pub mod probe;
 mod props;
 pub mod proxy;
 pub mod refresh;

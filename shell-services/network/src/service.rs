@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use futures_util::StreamExt;
 use koompi_service::{drain, Backoff, Error, PollRate, Result, Service};
-use tokio::sync::{broadcast, watch};
+use tokio::sync::{broadcast, mpsc, watch};
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
 use zbus::fdo::PropertiesProxy;
@@ -22,6 +22,7 @@ use crate::enums::{
     ActivationReason, ActiveState, Connectivity, DeviceState, DeviceType, NmState, WifiStatus,
 };
 use crate::model::{ActiveConnection, Device, NetworkState, WiredDevice};
+use crate::probe::{https_target, reachable, PROBE_INTERVAL};
 use crate::props::{self, Props};
 use crate::proxy::{
     ActiveConnectionEventsProxy, ActiveConnectionProxy, ConnectionSettings, DeviceWirelessProxy,
@@ -444,6 +445,10 @@ impl Worker {
         let mut touched: Vec<String> = Vec::new();
         let mut deadline: Option<Instant> = None;
 
+        let (probed_tx, mut probed) = mpsc::unbounded_channel();
+        let mut probe = Probe::default();
+        probe.arm(&state);
+
         loop {
             tokio::select! {
                 signal = signals.next() => {
@@ -467,6 +472,19 @@ impl Worker {
                     apply(&self.ctx, &mut state, refresh, &paths).await?;
                     self.publish(state.clone());
                     let _ = self.refreshes.send(refresh);
+                    probe.arm(&state);
+                }
+                () = sleep_until(probe.due()) => {
+                    probe.start(&state, &probed_tx);
+                }
+                Some(reached) = probed.recv() => {
+                    probe.finished(Instant::now() + self.rate().interval(PROBE_INTERVAL));
+                    // NetworkManager may have changed its mind while the connect ran
+                    if state.connectivity == Connectivity::Limited {
+                        state.https_reachable = reached;
+                        recompute(&mut state);
+                        self.publish(state.clone());
+                    }
                 }
             }
         }
@@ -490,6 +508,49 @@ impl Worker {
             *current = next;
             true
         });
+    }
+}
+
+/// When the 443 probe runs: as soon as NetworkManager reports `Limited`, then once per
+/// [`PROBE_INTERVAL`] while it stays there, never two at once.
+#[derive(Default)]
+struct Probe {
+    next: Option<Instant>,
+    running: bool,
+}
+
+impl Probe {
+    fn arm(&mut self, state: &NetworkState) {
+        if state.connectivity != Connectivity::Limited {
+            self.next = None;
+        } else if self.next.is_none() && !self.running {
+            self.next = Some(Instant::now());
+        }
+    }
+
+    fn due(&self) -> Option<Instant> {
+        if self.running {
+            None
+        } else {
+            self.next
+        }
+    }
+
+    fn start(&mut self, state: &NetworkState, done: &mpsc::UnboundedSender<bool>) {
+        self.next = None;
+        let Some(target) = https_target(&state.check_uri) else {
+            return;
+        };
+        self.running = true;
+        let done = done.clone();
+        tokio::spawn(async move {
+            let _ = done.send(reachable(&target).await);
+        });
+    }
+
+    fn finished(&mut self, next: Instant) {
+        self.running = false;
+        self.next = Some(next);
     }
 }
 
@@ -605,6 +666,7 @@ async fn apply(
             state.state = NmState::from_u32(props::u32_at(&manager, "State").unwrap_or(0));
             state.connectivity =
                 Connectivity::from_u32(props::u32_at(&manager, "Connectivity").unwrap_or(0));
+            state.check_uri = props::text(&manager, "ConnectivityCheckUri").unwrap_or_default();
             state.wifi.enabled = props::boolean(&manager, "WirelessEnabled").unwrap_or(false);
         }
         if refresh.active {
@@ -791,10 +853,14 @@ fn recompute(state: &mut NetworkState) {
     });
     state.wifi.active = state.wifi.networks.iter().find(|ap| ap.active).cloned();
 
+    // a probe result is only ever about the `Limited` it was run for
+    if state.connectivity != Connectivity::Limited {
+        state.https_reachable = false;
+    }
     state.wifi.status = WifiStatus::derive(
         state.wifi.present && state.wifi.enabled,
         state.wifi.device_state,
-        state.connectivity,
+        state.effective_connectivity(),
     );
     state.wifi.connecting = state.wifi.device_state.connecting();
     state.wifi.connect_target = connect_target(state);
@@ -1089,6 +1155,73 @@ mod tests {
         assert_eq!(state.network_strength(), 20);
         assert!(!state.wifi.connecting);
         assert!(state.wifi.connect_target.is_none());
+    }
+
+    #[test]
+    fn the_probe_runs_when_limited_arrives_and_then_once_per_interval() {
+        let mut state = NetworkState::default();
+        let mut probe = Probe::default();
+        probe.arm(&state);
+        assert_eq!(probe.due(), None);
+
+        state.connectivity = Connectivity::Limited;
+        probe.arm(&state);
+        assert!(probe.due().is_some_and(|due| due <= Instant::now()));
+
+        // what `start` leaves behind when there is a host to try
+        probe.next = None;
+        probe.running = true;
+        probe.arm(&state);
+        assert_eq!(probe.due(), None, "never two at once");
+
+        let later = Instant::now() + PROBE_INTERVAL;
+        probe.finished(later);
+        probe.arm(&state);
+        assert_eq!(probe.due(), Some(later));
+
+        state.connectivity = Connectivity::Full;
+        probe.arm(&state);
+        assert_eq!(probe.due(), None);
+    }
+
+    #[test]
+    fn no_check_uri_means_no_probe_rather_than_one_stuck_running() {
+        let state = NetworkState {
+            connectivity: Connectivity::Limited,
+            ..NetworkState::default()
+        };
+        let (done, _rx) = mpsc::unbounded_channel();
+        let mut probe = Probe::default();
+        probe.arm(&state);
+        probe.start(&state, &done);
+        assert!(!probe.running);
+        assert_eq!(probe.due(), None);
+    }
+
+    /// A network that blocks plain HTTP, and what happens when it stops being one.
+    #[test]
+    fn a_probe_result_does_not_outlive_the_limited_it_was_run_for() {
+        let mut state = NetworkState {
+            available: true,
+            connectivity: Connectivity::Limited,
+            https_reachable: true,
+            ..NetworkState::default()
+        };
+        state.wifi.present = true;
+        state.wifi.enabled = true;
+        state.wifi.device_state = DeviceState::Activated;
+        recompute(&mut state);
+        assert_eq!(state.wifi.status, WifiStatus::Connected);
+        assert!(state.connected());
+
+        state.connectivity = Connectivity::Full;
+        recompute(&mut state);
+        assert!(!state.https_reachable);
+
+        state.connectivity = Connectivity::Limited;
+        recompute(&mut state);
+        assert_eq!(state.wifi.status, WifiStatus::Limited);
+        assert!(!state.connected());
     }
 
     #[test]
