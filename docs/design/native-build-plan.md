@@ -1,6 +1,6 @@
 # Native build: Rust for services, Zig for tools
 
-Status: **plan**, written 2026-10-15. N1 is merged on `dev`; nothing else has started.
+Status: **plan**, written 2026-10-15. N1 is merged on `dev`; nothing else has started. D1, D2 and D3 are decided.
 Goal: each native part has one language, one build and one package, and both install routes ship the same programs.
 Services keep running when the shell restarts, the shell stops polling for what a service can push, and every change is measured.
 
@@ -72,16 +72,19 @@ This is an estimate; N0 measures it.
    | 60 s | `StartupApps.qml:19` | `koompi-startup-apps scan`, even while locked |
    | 60 ms | `SnapPreview.qml:144` | `hyprctl cursorpos`, during a drag |
 
-## Decisions needed
+## Decisions
 
-- **D1, audio.** (a) Delete `audiod` and the `audio` crate, and keep Quickshell's in-process PipeWire, which works today and costs no process. (b) Wire `audiod` and the `audio` crate into `shelld`: a crash in libpipewire then cannot take the shell down, at the cost of one process and a protocol hop.
-  **Recommendation: (a), unless a crash is traced to the shell's PipeWire code.**
-  The 47 shell crashes on record are mostly test probes, and none kept a stack, so nothing is traced either way yet.
-- **D2, where the menu registrar lives.** (a) A crate inside `shelld`. (b) A separate user service.
-  **Recommendation: (a).** It is one process fewer and shares one D-Bus connection. `koompi-globalmenu-core` is already a library crate.
-- **D3, the unwired crates.** Is a non-Quickshell toolkit still planned (`docs/design/smithay-study.md`)?
-  - If not: wire `mpris`, which ends the `playerctl` fork; wire `session` if N6 needs it; delete the rest.
-  - If it is: keep them, but gate them out of the default test build.
+- **D1, audio. Decided 2026-10-15: (a).** Delete `audiod` and the `audio` crate, and keep Quickshell's in-process PipeWire, which works today and costs no process.
+  The alternative was wiring `audiod` into `shelld`, so a crash in libpipewire could not take the shell down, at the cost of one process and a protocol hop.
+  Revisit only if a shell crash is traced to its PipeWire code: the 47 shell crashes on record are mostly test probes, and none kept a stack.
+- **D2, where the menu registrar lives. Decided 2026-10-15: (a), a crate inside `shelld`.**
+  It is one process fewer and shares one D-Bus connection. `koompi-globalmenu-core` is already a library crate.
+- **D3, the unwired crates. Decided 2026-10-16: delete, except `mpris` and maybe `session`.**
+  The only non-Quickshell toolkit on record is KOOMPI SD (Otto, `docs/design/smithay-study.md`), parked since 2026-08-26, and Otto draws its own topbar.
+  - `mpris`: wire it in N6. It ends the 3 s `playerctl` fork.
+  - `session`: keep until N6 decides whether lock and idle come from it, then wire it or delete it.
+  - `tray`, `notifications`, `audio` (D1): delete in N4. Quickshell's own tray and notification server work, and a crate with no consumer only meets tests, so nothing catches it drifting from the protocol.
+    Git keeps them at `f7f8290df` if SD comes back.
 
 ## Phases
 
