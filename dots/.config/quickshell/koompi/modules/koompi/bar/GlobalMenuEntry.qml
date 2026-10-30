@@ -13,15 +13,16 @@ Item {
 
     required property var entry
     required property var menu
+    required property BarScheme scheme // the bar's: the menu is a piece of its glass
     property bool keyHighlighted: false
 
     readonly property bool isSeparator: entry.sep ?? false
     readonly property bool hasChildren: menu.hasChildrenFor(entry)
     readonly property bool showsToggle: entry.toggle ?? false
     readonly property bool selected: !isSeparator && enabled && (hoverHandler.hovered || keyHighlighted)
-    readonly property color selectionColor: Appearance.m3colors.darkmode ? "#34775e" : "#277858"
-    readonly property color foregroundColor: selected ? "#ffffff" : Appearance.colors.colOnLayer0
-    readonly property color secondaryColor: selected ? Qt.rgba(1, 1, 1, 0.78) : Appearance.colors.colSubtext
+    readonly property color selectionColor: scheme.lightText ? "#34775e" : "#277858"
+    readonly property color foregroundColor: selected ? "#ffffff" : scheme.fg
+    readonly property color secondaryColor: selected ? Qt.rgba(1, 1, 1, 0.78) : scheme.subtext
 
     signal triggered
     signal openChildren
@@ -61,7 +62,7 @@ Item {
             rightMargin: 8
         }
         height: 1
-        color: Appearance.m3colors.darkmode
+        color: root.scheme.lightText
             ? Qt.rgba(1, 1, 1, 0.13)
             : Qt.rgba(0, 0, 0, 0.12)
     }

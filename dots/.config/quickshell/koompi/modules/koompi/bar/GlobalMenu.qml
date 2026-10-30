@@ -105,9 +105,9 @@ Item {
         root.openIdx = -1;
     }
 
-    // Quickshell 0.2.1 can crash if a live PopupWindow's anchor item changes in
-    // place. Tear down the old popup first, update the top-level selection on a
-    // later event turn, then recreate the popup against the new stable anchor.
+    // A popup is placed once, from its anchor, and its highlight and open submenu
+    // belong to that title. Tear down the old popup first, update the top-level
+    // selection on a later event turn, then recreate it against the new anchor.
     function switchTopLevel(index) {
         if (root.openIdx === index)
             return;

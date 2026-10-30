@@ -74,6 +74,13 @@ The update badge is deliberately not part of any panel button: it used to sit in
 It is its own item with its own hit area, shows a glyph and never a count, and the upgrade runs only from the popup's Update now button, which opens a floating terminal running `koompi update` through Hyprland's Lua `hl.dsp.exec_cmd`.
 A bar popup hangs under the widget it belongs to and is clamped to the screen the bar is on, so the clock at the far right gets a popup that ends at the screen edge instead of running off it.
 
+The menus that hang from the bar itself, the app's own (File, Edit, View) and the window actions under the app's name, are cut from the bar's glass (`GlobalMenuPopup.qml`).
+They take the bar's tone and tint, and its text colours, flipped as well: when the bar turns to dark text on light glass over a bright wallpaper, its menus turn with it.
+They are layers (`quickshell:barMenu`), not popups of the bar, because Hyprland blurs a layer from the wallpaper, as it blurs the bar, and a popup through the window under it; as a popup the same tint over a white window came out a different colour from the bar.
+The bar's tint is the least that keeps its text at 4.5:1 over the strip of wallpaper under it (`BarTone`), and a menu reaches further down, so the same pass measures the wallpaper in ten bands and a menu's tint rises from the bar's to what the bands under it ask, up to solid.
+A solid bar gives its menus its solid colour, and a bar drawn with no background still gives them that colour.
+The top level sits flush under its title, with the border row on the shared edge outside the surface; a submenu opens beside its entry and turns to the left of it where the screen ends.
+
 The bar's right end reads, left to right: tray extras (tray, media, agent usage, a running pomodoro), the mode lights (recording, microphone in use, mic muted, volume muted, keep awake, night light, Do Not Disturb, dictation), the update glyph, the input source, Wi-Fi, the battery as a glyph with its percent, the sliders glyph, the bell, the clock.
 Every one is its own hit area, and every one answers a click; a glyph that only shows a tooltip reads as broken.
 The sliders glyph, the bell and the clock open the right panel. The bell carries the unread dot on its corner, so the bar does not shift when a notification arrives; Do Not Disturb has its own mode light and leaves the bell as it is. Wi-Fi opens it with the network list dropped down, the battery on its battery page, and the microphone-in-use light on the sound list; a second click closes it.
@@ -410,8 +417,8 @@ Conformance as of 2026-07-30:
 | Bar popups | dismissable while keyboard-opened or click-pinned | `OnDemand` while keyboard-opened, so `Escape` reaches it |
 | Cheatsheet | dismissable | gated on `cheatsheetOpen` |
 | On-screen keyboard | persistent, correctly | commented out |
-| Global menu | own `HyprlandFocusGrab` over the bar and every open popup | bar takes focus only while a menu is open |
-| Window actions menu | own `HyprlandFocusGrab` over the bar and every open popup | bar takes focus only while a menu is open |
+| Global menu | own `HyprlandFocusGrab` over the bar and every open menu layer | bar takes focus only while a menu is open; each menu layer `OnDemand` |
+| Window actions menu | own `HyprlandFocusGrab` over the bar and every open menu layer | bar takes focus only while a menu is open; each menu layer `OnDemand` |
 | Snap preview | none needed, empty input mask | `None` |
 | Workspace hint | none, dismissed by its own button only | `None` |
 | Launchpad | none needed, see below | gated on `launchpadOpen`, `Exclusive` |
