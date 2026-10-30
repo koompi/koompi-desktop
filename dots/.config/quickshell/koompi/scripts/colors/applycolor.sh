@@ -48,6 +48,22 @@ apply_kitty() {
   pkill -USR1 -x kitty || true
 }
 
+# Konsole and wezterm ship a KOOMPI scheme of their own, which this palette
+# would repaint. The terminal is the parent of the pty's session leader, not
+# whatever the environment says: a terminal's variables reach everything
+# started from a shell inside it. config.fish asks the same question.
+keeps_own_scheme() {
+  local leader parent
+  leader="$(ps -o sid= -t "${1#/dev/}" 2>/dev/null | head -n1 | tr -d ' ')"
+  [[ -n "$leader" ]] || return 1
+  parent="$(ps -o ppid= -p "$leader" 2>/dev/null | tr -d ' ')"
+  [[ -n "$parent" ]] || return 1
+  case "$(ps -o comm= -p "$parent" 2>/dev/null)" in
+    konsole | wezterm-gui) return 0 ;;
+  esac
+  return 1
+}
+
 apply_anyterm() {
   # Check if terminal escape sequence template exists
   if [ ! -f "$SCRIPT_DIR/terminal/sequences.txt" ]; then
@@ -65,7 +81,7 @@ apply_anyterm() {
   sed -i "s/\$alpha/$term_alpha/g" "$STATE_DIR/user/generated/terminal/sequences.txt"
 
   for file in /dev/pts/*; do
-    if [[ $file =~ ^/dev/pts/[0-9]+$ ]]; then
+    if [[ $file =~ ^/dev/pts/[0-9]+$ ]] && ! keeps_own_scheme "$file"; then
       {
       cat "$STATE_DIR"/user/generated/terminal/sequences.txt >"$file"
       } & disown || true

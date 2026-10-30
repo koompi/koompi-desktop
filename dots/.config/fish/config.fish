@@ -12,8 +12,14 @@ if status is-interactive
         enable_transience
     end
     
-    # Colors
+    # Colors, except in a terminal with a KOOMPI scheme of its own (Konsole,
+    # wezterm), which the wallpaper palette would repaint. Asked of the
+    # parent of the session leader, not the environment: a terminal's
+    # variables reach everything started from a shell inside it.
+    set -l leader (ps -o sid= -p $fish_pid 2>/dev/null | string trim)
+    set -l terminal (ps -o comm= -p (ps -o ppid= -p $leader 2>/dev/null | string trim) 2>/dev/null)
     if test -f ~/.local/state/quickshell/user/generated/terminal/sequences.txt
+        and not contains -- "$terminal" konsole wezterm-gui
         cat ~/.local/state/quickshell/user/generated/terminal/sequences.txt
     end
 

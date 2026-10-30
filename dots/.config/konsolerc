@@ -8,4 +8,4 @@ ConfigVersion=1
 UseSingleInstance=true
 
 [UiSettings]
-ColorScheme=
+ColorScheme=KoompiMaterial
