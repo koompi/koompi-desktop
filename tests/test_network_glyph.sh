@@ -62,6 +62,9 @@ done < "$WORK/scenarios"
 sleep 30
 SH
 chmod +x "$WORK/bin/koompi-shelld"
+# the real easyeffects aborts in a test session, and each abort toasts the live desktop
+printf '#!/usr/bin/env bash\nexit 0\n' > "$WORK/bin/easyeffects"
+chmod +x "$WORK/bin/easyeffects"
 
 cat > "$WORK/shell/shell.qml" <<'QML'
 import QtQuick
