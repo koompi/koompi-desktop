@@ -18,9 +18,10 @@ setup_koompi_cli() {
     run mkdir -p "$build_root"
     # Keep generated objects and the install prefix out of the checkout. A
     # user's KOOMPI source tree should stay clean after every install/update.
-    run_in_dir "$src" zig build \
+    # The global cache by environment: zig 0.17's `zig build` no longer takes
+    # --global-cache-dir, and 0.16 reads the variable too.
+    ZIG_GLOBAL_CACHE_DIR="$XDG_CACHE_HOME/zig" run_in_dir "$src" zig build \
         --cache-dir "$build_root/cache" \
-        --global-cache-dir "$XDG_CACHE_HOME/zig" \
         --prefix "$build_root/out" \
         -Doptimize=ReleaseSafe
     run install -Dm755 "$binary" "$XDG_BIN_HOME/koompi"

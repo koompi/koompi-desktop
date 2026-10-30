@@ -16,7 +16,7 @@ mkdir -p "$stub" "$tmp/cache"
 cat > "$stub/zig" <<'STUB'
 #!/usr/bin/env bash
 [[ "$1" == version ]] && { echo 0.16.0; exit 0; }
-printf '%s\n' "$*" > "${ZIG_ARGS_FILE:?}"
+printf '%s\nZIG_GLOBAL_CACHE_DIR=%s\n' "$*" "${ZIG_GLOBAL_CACHE_DIR:-}" > "${ZIG_ARGS_FILE:?}"
 echo 'zig: simulated build failure' >&2
 exit 1
 STUB
@@ -46,5 +46,14 @@ status=$?
 grep -q 'REACHED-AFTER' "$tmp/out" && fail "the install went on after the CLI build failed: $(cat "$tmp/out")"
 grep -q 'koompi CLI installed' "$tmp/out" && fail "reported the CLI installed after its build failed"
 grep -q 'command failed: zig build' "$tmp/out" || fail "the zig failure never surfaced: $(cat "$tmp/out")"
+
+# zig 0.17's `zig build` rejects --global-cache-dir; the cache goes by environment
+grep -q -- '--global-cache-dir' "$tmp/zig-args" && fail "zig build got --global-cache-dir, which zig 0.17 rejects"
+grep -qx "ZIG_GLOBAL_CACHE_DIR=$tmp/cache/zig" "$tmp/zig-args" || fail "zig build ran without ZIG_GLOBAL_CACHE_DIR: $(cat "$tmp/zig-args")"
+# and b.args is gone in 0.17: a build.zig may only reach it behind the addPassthruArgs check
+for f in "$REPO_ROOT"/cli/build.zig; do
+    grep -q 'b\.args' "$f" && ! grep -q '@hasDecl(std.Build.Step.Run, "addPassthruArgs")' "$f" &&
+        fail "${f#"$REPO_ROOT"/} uses b.args unguarded; zig 0.17 removed it"
+done
 
 printf 'zig build abort test passed\n'

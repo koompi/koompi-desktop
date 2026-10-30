@@ -22,6 +22,9 @@ pub fn build(b: *std.Build) void {
 
     const run_command = b.addRunArtifact(executable);
     run_command.step.dependOn(b.getInstallStep());
-    if (b.args) |args| run_command.addArgs(args);
+    // zig 0.17 dropped b.args for addPassthruArgs; 0.16 has only b.args
+    if (@hasDecl(std.Build.Step.Run, "addPassthruArgs")) {
+        run_command.addPassthruArgs();
+    } else if (b.args) |args| run_command.addArgs(args);
     b.step("run", "Run the KOOMPI CLI").dependOn(&run_command.step);
 }
