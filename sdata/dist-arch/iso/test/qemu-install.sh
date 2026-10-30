@@ -43,6 +43,8 @@ uuid="$(blkid -p -o value -s UUID "$iso")"
 cp "$here/unattended.sh" "$work/unattended.sh"
 # what the first boot installs; unattended.sh fetches it from here
 printf 'ref=%q\nrepo=%q\napps=%q\n' "$ref" "$repo" "$apps" > "$work/test.env"
+# the live ISO tries every mirror in the world; the host's own list is quicker
+[[ -r /etc/pacman.d/mirrorlist ]] && cp /etc/pacman.d/mirrorlist "$work/mirrorlist"
 python3 -m http.server "$port" --bind 127.0.0.1 --directory "$work" >/dev/null 2>&1 &
 http=$!
 trap 'kill $http 2>/dev/null || true' EXIT

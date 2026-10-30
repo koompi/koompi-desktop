@@ -15,6 +15,7 @@ script_url="$(tr ' ' '\n' </proc/cmdline | sed -n 's/^script=//p')"
 curl -fsS "${script_url%/*}/test.env" -o /tmp/test.env
 # shellcheck source=/dev/null
 . /tmp/test.env
+curl -fsS "${script_url%/*}/mirrorlist" -o /tmp/mirrorlist && mv /tmp/mirrorlist /etc/pacman.d/mirrorlist || true
 disk=/dev/vda
 share=/usr/share/koompi/archinstall
 
@@ -32,17 +33,18 @@ fi
 partprobe "$disk"; udevadm settle
 root="${disk}2"
 mkfs.btrfs -f -L koompi "$root"
-mount "$root" /mnt
+mount -t btrfs "$root" /mnt
 btrfs subvolume create /mnt/@
 btrfs subvolume create /mnt/@home
 umount /mnt
-mount -o subvol=@,compress=zstd "$root" /mnt
+mount -t btrfs -o subvol=@,compress=zstd "$root" /mnt
 mkdir -p /mnt/home
-mount -o subvol=@home,compress=zstd "$root" /mnt/home
+mount -t btrfs -o subvol=@home,compress=zstd "$root" /mnt/home
 if [[ $firmware == uefi ]]; then
     mkfs.fat -F32 "${disk}1"
     mkdir -p /mnt/boot
-    mount "${disk}1" /mnt/boot
+    # by type: right after mkfs, blkid may not know it yet, and vfat is a module not yet loaded
+    mount -t vfat "${disk}1" /mnt/boot
 fi
 
 jq --arg pw koompi '. + {

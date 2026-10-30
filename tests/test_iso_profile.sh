@@ -37,5 +37,10 @@ for f in hostname locale.conf vconsole.conf; do
     [[ -s "$PROFILE/airootfs/etc/$f" ]] || fail "the live root has no /etc/$f; its boot stops to ask for it"
 done
 
+# pacman-mirrorlist ships every server commented out; without releng's hook
+# archinstall stops at "Failed to sync Arch Linux package database"
+grep -qs 'Target = pacman-mirrorlist' "$PROFILE/airootfs/etc/pacman.d/hooks/uncomment-mirrors.hook" \
+    || fail "no uncomment-mirrors.hook: the live mirrorlist has no server and nothing installs"
+
 [[ $failed -eq 0 ]] && echo "PASS: test_iso_profile"
 exit "$failed"
