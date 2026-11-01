@@ -16,7 +16,7 @@ Order in `setup`: deps, apps, `run_setups`, files, `setup_services`, `reload_ses
 | apps | `sdata/dist-<group>/install-apps.sh` | Arch: `koompi-kiri` (Kiri, built from github.com/koompiai/kiri at the commit pinned in its PKGBUILD; not in the repos or the AUR) then the `koompi-apps` metapackage (`ARCH_APP_PKGBUILDS`), and `mpvpaper` if you say yes. Asked once, skipped when `APP_CMDS` and `AGENT_CMDS` in `setup` are all present. |
 | agent tools | `sdata/install/agents.sh` | `codex` and `pi` through `npm install --global --prefix ~/.local/share/koompi/npm`, symlinked into `~/.local/bin`; Claude Code from `https://claude.ai/install.sh`; Herdr from `https://herdr.dev/install.sh`. |
 | python | `sdata/install/setups/python.sh` | `uv venv --system-site-packages ~/.local/state/quickshell/.venv`, then `sdata/uv/requirements.txt` into it. |
-| local ai | `sdata/install/setups/ai.sh` | `uv tool install litert-lm`; the 2.6 GB model only if you say yes; a loopback SearXNG container (docker, else podman) named `searxng` on `127.0.0.1:8888`. |
+| local ai | `sdata/install/setups/ai.sh` | `uv tool install litert-lm`; the 2.6 GB model only if you say yes, never under `-y` (the ISO's first boot runs one); a loopback SearXNG container (docker, else podman) named `searxng` on `127.0.0.1:8888`. |
 | firewall, zram | `sdata/install/setups/system.sh` | `ufw` and `zram-generator` if missing. |
 
 Build toolchains the setups look for and warn about, never install: zig 0.16.0 or newer, cargo 1.87 or newer, `uv`.

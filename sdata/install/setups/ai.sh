@@ -4,7 +4,9 @@
 # The sidebar's local model runs on LiteRT-LM, which serves an OpenAI-compatible
 # API on 127.0.0.1:9379. The CLI and the config land on every install; the 2.6 GB
 # of weights are asked for, because a desktop install has no business pulling
-# that down uninvited.
+# that down uninvited. An unattended install (-y, which the ISO's first boot
+# runs) leaves them out rather than taking the yes: it runs on a network nobody
+# has looked at, and the sidebar works on its remote model meanwhile.
 readonly LOCAL_AI_MODEL_ID=gemma4-e2b
 readonly LOCAL_AI_MODEL_REPO=litert-community/gemma-4-E2B-it-litert-lm
 readonly LOCAL_AI_MODEL_FILE=gemma-4-E2B-it.litertlm
@@ -26,9 +28,15 @@ setup_local_ai() {
     write_litert_lm_config
 
     if [[ "$DRY_RUN" != true ]] && ! litert-lm list 2>/dev/null | grep -q "$LOCAL_AI_MODEL_ID"; then
-        printf '\n  The sidebar answers offline once a model is on disk.\n'
-        printf '  %s is a 2.6 GB download.\n\n' "$LOCAL_AI_MODEL_ID"
-        if confirm "Download it now? (no = the sidebar stays on its remote model)"; then
+        local fetch=false
+        if [[ "$ASSUME_YES" == true ]]; then
+            info "unattended install: leaving out the 2.6 GB offline model"
+        else
+            printf '\n  The sidebar answers offline once a model is on disk.\n'
+            printf '  %s is a 2.6 GB download.\n\n' "$LOCAL_AI_MODEL_ID"
+            confirm "Download it now? (no = the sidebar stays on its remote model)" && fetch=true
+        fi
+        if [[ "$fetch" == true ]]; then
             run litert-lm import --from-huggingface-repo "$LOCAL_AI_MODEL_REPO" \
                 "$LOCAL_AI_MODEL_FILE" "$LOCAL_AI_MODEL_ID"
         else
