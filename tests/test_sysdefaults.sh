@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# koompi-sysdefaults is four defaults in eight vendor files: swap on zram,
+# koompi-sysdefaults is five defaults in nine vendor files: swap on zram,
 # systemd-oomd allowed to kill only the user manager's app.slice, a 5 s stop
-# timeout, and sysctls tuned for swap that lives in compressed RAM. Each is
+# timeout, sysctls tuned for swap that lives in compressed RAM, and a start
+# timeout on Arch's keyring refresh. Each is
 # inert if its file is misnamed, lands in the wrong directory, or carries a
 # key the reader does not know (systemd logs "Unknown key" and moves on;
 # sysctl -w rejects an unknown key outright), so the checks here are on the
@@ -34,7 +35,8 @@ STOP_SYSTEM=systemd/system.conf.d/10-koompi-faster-shutdown.conf
 STOP_USER=systemd/system/user@.service.d/10-koompi-faster-shutdown.conf
 PRESET=systemd/system-preset/80-koompi-sysdefaults.preset
 SYSCTL=sysctl.d/90-koompi.conf
-SHIPPED=("$ZRAM" "$ZSWAP" "$OOMD_SLICE" "$OOMD_CONF" "$STOP_SYSTEM" "$STOP_USER" "$PRESET" "$SYSCTL")
+KEYRING=systemd/system/archlinux-keyring-wkd-sync.service.d/10-koompi-timeout.conf
+SHIPPED=("$ZRAM" "$ZSWAP" "$OOMD_SLICE" "$OOMD_CONF" "$STOP_SYSTEM" "$STOP_USER" "$PRESET" "$SYSCTL" "$KEYRING")
 
 # 1. Every file says exactly what it must. Whole-line matches: a key with a
 #    typo or a stray suffix is what systemd ignores.
@@ -52,6 +54,7 @@ expect "$OOMD_CONF" 'DefaultMemoryPressureLimit=50%'
 expect "$OOMD_CONF" 'DefaultMemoryPressureDurationSec=20s'
 expect "$STOP_SYSTEM" 'DefaultTimeoutStopSec=5s'
 expect "$STOP_USER" 'TimeoutStopSec=5s'
+expect "$KEYRING" 'TimeoutStartSec=15min'
 expect "$PRESET" 'enable systemd-oomd.service'
 expect "$PRESET" 'enable ufw.service'
 expect "$PRESET" 'enable fwupd-refresh.timer'
@@ -142,7 +145,7 @@ grep -Fq 'systemctl --user daemon-reload' <<< "$fn" \
 grep -Fq 'systemctl restart systemd-sysctl.service' <<< "$fn" \
     || fail "setup_low_ram_defaults installs the sysctl drop-in without applying it; it would wait for a reboot"
 
-# 4. The built package: the eight files at their /usr/lib paths, the ufw
+# 4. The built package: the nine files at their /usr/lib paths, the ufw
 #    profile at its /etc path, nothing else, and the dependency recorded in
 #    the artifact.
 analyze_root="$tmp/root"
@@ -166,7 +169,7 @@ if command -v makepkg >/dev/null 2>&1; then
     { printf 'usr/lib/%s\n' "${SHIPPED[@]}"; printf '%s\n' "$UFW_PROFILE"; } | sort > "$tmp/want"
     grep -v '/$' "$tmp/listing" | grep -v '^\.' | sort > "$tmp/got"
     diff -u "$tmp/want" "$tmp/got" >&2 \
-        || fail "the package does not ship exactly the eight drop-ins and the ufw profile"
+        || fail "the package does not ship exactly the nine drop-ins and the ufw profile"
     bsdtar -xOf "$pkg" .PKGINFO | grep -Fxq 'depend = zram-generator' \
         || fail "the built package does not record the zram-generator dependency"
 
@@ -226,6 +229,15 @@ if [[ -f /usr/lib/systemd/system/user@.service ]]; then
 else
     echo "skip: no stock user@.service here; its drop-in checked by cat-config only"
     cat_config systemd/system/user@.service.d 'TimeoutStopSec=5s'
+fi
+# Arch's own unit, so the drop-in is parsed against what it attaches to.
+if [[ -f /usr/lib/systemd/system/archlinux-keyring-wkd-sync.service ]]; then
+    install -Dm644 /usr/lib/systemd/system/archlinux-keyring-wkd-sync.service \
+        "$analyze_root/usr/lib/systemd/system/archlinux-keyring-wkd-sync.service"
+    verify system verify archlinux-keyring-wkd-sync.service
+else
+    echo "skip: no archlinux-keyring here; its drop-in checked by cat-config only"
+    cat_config systemd/system/archlinux-keyring-wkd-sync.service.d 'TimeoutStartSec=15min'
 fi
 
 echo "ok test_sysdefaults.sh"

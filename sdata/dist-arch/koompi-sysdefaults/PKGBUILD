@@ -1,6 +1,7 @@
 # koompi-sysdefaults — system defaults for small machines on school Wi-Fi: swap
 # on zram, systemd-oomd that may kill only user app scopes, a 5 s stop timeout,
-# and ufw profiles for the two LAN peers the ingress default-deny lets through.
+# a 15 min start timeout on Arch's weekly keyring refresh, and ufw profiles for
+# the two LAN peers the ingress default-deny lets through.
 #
 # files/ mirrors /. Everything under /usr/lib is a vendor drop-in an admin
 # overrides from /etc. The ufw profile has to live in /etc/ufw/applications.d:
@@ -12,8 +13,8 @@
 groups=(koompi)
 pkgname=koompi-sysdefaults
 pkgver=1.0
-pkgrel=3
-pkgdesc='KOOMPI OS system defaults: zram swap, systemd-oomd scoped to apps, 5 s stop timeout, ufw profiles'
+pkgrel=4
+pkgdesc='KOOMPI OS system defaults: zram swap, systemd-oomd scoped to apps, 5 s stop timeout, keyring refresh timeout, ufw profiles'
 arch=(any)
 url='https://github.com/koompi/koompi-desktop'
 license=(GPL-3.0-only)

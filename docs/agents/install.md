@@ -65,7 +65,7 @@ Also written:
 | groups `video`, `input`, `i2c` for the user (`i2c` created if absent) | same | needs a new login |
 | `/usr/lib/systemd/system-sleep/koompi-btintel-pcie` | `setup_suspend_hook` | drops `btintel_pcie` around suspend; a no-op where the module is not loaded |
 | whatever `dots/.local/share/koompi/libexec/apply-hardware` decides from `sdata/hardware/` (DMI-gated quirks, log in `/var/log/koompi/hardware.log`) | `setup_hardware_quirks` | per-machine fixes |
-| `/usr/local/lib/...` copies of `sdata/dist-arch/koompi-sysdefaults/files/usr/lib` (zram, oomd, 5 s stop timeout) | `setup_low_ram_defaults` | low-RAM survival |
+| `/usr/local/lib/...` copies of `sdata/dist-arch/koompi-sysdefaults/files/usr/lib` (zram, oomd, 5 s stop timeout, 15 min start timeout on `archlinux-keyring-wkd-sync`) | `setup_low_ram_defaults` | low-RAM survival; a keyring refresh that cannot hang |
 | the output of `libexec/hibernation-setup` (btrfs swapfile, resume hook, kernel command line) | `setup_hibernation` | refuses with exit 0 off btrfs or without mkinitcpio |
 | ufw rules: deny incoming, allow 1714-1764 tcp and udp, 53317 tcp and udp, ssh if sshd is active | `setup_firewall_defaults` | skipped if firewalld is active |
 | `/usr/local/bin/koompi-session`, `/usr/share/wayland-sessions/koompi.desktop`, `/usr/share/koompi/wayland-sessions/koompi.desktop` (symlink), `/etc/sddm.conf.d/20-koompi-session.conf` | `setup_system_session` | login entry; never overwrites a file that is not KOOMPI-managed; `/usr/bin/koompi-session` from the package wins |

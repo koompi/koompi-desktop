@@ -97,13 +97,14 @@ setup_hardware_quirks() {
 }
 
 # Swap on zram, systemd-oomd allowed to kill only user app scopes, and a 5 s
-# stop timeout: what keeps a 4 GB machine's session alive under pressure. The
-# ISO gets them from the koompi-sysdefaults package; this installs the same
+# stop timeout: what keeps a 4 GB machine's session alive under pressure. A
+# start timeout on Arch's keyring refresh rides along, as it lives in the same
+# package. The ISO gets them from the koompi-sysdefaults package; this installs the same
 # files under /usr/local/lib, which systemd and zram-generator read with the
 # same precedence as /usr/lib and which pacman never owns, so installing the
 # package later cannot collide. The reasons live in the files themselves.
 setup_low_ram_defaults() {
-    step "Low-RAM defaults (zram, oomd, fast shutdown)"
+    step "Low-RAM defaults (zram, oomd, fast shutdown) and the keyring refresh timeout"
     systemd_running || { info "no running systemd; skipping"; return 0; }
 
     # Collected first: run() prompts on stdin when a command fails, and inside
