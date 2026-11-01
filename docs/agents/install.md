@@ -16,7 +16,7 @@ Order in `setup`: deps, apps, `run_setups`, files, `setup_services`, `reload_ses
 | apps | `sdata/dist-<group>/install-apps.sh` | Arch: `koompi-kiri` (Kiri, built from github.com/koompiai/kiri at the commit pinned in its PKGBUILD; not in the repos or the AUR) then the `koompi-apps` metapackage (`ARCH_APP_PKGBUILDS`), and `mpvpaper` if you say yes. Asked once, skipped when `APP_CMDS` and `AGENT_CMDS` in `setup` are all present. |
 | agent tools | `sdata/install/agents.sh` | `codex` and `pi` through `npm install --global --prefix ~/.local/share/koompi/npm`, symlinked into `~/.local/bin`; Claude Code from `https://claude.ai/install.sh`; Herdr from `https://herdr.dev/install.sh`. |
 | python | `sdata/install/setups/python.sh` | `uv venv --system-site-packages ~/.local/state/quickshell/.venv`, then `sdata/uv/requirements.txt` into it. |
-| local ai | `sdata/install/setups/ai.sh` | `uv tool install litert-lm`; the 2.6 GB model only if you say yes; a loopback SearXNG container (docker, else podman) named `searxng` on `127.0.0.1:8888`. |
+| local ai | `sdata/install/setups/ai.sh` | `uv tool install litert-lm`; the 2.6 GB model only if you say yes, never under `-y` (the ISO's first boot runs one); a loopback SearXNG container (docker, else podman) named `searxng` on `127.0.0.1:8888`. |
 | firewall, zram | `sdata/install/setups/system.sh` | `ufw` and `zram-generator` if missing. |
 
 Build toolchains the setups look for and warn about, never install: zig 0.16.0 or newer, cargo 1.87 or newer, `uv`.
@@ -65,7 +65,7 @@ Also written:
 | groups `video`, `input`, `i2c` for the user (`i2c` created if absent) | same | needs a new login |
 | `/usr/lib/systemd/system-sleep/koompi-btintel-pcie` | `setup_suspend_hook` | drops `btintel_pcie` around suspend; a no-op where the module is not loaded |
 | whatever `dots/.local/share/koompi/libexec/apply-hardware` decides from `sdata/hardware/` (DMI-gated quirks, log in `/var/log/koompi/hardware.log`) | `setup_hardware_quirks` | per-machine fixes |
-| `/usr/local/lib/...` copies of `sdata/dist-arch/koompi-sysdefaults/files/usr/lib` (zram, oomd, 5 s stop timeout) | `setup_low_ram_defaults` | low-RAM survival |
+| `/usr/local/lib/...` copies of `sdata/dist-arch/koompi-sysdefaults/files/usr/lib` (zram, oomd, 5 s stop timeout, 15 min start timeout on `archlinux-keyring-wkd-sync`) | `setup_low_ram_defaults` | low-RAM survival; a keyring refresh that cannot hang |
 | the output of `libexec/hibernation-setup` (btrfs swapfile, resume hook, kernel command line) | `setup_hibernation` | refuses with exit 0 off btrfs or without mkinitcpio |
 | ufw rules: deny incoming, allow 1714-1764 tcp and udp, 53317 tcp and udp, ssh if sshd is active | `setup_firewall_defaults` | skipped if firewalld is active |
 | `/usr/local/bin/koompi-session`, `/usr/share/wayland-sessions/koompi.desktop`, `/usr/share/koompi/wayland-sessions/koompi.desktop` (symlink), `/etc/sddm.conf.d/20-koompi-session.conf` | `setup_system_session` | login entry; never overwrites a file that is not KOOMPI-managed; `/usr/bin/koompi-session` from the package wins |
